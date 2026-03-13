@@ -620,7 +620,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         <div><label class="form-label">Year</label><input class="form-input" type="number" id="veh-year" required min="1990" max="2030" placeholder="2022"/></div>
       </div>
       <div class="grid grid-cols-2 gap-4 mb-4">
-        <div><label class="form-label">VIN (optional)</label><input class="form-input" id="veh-vin" placeholder="17-character VIN"/></div>
+        <div><label class="form-label">VIN / Chassis Number</label><input class="form-input" id="veh-vin" placeholder="17-character VIN / Chassis Number"/></div>
         <div><label class="form-label">Engine Number</label><input class="form-input" id="veh-engine" placeholder="Engine number"/></div>
       </div>
       <div class="grid grid-cols-1 gap-4 mb-6">
