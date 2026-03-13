@@ -319,6 +319,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
             <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
             <input class="search-input" type="text" placeholder="Search vehicles…" oninput="filterVehicles(this.value)"/>
           </div>
+          <button class="btn-secondary" onclick="showFleetUploadModal()"><i class="fas fa-file-upload"></i> Upload Fleet</button>
           <button class="btn-primary" onclick="showNewVehicleModal()"><i class="fas fa-plus"></i> Add Vehicle</button>
         </div>
       </div>
@@ -631,6 +632,89 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         <button type="submit" class="btn-primary"><i class="fas fa-save"></i> Add Vehicle</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- Fleet Upload Modal -->
+<div id="modal-fleetUpload" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:760px">
+    <div class="flex items-center justify-between mb-5">
+      <div>
+        <h3 class="text-xl font-bold text-gray-900"><i class="fas fa-truck text-blue-500 mr-2"></i>Upload Fleet</h3>
+        <p class="text-sm text-gray-500 mt-0.5">Import multiple vehicles for a corporate customer via CSV</p>
+      </div>
+      <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-fleetUpload')"><i class="fas fa-times"></i></button>
+    </div>
+
+    <!-- Step 1: Select Corporate Customer -->
+    <div class="mb-5">
+      <label class="form-label">Corporate Customer <span class="text-red-500">*</span></label>
+      <select class="form-input" id="fleet-customerId" onchange="onFleetCustomerChange()">
+        <option value="">Select corporate customer…</option>
+      </select>
+    </div>
+
+    <!-- Step 2: CSV Instructions + Download Template -->
+    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-5">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <p class="text-sm font-semibold text-blue-800 mb-1"><i class="fas fa-info-circle mr-1"></i>CSV Format</p>
+          <p class="text-xs text-blue-700 mb-2">Required columns: <code class="bg-blue-100 px-1 rounded">registration_number, make, model, year</code></p>
+          <p class="text-xs text-blue-700">Optional columns: <code class="bg-blue-100 px-1 rounded">vin, engine_number, insurer</code></p>
+        </div>
+        <button class="flex-shrink-0 btn-secondary text-xs px-3 py-2" onclick="downloadFleetTemplate()">
+          <i class="fas fa-download mr-1"></i>Download Template
+        </button>
+      </div>
+    </div>
+
+    <!-- Step 3: Drop Zone -->
+    <div id="fleet-dropzone" class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-all mb-5"
+         onclick="document.getElementById('fleet-fileInput').click()"
+         ondragover="fleetDragOver(event)" ondragleave="fleetDragLeave(event)" ondrop="fleetDrop(event)">
+      <i class="fas fa-cloud-upload-alt text-4xl text-gray-300 mb-3 block"></i>
+      <p class="text-sm font-semibold text-gray-600">Drop CSV file here or <span class="text-blue-500 underline">browse</span></p>
+      <p class="text-xs text-gray-400 mt-1">Supports .csv files only</p>
+      <input type="file" id="fleet-fileInput" accept=".csv" class="hidden" onchange="fleetFileSelected(event)"/>
+    </div>
+
+    <!-- Step 4: Preview Table -->
+    <div id="fleet-previewWrap" class="hidden mb-5">
+      <div class="flex items-center justify-between mb-2">
+        <p class="text-sm font-semibold text-gray-700" id="fleet-previewTitle">Preview</p>
+        <button class="text-xs text-red-400 hover:text-red-600" onclick="clearFleetFile()"><i class="fas fa-trash mr-1"></i>Clear</button>
+      </div>
+      <div class="overflow-x-auto rounded-xl border border-gray-200">
+        <table class="w-full text-xs">
+          <thead>
+            <tr class="bg-gray-50 border-b border-gray-200">
+              <th class="px-3 py-2 text-left text-gray-500 font-semibold">#</th>
+              <th class="px-3 py-2 text-left text-gray-500 font-semibold">Reg. Number</th>
+              <th class="px-3 py-2 text-left text-gray-500 font-semibold">Make</th>
+              <th class="px-3 py-2 text-left text-gray-500 font-semibold">Model</th>
+              <th class="px-3 py-2 text-left text-gray-500 font-semibold">Year</th>
+              <th class="px-3 py-2 text-left text-gray-500 font-semibold">VIN / Chassis</th>
+              <th class="px-3 py-2 text-left text-gray-500 font-semibold">Engine No.</th>
+              <th class="px-3 py-2 text-left text-gray-500 font-semibold">Insurer</th>
+              <th class="px-3 py-2 text-left text-gray-500 font-semibold">Status</th>
+            </tr>
+          </thead>
+          <tbody id="fleet-previewBody"></tbody>
+        </table>
+      </div>
+      <p class="text-xs text-gray-400 mt-2" id="fleet-previewStats"></p>
+    </div>
+
+    <!-- Error Banner -->
+    <div id="fleet-errorBanner" class="hidden bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-sm text-red-700"></div>
+
+    <!-- Footer Buttons -->
+    <div class="flex gap-3 justify-end">
+      <button class="btn-secondary" onclick="closeModal('modal-fleetUpload')">Cancel</button>
+      <button id="fleet-submitBtn" class="btn-primary disabled:opacity-50 disabled:cursor-not-allowed" disabled onclick="submitFleetUpload()">
+        <i class="fas fa-upload mr-1"></i><span id="fleet-submitLabel">Import Fleet</span>
+      </button>
+    </div>
   </div>
 </div>
 
@@ -1470,6 +1554,188 @@ async function submitNewVehicle(e) {
   document.getElementById('newVehicleForm').reset();
   showToast('Vehicle registered successfully');
   loadVehicles();
+}
+
+// ═══ FLEET UPLOAD ═══
+let fleetParsedRows = [];
+
+async function showFleetUploadModal() {
+  // Load customers, filter corporate only
+  if (!allCustomers.length) { const { data } = await axios.get('/api/customers'); allCustomers = data; }
+  const corporates = allCustomers.filter(c => c.customerType === 'Corporate');
+  const sel = document.getElementById('fleet-customerId');
+  sel.innerHTML = '<option value="">Select corporate customer…</option>' +
+    corporates.map(c => \`<option value="\${c.id}">\${c.name}\${c.companyName && c.companyName !== c.name ? ' – ' + c.companyName : ''}</option>\`).join('');
+  // Reset state
+  clearFleetFile();
+  document.getElementById('fleet-errorBanner').classList.add('hidden');
+  openModal('modal-fleetUpload');
+}
+
+function onFleetCustomerChange() {
+  updateFleetSubmitBtn();
+}
+
+function downloadFleetTemplate() {
+  const csv = [
+    'registration_number,make,model,year,vin,engine_number,insurer',
+    'T123 ABC,Toyota,Corolla,2020,JT2BF22K1W0123456,1ZZ-FE123456,Jubilee Insurance',
+    'T456 DEF,Toyota,Probox,2019,,2NZ-FE789012,AAR Insurance',
+    'T789 GHI,Nissan,X-Trail,2021,JN1TBNT31Z0456789,,NHIF',
+  ].join('\\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'fleet_template.csv'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+function fleetDragOver(e) {
+  e.preventDefault();
+  document.getElementById('fleet-dropzone').classList.add('border-blue-400','bg-blue-50');
+}
+function fleetDragLeave(e) {
+  document.getElementById('fleet-dropzone').classList.remove('border-blue-400','bg-blue-50');
+}
+function fleetDrop(e) {
+  e.preventDefault();
+  fleetDragLeave(e);
+  const file = e.dataTransfer.files[0];
+  if (file) processFleetFile(file);
+}
+function fleetFileSelected(e) {
+  const file = e.target.files[0];
+  if (file) processFleetFile(file);
+}
+
+function processFleetFile(file) {
+  if (!file.name.endsWith('.csv')) {
+    showFleetError('Please upload a .csv file.'); return;
+  }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const text = e.target.result;
+    parseFleetCSV(text);
+  };
+  reader.readAsText(file);
+  // Update dropzone to show filename
+  document.getElementById('fleet-dropzone').innerHTML = \`
+    <i class="fas fa-file-csv text-4xl text-green-400 mb-3 block"></i>
+    <p class="text-sm font-semibold text-gray-700">\${file.name}</p>
+    <p class="text-xs text-gray-400 mt-1">Click to change file</p>
+    <input type="file" id="fleet-fileInput" accept=".csv" class="hidden" onchange="fleetFileSelected(event)"/>
+  \`;
+}
+
+function parseFleetCSV(text) {
+  document.getElementById('fleet-errorBanner').classList.add('hidden');
+  const lines = text.trim().split('\\n').map(l => l.trim()).filter(l => l);
+  if (lines.length < 2) { showFleetError('CSV file is empty or has no data rows.'); return; }
+
+  // Normalise header
+  const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/\\s+/g,'_').replace(/[^a-z0-9_]/g,''));
+  const required = ['registration_number','make','model','year'];
+  const missing = required.filter(r => !headers.includes(r));
+  if (missing.length) { showFleetError(\`Missing required columns: \${missing.join(', ')}\`); return; }
+
+  const col = (row, name) => { const idx = headers.indexOf(name); return idx >= 0 ? (row[idx]||'').trim() : ''; };
+
+  fleetParsedRows = [];
+  const bodyRows = [];
+  let validCount = 0, errorCount = 0;
+
+  for (let i = 1; i < lines.length; i++) {
+    // Handle quoted CSV values simply
+    const row = lines[i].split(',').map(v => v.trim().replace(/^"|"$/g,''));
+    const reg  = col(row,'registration_number');
+    const make = col(row,'make');
+    const model= col(row,'model');
+    const year = parseInt(col(row,'year'));
+    const vin  = col(row,'vin');
+    const eng  = col(row,'engine_number');
+    const ins  = col(row,'insurer');
+
+    const errors = [];
+    if (!reg)  errors.push('Reg. required');
+    if (!make) errors.push('Make required');
+    if (!model)errors.push('Model required');
+    if (!year || year < 1990 || year > 2030) errors.push('Invalid year');
+
+    const isValid = errors.length === 0;
+    if (isValid) { validCount++; fleetParsedRows.push({ registrationNumber:reg, make, model, year, vin, engineNumber:eng, insurer:ins }); }
+    else errorCount++;
+
+    bodyRows.push(\`
+      <tr class="border-b border-gray-100 \${isValid ? '' : 'bg-red-50'}">
+        <td class="px-3 py-2 text-gray-400">\${i}</td>
+        <td class="px-3 py-2 font-semibold text-blue-600">\${reg||'—'}</td>
+        <td class="px-3 py-2">\${make||'—'}</td>
+        <td class="px-3 py-2">\${model||'—'}</td>
+        <td class="px-3 py-2">\${year||'—'}</td>
+        <td class="px-3 py-2 font-mono text-gray-400">\${vin||'—'}</td>
+        <td class="px-3 py-2 font-mono text-gray-400">\${eng||'—'}</td>
+        <td class="px-3 py-2 text-gray-500">\${ins||'—'}</td>
+        <td class="px-3 py-2">\${isValid
+          ? '<span class="text-green-600 font-semibold"><i class="fas fa-check-circle mr-1"></i>OK</span>'
+          : \`<span class="text-red-500 text-xs" title="\${errors.join(', ')}"><i class="fas fa-exclamation-circle mr-1"></i>\${errors[0]}</span>\`
+        }</td>
+      </tr>
+    \`);
+  }
+
+  document.getElementById('fleet-previewBody').innerHTML = bodyRows.join('');
+  document.getElementById('fleet-previewTitle').textContent = \`Preview – \${lines.length - 1} rows\`;
+  document.getElementById('fleet-previewStats').innerHTML =
+    \`<span class="text-green-600 font-semibold">\${validCount} valid</span>\` +
+    (errorCount > 0 ? \`, <span class="text-red-500 font-semibold">\${errorCount} with errors</span> (will be skipped)\` : '') +
+    '. Only valid rows will be imported.';
+  document.getElementById('fleet-previewWrap').classList.remove('hidden');
+  updateFleetSubmitBtn();
+}
+
+function clearFleetFile() {
+  fleetParsedRows = [];
+  document.getElementById('fleet-previewWrap').classList.add('hidden');
+  document.getElementById('fleet-dropzone').innerHTML = \`
+    <i class="fas fa-cloud-upload-alt text-4xl text-gray-300 mb-3 block"></i>
+    <p class="text-sm font-semibold text-gray-600">Drop CSV file here or <span class="text-blue-500 underline">browse</span></p>
+    <p class="text-xs text-gray-400 mt-1">Supports .csv files only</p>
+    <input type="file" id="fleet-fileInput" accept=".csv" class="hidden" onchange="fleetFileSelected(event)"/>
+  \`;
+  updateFleetSubmitBtn();
+}
+
+function updateFleetSubmitBtn() {
+  const hasCustomer = !!document.getElementById('fleet-customerId').value;
+  const hasRows = fleetParsedRows.length > 0;
+  const btn = document.getElementById('fleet-submitBtn');
+  btn.disabled = !(hasCustomer && hasRows);
+  document.getElementById('fleet-submitLabel').textContent = hasRows
+    ? \`Import \${fleetParsedRows.length} Vehicle\${fleetParsedRows.length !== 1 ? 's' : ''}\`
+    : 'Import Fleet';
+}
+
+function showFleetError(msg) {
+  const el = document.getElementById('fleet-errorBanner');
+  el.textContent = '⚠ ' + msg;
+  el.classList.remove('hidden');
+}
+
+async function submitFleetUpload() {
+  const customerId = document.getElementById('fleet-customerId').value;
+  if (!customerId || !fleetParsedRows.length) return;
+  const btn = document.getElementById('fleet-submitBtn');
+  btn.disabled = true;
+  document.getElementById('fleet-submitLabel').textContent = 'Importing…';
+  try {
+    const { data } = await axios.post('/api/vehicles/bulk', { customerId, vehicles: fleetParsedRows });
+    closeModal('modal-fleetUpload');
+    showToast(\`✅ \${data.imported} vehicle\${data.imported !== 1 ? 's' : ''} imported successfully\${data.skipped > 0 ? ', ' + data.skipped + ' skipped' : ''}\`);
+    loadVehicles();
+  } catch(err) {
+    showFleetError('Import failed: ' + (err.response?.data?.error || err.message));
+    btn.disabled = false;
+    document.getElementById('fleet-submitLabel').textContent = \`Retry Import\`;
+  }
 }
 
 // ═══ CLAIMS ═══

@@ -101,6 +101,23 @@ api.post('/vehicles', async (c) => {
   return c.json(newVehicle, 201)
 })
 
+api.post('/vehicles/bulk', async (c) => {
+  const body = await c.req.json<{ customerId: string; vehicles: Omit<Vehicle, 'id' | 'createdAt' | 'customerId'>[] }>()
+  if (!body.customerId || !Array.isArray(body.vehicles) || body.vehicles.length === 0) {
+    return c.json({ error: 'customerId and vehicles array required' }, 400)
+  }
+  const customer = customers.find(x => x.id === body.customerId)
+  if (!customer) return c.json({ error: 'Customer not found' }, 404)
+  const created: Vehicle[] = []
+  for (const v of body.vehicles) {
+    if (!v.registrationNumber || !v.make || !v.model || !v.year) continue
+    const newVehicle: Vehicle = { ...v, customerId: body.customerId, id: 'v' + genId(), createdAt: now() }
+    vehicles.push(newVehicle)
+    created.push(newVehicle)
+  }
+  return c.json({ imported: created.length, skipped: body.vehicles.length - created.length, vehicles: created }, 201)
+})
+
 api.put('/vehicles/:id', async (c) => {
   const idx = vehicles.findIndex(x => x.id === c.req.param('id'))
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
