@@ -332,7 +332,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Year</th>
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Owner</th>
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Insurer</th>
-            <th class="text-left px-4 py-3 font-semibold text-gray-600">VIN</th>
+            <th class="text-left px-4 py-3 font-semibold text-gray-600">VIN / Chassis</th>
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Actions</th>
           </tr></thead>
           <tbody id="vehiclesTable"></tbody>
@@ -707,7 +707,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
               <th class="px-3 py-2 text-left text-gray-500 font-semibold">Make</th>
               <th class="px-3 py-2 text-left text-gray-500 font-semibold">Model</th>
               <th class="px-3 py-2 text-left text-gray-500 font-semibold">Year</th>
-              <th class="px-3 py-2 text-left text-gray-500 font-semibold">VIN / Chassis</th>
+              <th class="px-3 py-2 text-left text-gray-500 font-semibold">VIN / Chassis No.</th>
               <th class="px-3 py-2 text-left text-gray-500 font-semibold">Engine No.</th>
               <th class="px-3 py-2 text-left text-gray-500 font-semibold">Insurer</th>
               <th class="px-3 py-2 text-left text-gray-500 font-semibold">Status</th>
@@ -1607,7 +1607,7 @@ function setFleetTab(type) {
 
 function downloadFleetTemplate(format) {
   const rows = [
-    ['registration_number','make','model','year','vin','engine_number','insurer'],
+    ['registration_number','make','model','year','vin_chassis_number','engine_number','insurer'],
     ['T123 ABC','Toyota','Corolla','2020','JT2BF22K1W0123456','1ZZ-FE123456','Jubilee Insurance'],
     ['T456 DEF','Toyota','Probox','2019','','2NZ-FE789012','AAR Insurance'],
     ['T789 GHI','Nissan','X-Trail','2021','JN1TBNT31Z0456789','','NHIF'],
@@ -1677,7 +1677,7 @@ function parseFleetCSV(text) {
   if (lines.length < 2) { showFleetError('CSV file is empty or has no data rows.'); return; }
 
   // Normalise header
-  const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/\\s+/g,'_').replace(/[^a-z0-9_]/g,''));
+  const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/\\s+/g,'_').replace(/[^a-z0-9_]/g,'').replace('vin_chassis_number','vin'));
   const required = ['registration_number','make','model','year'];
   const missing = required.filter(r => !headers.includes(r));
   if (missing.length) { showFleetError(\`Missing required columns: \${missing.join(', ')}\`); return; }
@@ -1759,7 +1759,7 @@ function parseFleetExcel(arrayBuffer) {
     const ws = wb.Sheets[wb.SheetNames[0]];
     const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
     if (rawRows.length < 2) { showFleetError('Excel file is empty or has no data rows.'); return; }
-    const headers = rawRows[0].map(h => String(h).trim().toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,''));
+    const headers = rawRows[0].map(h => String(h).trim().toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'').replace('vin_chassis_number','vin'));
     const required = ['registration_number','make','model','year'];
     const missing  = required.filter(r => !headers.includes(r));
     if (missing.length) { showFleetError('Missing required columns: ' + missing.join(', ')); return; }
