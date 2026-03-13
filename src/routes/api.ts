@@ -347,6 +347,17 @@ api.put('/catalogue/parts/:id', async (c) => {
   return c.json(catalogueParts[idx])
 })
 
+// Deduct stock when a catalogue part is used on a job
+api.patch('/catalogue/parts/:id/deduct', async (c) => {
+  const idx = catalogueParts.findIndex(p => p.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const { quantity } = await c.req.json<{ quantity: number }>()
+  const current = catalogueParts[idx].stockQuantity ?? 0
+  if (current < quantity) return c.json({ error: 'Insufficient stock', available: current }, 409)
+  catalogueParts[idx] = { ...catalogueParts[idx], stockQuantity: current - quantity }
+  return c.json(catalogueParts[idx])
+})
+
 // ─── Twiga Catalogue: Car Wash ────────────────────────────────────────────────
 api.get('/catalogue/carwash', (c) => c.json(carWashPackages))
 

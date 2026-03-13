@@ -584,7 +584,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         </div>
       </div>
       <!-- Stats row -->
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5" id="partsStats"></div>
+      <div class="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-5" id="partsStats"></div>
       <!-- Table -->
       <div class="card overflow-hidden">
         <table class="w-full text-sm">
@@ -596,6 +596,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
             <th class="text-right px-4 py-3 font-semibold text-gray-600">Sell Price</th>
             <th class="text-right px-4 py-3 font-semibold text-gray-600">Margin</th>
             <th class="text-right px-4 py-3 font-semibold text-gray-600">Margin %</th>
+            <th class="text-right px-4 py-3 font-semibold text-gray-600">In Stock</th>
           </tr></thead>
           <tbody id="partsTable"></tbody>
         </table>
@@ -1406,38 +1407,255 @@ async function viewJobDetail(id) {
 }
 
 // Parts Modal
-function showPartsModal(jobId) {
+// ── Add Part modal: search catalogue or enter manually ──
+let _catalogueCache = [];   // full catalogue list loaded once per modal open
+let _selectedCatPart = null; // currently highlighted catalogue part
+
+async function showPartsModal(jobId) {
   openModal('modal-statusUpdate');
   document.getElementById('statusUpdateContent').innerHTML = \`
-    <p class="text-sm text-gray-500 mb-4">Record parts used for this job</p>
-    <div class="mb-3"><label class="form-label">Part Name</label><input class="form-input" id="part-name" required placeholder="e.g. Front Bumper Assembly"/></div>
-    <div class="grid grid-cols-3 gap-3 mb-6">
-      <div><label class="form-label">Qty</label><input class="form-input" type="number" id="part-qty" required min="1" value="1"/></div>
-      <div><label class="form-label">Unit Cost (TZS)</label><input class="form-input" type="number" id="part-unit" required min="0"/></div>
-      <div><label class="form-label">Total</label><input class="form-input" id="part-total" readonly placeholder="Auto"/></div>
+    <p class="text-sm text-gray-500 mb-3">Search the parts catalogue or enter a custom part manually</p>
+
+    <!-- Catalogue search -->
+    <div class="relative mb-2">
+      <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+      <input class="form-input pl-8" id="catSearch" placeholder="Search catalogue by name or compatible model…" autocomplete="off"/>
     </div>
+    <!-- Dropdown results -->
+    <div id="catResults" class="hidden mb-3 border border-gray-200 rounded-xl overflow-hidden max-h-52 overflow-y-auto shadow-sm"></div>
+
+    <!-- Selected part info banner -->
+    <div id="catSelected" class="hidden mb-3 px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl text-sm">
+      <div class="flex items-start justify-between gap-2">
+        <div>
+          <p class="font-semibold text-blue-900" id="catSelected-name"></p>
+          <p class="text-xs text-blue-600 mt-0.5" id="catSelected-meta"></p>
+        </div>
+        <button class="text-blue-400 hover:text-blue-600 text-xs shrink-0" onclick="_clearCatSelection()"><i class="fas fa-times"></i> Clear</button>
+      </div>
+      <!-- Margin pill -->
+      <div class="flex items-center gap-3 mt-2">
+        <span class="text-xs text-gray-500">Buy: <strong id="catSelected-buy" class="text-gray-700"></strong></span>
+        <span class="text-xs text-gray-500">Sell: <strong id="catSelected-sell" class="text-gray-700"></strong></span>
+        <span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700" id="catSelected-margin"></span>
+        <span class="text-xs px-2 py-0.5 rounded-full" id="catSelected-stock"></span>
+      </div>
+    </div>
+
+    <!-- Part name (auto-filled from catalogue or manual) -->
+    <div class="mb-3">
+      <label class="form-label">Part Name</label>
+      <input class="form-input" id="part-name" required placeholder="e.g. Front Bumper Assembly"/>
+    </div>
+
+    <!-- Qty / Unit Cost / Total -->
+    <div class="grid grid-cols-3 gap-3 mb-5">
+      <div>
+        <label class="form-label">Qty</label>
+        <input class="form-input" type="number" id="part-qty" required min="1" value="1"/>
+        <p class="text-xs text-gray-400 mt-1" id="part-stock-hint"></p>
+      </div>
+      <div>
+        <label class="form-label">Unit Cost (TZS)</label>
+        <input class="form-input" type="number" id="part-unit" required min="0"/>
+      </div>
+      <div>
+        <label class="form-label">Total</label>
+        <input class="form-input" id="part-total" readonly placeholder="Auto"/>
+      </div>
+    </div>
+
+    <!-- Margin preview bar (only visible when catalogue part selected) -->
+    <div id="part-margin-bar" class="hidden mb-4 p-3 bg-green-50 border border-green-200 rounded-xl">
+      <div class="flex items-center justify-between text-sm mb-1">
+        <span class="text-gray-600 font-medium"><i class="fas fa-chart-line text-green-500 mr-1"></i>Margin on this line</span>
+        <span class="font-bold text-green-700" id="part-margin-val"></span>
+      </div>
+      <div class="w-full bg-green-100 rounded-full h-2">
+        <div class="bg-green-500 h-2 rounded-full transition-all" id="part-margin-bar-fill" style="width:0%"></div>
+      </div>
+      <p class="text-xs text-gray-500 mt-1" id="part-margin-pct"></p>
+    </div>
+
     <div class="flex gap-3">
       <button type="button" class="btn-secondary flex-1" onclick="closeModal('modal-statusUpdate')">Cancel</button>
-      <button type="button" class="btn-primary flex-1" id="part-submit-btn"><i class="fas fa-plus"></i> Add Part</button>
+      <button type="button" class="btn-primary flex-1" id="part-submit-btn"><i class="fas fa-plus mr-1"></i>Add Part</button>
     </div>
   \`;
+
+  // Load catalogue (cache for this session)
+  if (!_catalogueCache.length) {
+    try { const r = await axios.get('/api/catalogue/parts'); _catalogueCache = r.data; } catch(e) {}
+  }
+
+  // ── recalculate totals & margin bar ──
   const calcTotal = () => {
-    const q = +document.getElementById('part-qty').value||0;
-    const u = +document.getElementById('part-unit').value||0;
-    document.getElementById('part-total').value = (q*u).toLocaleString();
+    const q  = +document.getElementById('part-qty').value  || 0;
+    const u  = +document.getElementById('part-unit').value || 0;
+    document.getElementById('part-total').value = fmt(q * u);
+
+    if (_selectedCatPart) {
+      const revenue  = u * q;
+      const cost     = _selectedCatPart.buyingPrice * q;
+      const margin   = revenue - cost;
+      const marginPct = revenue > 0 ? Math.round((margin / revenue) * 100) : 0;
+      const color    = marginPct >= 50 ? 'text-green-700' : marginPct >= 25 ? 'text-amber-600' : 'text-red-600';
+      document.getElementById('part-margin-bar').classList.remove('hidden');
+      document.getElementById('part-margin-val').textContent = fmt(margin) + ' TZS';
+      document.getElementById('part-margin-val').className   = 'font-bold ' + color;
+      document.getElementById('part-margin-pct').textContent = marginPct + '% margin (cost basis: ' + fmt(cost) + ' TZS)';
+      const fill = document.getElementById('part-margin-bar-fill');
+      fill.style.width = Math.min(marginPct, 100) + '%';
+      fill.className   = 'h-2 rounded-full transition-all ' + (marginPct >= 50 ? 'bg-green-500' : marginPct >= 25 ? 'bg-amber-400' : 'bg-red-400');
+    } else {
+      document.getElementById('part-margin-bar').classList.add('hidden');
+    }
   };
   document.getElementById('part-qty').addEventListener('input', calcTotal);
   document.getElementById('part-unit').addEventListener('input', calcTotal);
-  document.getElementById('part-submit-btn').addEventListener('click', async () => {
-    const qty = +document.getElementById('part-qty').value;
-    const unit = +document.getElementById('part-unit').value;
-    const name = document.getElementById('part-name').value;
-    if (!name || !qty || !unit) { showToast('Please fill all fields', 'error'); return; }
-    await axios.post('/api/jobcards/' + jobId + '/parts', { partName: name, quantity: qty, unitCost: unit, totalCost: qty*unit });
-    closeModal('modal-statusUpdate');
-    viewJobDetail(jobId);
-    showToast('Part added successfully');
+
+  // ── catalogue search autocomplete ──
+  let _searchTimer;
+  document.getElementById('catSearch').addEventListener('input', function() {
+    clearTimeout(_searchTimer);
+    const q = this.value.trim();
+    if (q.length < 2) { document.getElementById('catResults').classList.add('hidden'); return; }
+    _searchTimer = setTimeout(() => _renderCatResults(q), 200);
   });
+
+  // ── submit ──
+  document.getElementById('part-submit-btn').addEventListener('click', async () => {
+    const qty  = +document.getElementById('part-qty').value;
+    const unit = +document.getElementById('part-unit').value;
+    const name = document.getElementById('part-name').value.trim();
+    if (!name || !qty || !unit) { showToast('Please fill all fields', 'error'); return; }
+
+    // Stock check for catalogue parts
+    if (_selectedCatPart) {
+      const avail = _selectedCatPart.stockQuantity ?? 0;
+      if (qty > avail) {
+        showToast('Only ' + avail + ' units in stock for this part', 'error');
+        return;
+      }
+    }
+
+    const btn = document.getElementById('part-submit-btn');
+    btn.disabled = true; btn.textContent = 'Adding…';
+    try {
+      // 1. Record parts consumption on the job
+      await axios.post('/api/jobcards/' + jobId + '/parts', { partName: name, quantity: qty, unitCost: unit, totalCost: qty * unit });
+      // 2. Deduct stock from catalogue if a catalogue part was selected
+      if (_selectedCatPart) {
+        await axios.patch('/api/catalogue/parts/' + _selectedCatPart.id + '/deduct', { quantity: qty });
+        // Update the local cache too
+        const ci = _catalogueCache.findIndex(p => p.id === _selectedCatPart.id);
+        if (ci !== -1) _catalogueCache[ci] = { ..._catalogueCache[ci], stockQuantity: (_catalogueCache[ci].stockQuantity || 0) - qty };
+      }
+      closeModal('modal-statusUpdate');
+      _selectedCatPart = null;
+      viewJobDetail(jobId);
+      showToast('Part added' + (_selectedCatPart ? '' : '') + ' \u2714');
+    } catch(err) {
+      const msg = err.response?.data?.error || err.message;
+      showToast('Error: ' + msg, 'error');
+      btn.disabled = false; btn.textContent = 'Add Part';
+    }
+  });
+}
+
+// ── render catalogue search dropdown ──
+function _renderCatResults(q) {
+  const ql = q.toLowerCase();
+  const results = _catalogueCache.filter(p =>
+    p.description.toLowerCase().includes(ql) ||
+    p.compatibleModels.toLowerCase().includes(ql) ||
+    p.category.toLowerCase().includes(ql)
+  ).slice(0, 8);
+
+  const el = document.getElementById('catResults');
+  if (!results.length) {
+    el.innerHTML = '<div class="px-4 py-3 text-sm text-gray-400 text-center">No catalogue parts match</div>';
+    el.classList.remove('hidden');
+    return;
+  }
+  el.innerHTML = results.map(p => {
+    const marginPct = Math.round((p.margin / p.sellingPrice) * 100);
+    const stockColor = (p.stockQuantity || 0) === 0 ? 'text-red-500' : (p.stockQuantity || 0) <= 5 ? 'text-amber-500' : 'text-green-600';
+    return \`
+    <div class="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-50 last:border-0 transition-colors"
+         onclick="_selectCatPart('\${p.id}')">
+      <div class="flex items-start justify-between gap-2">
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-semibold text-gray-800 truncate">\${p.description}</p>
+          <p class="text-xs text-gray-400 mt-0.5">\${p.compatibleModels.split(',').slice(0,3).join(', ')}</p>
+        </div>
+        <div class="text-right shrink-0">
+          <p class="text-sm font-bold text-gray-900">\${fmt(p.sellingPrice)}</p>
+          <p class="text-xs font-semibold text-green-600">\${marginPct}% margin</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3 mt-1.5">
+        <span class="text-xs px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">\${p.category}</span>
+        <span class="text-xs \${stockColor}"><i class="fas fa-box mr-0.5"></i>\${p.stockQuantity || 0} in stock</span>
+      </div>
+    </div>\`;
+  }).join('');
+  el.classList.remove('hidden');
+}
+
+// ── select a part from the dropdown ──
+function _selectCatPart(partId) {
+  const p = _catalogueCache.find(x => x.id === partId);
+  if (!p) return;
+  _selectedCatPart = p;
+
+  // Fill the form fields
+  document.getElementById('part-name').value = p.description;
+  document.getElementById('part-unit').value = p.sellingPrice;
+
+  // Hide dropdown, clear search
+  document.getElementById('catResults').classList.add('hidden');
+  document.getElementById('catSearch').value = '';
+
+  // Show selected banner
+  const banner = document.getElementById('catSelected');
+  banner.classList.remove('hidden');
+  document.getElementById('catSelected-name').textContent = p.description;
+  const marginPct = Math.round((p.margin / p.sellingPrice) * 100);
+  document.getElementById('catSelected-meta').textContent = p.category + ' \u00b7 ' + p.compatibleModels.split(',').slice(0,2).join(', ');
+  document.getElementById('catSelected-buy').textContent  = fmt(p.buyingPrice) + ' TZS';
+  document.getElementById('catSelected-sell').textContent = fmt(p.sellingPrice) + ' TZS';
+  document.getElementById('catSelected-margin').textContent = '\u2197 ' + fmt(p.margin) + ' TZS (' + marginPct + '%)';
+
+  const stock = p.stockQuantity || 0;
+  const stockEl = document.getElementById('catSelected-stock');
+  if (stock === 0) {
+    stockEl.textContent = '\u26a0 Out of stock';
+    stockEl.className = 'text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600 font-semibold';
+  } else if (stock <= 5) {
+    stockEl.textContent = '\u26a0 Low: ' + stock + ' left';
+    stockEl.className = 'text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold';
+  } else {
+    stockEl.textContent = '\u2713 ' + stock + ' in stock';
+    stockEl.className = 'text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-semibold';
+  }
+
+  // Stock hint below qty
+  document.getElementById('part-stock-hint').textContent = stock > 0 ? 'Max: ' + stock + ' units' : 'Out of stock';
+
+  // Trigger total/margin recalculation
+  document.getElementById('part-qty').dispatchEvent(new Event('input'));
+}
+
+// ── clear catalogue selection (switch to manual mode) ──
+function _clearCatSelection() {
+  _selectedCatPart = null;
+  document.getElementById('catSelected').classList.add('hidden');
+  document.getElementById('part-margin-bar').classList.add('hidden');
+  document.getElementById('part-name').value = '';
+  document.getElementById('part-unit').value = '';
+  document.getElementById('part-total').value = '';
+  document.getElementById('part-stock-hint').textContent = '';
 }
 
 // PFI Modal — works for both Insurance and Private jobs
@@ -3069,6 +3287,8 @@ function renderPartsStats(parts) {
     { label: 'Categories', value: cats.length, icon: 'fa-tags', color: '#7c3aed' },
     { label: 'Avg Margin', value: fmt(Math.round(avgMargin)), icon: 'fa-chart-line', color: '#16a34a' },
     { label: 'Best Margin', value: fmt(maxMargin), icon: 'fa-trophy', color: '#d97706' },
+    { label: 'In Stock', value: parts.reduce((s, p) => s + (p.stockQuantity || 0), 0) + ' units', icon: 'fa-box', color: '#0891b2' },
+    { label: 'Out of Stock', value: parts.filter(p => (p.stockQuantity || 0) === 0).length, icon: 'fa-exclamation-circle', color: '#dc2626' },
   ].map(s => \`
     <div class="card p-4 border-l-4" style="border-color:\${s.color}">
       <div class="flex items-center gap-3 mb-1">
@@ -3093,7 +3313,7 @@ function renderPartsTable(parts) {
   const tbody = document.getElementById('partsTable');
   if (!tbody) return;
   if (!parts.length) {
-    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-12 text-gray-400"><i class="fas fa-search text-3xl mb-3 block"></i>No parts found</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-12 text-gray-400"><i class="fas fa-search text-3xl mb-3 block"></i>No parts found</td></tr>';
     return;
   }
   tbody.innerHTML = parts.map(p => {
@@ -3117,6 +3337,14 @@ function renderPartsTable(parts) {
         <td class="px-4 py-3 text-right font-semibold text-green-600">\${fmt(p.margin)}</td>
         <td class="px-4 py-3 text-right">
           <span class="font-bold text-sm" style="color:\${marginColor}">\${marginPct}%</span>
+        </td>
+        <td class="px-4 py-3 text-right">
+          \${(p.stockQuantity || 0) === 0
+            ? \`<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-600"><i class="fas fa-times-circle"></i>Out</span>\`
+            : (p.stockQuantity || 0) <= 5
+              ? \`<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700"><i class="fas fa-exclamation-triangle"></i>\${p.stockQuantity}</span>\`
+              : \`<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700"><i class="fas fa-check"></i>\${p.stockQuantity}</span>\`
+          }
         </td>
       </tr>
     \`;
