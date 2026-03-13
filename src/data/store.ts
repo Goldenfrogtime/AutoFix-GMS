@@ -73,6 +73,8 @@ export interface PFI {
   totalEstimate: number
   status: PFIStatus
   notes?: string
+  sentAt?: string     // ISO timestamp when last emailed
+  sentTo?: string     // email address it was sent to
   createdAt: string
 }
 

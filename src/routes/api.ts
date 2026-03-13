@@ -199,6 +199,31 @@ api.patch('/pfi/:id', async (c) => {
   return c.json(pfis[idx])
 })
 
+// Record that a PFI was sent (email delivery happens client-side via mailto / future SMTP)
+api.post('/pfi/:id/send', async (c) => {
+  const idx = pfis.findIndex(x => x.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const { email } = await c.req.json<{ email: string }>()
+  pfis[idx] = { ...pfis[idx], sentAt: now(), sentTo: email, status: pfis[idx].status === 'Draft' ? 'Submitted' : pfis[idx].status }
+  // Log activity
+  const jIdx = jobCards.findIndex(x => x.id === pfis[idx].jobCardId)
+  if (jIdx !== -1) {
+    activityLog.push({ id: 'a' + genId(), jobCardId: pfis[idx].jobCardId, action: 'PFI_SENT', description: `PFI sent to ${email}`, userId: 'u3', userName: 'System', timestamp: now() })
+  }
+  return c.json(pfis[idx])
+})
+
+// Get full PFI detail (with job, customer, vehicle, parts)
+api.get('/pfi/:id/detail', (c) => {
+  const pfi = pfis.find(x => x.id === c.req.param('id'))
+  if (!pfi) return c.json({ error: 'Not found' }, 404)
+  const job = jobCards.find(j => j.id === pfi.jobCardId)
+  const customer = job ? customers.find(cu => cu.id === job.customerId) : null
+  const vehicle  = job ? vehicles.find(v  => v.id  === job.vehicleId)  : null
+  const parts    = partsConsumption.filter(p => p.jobCardId === pfi.jobCardId)
+  return c.json({ pfi, job, customer, vehicle, parts })
+})
+
 // ─── Parts Consumption ───────────────────────────────────────────────────────
 api.get('/jobcards/:id/parts', (c) => {
   return c.json(partsConsumption.filter(x => x.jobCardId === c.req.param('id')))

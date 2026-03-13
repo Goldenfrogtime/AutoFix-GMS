@@ -22,6 +22,7 @@ function shell() {
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 <script>
 tailwind.config = {
   theme: {
@@ -727,6 +728,52 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         <button type="submit" class="btn-primary"><i class="fas fa-save"></i> Add Vehicle</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- Send PFI Modal -->
+<div id="modal-sendPFI" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:640px">
+    <div class="flex items-center justify-between mb-5">
+      <div>
+        <h3 class="text-xl font-bold text-gray-900"><i class="fas fa-paper-plane text-blue-500 mr-2"></i>Send PFI to Customer</h3>
+        <p class="text-sm text-gray-500 mt-0.5" id="sendPFI-subtitle">Pro Forma Invoice</p>
+      </div>
+      <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-sendPFI')"><i class="fas fa-times"></i></button>
+    </div>
+
+    <!-- PFI summary strip -->
+    <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-5" id="sendPFI-summary"></div>
+
+    <!-- Email fields -->
+    <div class="mb-4">
+      <label class="form-label">Recipient Email <span class="text-red-500">*</span></label>
+      <input class="form-input" type="email" id="sendPFI-email" placeholder="customer@example.com" required/>
+    </div>
+    <div class="mb-4">
+      <label class="form-label">Subject</label>
+      <input class="form-input" type="text" id="sendPFI-subject" placeholder="Pro Forma Invoice – GMS-2025-001"/>
+    </div>
+    <div class="mb-5">
+      <label class="form-label">Message</label>
+      <textarea class="form-input" id="sendPFI-message" rows="5"></textarea>
+      <p class="text-xs text-gray-400 mt-1">The PDF will be attached automatically when downloaded. Use the "Copy & Open Email" option to send via your email client with the PDF attached.</p>
+    </div>
+
+    <!-- PDF Preview box -->
+    <div class="border border-gray-200 rounded-xl overflow-hidden mb-5">
+      <div class="bg-gray-50 px-4 py-2.5 flex items-center justify-between border-b border-gray-200">
+        <span class="text-xs font-semibold text-gray-600"><i class="fas fa-file-pdf text-red-500 mr-1.5"></i>PDF Preview</span>
+        <button class="text-xs text-blue-600 hover:underline font-semibold" onclick="downloadPFIFromModal()"><i class="fas fa-download mr-1"></i>Download PDF</button>
+      </div>
+      <div id="sendPFI-previewBox" class="p-4 font-mono text-xs text-gray-600 bg-white max-h-64 overflow-y-auto leading-relaxed whitespace-pre-wrap"></div>
+    </div>
+
+    <div class="flex gap-3 justify-end">
+      <button class="btn-secondary" onclick="closeModal('modal-sendPFI')">Cancel</button>
+      <button class="btn-secondary" onclick="copyAndOpenEmail()"><i class="fas fa-external-link-alt mr-1"></i>Copy &amp; Open Email Client</button>
+      <button class="btn-primary" onclick="submitSendPFI()"><i class="fas fa-paper-plane mr-1"></i><span id="sendPFI-btnLabel">Send &amp; Record</span></button>
+    </div>
   </div>
 </div>
 
@@ -2359,6 +2406,290 @@ async function submitFleetUpload() {
   }
 }
 
+// ═══ PFI PDF & SEND ═══
+
+let _currentPFIId = null;
+let _currentPFIDetail = null;
+
+// ── Fetch full PFI detail ──
+async function fetchPFIDetail(pfiId) {
+  const { data } = await axios.get('/api/pfi/' + pfiId + '/detail');
+  return data;
+}
+
+// ── Build the PDF document using jsPDF ──
+function buildPFIDoc(detail) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const { pfi, job, customer, vehicle, parts } = detail;
+  const pageW = 210, margin = 18, contentW = pageW - margin * 2;
+  let y = 0;
+
+  // ── Header band ──
+  doc.setFillColor(30, 64, 175);
+  doc.rect(0, 0, pageW, 42, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(22);
+  doc.text('AutoFix GMS', margin, 16);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Garage Management System', margin, 23);
+  doc.text('Tel: +255 700 000 000 | info@autofixgms.co.tz', margin, 29);
+  doc.text('P.O. Box 12345, Dar es Salaam, Tanzania', margin, 35);
+  // PFI label on right
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18);
+  doc.text('PRO FORMA INVOICE', pageW - margin, 18, { align: 'right' });
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Ref: PFI-' + pfi.id.toUpperCase(), pageW - margin, 26, { align: 'right' });
+  doc.text('Date: ' + new Date(pfi.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }), pageW - margin, 32, { align: 'right' });
+  doc.text('Status: ' + pfi.status, pageW - margin, 38, { align: 'right' });
+  y = 52;
+
+  // ── Bill To + Vehicle ──
+  doc.setTextColor(30, 41, 59);
+  doc.setFillColor(241, 245, 249);
+  doc.roundedRect(margin, y, contentW / 2 - 4, 38, 3, 3, 'F');
+  doc.roundedRect(margin + contentW / 2 + 4, y, contentW / 2 - 4, 38, 3, 3, 'F');
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+  doc.text('BILL TO', margin + 4, y + 7);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+  doc.text(customer?.name || '—', margin + 4, y + 14);
+  doc.setFontSize(9); doc.setTextColor(100, 116, 139);
+  if (customer?.phone)   doc.text(customer.phone,   margin + 4, y + 20);
+  if (customer?.email)   doc.text(customer.email,   margin + 4, y + 26);
+  if (customer?.address) doc.text(customer.address, margin + 4, y + 32);
+
+  const vx = margin + contentW / 2 + 8;
+  doc.setTextColor(30, 41, 59);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+  doc.text('VEHICLE', vx, y + 7);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10);
+  doc.text((vehicle?.registrationNumber || '—') + ' – ' + (vehicle?.make || '') + ' ' + (vehicle?.model || ''), vx, y + 14);
+  doc.setFontSize(9); doc.setTextColor(100, 116, 139);
+  if (vehicle?.year)         doc.text('Year: ' + vehicle.year,             vx, y + 20);
+  if (vehicle?.engineNumber) doc.text('Engine: ' + vehicle.engineNumber,   vx, y + 26);
+  if (job?.claimReference)   doc.text('Claim Ref: ' + job.claimReference,  vx, y + 32);
+  y += 46;
+
+  // ── Job info ──
+  if (job) {
+    doc.setTextColor(30, 41, 59);
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+    doc.text('Job Card: ' + (job.jobCardNumber || '—') + '   |   Category: ' + (job.category || '—') + (job.insurer ? '   |   Insurer: ' + job.insurer : ''), margin, y);
+    y += 6;
+    if (job.damageDescription) {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(100, 116, 139);
+      doc.text('Description: ' + job.damageDescription, margin, y);
+      y += 6;
+    }
+    y += 2;
+  }
+
+  // ── Parts table ──
+  if (parts && parts.length) {
+    doc.setFillColor(30, 64, 175);
+    doc.rect(margin, y, contentW, 8, 'F');
+    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+    doc.text('PARTS & MATERIALS', margin + 3, y + 5.5);
+    y += 8;
+    // Column headers
+    doc.setFillColor(248, 250, 252);
+    doc.rect(margin, y, contentW, 7, 'F');
+    doc.setTextColor(71, 85, 105); doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+    doc.text('#',       margin + 3,              y + 5);
+    doc.text('Description',  margin + 10,        y + 5);
+    doc.text('Qty',     margin + contentW * 0.65, y + 5);
+    doc.text('Unit Cost',margin + contentW * 0.75,y + 5);
+    doc.text('Total',   margin + contentW - 3,    y + 5, { align: 'right' });
+    y += 7;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+    parts.forEach((p, i) => {
+      if (i % 2 === 0) { doc.setFillColor(249, 250, 251); doc.rect(margin, y, contentW, 7, 'F'); }
+      doc.setTextColor(30, 41, 59);
+      doc.text(String(i + 1),     margin + 3,              y + 5);
+      doc.text(p.partName,         margin + 10,             y + 5);
+      doc.text(String(p.quantity), margin + contentW * 0.65,y + 5);
+      doc.text(fmt(p.unitCost),    margin + contentW * 0.75,y + 5);
+      doc.text(fmt(p.totalCost),   margin + contentW - 3,   y + 5, { align: 'right' });
+      y += 7;
+    });
+    y += 4;
+  }
+
+  // ── Cost summary ──
+  const sumX = margin + contentW * 0.55, sumW = contentW * 0.45;
+  const drawRow = (label, value, bold, highlight) => {
+    if (highlight) { doc.setFillColor(239, 246, 255); doc.rect(sumX, y, sumW, 8, 'F'); }
+    doc.setFont('helvetica', bold ? 'bold' : 'normal');
+    doc.setFontSize(bold ? 10 : 9);
+    doc.setTextColor(bold ? 30 : 71, bold ? 41 : 85, bold ? 59 : 105);
+    doc.text(label, sumX + 4, y + 5.5);
+    doc.text(value, sumX + sumW - 3, y + 5.5, { align: 'right' });
+    y += 8;
+  };
+  y += 2;
+  drawRow('Labour Cost',      fmt(pfi.labourCost),    false, false);
+  drawRow('Parts / Materials', fmt(pfi.partsCost),    false, false);
+  // divider
+  doc.setDrawColor(226, 232, 240); doc.line(sumX, y, sumX + sumW, y); y += 3;
+  drawRow('TOTAL ESTIMATE',   fmt(pfi.totalEstimate), true,  true);
+  y += 4;
+
+  // ── Notes ──
+  if (pfi.notes) {
+    doc.setFont('helvetica', 'italic'); doc.setFontSize(9); doc.setTextColor(100, 116, 139);
+    doc.text('Notes: ' + pfi.notes, margin, y);
+    y += 8;
+  }
+
+  // ── Footer ──
+  const pageH = 297;
+  doc.setFillColor(241, 245, 249);
+  doc.rect(0, pageH - 22, pageW, 22, 'F');
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(100, 116, 139);
+  doc.text('This is a Pro Forma Invoice and does not constitute a tax invoice.', pageW / 2, pageH - 14, { align: 'center' });
+  doc.text('AutoFix GMS  |  Tel: +255 700 000 000  |  info@autofixgms.co.tz', pageW / 2, pageH - 8, { align: 'center' });
+
+  return doc;
+}
+
+// ── Text preview for the modal ──
+function buildPFITextPreview(detail) {
+  const { pfi, job, customer, vehicle, parts } = detail;
+  const line = '─'.repeat(52);
+  let t = '';
+  t += '       AUTOFIX GMS – PRO FORMA INVOICE\n';
+  t += line + '\n';
+  t += \`Ref:      PFI-\${pfi.id.toUpperCase()}\n\`;
+  t += \`Date:     \${new Date(pfi.createdAt).toLocaleDateString('en-GB')}\n\`;
+  t += \`Status:   \${pfi.status}\n\`;
+  t += line + '\n';
+  t += \`Customer: \${customer?.name || '—'}\n\`;
+  t += \`Email:    \${customer?.email || '—'}\n\`;
+  t += \`Phone:    \${customer?.phone || '—'}\n\`;
+  t += \`Vehicle:  \${vehicle?.registrationNumber || '—'} \${vehicle?.make||''} \${vehicle?.model||''} \${vehicle?.year||''}\n\`;
+  if (job) t += \`Job Card: \${job.jobCardNumber||'—'}  (\${job.category})\n\`;
+  t += line + '\n';
+  if (parts?.length) {
+    t += 'PARTS & MATERIALS\n';
+    parts.forEach((p, i) => {
+      t += \`  \${i+1}. \${p.partName.padEnd(28)} x\${p.quantity}  \${fmt(p.unitCost).padStart(12)}  = \${fmt(p.totalCost).padStart(12)}\n\`;
+    });
+    t += line + '\n';
+  }
+  t += \`  Labour:         \${fmt(pfi.labourCost).padStart(20)}\n\`;
+  t += \`  Parts:          \${fmt(pfi.partsCost).padStart(20)}\n\`;
+  t += \`  ─────────────────────────\n\`;
+  t += \`  TOTAL ESTIMATE: \${fmt(pfi.totalEstimate).padStart(20)}\n\`;
+  if (pfi.notes) t += \`\nNotes: \${pfi.notes}\n\`;
+  t += line + '\n';
+  t += 'This is a Pro Forma Invoice, not a tax invoice.\n';
+  return t;
+}
+
+// ── Download PDF directly from PFI card ──
+async function downloadPFI(pfiId) {
+  showToast('Generating PDF…');
+  const detail = await fetchPFIDetail(pfiId);
+  const doc = buildPFIDoc(detail);
+  const filename = \`PFI-\${detail.pfi.id.toUpperCase()}-\${detail.job?.jobCardNumber||'GMS'}.pdf\`;
+  doc.save(filename);
+  showToast(\`✅ \${filename} downloaded\`);
+}
+
+// ── Download from inside the Send modal ──
+async function downloadPFIFromModal() {
+  if (!_currentPFIDetail) return;
+  const doc = buildPFIDoc(_currentPFIDetail);
+  const filename = \`PFI-\${_currentPFIDetail.pfi.id.toUpperCase()}.pdf\`;
+  doc.save(filename);
+  showToast(\`✅ \${filename} downloaded\`);
+}
+
+// ── Open Send modal ──
+async function showSendPFIModal(pfiId) {
+  showToast('Loading PFI details…');
+  _currentPFIId = pfiId;
+  _currentPFIDetail = await fetchPFIDetail(pfiId);
+  const { pfi, job, customer } = _currentPFIDetail;
+
+  // Summary strip
+  document.getElementById('sendPFI-subtitle').textContent = (job?.jobCardNumber || 'PFI') + ' – ' + (customer?.name || '');
+  document.getElementById('sendPFI-summary').innerHTML = \`
+    <div class="flex flex-wrap gap-4 text-sm">
+      <div><span class="text-gray-500">Job:</span> <strong>\${job?.jobCardNumber||'—'}</strong></div>
+      <div><span class="text-gray-500">Customer:</span> <strong>\${customer?.name||'—'}</strong></div>
+      <div><span class="text-gray-500">Vehicle:</span> <strong>\${_currentPFIDetail.vehicle?.registrationNumber||'—'}</strong></div>
+      <div><span class="text-gray-500">Total:</span> <strong class="text-blue-700">\${fmt(pfi.totalEstimate)}</strong></div>
+      <div><span class="text-gray-500">Status:</span> <strong>\${pfi.status}</strong></div>
+    </div>
+  \`;
+
+  // Pre-fill email
+  document.getElementById('sendPFI-email').value   = customer?.email || '';
+  // Pre-fill subject
+  document.getElementById('sendPFI-subject').value = \`Pro Forma Invoice – \${job?.jobCardNumber||'PFI-'+pfi.id.toUpperCase()} | AutoFix GMS\`;
+  // Pre-fill message
+  document.getElementById('sendPFI-message').value =
+\`Dear \${customer?.name || 'Valued Customer'},
+
+Please find attached the Pro Forma Invoice (PFI) for the service on your vehicle \${_currentPFIDetail.vehicle?.registrationNumber||''}.
+
+Summary:
+  Job Card:       \${job?.jobCardNumber || '—'}
+  Labour Cost:    \${fmt(pfi.labourCost)}
+  Parts Cost:     \${fmt(pfi.partsCost)}
+  Total Estimate: \${fmt(pfi.totalEstimate)}
+
+\${pfi.notes ? 'Notes: ' + pfi.notes + '\\n\\n' : ''}Please review and revert with your approval at your earliest convenience.
+
+For any queries, please contact us at +255 700 000 000 or info@autofixgms.co.tz.
+
+Kind regards,
+AutoFix GMS Team\`;
+
+  // Text preview
+  document.getElementById('sendPFI-previewBox').textContent = buildPFITextPreview(_currentPFIDetail);
+  document.getElementById('sendPFI-btnLabel').textContent = pfi.sentAt ? 'Resend & Record' : 'Send & Record';
+
+  openModal('modal-sendPFI');
+}
+
+// ── Open system email client with pre-filled content + PDF hint ──
+function copyAndOpenEmail() {
+  const email   = document.getElementById('sendPFI-email').value;
+  const subject = encodeURIComponent(document.getElementById('sendPFI-subject').value);
+  const body    = encodeURIComponent(document.getElementById('sendPFI-message').value + '\n\n[Please attach the downloaded PDF]');
+  // Download the PDF first
+  downloadPFIFromModal();
+  // Small delay then open mailto
+  setTimeout(() => { window.location.href = \`mailto:\${email}?subject=\${subject}&body=\${body}\`; }, 800);
+}
+
+// ── Record send in backend ──
+async function submitSendPFI() {
+  const email = document.getElementById('sendPFI-email').value.trim();
+  if (!email) { showToast('Please enter a recipient email', 'error'); return; }
+  if (!_currentPFIId) return;
+  const btn = document.getElementById('sendPFI-btnLabel');
+  btn.textContent = 'Recording…';
+  try {
+    // 1. Download the PDF automatically
+    await downloadPFIFromModal();
+    // 2. Record send in backend
+    await axios.post('/api/pfi/' + _currentPFIId + '/send', { email });
+    closeModal('modal-sendPFI');
+    showToast(\`✅ PFI recorded as sent to \${email}. PDF downloaded – please attach and send via email.\`);
+    loadClaims();
+  } catch(err) {
+    showToast('Failed to record send: ' + (err.response?.data?.error || err.message), 'error');
+    btn.textContent = 'Retry';
+  }
+}
+
 // ═══ CLAIMS ═══
 async function loadClaims() {
   const [pfiData, jobData] = await Promise.all([axios.get('/api/pfis'), axios.get('/api/jobcards')]);
@@ -2373,7 +2704,7 @@ function renderClaims(pfis) {
     const job = allJobCards.find(j => j.id === pfi.jobCardId);
     const cfg = PFI_STATUS_CONFIG[pfi.status] || PFI_STATUS_CONFIG['Draft'];
     return \`
-      <div class="card p-5">
+      <div class="card p-5 flex flex-col">
         <div class="flex items-start justify-between mb-3">
           <div>
             <p class="font-bold text-gray-900">\${job?.jobCardNumber||'—'}</p>
@@ -2386,15 +2717,26 @@ function renderClaims(pfis) {
         <div class="bg-gray-50 rounded-xl p-3 mb-4">
           <div class="flex justify-between text-sm mb-1"><span class="text-gray-500">Labour</span><span class="font-semibold">\${fmt(pfi.labourCost)}</span></div>
           <div class="flex justify-between text-sm mb-1"><span class="text-gray-500">Parts</span><span class="font-semibold">\${fmt(pfi.partsCost)}</span></div>
-          <div class="flex justify-between text-sm font-bold border-t pt-2"><span>Total</span><span class="text-blue-600">\${fmt(pfi.totalEstimate)}</span></div>
+          <div class="flex justify-between text-sm font-bold border-t pt-2"><span>Total Estimate</span><span class="text-blue-600">\${fmt(pfi.totalEstimate)}</span></div>
         </div>
         \${pfi.notes ? \`<p class="text-xs text-gray-500 mb-3 italic">"\${pfi.notes}"</p>\` : ''}
-        <div class="flex gap-2">
-          \${pfi.status === 'Submitted' ? \`
-            <button class="btn-primary text-xs flex-1" onclick="updatePFIStatus('\${pfi.id}','Approved')"><i class="fas fa-check"></i> Approve</button>
-            <button class="btn-danger text-xs flex-1" onclick="updatePFIStatus('\${pfi.id}','Rejected')"><i class="fas fa-times"></i> Reject</button>
-          \` : ''}
-          \${pfi.status === 'Draft' ? \`<button class="btn-primary text-xs w-full" onclick="updatePFIStatus('\${pfi.id}','Submitted')"><i class="fas fa-paper-plane"></i> Submit to Insurer</button>\` : ''}
+        \${pfi.sentAt ? \`<p class="text-xs text-green-600 mb-2"><i class="fas fa-check-circle mr-1"></i>Sent to <strong>\${pfi.sentTo||'customer'}</strong> on \${new Date(pfi.sentAt).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</p>\` : ''}
+        <div class="flex flex-col gap-2 mt-auto">
+          <div class="flex gap-2">
+            \${pfi.status === 'Submitted' ? \`
+              <button class="btn-primary text-xs flex-1" onclick="updatePFIStatus('\${pfi.id}','Approved')"><i class="fas fa-check mr-1"></i>Approve</button>
+              <button class="btn-danger text-xs flex-1" onclick="updatePFIStatus('\${pfi.id}','Rejected')"><i class="fas fa-times mr-1"></i>Reject</button>
+            \` : ''}
+            \${pfi.status === 'Draft' ? \`<button class="btn-primary text-xs w-full" onclick="updatePFIStatus('\${pfi.id}','Submitted')"><i class="fas fa-paper-plane mr-1"></i>Submit to Insurer</button>\` : ''}
+          </div>
+          <div class="flex gap-2">
+            <button class="btn-secondary text-xs flex-1" onclick="downloadPFI('\${pfi.id}')">
+              <i class="fas fa-download mr-1"></i>Download PDF
+            </button>
+            <button class="btn-secondary text-xs flex-1" onclick="showSendPFIModal('\${pfi.id}')">
+              <i class="fas fa-paper-plane mr-1"></i>\${pfi.sentAt ? 'Resend' : 'Send to Customer'}
+            </button>
+          </div>
         </div>
       </div>
     \`;
