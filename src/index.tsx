@@ -2559,34 +2559,36 @@ function buildPFIDoc(detail) {
 // ── Text preview for the modal ──
 function buildPFITextPreview(detail) {
   const { pfi, job, customer, vehicle, parts } = detail;
-  const line = '─'.repeat(52);
+  const NL = String.fromCharCode(10);
+  const line = '\u2500'.repeat(52);
+  const dash25 = '\u2500'.repeat(25);
   let t = '';
-  t += '       AUTOFIX GMS – PRO FORMA INVOICE\n';
-  t += line + '\n';
-  t += \`Ref:      PFI-\${pfi.id.toUpperCase()}\n\`;
-  t += \`Date:     \${new Date(pfi.createdAt).toLocaleDateString('en-GB')}\n\`;
-  t += \`Status:   \${pfi.status}\n\`;
-  t += line + '\n';
-  t += \`Customer: \${customer?.name || '—'}\n\`;
-  t += \`Email:    \${customer?.email || '—'}\n\`;
-  t += \`Phone:    \${customer?.phone || '—'}\n\`;
-  t += \`Vehicle:  \${vehicle?.registrationNumber || '—'} \${vehicle?.make||''} \${vehicle?.model||''} \${vehicle?.year||''}\n\`;
-  if (job) t += \`Job Card: \${job.jobCardNumber||'—'}  (\${job.category})\n\`;
-  t += line + '\n';
+  t += '       AUTOFIX GMS \u2013 PRO FORMA INVOICE' + NL;
+  t += line + NL;
+  t += 'Ref:      PFI-' + pfi.id.toUpperCase() + NL;
+  t += 'Date:     ' + new Date(pfi.createdAt).toLocaleDateString('en-GB') + NL;
+  t += 'Status:   ' + pfi.status + NL;
+  t += line + NL;
+  t += 'Customer: ' + (customer?.name || '-') + NL;
+  t += 'Email:    ' + (customer?.email || '-') + NL;
+  t += 'Phone:    ' + (customer?.phone || '-') + NL;
+  t += 'Vehicle:  ' + (vehicle?.registrationNumber || '-') + ' ' + (vehicle?.make||'') + ' ' + (vehicle?.model||'') + ' ' + (vehicle?.year||'') + NL;
+  if (job) t += 'Job Card: ' + (job.jobCardNumber||'-') + '  (' + job.category + ')' + NL;
+  t += line + NL;
   if (parts?.length) {
-    t += 'PARTS & MATERIALS\n';
+    t += 'PARTS & MATERIALS' + NL;
     parts.forEach((p, i) => {
-      t += \`  \${i+1}. \${p.partName.padEnd(28)} x\${p.quantity}  \${fmt(p.unitCost).padStart(12)}  = \${fmt(p.totalCost).padStart(12)}\n\`;
+      t += '  ' + (i+1) + '. ' + p.partName + ' x' + p.quantity + '  ' + fmt(p.unitCost) + '  = ' + fmt(p.totalCost) + NL;
     });
-    t += line + '\n';
+    t += line + NL;
   }
-  t += \`  Labour:         \${fmt(pfi.labourCost).padStart(20)}\n\`;
-  t += \`  Parts:          \${fmt(pfi.partsCost).padStart(20)}\n\`;
-  t += \`  ─────────────────────────\n\`;
-  t += \`  TOTAL ESTIMATE: \${fmt(pfi.totalEstimate).padStart(20)}\n\`;
-  if (pfi.notes) t += \`\nNotes: \${pfi.notes}\n\`;
-  t += line + '\n';
-  t += 'This is a Pro Forma Invoice, not a tax invoice.\n';
+  t += '  Labour:         ' + fmt(pfi.labourCost) + NL;
+  t += '  Parts:          ' + fmt(pfi.partsCost) + NL;
+  t += '  ' + dash25 + NL;
+  t += '  TOTAL ESTIMATE: ' + fmt(pfi.totalEstimate) + NL;
+  if (pfi.notes) t += NL + 'Notes: ' + pfi.notes + NL;
+  t += line + NL;
+  t += 'This is a Pro Forma Invoice, not a tax invoice.' + NL;
   return t;
 }
 
@@ -2662,7 +2664,7 @@ AutoFix GMS Team\`;
 function copyAndOpenEmail() {
   const email   = document.getElementById('sendPFI-email').value;
   const subject = encodeURIComponent(document.getElementById('sendPFI-subject').value);
-  const body    = encodeURIComponent(document.getElementById('sendPFI-message').value + '\n\n[Please attach the downloaded PDF]');
+  const body    = encodeURIComponent(document.getElementById('sendPFI-message').value + String.fromCharCode(10,10) + '[Please attach the downloaded PDF]');
   // Download the PDF first
   downloadPFIFromModal();
   // Small delay then open mailto
