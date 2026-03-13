@@ -2,8 +2,10 @@ import { Hono } from 'hono'
 import {
   customers, vehicles, jobCards, pfis, partsConsumption,
   invoices, servicePackages, users, activityLog,
+  oilServiceProducts, catalogueParts, carWashPackages, addOnServices,
   type Customer, type Vehicle, type JobCard, type PFI,
-  type PartConsumption, type ServicePackage, type User, type Invoice
+  type PartConsumption, type ServicePackage, type User, type Invoice,
+  type CataloguePart, type CarWashPackage, type AddOnService
 } from '../data/store'
 
 const api = new Hono()
@@ -27,7 +29,7 @@ api.get('/dashboard', (c) => {
   const totalRevenue = invoices.filter(i => i.status === 'Paid').reduce((sum, i) => sum + i.totalAmount, 0)
   const recentJobs = [...jobCards].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 5).map(j => {
     const v = vehicles.find(v => v.id === j.vehicleId)
-    const cu = customers.find(c => c.id === j.customerId)
+    const cu = customers.find(cx => cx.id === j.customerId)
     return { ...j, vehicleReg: v?.registrationNumber, vehicleMake: v?.make, vehicleModel: v?.model, customerName: cu?.name }
   })
   return c.json({ active, inProgress, awaitingApproval, completed, readyPickup, pendingInvoices, totalRevenue, recentJobs })
@@ -35,8 +37,12 @@ api.get('/dashboard', (c) => {
 
 // ─── Customers ──────────────────────────────────────────────────────────────
 api.get('/customers', (c) => {
-  const withVehicles = customers.map(cu => ({
-    ...cu, vehicleCount: vehicles.filter(v => v.customerId === cu.id).length,
+  const typeFilter = c.req.query('type') // 'Individual' | 'Corporate'
+  let list = customers
+  if (typeFilter) list = list.filter(cu => cu.customerType === typeFilter)
+  const withVehicles = list.map(cu => ({
+    ...cu,
+    vehicleCount: vehicles.filter(v => v.customerId === cu.id).length,
     jobCount: jobCards.filter(j => j.customerId === cu.id).length
   }))
   return c.json(withVehicles)
@@ -263,6 +269,70 @@ api.get('/analytics', (c) => {
   }, {} as Record<string, number>)
 
   return c.json({ totalRevenue, totalLabour, totalParts, totalCost, margin, avgJobValue, byInsurer, byStatus, invoiceCount: paid.length })
+})
+
+// ─── Twiga Catalogue: Oil Services ──────────────────────────────────────────
+api.get('/catalogue/oil', (c) => c.json(oilServiceProducts))
+
+// ─── Twiga Catalogue: Parts & Accessories ────────────────────────────────────
+api.get('/catalogue/parts', (c) => {
+  const category = c.req.query('category')
+  const q = c.req.query('q')?.toLowerCase()
+  let list = catalogueParts
+  if (category) list = list.filter(p => p.category === category)
+  if (q) list = list.filter(p =>
+    p.description.toLowerCase().includes(q) ||
+    p.compatibleModels.toLowerCase().includes(q)
+  )
+  return c.json(list)
+})
+
+api.get('/catalogue/parts/categories', (c) => {
+  const cats = [...new Set(catalogueParts.map(p => p.category))]
+  return c.json(cats)
+})
+
+api.put('/catalogue/parts/:id', async (c) => {
+  const idx = catalogueParts.findIndex(p => p.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const body = await c.req.json<Partial<CataloguePart>>()
+  catalogueParts[idx] = { ...catalogueParts[idx], ...body }
+  return c.json(catalogueParts[idx])
+})
+
+// ─── Twiga Catalogue: Car Wash ────────────────────────────────────────────────
+api.get('/catalogue/carwash', (c) => c.json(carWashPackages))
+
+api.put('/catalogue/carwash/:id', async (c) => {
+  const idx = carWashPackages.findIndex(p => p.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const body = await c.req.json<Partial<CarWashPackage>>()
+  carWashPackages[idx] = { ...carWashPackages[idx], ...body }
+  return c.json(carWashPackages[idx])
+})
+
+// ─── Twiga Catalogue: Add-on Services ────────────────────────────────────────
+api.get('/catalogue/addons', (c) => c.json(addOnServices))
+
+api.put('/catalogue/addons/:id', async (c) => {
+  const idx = addOnServices.findIndex(s => s.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const body = await c.req.json<Partial<AddOnService>>()
+  addOnServices[idx] = { ...addOnServices[idx], ...body }
+  return c.json(addOnServices[idx])
+})
+
+// ─── Catalogue Search (unified) ───────────────────────────────────────────────
+api.get('/catalogue/search', (c) => {
+  const q = (c.req.query('q') || '').toLowerCase()
+  if (!q) return c.json({ parts: [], carwash: [], addons: [] })
+  return c.json({
+    parts: catalogueParts.filter(p =>
+      p.description.toLowerCase().includes(q) || p.compatibleModels.toLowerCase().includes(q)
+    ).slice(0, 10),
+    carwash: carWashPackages.filter(p => p.name.toLowerCase().includes(q)).slice(0, 5),
+    addons: addOnServices.filter(s => s.name.toLowerCase().includes(q)).slice(0, 5),
+  })
 })
 
 export default api

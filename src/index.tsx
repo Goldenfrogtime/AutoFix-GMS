@@ -112,6 +112,18 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
     <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('packages')">
       <i class="fas fa-box-open w-5 text-center"></i> Service Packages
     </a>
+    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('oil-services')">
+      <i class="fas fa-oil-can w-5 text-center"></i> Oil Services
+    </a>
+    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('parts-catalogue')">
+      <i class="fas fa-cubes w-5 text-center"></i> Parts Catalogue
+    </a>
+    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('car-wash')">
+      <i class="fas fa-shower w-5 text-center"></i> Car Wash
+    </a>
+    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('add-ons')">
+      <i class="fas fa-wrench w-5 text-center"></i> Add-on Services
+    </a>
     <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('analytics')">
       <i class="fas fa-chart-bar w-5 text-center"></i> Analytics
     </a>
@@ -267,7 +279,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 
     <!-- ═══ CUSTOMERS ═══ -->
     <div id="page-customers" class="page">
-      <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
         <div>
           <h2 class="text-2xl font-bold text-gray-900">Customers</h2>
           <p class="text-gray-500 text-sm mt-1">Manage customer profiles and history</p>
@@ -275,10 +287,22 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         <div class="flex items-center gap-3">
           <div class="relative">
             <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-            <input class="search-input" type="text" placeholder="Search customers…" oninput="filterCustomers(this.value)"/>
+            <input class="search-input" type="text" placeholder="Search customers…" id="customerSearchInput" oninput="filterCustomers(this.value)"/>
           </div>
           <button class="btn-primary" onclick="showNewCustomerModal()"><i class="fas fa-user-plus"></i> Add Customer</button>
         </div>
+      </div>
+      <!-- Customer Type Tabs -->
+      <div class="flex gap-2 mb-5" id="customerTypeTabs">
+        <button id="custTab-all" class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-blue-600 text-white transition-all" onclick="setCustomerTab('all',this)">
+          <i class="fas fa-users"></i> All Customers <span id="custCount-all" class="bg-white/30 text-white text-xs px-2 py-0.5 rounded-full ml-1">0</span>
+        </button>
+        <button id="custTab-Individual" class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 transition-all" onclick="setCustomerTab('Individual',this)">
+          <i class="fas fa-user"></i> Individual <span id="custCount-Individual" class="bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded-full ml-1">0</span>
+        </button>
+        <button id="custTab-Corporate" class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 transition-all" onclick="setCustomerTab('Corporate',this)">
+          <i class="fas fa-building"></i> Corporate <span id="custCount-Corporate" class="bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded-full ml-1">0</span>
+        </button>
       </div>
       <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-4" id="customersGrid"></div>
     </div>
@@ -407,6 +431,92 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-4" id="usersGrid"></div>
     </div>
 
+    <!-- ═══ OIL SERVICES ═══ -->
+    <div id="page-oil-services" class="page">
+      <div class="mb-6">
+        <h2 class="text-2xl font-bold text-gray-900">Oil Services – Pricing</h2>
+        <p class="text-gray-500 text-sm mt-1">Toyota, Total & Castrol oil service packages with 3 customer tiers and fleet discounts</p>
+      </div>
+      <!-- Brand Tabs -->
+      <div class="flex gap-2 mb-6" id="oilBrandTabs">
+        <button class="px-5 py-2.5 rounded-xl text-sm font-bold bg-blue-600 text-white shadow" onclick="showOilBrand('Toyota',this)">🛢 Toyota</button>
+        <button class="px-5 py-2.5 rounded-xl text-sm font-bold bg-gray-100 text-gray-600 hover:bg-gray-200" onclick="showOilBrand('Total',this)">🛢 Total</button>
+        <button class="px-5 py-2.5 rounded-xl text-sm font-bold bg-gray-100 text-gray-600 hover:bg-gray-200" onclick="showOilBrand('Castrol',this)">🛢 Castrol</button>
+      </div>
+      <!-- Fleet Discount Banner -->
+      <div id="oilFleetBanner" class="hidden card p-4 mb-5 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200">
+        <div class="flex items-center gap-3">
+          <i class="fas fa-truck text-amber-500 text-xl"></i>
+          <div>
+            <p class="font-bold text-amber-800">Fleet Discounts Available (Toyota Only)</p>
+            <p class="text-sm text-amber-700">3–5 vehicles: <strong>TZS 5,000 off</strong> per car &nbsp;|&nbsp; 5+ vehicles: <strong>TZS 8,000 off</strong> per car</p>
+          </div>
+        </div>
+      </div>
+      <!-- Pricing Table -->
+      <div class="card overflow-hidden" id="oilPricingTable"></div>
+    </div>
+
+    <!-- ═══ PARTS CATALOGUE ═══ -->
+    <div id="page-parts-catalogue" class="page">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-900">Parts & Accessories Catalogue</h2>
+          <p class="text-gray-500 text-sm mt-1">Complete Twiga Group parts list with buying price, selling price & margin</p>
+        </div>
+        <div class="flex items-center gap-3 flex-wrap">
+          <div class="relative">
+            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+            <input class="search-input" type="text" placeholder="Search parts or models…" id="partsSearch" oninput="filterParts(this.value)"/>
+          </div>
+          <select class="form-input w-auto" id="partsCategoryFilter" onchange="filterParts()">
+            <option value="">All Categories</option>
+            <option>Air Filter</option>
+            <option>AC Filter</option>
+            <option>Oil Filter</option>
+            <option>Diesel Filter</option>
+            <option>Spark Plugs</option>
+            <option>Accessory</option>
+          </select>
+        </div>
+      </div>
+      <!-- Stats row -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5" id="partsStats"></div>
+      <!-- Table -->
+      <div class="card overflow-hidden">
+        <table class="w-full text-sm">
+          <thead><tr class="border-b border-gray-100 bg-gray-50">
+            <th class="text-left px-4 py-3 font-semibold text-gray-600">Category</th>
+            <th class="text-left px-4 py-3 font-semibold text-gray-600">Description</th>
+            <th class="text-left px-4 py-3 font-semibold text-gray-600">Compatible Models</th>
+            <th class="text-right px-4 py-3 font-semibold text-gray-600">Buy Price</th>
+            <th class="text-right px-4 py-3 font-semibold text-gray-600">Sell Price</th>
+            <th class="text-right px-4 py-3 font-semibold text-gray-600">Margin</th>
+            <th class="text-right px-4 py-3 font-semibold text-gray-600">Margin %</th>
+          </tr></thead>
+          <tbody id="partsTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══ CAR WASH ═══ -->
+    <div id="page-car-wash" class="page">
+      <div class="mb-6">
+        <h2 class="text-2xl font-bold text-gray-900">Car Wash Packages</h2>
+        <p class="text-gray-500 text-sm mt-1">Standard, deep clean and monthly fleet packages</p>
+      </div>
+      <div class="grid lg:grid-cols-3 gap-6" id="carWashGrid"></div>
+    </div>
+
+    <!-- ═══ ADD-ON SERVICES ═══ -->
+    <div id="page-add-ons" class="page">
+      <div class="mb-6">
+        <h2 class="text-2xl font-bold text-gray-900">Add-on Services</h2>
+        <p class="text-gray-500 text-sm mt-1">Diagnostic, inspection, tyre and alignment services</p>
+      </div>
+      <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-5" id="addOnsGrid"></div>
+    </div>
+
   </div>
 </main>
 </div>
@@ -454,8 +564,29 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-newCustomer')"><i class="fas fa-times"></i></button>
     </div>
     <form id="newCustomerForm" onsubmit="submitNewCustomer(event)">
+      <!-- Customer Type Toggle -->
+      <div class="mb-5">
+        <label class="form-label">Customer Type</label>
+        <div class="flex gap-2 mt-1">
+          <button type="button" id="custType-Individual" class="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-blue-500 bg-blue-50 text-blue-700 font-semibold text-sm transition-all" onclick="selectCustType('Individual')">
+            <i class="fas fa-user"></i> Individual
+          </button>
+          <button type="button" id="custType-Corporate" class="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-gray-200 text-gray-500 font-semibold text-sm transition-all hover:border-gray-300" onclick="selectCustType('Corporate')">
+            <i class="fas fa-building"></i> Corporate
+          </button>
+        </div>
+        <input type="hidden" id="cust-type" value="Individual"/>
+      </div>
+      <!-- Corporate Fields (hidden by default) -->
+      <div id="corporateFields" class="hidden">
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div><label class="form-label">Company Name</label><input class="form-input" id="cust-company" placeholder="Acme Ltd"/></div>
+          <div><label class="form-label">Contact Person</label><input class="form-input" id="cust-contact" placeholder="Jane Doe"/></div>
+        </div>
+        <div class="mb-4"><label class="form-label">Tax PIN / TIN</label><input class="form-input" id="cust-taxpin" placeholder="TIN-123456789"/></div>
+      </div>
       <div class="grid grid-cols-2 gap-4 mb-4">
-        <div><label class="form-label">Full Name</label><input class="form-input" id="cust-name" required placeholder="John Doe"/></div>
+        <div><label class="form-label" id="cust-name-label">Full Name</label><input class="form-input" id="cust-name" required placeholder="John Doe"/></div>
         <div><label class="form-label">Phone Number</label><input class="form-input" id="cust-phone" required placeholder="+255 7XX XXX XXX"/></div>
       </div>
       <div class="grid grid-cols-2 gap-4 mb-4">
@@ -649,6 +780,10 @@ function showPage(page) {
   if (page === 'packages') loadPackages();
   if (page === 'analytics') loadAnalytics();
   if (page === 'users') loadUsers();
+  if (page === 'oil-services') loadOilServices();
+  if (page === 'parts-catalogue') loadPartsCatalogue();
+  if (page === 'car-wash') loadCarWash();
+  if (page === 'add-ons') loadAddOns();
   window.scrollTo(0, 0);
 }
 
@@ -1102,59 +1237,134 @@ async function submitNewJob(e) {
 }
 
 // ═══ CUSTOMERS ═══
+let activeCustomerTab = 'all';
+
 async function loadCustomers() {
   const { data } = await axios.get('/api/customers');
   allCustomers = data;
+  updateCustomerCounts(data);
   renderCustomers(data);
 }
 
+function updateCustomerCounts(list) {
+  const all = list.length;
+  const ind = list.filter(c => c.customerType === 'Individual' || !c.customerType).length;
+  const corp = list.filter(c => c.customerType === 'Corporate').length;
+  const els = { all, Individual: ind, Corporate: corp };
+  Object.entries(els).forEach(([k, v]) => {
+    const el = document.getElementById('custCount-' + k);
+    if (el) el.textContent = v;
+  });
+}
+
+function setCustomerTab(type, btn) {
+  activeCustomerTab = type;
+  document.querySelectorAll('#customerTypeTabs button').forEach(b => {
+    b.className = 'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 transition-all';
+    // Fix the count span inside non-active buttons
+    const span = b.querySelector('span');
+    if (span) { span.className = 'bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded-full ml-1'; }
+  });
+  btn.className = 'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-blue-600 text-white transition-all';
+  const activeSpan = btn.querySelector('span');
+  if (activeSpan) { activeSpan.className = 'bg-white/30 text-white text-xs px-2 py-0.5 rounded-full ml-1'; }
+  const searchQ = document.getElementById('customerSearchInput') ? document.getElementById('customerSearchInput').value : '';
+  filterCustomers(searchQ);
+}
+
 function renderCustomers(list) {
-  document.getElementById('customersGrid').innerHTML = list.map(c => \`
+  document.getElementById('customersGrid').innerHTML = list.map(c => {
+    const isCorp = c.customerType === 'Corporate';
+    const initials = isCorp ? '<i class="fas fa-building text-sm"></i>' : c.name.charAt(0).toUpperCase();
+    const grad = isCorp ? 'linear-gradient(135deg,#6366f1,#8b5cf6)' : 'linear-gradient(135deg,#3b82f6,#2563eb)';
+    const typeBadge = isCorp
+      ? \`<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 ml-1"><i class="fas fa-building text-xs"></i> Corp</span>\`
+      : \`<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 ml-1"><i class="fas fa-user text-xs"></i> Indiv</span>\`;
+    return \`
     <div class="card p-5 hover:shadow-lg transition-shadow cursor-pointer" onclick="viewCustomerDetail('\${c.id}')">
-      <div class="flex items-start gap-3 mb-4">
-        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-lg font-bold">\${c.name.charAt(0)}</div>
-        <div class="flex-1">
-          <h3 class="font-bold text-gray-900">\${c.name}</h3>
-          <p class="text-sm text-gray-500">\${c.phone}</p>
-          <p class="text-xs text-gray-400">\${c.email||'—'}</p>
+      <div class="flex items-start gap-3 mb-3">
+        <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-white text-lg font-bold flex-shrink-0" style="background:\${grad}">\${initials}</div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center flex-wrap gap-1 mb-0.5">
+            <h3 class="font-bold text-gray-900 text-sm leading-tight">\${c.name}</h3>
+            \${typeBadge}
+          </div>
+          \${isCorp && c.contactPerson ? \`<p class="text-xs text-gray-500"><i class="fas fa-user-tie text-xs mr-1 text-purple-400"></i>\${c.contactPerson}</p>\` : ''}
+          <p class="text-xs text-gray-500">\${c.phone}</p>
+          \${c.email ? \`<p class="text-xs text-gray-400">\${c.email}</p>\` : ''}
+          \${c.taxPin ? \`<p class="text-xs text-gray-400 mt-0.5"><i class="fas fa-receipt text-xs mr-1 text-green-400"></i>\${c.taxPin}</p>\` : ''}
         </div>
       </div>
-      <div class="flex gap-3 border-t pt-3">
+      \${isCorp && c.companyName && c.companyName !== c.name ? \`<p class="text-xs font-semibold text-purple-600 mb-2 truncate"><i class="fas fa-building text-xs mr-1"></i>\${c.companyName}</p>\` : ''}
+      <div class="flex gap-3 border-t border-gray-100 pt-3">
         <div class="text-center flex-1">
           <p class="text-lg font-bold text-blue-600">\${c.vehicleCount}</p>
           <p class="text-xs text-gray-400">Vehicles</p>
         </div>
-        <div class="border-l"></div>
+        <div class="border-l border-gray-100"></div>
         <div class="text-center flex-1">
           <p class="text-lg font-bold text-green-600">\${c.jobCount}</p>
           <p class="text-xs text-gray-400">Jobs</p>
         </div>
-        <div class="border-l"></div>
+        <div class="border-l border-gray-100"></div>
         <div class="text-center flex-1">
           <p class="text-xs text-gray-400">Since</p>
           <p class="text-xs font-semibold text-gray-600">\${fmtDate(c.createdAt)}</p>
         </div>
       </div>
     </div>
-  \`).join('') || '<div class="col-span-3 text-center py-16 text-gray-400"><i class="fas fa-users text-4xl mb-3 block"></i>No customers found</div>';
+  \`;
+  }).join('') || '<div class="col-span-3 text-center py-16 text-gray-400"><i class="fas fa-users text-4xl mb-3 block"></i>No customers found</div>';
 }
 
 function filterCustomers(q) {
-  const lq = q.toLowerCase();
-  renderCustomers(allCustomers.filter(c => c.name.toLowerCase().includes(lq) || c.phone.includes(lq) || (c.email||'').toLowerCase().includes(lq)));
+  const lq = (q || '').toLowerCase();
+  let list = allCustomers;
+  if (activeCustomerTab === 'Individual') list = list.filter(c => c.customerType === 'Individual' || !c.customerType);
+  if (activeCustomerTab === 'Corporate') list = list.filter(c => c.customerType === 'Corporate');
+  if (lq) list = list.filter(c =>
+    c.name.toLowerCase().includes(lq) ||
+    c.phone.includes(lq) ||
+    (c.email||'').toLowerCase().includes(lq) ||
+    (c.companyName||'').toLowerCase().includes(lq) ||
+    (c.contactPerson||'').toLowerCase().includes(lq)
+  );
+  renderCustomers(list);
 }
+
 
 async function viewCustomerDetail(id) {
   const { data: c } = await axios.get('/api/customers/' + id);
   openModal('modal-statusUpdate');
+  const isCorp = c.customerType === 'Corporate';
+  const grad = isCorp ? 'linear-gradient(135deg,#6366f1,#8b5cf6)' : 'linear-gradient(135deg,#3b82f6,#2563eb)';
+  const initials = isCorp ? '<i class="fas fa-building"></i>' : c.name.charAt(0).toUpperCase();
+  const corpHtml = isCorp ? \`
+    <div class="bg-purple-50 border border-purple-100 rounded-xl p-4 mb-4 text-sm">
+      <p class="text-xs text-purple-500 font-semibold uppercase tracking-wide mb-2">Corporate Details</p>
+      \${c.companyName ? \`<div class="flex gap-2 mb-1.5"><i class="fas fa-building text-purple-400 w-4 mt-0.5"></i><span class="font-semibold">\${c.companyName}</span></div>\` : ''}
+      \${c.contactPerson ? \`<div class="flex gap-2 mb-1.5"><i class="fas fa-user-tie text-purple-400 w-4 mt-0.5"></i><span>Contact: <strong>\${c.contactPerson}</strong></span></div>\` : ''}
+      \${c.taxPin ? \`<div class="flex gap-2"><i class="fas fa-receipt text-purple-400 w-4 mt-0.5"></i><span>TIN: <strong>\${c.taxPin}</strong></span></div>\` : ''}
+    </div>\` : '';
+  const typeBadge = isCorp
+    ? '<span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700"><i class="fas fa-building text-xs mr-1"></i>Corporate</span>'
+    : '<span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700"><i class="fas fa-user text-xs mr-1"></i>Individual</span>';
+  const vehHtml = c.vehicles?.map(v => \`<div class="flex items-center gap-2 py-2 border-b border-gray-100 text-sm"><i class="fas fa-car text-blue-400"></i><span class="font-medium">\${v.registrationNumber}</span><span class="text-gray-500">\${v.make} \${v.model} \${v.year}</span></div>\`).join('') || '<p class="text-gray-400 text-sm">No vehicles registered</p>';
   document.getElementById('statusUpdateContent').innerHTML = \`
     <div class="flex items-center gap-4 mb-5">
-      <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-2xl font-bold">\${c.name.charAt(0)}</div>
-      <div><h3 class="text-xl font-bold">\${c.name}</h3><p class="text-gray-500">\${c.phone} · \${c.email||'—'}</p></div>
+      <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-white text-xl font-bold" style="background:\${grad}">\${initials}</div>
+      <div>
+        <div class="flex items-center gap-2 flex-wrap">
+          <h3 class="text-xl font-bold">\${c.name}</h3>
+          \${typeBadge}
+        </div>
+        <p class="text-gray-500 text-sm mt-0.5">\${c.phone} · \${c.email||'—'}</p>
+      </div>
     </div>
+    \${corpHtml}
     <div class="bg-gray-50 rounded-xl p-4 mb-4 text-sm space-y-2">
-      <div class="flex gap-2"><i class="fas fa-map-marker-alt text-gray-400 w-4"></i><span>\${c.address||'—'}</span></div>
-      \${c.idNumber ? \`<div class="flex gap-2"><i class="fas fa-id-card text-gray-400 w-4"></i><span>\${c.idNumber}</span></div>\` : ''}
+      <div class="flex gap-2"><i class="fas fa-map-marker-alt text-gray-400 w-4 mt-0.5"></i><span>\${c.address||'—'}</span></div>
+      \${c.idNumber ? \`<div class="flex gap-2"><i class="fas fa-id-card text-gray-400 w-4 mt-0.5"></i><span>\${c.idNumber}</span></div>\` : ''}
     </div>
     <div class="grid grid-cols-2 gap-3 mb-4">
       <div class="bg-blue-50 rounded-xl p-3 text-center"><p class="text-2xl font-bold text-blue-600">\${c.vehicles?.length||0}</p><p class="text-xs text-gray-500">Vehicles</p></div>
@@ -1162,20 +1372,59 @@ async function viewCustomerDetail(id) {
     </div>
     <div class="mb-4">
       <p class="font-semibold text-gray-700 text-sm mb-2">Vehicles</p>
-      \${c.vehicles?.map(v => \`<div class="flex items-center gap-2 py-2 border-b text-sm"><i class="fas fa-car text-blue-400"></i><span class="font-medium">\${v.registrationNumber}</span><span class="text-gray-500">\${v.make} \${v.model} \${v.year}</span></div>\`).join('')||'<p class="text-gray-400 text-sm">No vehicles</p>'}
+      \${vehHtml}
     </div>
     <button class="btn-secondary w-full" onclick="closeModal('modal-statusUpdate')">Close</button>
   \`;
 }
 
-function showNewCustomerModal() { openModal('modal-newCustomer'); }
+
+function showNewCustomerModal() {
+  selectCustType('Individual');
+  document.getElementById('newCustomerForm').reset();
+  openModal('modal-newCustomer');
+}
+
+function selectCustType(type) {
+  document.getElementById('cust-type').value = type;
+  const indBtn = document.getElementById('custType-Individual');
+  const corpBtn = document.getElementById('custType-Corporate');
+  const corpFields = document.getElementById('corporateFields');
+  const nameLabel = document.getElementById('cust-name-label');
+  if (!indBtn || !corpBtn) return;
+  if (type === 'Individual') {
+    indBtn.className = 'flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-blue-500 bg-blue-50 text-blue-700 font-semibold text-sm transition-all';
+    corpBtn.className = 'flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-gray-200 text-gray-500 font-semibold text-sm transition-all hover:border-gray-300';
+    if (corpFields) corpFields.classList.add('hidden');
+    if (nameLabel) nameLabel.textContent = 'Full Name';
+  } else {
+    indBtn.className = 'flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-gray-200 text-gray-500 font-semibold text-sm transition-all hover:border-gray-300';
+    corpBtn.className = 'flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-purple-500 bg-purple-50 text-purple-700 font-semibold text-sm transition-all';
+    if (corpFields) corpFields.classList.remove('hidden');
+    if (nameLabel) nameLabel.textContent = 'Primary Contact Name';
+  }
+}
 
 async function submitNewCustomer(e) {
   e.preventDefault();
-  const payload = { name:document.getElementById('cust-name').value, phone:document.getElementById('cust-phone').value, email:document.getElementById('cust-email').value, address:document.getElementById('cust-address').value, idNumber:document.getElementById('cust-id').value };
+  const type = document.getElementById('cust-type').value;
+  const payload = {
+    name: document.getElementById('cust-name').value,
+    phone: document.getElementById('cust-phone').value,
+    email: document.getElementById('cust-email').value,
+    address: document.getElementById('cust-address').value,
+    idNumber: document.getElementById('cust-id').value,
+    customerType: type,
+  };
+  if (type === 'Corporate') {
+    payload.companyName = document.getElementById('cust-company').value;
+    payload.contactPerson = document.getElementById('cust-contact').value;
+    payload.taxPin = document.getElementById('cust-taxpin').value;
+  }
   await axios.post('/api/customers', payload);
   closeModal('modal-newCustomer');
   document.getElementById('newCustomerForm').reset();
+  selectCustType('Individual');
   showToast('Customer added successfully');
   loadCustomers();
 }
@@ -1421,6 +1670,243 @@ function handleGlobalSearch(q) {
     document.getElementById('jobSearch').value = q;
     filterJobCards(q);
   }
+}
+
+// ═══ OIL SERVICES ═══
+let oilData = [];
+async function loadOilServices() {
+  const { data } = await axios.get('/api/catalogue/oil');
+  oilData = data;
+  showOilBrand('Toyota', document.querySelector('#oilBrandTabs button'));
+}
+
+function showOilBrand(brand, btn) {
+  document.querySelectorAll('#oilBrandTabs button').forEach(b => {
+    b.className = 'px-5 py-2.5 rounded-xl text-sm font-bold bg-gray-100 text-gray-600 hover:bg-gray-200';
+  });
+  if (btn) btn.className = 'px-5 py-2.5 rounded-xl text-sm font-bold bg-blue-600 text-white shadow';
+  const product = oilData.find(p => p.brand === brand);
+  const banner = document.getElementById('oilFleetBanner');
+  banner.classList.toggle('hidden', brand !== 'Toyota');
+  if (!product) {
+    document.getElementById('oilPricingTable').innerHTML = '<div class="p-8 text-center text-gray-400"><i class="fas fa-oil-can text-3xl mb-3 block"></i>No pricing data available</div>';
+    return;
+  }
+  const tierColors = { Standard: { bg:'#eff6ff', text:'#2563eb', border:'#bfdbfe' }, Prestige: { bg:'#f5f3ff', text:'#7c3aed', border:'#ddd6fe' }, Premier: { bg:'#fffbeb', text:'#d97706', border:'#fde68a' } };
+  document.getElementById('oilPricingTable').innerHTML = \`
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="bg-gray-50 border-b">
+            <th class="text-left px-5 py-4 font-bold text-gray-700">Engine Size</th>
+            <th class="text-right px-5 py-4 font-bold" style="color:\${tierColors.Standard.text}">
+              <div class="flex items-center justify-end gap-2"><span class="w-3 h-3 rounded-full inline-block" style="background:\${tierColors.Standard.text}"></span>Standard</div>
+            </th>
+            <th class="text-right px-5 py-4 font-bold" style="color:\${tierColors.Prestige.text}">
+              <div class="flex items-center justify-end gap-2"><span class="w-3 h-3 rounded-full inline-block" style="background:\${tierColors.Prestige.text}"></span>Prestige</div>
+            </th>
+            <th class="text-right px-5 py-4 font-bold" style="color:\${tierColors.Premier.text}">
+              <div class="flex items-center justify-end gap-2"><span class="w-3 h-3 rounded-full inline-block" style="background:\${tierColors.Premier.text}"></span>Premier</div>
+            </th>
+            <th class="text-right px-5 py-4 font-semibold text-gray-500">Std Margin</th>
+            <th class="text-right px-5 py-4 font-semibold text-gray-500">Pres Margin</th>
+            <th class="text-right px-5 py-4 font-semibold text-gray-500">Prem Margin</th>
+          </tr>
+        </thead>
+        <tbody>
+          \${product.tiers.map((t, i) => \`
+            <tr class="border-b hover:bg-gray-50 transition-colors \${i % 2 === 0 ? '' : 'bg-gray-50/50'}">
+              <td class="px-5 py-3.5 font-semibold text-gray-800">
+                <i class="fas fa-tachometer-alt text-gray-400 mr-2 text-xs"></i>\${t.engineSize}
+              </td>
+              <td class="px-5 py-3.5 text-right">
+                <span class="inline-block px-3 py-1 rounded-lg font-bold text-sm" style="background:\${tierColors.Standard.bg};color:\${tierColors.Standard.text}">\${fmt(t.standardPrice)}</span>
+              </td>
+              <td class="px-5 py-3.5 text-right">
+                <span class="inline-block px-3 py-1 rounded-lg font-bold text-sm" style="background:\${tierColors.Prestige.bg};color:\${tierColors.Prestige.text}">\${fmt(t.prestigePrice)}</span>
+              </td>
+              <td class="px-5 py-3.5 text-right">
+                <span class="inline-block px-3 py-1 rounded-lg font-bold text-sm" style="background:\${tierColors.Premier.bg};color:\${tierColors.Premier.text}">\${fmt(t.premierPrice)}</span>
+              </td>
+              <td class="px-5 py-3.5 text-right text-green-600 font-medium">\${fmt(t.standardMargin)}</td>
+              <td class="px-5 py-3.5 text-right text-green-600 font-medium">\${fmt(t.prestigeMargin)}</td>
+              <td class="px-5 py-3.5 text-right text-green-600 font-medium">\${fmt(t.premierMargin)}</td>
+            </tr>
+          \`).join('')}
+        </tbody>
+      </table>
+    </div>
+    \${brand === 'Toyota' ? \`
+      <div class="p-4 bg-amber-50 border-t border-amber-100">
+        <p class="text-xs text-amber-700 font-semibold"><i class="fas fa-info-circle mr-1"></i>Fleet Discount: TZS 5,000/car for 3-5 vehicles | TZS 8,000/car for 5+ vehicles (per service)</p>
+      </div>
+    \` : ''}
+  \`;
+}
+
+// ═══ PARTS CATALOGUE ═══
+let allParts = [];
+async function loadPartsCatalogue() {
+  const { data } = await axios.get('/api/catalogue/parts');
+  allParts = data;
+  renderPartsStats(data);
+  renderPartsTable(data);
+}
+
+function renderPartsStats(parts) {
+  if (!parts.length) return;
+  const cats = [...new Set(parts.map(p => p.category))];
+  const avgMargin = parts.reduce((s, p) => s + p.margin, 0) / parts.length;
+  const maxMargin = Math.max(...parts.map(p => p.margin));
+  document.getElementById('partsStats').innerHTML = [
+    { label: 'Total Parts', value: parts.length, icon: 'fa-cubes', color: '#2563eb' },
+    { label: 'Categories', value: cats.length, icon: 'fa-tags', color: '#7c3aed' },
+    { label: 'Avg Margin', value: fmt(Math.round(avgMargin)), icon: 'fa-chart-line', color: '#16a34a' },
+    { label: 'Best Margin', value: fmt(maxMargin), icon: 'fa-trophy', color: '#d97706' },
+  ].map(s => \`
+    <div class="card p-4 border-l-4" style="border-color:\${s.color}">
+      <div class="flex items-center gap-3 mb-1">
+        <i class="fas \${s.icon} text-sm" style="color:\${s.color}"></i>
+        <p class="text-xs text-gray-500 font-semibold uppercase">\${s.label}</p>
+      </div>
+      <p class="text-xl font-bold text-gray-900">\${s.value}</p>
+    </div>
+  \`).join('');
+}
+
+const CAT_COLORS = {
+  'Air Filter':  { bg:'#eff6ff', text:'#2563eb' },
+  'AC Filter':   { bg:'#f0fdf4', text:'#16a34a' },
+  'Oil Filter':  { bg:'#fffbeb', text:'#d97706' },
+  'Diesel Filter':{ bg:'#fff7ed', text:'#ea580c' },
+  'Spark Plugs': { bg:'#fdf2f8', text:'#db2777' },
+  'Accessory':   { bg:'#f5f3ff', text:'#7c3aed' },
+};
+
+function renderPartsTable(parts) {
+  const tbody = document.getElementById('partsTable');
+  if (!tbody) return;
+  if (!parts.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-12 text-gray-400"><i class="fas fa-search text-3xl mb-3 block"></i>No parts found</td></tr>';
+    return;
+  }
+  tbody.innerHTML = parts.map(p => {
+    const c = CAT_COLORS[p.category] || { bg:'#f1f5f9', text:'#64748b' };
+    const marginPct = Math.round((p.margin / p.sellingPrice) * 100);
+    const marginColor = marginPct >= 50 ? '#16a34a' : marginPct >= 30 ? '#d97706' : '#dc2626';
+    return \`
+      <tr class="table-row border-b border-gray-50">
+        <td class="px-4 py-3">
+          <span class="badge" style="background:\${c.bg};color:\${c.text}">\${p.category}</span>
+        </td>
+        <td class="px-4 py-3 font-medium text-gray-800 text-sm">\${p.description}</td>
+        <td class="px-4 py-3 text-xs text-gray-500">
+          <div class="flex flex-wrap gap-1">
+            \${p.compatibleModels.split(',').slice(0,3).map(m => \`<span class="tag bg-gray-100 text-gray-600">\${m.trim()}</span>\`).join('')}
+            \${p.compatibleModels.split(',').length > 3 ? \`<span class="tag bg-gray-100 text-gray-400">+\${p.compatibleModels.split(',').length-3} more</span>\` : ''}
+          </div>
+        </td>
+        <td class="px-4 py-3 text-right text-gray-600">\${fmt(p.buyingPrice)}</td>
+        <td class="px-4 py-3 text-right font-bold text-gray-900">\${fmt(p.sellingPrice)}</td>
+        <td class="px-4 py-3 text-right font-semibold text-green-600">\${fmt(p.margin)}</td>
+        <td class="px-4 py-3 text-right">
+          <span class="font-bold text-sm" style="color:\${marginColor}">\${marginPct}%</span>
+        </td>
+      </tr>
+    \`;
+  }).join('');
+}
+
+function filterParts(search) {
+  const q = (search !== undefined ? search : (document.getElementById('partsSearch')?.value || '')).toLowerCase();
+  const cat = document.getElementById('partsCategoryFilter')?.value || '';
+  let filtered = allParts;
+  if (cat) filtered = filtered.filter(p => p.category === cat);
+  if (q) filtered = filtered.filter(p =>
+    p.description.toLowerCase().includes(q) ||
+    p.compatibleModels.toLowerCase().includes(q)
+  );
+  renderPartsStats(filtered);
+  renderPartsTable(filtered);
+}
+
+// ═══ CAR WASH ═══
+async function loadCarWash() {
+  const { data } = await axios.get('/api/catalogue/carwash');
+  const groups = { Standard: [], AddOn: [], DeepClean: [], Monthly: [] };
+  data.forEach(p => { if (groups[p.type]) groups[p.type].push(p); });
+  const groupConfig = [
+    { type:'Standard',  title:'Standard Washes',    icon:'fa-car', color:'#2563eb',   desc:'Regular interior and exterior wash services' },
+    { type:'AddOn',     title:'Add-On Services',     icon:'fa-plus-circle', color:'#7c3aed', desc:'Optional extras to complement any wash' },
+    { type:'DeepClean', title:'Deep Clean Packages', icon:'fa-star', color:'#d97706', desc:'Premium full-service cleaning packages' },
+    { type:'Monthly',   title:'Monthly Fleet Plans', icon:'fa-calendar-alt', color:'#16a34a', desc:'Cost-saving monthly subscriptions for fleet customers' },
+  ];
+  document.getElementById('carWashGrid').innerHTML = groupConfig.map(cfg => \`
+    <div class="card p-5">
+      <div class="flex items-center gap-3 mb-5">
+        <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:\${cfg.color}20">
+          <i class="fas \${cfg.icon}" style="color:\${cfg.color}"></i>
+        </div>
+        <div><h3 class="font-bold text-gray-900">\${cfg.title}</h3><p class="text-xs text-gray-400">\${cfg.desc}</p></div>
+      </div>
+      <div class="space-y-3">
+        \${(groups[cfg.type] || []).map(pkg => \`
+          <div class="flex items-start justify-between p-3 rounded-xl hover:bg-gray-50 border border-gray-100 transition-colors">
+            <div class="flex-1 pr-3">
+              <p class="font-semibold text-gray-800 text-sm">\${pkg.name}</p>
+              <p class="text-xs text-gray-500 mt-0.5">\${pkg.description}</p>
+              \${pkg.includes ? \`<div class="flex flex-wrap gap-1 mt-2">\${pkg.includes.map(i => \`<span class="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full">\${i}</span>\`).join('')}</div>\` : ''}
+              \${pkg.vehicleCount ? \`<p class="text-xs text-blue-600 font-semibold mt-1"><i class="fas fa-car mr-1"></i>\${pkg.vehicleCount} vehicles</p>\` : ''}
+            </div>
+            <div class="text-right flex-shrink-0">
+              \${pkg.price > 0 ? \`<p class="font-bold text-gray-900 text-sm">\${fmt(pkg.price)}</p><p class="text-xs text-gray-400">\${pkg.vehicleCount ? '/month' : '/visit'}</p>\` : \`<span class="text-xs font-semibold text-blue-500 bg-blue-50 px-2 py-1 rounded-lg">Quote</span>\`}
+            </div>
+          </div>
+        \`).join('') || \`<p class="text-center text-gray-300 py-4 text-sm">No items</p>\`}
+      </div>
+    </div>
+  \`).join('');
+}
+
+// ═══ ADD-ON SERVICES ═══
+async function loadAddOns() {
+  const { data } = await axios.get('/api/catalogue/addons');
+  const catConfig = {
+    Diagnostic: { icon:'fa-laptop-medical', color:'#dc2626', bg:'#fee2e2' },
+    Inspection: { icon:'fa-search-plus',    color:'#2563eb', bg:'#dbeafe' },
+    Tyres:      { icon:'fa-circle-notch',   color:'#7c3aed', bg:'#ede9fe' },
+    Alignment:  { icon:'fa-ruler-combined', color:'#16a34a', bg:'#dcfce7' },
+  };
+  document.getElementById('addOnsGrid').innerHTML = data.map(s => {
+    const cfg = catConfig[s.category] || { icon:'fa-wrench', color:'#64748b', bg:'#f1f5f9' };
+    return \`
+      <div class="card p-6 hover:shadow-lg transition-shadow">
+        <div class="flex items-start gap-4 mb-4">
+          <div class="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0" style="background:\${cfg.bg}">
+            <i class="fas \${cfg.icon} text-xl" style="color:\${cfg.color}"></i>
+          </div>
+          <div class="flex-1">
+            <h3 class="font-bold text-gray-900 text-lg">\${s.name}</h3>
+            <span class="badge mt-1" style="background:\${cfg.bg};color:\${cfg.color}">\${s.category}</span>
+          </div>
+        </div>
+        <p class="text-sm text-gray-600 mb-5 leading-relaxed">\${s.description}</p>
+        <div class="flex items-center justify-between border-t pt-4">
+          <div>
+            <p class="text-2xl font-bold text-gray-900">\${fmt(s.price)}</p>
+            <p class="text-xs text-gray-400 mt-0.5">\${s.unit}</p>
+          </div>
+          <button class="btn-primary text-sm" onclick="addServiceToJob('\${s.name}', \${s.price}, '\${s.unit}')">
+            <i class="fas fa-plus"></i> Add to Job
+          </button>
+        </div>
+      </div>
+    \`;
+  }).join('');
+}
+
+function addServiceToJob(name, price, unit) {
+  showToast(name + ' (' + fmt(price) + ' ' + unit + ') - Go to a Job Card to add this service', 'info');
 }
 
 // ═══ INIT ═══
