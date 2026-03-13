@@ -21,6 +21,7 @@ function shell() {
 <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.0/css/all.min.css" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script>
 tailwind.config = {
   theme: {
@@ -654,27 +655,40 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       </select>
     </div>
 
-    <!-- Step 2: CSV Instructions + Download Template -->
+    <!-- Step 2: Format Info + Download Templates -->
     <div class="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-5">
       <div class="flex items-start justify-between gap-4">
-        <div>
-          <p class="text-sm font-semibold text-blue-800 mb-1"><i class="fas fa-info-circle mr-1"></i>CSV Format</p>
-          <p class="text-xs text-blue-700 mb-2">Required columns: <code class="bg-blue-100 px-1 rounded">registration_number, make, model, year</code></p>
-          <p class="text-xs text-blue-700">Optional columns: <code class="bg-blue-100 px-1 rounded">vin, engine_number, insurer</code></p>
+        <div class="flex-1">
+          <p class="text-sm font-semibold text-blue-800 mb-1.5"><i class="fas fa-info-circle mr-1"></i>File Format</p>
+          <p class="text-xs text-blue-700 mb-1">Required columns: <code class="bg-blue-100 px-1 rounded font-mono">registration_number, make, model, year</code></p>
+          <p class="text-xs text-blue-700">Optional columns: <code class="bg-blue-100 px-1 rounded font-mono">vin, engine_number, insurer</code></p>
         </div>
-        <button class="flex-shrink-0 btn-secondary text-xs px-3 py-2" onclick="downloadFleetTemplate()">
-          <i class="fas fa-download mr-1"></i>Download Template
-        </button>
+        <div class="flex flex-col gap-2 flex-shrink-0">
+          <button class="btn-secondary text-xs px-3 py-2 flex items-center gap-1.5" onclick="downloadFleetTemplate('csv')">
+            <i class="fas fa-file-csv text-green-600"></i>CSV Template
+          </button>
+          <button class="btn-secondary text-xs px-3 py-2 flex items-center gap-1.5" onclick="downloadFleetTemplate('xlsx')">
+            <i class="fas fa-file-excel text-green-700"></i>Excel Template
+          </button>
+        </div>
       </div>
     </div>
 
-    <!-- Step 3: Drop Zone -->
+    <!-- Step 3: File Type Toggle + Drop Zone -->
+    <div class="flex gap-2 mb-3" id="fleet-typeTabs">
+      <button id="fleet-tab-csv" onclick="setFleetTab('csv')" class="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold border-2 border-blue-500 bg-blue-500 text-white transition-all">
+        <i class="fas fa-file-csv"></i>CSV
+      </button>
+      <button id="fleet-tab-xlsx" onclick="setFleetTab('xlsx')" class="flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold border-2 border-gray-200 bg-white text-gray-600 hover:border-blue-300 transition-all">
+        <i class="fas fa-file-excel text-green-600"></i>Excel (.xlsx / .xls)
+      </button>
+    </div>
     <div id="fleet-dropzone" class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-all mb-5"
          onclick="document.getElementById('fleet-fileInput').click()"
          ondragover="fleetDragOver(event)" ondragleave="fleetDragLeave(event)" ondrop="fleetDrop(event)">
       <i class="fas fa-cloud-upload-alt text-4xl text-gray-300 mb-3 block"></i>
-      <p class="text-sm font-semibold text-gray-600">Drop CSV file here or <span class="text-blue-500 underline">browse</span></p>
-      <p class="text-xs text-gray-400 mt-1">Supports .csv files only</p>
+      <p class="text-sm font-semibold text-gray-600">Drop file here or <span class="text-blue-500 underline">browse</span></p>
+      <p class="text-xs text-gray-400 mt-1" id="fleet-dropHint">Supports .csv files</p>
       <input type="file" id="fleet-fileInput" accept=".csv" class="hidden" onchange="fleetFileSelected(event)"/>
     </div>
 
@@ -1576,17 +1590,41 @@ function onFleetCustomerChange() {
   updateFleetSubmitBtn();
 }
 
-function downloadFleetTemplate() {
-  const csv = [
-    'registration_number,make,model,year,vin,engine_number,insurer',
-    'T123 ABC,Toyota,Corolla,2020,JT2BF22K1W0123456,1ZZ-FE123456,Jubilee Insurance',
-    'T456 DEF,Toyota,Probox,2019,,2NZ-FE789012,AAR Insurance',
-    'T789 GHI,Nissan,X-Trail,2021,JN1TBNT31Z0456789,,NHIF',
-  ].join('\\n');
-  const blob = new Blob([csv], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = 'fleet_template.csv'; a.click();
-  URL.revokeObjectURL(url);
+let fleetActiveTab = 'csv';
+
+function setFleetTab(type) {
+  fleetActiveTab = type;
+  ['csv','xlsx'].forEach(t => {
+    const tab = document.getElementById('fleet-tab-' + t);
+    if (t === type) {
+      tab.className = 'flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold border-2 border-blue-500 bg-blue-500 text-white transition-all';
+    } else {
+      tab.className = 'flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold border-2 border-gray-200 bg-white text-gray-600 hover:border-blue-300 transition-all';
+    }
+  });
+  clearFleetFile(false);
+}
+
+function downloadFleetTemplate(format) {
+  const rows = [
+    ['registration_number','make','model','year','vin','engine_number','insurer'],
+    ['T123 ABC','Toyota','Corolla','2020','JT2BF22K1W0123456','1ZZ-FE123456','Jubilee Insurance'],
+    ['T456 DEF','Toyota','Probox','2019','','2NZ-FE789012','AAR Insurance'],
+    ['T789 GHI','Nissan','X-Trail','2021','JN1TBNT31Z0456789','','NHIF'],
+  ];
+  if (format === 'xlsx') {
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws['!cols'] = [{wch:22},{wch:12},{wch:12},{wch:6},{wch:22},{wch:18},{wch:22}];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Fleet');
+    XLSX.writeFile(wb, 'fleet_template.xlsx');
+  } else {
+    const csv = rows.map(r => r.join(',')).join('\\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'fleet_template.csv'; a.click();
+    URL.revokeObjectURL(url);
+  }
 }
 
 function fleetDragOver(e) {
@@ -1608,22 +1646,29 @@ function fleetFileSelected(e) {
 }
 
 function processFleetFile(file) {
-  if (!file.name.endsWith('.csv')) {
-    showFleetError('Please upload a .csv file.'); return;
+  const name = file.name.toLowerCase();
+  const isCSV  = name.endsWith('.csv');
+  const isXLSX = name.endsWith('.xlsx') || name.endsWith('.xls');
+  if (!isCSV && !isXLSX) {
+    showFleetError('Please upload a .csv, .xlsx, or .xls file.'); return;
   }
-  const reader = new FileReader();
-  reader.onload = (e) => {
-    const text = e.target.result;
-    parseFleetCSV(text);
-  };
-  reader.readAsText(file);
-  // Update dropzone to show filename
+  document.getElementById('fleet-errorBanner').classList.add('hidden');
+  const iconClass = isXLSX ? 'fas fa-file-excel text-green-500' : 'fas fa-file-csv text-blue-400';
+  const accept    = isXLSX ? '.xlsx,.xls' : '.csv';
   document.getElementById('fleet-dropzone').innerHTML = \`
-    <i class="fas fa-file-csv text-4xl text-green-400 mb-3 block"></i>
+    <i class="\${iconClass} text-4xl mb-3 block"></i>
     <p class="text-sm font-semibold text-gray-700">\${file.name}</p>
     <p class="text-xs text-gray-400 mt-1">Click to change file</p>
-    <input type="file" id="fleet-fileInput" accept=".csv" class="hidden" onchange="fleetFileSelected(event)"/>
+    <input type="file" id="fleet-fileInput" accept="\${accept}" class="hidden" onchange="fleetFileSelected(event)"/>
   \`;
+  const reader = new FileReader();
+  if (isCSV) {
+    reader.onload = (e) => parseFleetCSV(e.target.result);
+    reader.readAsText(file);
+  } else {
+    reader.onload = (e) => parseFleetExcel(e.target.result);
+    reader.readAsArrayBuffer(file);
+  }
 }
 
 function parseFleetCSV(text) {
@@ -1692,16 +1737,82 @@ function parseFleetCSV(text) {
   updateFleetSubmitBtn();
 }
 
-function clearFleetFile() {
+function clearFleetFile(resetTab) {
   fleetParsedRows = [];
   document.getElementById('fleet-previewWrap').classList.add('hidden');
+  const isXLSX = fleetActiveTab === 'xlsx';
+  const accept  = isXLSX ? '.xlsx,.xls' : '.csv';
+  const hint    = isXLSX ? 'Supports .xlsx and .xls files' : 'Supports .csv files';
   document.getElementById('fleet-dropzone').innerHTML = \`
     <i class="fas fa-cloud-upload-alt text-4xl text-gray-300 mb-3 block"></i>
-    <p class="text-sm font-semibold text-gray-600">Drop CSV file here or <span class="text-blue-500 underline">browse</span></p>
-    <p class="text-xs text-gray-400 mt-1">Supports .csv files only</p>
-    <input type="file" id="fleet-fileInput" accept=".csv" class="hidden" onchange="fleetFileSelected(event)"/>
+    <p class="text-sm font-semibold text-gray-600">Drop file here or <span class="text-blue-500 underline">browse</span></p>
+    <p class="text-xs text-gray-400 mt-1" id="fleet-dropHint">\${hint}</p>
+    <input type="file" id="fleet-fileInput" accept="\${accept}" class="hidden" onchange="fleetFileSelected(event)"/>
   \`;
   updateFleetSubmitBtn();
+}
+
+function parseFleetExcel(arrayBuffer) {
+  document.getElementById('fleet-errorBanner').classList.add('hidden');
+  try {
+    const wb = XLSX.read(arrayBuffer, { type: 'array' });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rawRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+    if (rawRows.length < 2) { showFleetError('Excel file is empty or has no data rows.'); return; }
+    const headers = rawRows[0].map(h => String(h).trim().toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,''));
+    const required = ['registration_number','make','model','year'];
+    const missing  = required.filter(r => !headers.includes(r));
+    if (missing.length) { showFleetError('Missing required columns: ' + missing.join(', ')); return; }
+    const col = (row, name) => { const idx = headers.indexOf(name); return idx >= 0 ? String(row[idx]||'').trim() : ''; };
+    fleetParsedRows = [];
+    const bodyRows = [];
+    let validCount = 0, errorCount = 0;
+    for (let i = 1; i < rawRows.length; i++) {
+      const row  = rawRows[i];
+      if (row.every(c => String(c).trim() === '')) continue;
+      const reg  = col(row,'registration_number');
+      const make = col(row,'make');
+      const model= col(row,'model');
+      const year = parseInt(col(row,'year'));
+      const vin  = col(row,'vin');
+      const eng  = col(row,'engine_number');
+      const ins  = col(row,'insurer');
+      const errors = [];
+      if (!reg)  errors.push('Reg. required');
+      if (!make) errors.push('Make required');
+      if (!model)errors.push('Model required');
+      if (!year || year < 1990 || year > 2030) errors.push('Invalid year');
+      const isValid = errors.length === 0;
+      if (isValid) { validCount++; fleetParsedRows.push({ registrationNumber:reg, make, model, year, vin, engineNumber:eng, insurer:ins }); }
+      else errorCount++;
+      bodyRows.push(\`
+        <tr class="border-b border-gray-100 \${isValid ? '' : 'bg-red-50'}">
+          <td class="px-3 py-2 text-gray-400">\${i}</td>
+          <td class="px-3 py-2 font-semibold text-blue-600">\${reg||'—'}</td>
+          <td class="px-3 py-2">\${make||'—'}</td>
+          <td class="px-3 py-2">\${model||'—'}</td>
+          <td class="px-3 py-2">\${year||'—'}</td>
+          <td class="px-3 py-2 font-mono text-gray-400">\${vin||'—'}</td>
+          <td class="px-3 py-2 font-mono text-gray-400">\${eng||'—'}</td>
+          <td class="px-3 py-2 text-gray-500">\${ins||'—'}</td>
+          <td class="px-3 py-2">\${isValid
+            ? '<span class="text-green-600 font-semibold"><i class="fas fa-check-circle mr-1"></i>OK</span>'
+            : \`<span class="text-red-500 text-xs" title="\${errors.join(', ')}"><i class="fas fa-exclamation-circle mr-1"></i>\${errors[0]}</span>\`
+          }</td>
+        </tr>
+      \`);
+    }
+    document.getElementById('fleet-previewBody').innerHTML = bodyRows.join('');
+    document.getElementById('fleet-previewTitle').textContent = \`Preview – \${rawRows.length - 1} rows\`;
+    document.getElementById('fleet-previewStats').innerHTML =
+      \`<span class="text-green-600 font-semibold">\${validCount} valid</span>\` +
+      (errorCount > 0 ? \`, <span class="text-red-500 font-semibold">\${errorCount} with errors</span> (will be skipped)\` : '') +
+      '. Only valid rows will be imported.';
+    document.getElementById('fleet-previewWrap').classList.remove('hidden');
+    updateFleetSubmitBtn();
+  } catch(err) {
+    showFleetError('Failed to read Excel file: ' + err.message);
+  }
 }
 
 function updateFleetSubmitBtn() {
