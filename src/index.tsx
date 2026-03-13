@@ -623,9 +623,8 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         <div><label class="form-label">VIN (optional)</label><input class="form-input" id="veh-vin" placeholder="17-character VIN"/></div>
         <div><label class="form-label">Engine Number</label><input class="form-input" id="veh-engine" placeholder="Engine number"/></div>
       </div>
-      <div class="grid grid-cols-2 gap-4 mb-6">
+      <div class="grid grid-cols-1 gap-4 mb-6">
         <div><label class="form-label">Insurance Company</label><input class="form-input" id="veh-insurer" placeholder="Jubilee Insurance"/></div>
-        <div><label class="form-label">Policy Number</label><input class="form-input" id="veh-policy" placeholder="JUB-2024-XXXX"/></div>
       </div>
       <div class="flex gap-3 justify-end">
         <button type="button" class="btn-secondary" onclick="closeModal('modal-newVehicle')">Cancel</button>
@@ -1465,7 +1464,7 @@ async function showNewVehicleModal() {
 
 async function submitNewVehicle(e) {
   e.preventDefault();
-  const payload = { customerId:document.getElementById('veh-customerId').value, registrationNumber:document.getElementById('veh-reg').value, make:document.getElementById('veh-make').value, model:document.getElementById('veh-model').value, year:+document.getElementById('veh-year').value, vin:document.getElementById('veh-vin').value, engineNumber:document.getElementById('veh-engine').value, insurer:document.getElementById('veh-insurer').value, policyNumber:document.getElementById('veh-policy').value };
+  const payload = { customerId:document.getElementById('veh-customerId').value, registrationNumber:document.getElementById('veh-reg').value, make:document.getElementById('veh-make').value, model:document.getElementById('veh-model').value, year:+document.getElementById('veh-year').value, vin:document.getElementById('veh-vin').value, engineNumber:document.getElementById('veh-engine').value, insurer:document.getElementById('veh-insurer').value };
   await axios.post('/api/vehicles', payload);
   closeModal('modal-newVehicle');
   document.getElementById('newVehicleForm').reset();
