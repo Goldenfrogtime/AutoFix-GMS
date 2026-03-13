@@ -108,7 +108,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <i class="fas fa-car w-5 text-center"></i> Vehicles
     </a>
     <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('claims')">
-      <i class="fas fa-shield-alt w-5 text-center"></i> Claims & PFIs
+      <i class="fas fa-file-invoice w-5 text-center"></i> PFIs
     </a>
     <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('invoices')">
       <i class="fas fa-file-invoice-dollar w-5 text-center"></i> Invoices
@@ -224,7 +224,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
                 <i class="fas fa-user-plus"></i> Add New Customer
               </button>
               <button class="w-full flex items-center gap-3 p-3 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 font-semibold text-sm transition-colors" onclick="showPage('claims')">
-                <i class="fas fa-shield-check"></i> Manage Claims & PFIs
+                <i class="fas fa-file-invoice"></i> Manage PFIs
               </button>
               <button class="w-full flex items-center gap-3 p-3 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-700 font-semibold text-sm transition-colors" onclick="showPage('invoices')">
                 <i class="fas fa-file-invoice"></i> View Invoices
@@ -435,21 +435,27 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       </div>
     </div>
 
-    <!-- ═══ CLAIMS & PFIs ═══ -->
+    <!-- ═══ PFIs ═══ -->
     <div id="page-claims" class="page">
       <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
-          <h2 class="text-2xl font-bold text-gray-900">Claims & PFIs</h2>
-          <p class="text-gray-500 text-sm mt-1">Insurance claim management and pro forma invoices</p>
+          <h2 class="text-2xl font-bold text-gray-900">Pro Forma Invoices</h2>
+          <p class="text-gray-500 text-sm mt-1">PFIs for insurance claims and private / individual customers</p>
         </div>
       </div>
-      <!-- PFI Status Tabs -->
-      <div class="flex gap-2 mb-5">
-        <button class="px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white" onclick="filterPFIs('all',this)">All</button>
-        <button class="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200" onclick="filterPFIs('Submitted',this)">Submitted</button>
-        <button class="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200" onclick="filterPFIs('Approved',this)">Approved</button>
-        <button class="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200" onclick="filterPFIs('Rejected',this)">Rejected</button>
-        <button class="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200" onclick="filterPFIs('Draft',this)">Drafts</button>
+      <!-- Filter row: category tabs + status tabs -->
+      <div class="flex flex-wrap gap-2 mb-3" id="pfi-catTabs">
+        <button class="px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white" onclick="filterPFICategory('all',this)">All Jobs</button>
+        <button class="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200" onclick="filterPFICategory('Insurance',this)"><i class="fas fa-shield-alt mr-1"></i>Insurance</button>
+        <button class="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200" onclick="filterPFICategory('Private',this)"><i class="fas fa-user mr-1"></i>Private</button>
+      </div>
+      <div class="flex flex-wrap gap-2 mb-5" id="pfi-statusTabs">
+        <button class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-800 text-white" onclick="filterPFIs('all',this)">All Statuses</button>
+        <button class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200" onclick="filterPFIs('Draft',this)">Drafts</button>
+        <button class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200" onclick="filterPFIs('Submitted',this)">Submitted</button>
+        <button class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200" onclick="filterPFIs('Approved',this)">Approved</button>
+        <button class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200" onclick="filterPFIs('Sent',this)">Sent</button>
+        <button class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200" onclick="filterPFIs('Rejected',this)">Rejected</button>
       </div>
       <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-4" id="claimsGrid"></div>
     </div>
@@ -1059,6 +1065,7 @@ const PFI_STATUS_CONFIG = {
   Draft:{ bg:'#f8fafc', text:'#64748b', icon:'fa-file' },
   Submitted:{ bg:'#eff6ff', text:'#2563eb', icon:'fa-paper-plane' },
   Approved:{ bg:'#f0fdf4', text:'#16a34a', icon:'fa-check-circle' },
+  Sent:{ bg:'#f0fdf4', text:'#059669', icon:'fa-check-circle' },
   Rejected:{ bg:'#fef2f2', text:'#dc2626', icon:'fa-times-circle' },
   'Revision Requested':{ bg:'#fff7ed', text:'#ea580c', icon:'fa-redo' }
 };
@@ -1254,11 +1261,11 @@ async function viewJobDetail(id) {
   document.getElementById('jobDetailSub').textContent = (j.vehicle?.make||'') + ' ' + (j.vehicle?.model||'') + ' · ' + (j.vehicle?.registrationNumber||'') + ' · ' + (j.customer?.name||'');
   
   const canMakeInvoice = j.status === 'COMPLETED' && !j.invoice;
-  const canMakePFI = j.category === 'Insurance' && !j.pfi;
+  const canMakePFI = !j.pfi;
   
   document.getElementById('jobDetailActions').innerHTML = \`
     <button class="btn-secondary text-sm" onclick="showStatusModal('\${j.id}','\${j.status}')"><i class="fas fa-exchange-alt"></i> Update Status</button>
-    \${canMakePFI ? \`<button class="btn-secondary text-sm" onclick="showPFIModal('\${j.id}')"><i class="fas fa-file-invoice"></i> Create PFI</button>\` : ''}
+    \${canMakePFI ? \`<button class="btn-secondary text-sm" onclick="showPFIModal('\${j.id}','\${j.category}')"><i class="fas fa-file-invoice"></i> Create PFI</button>\` : ''}
     \${canMakeInvoice ? \`<button class="btn-primary text-sm" onclick="showInvoiceModal('\${j.id}',\${j.pfi?.labourCost||0},\${j.parts?.reduce((s,p)=>s+p.totalCost,0)||0})"><i class="fas fa-receipt"></i> Generate Invoice</button>\` : ''}
   \`;
   
@@ -1433,20 +1440,22 @@ function showPartsModal(jobId) {
   });
 }
 
-// PFI Modal
-function showPFIModal(jobId) {
+// PFI Modal — works for both Insurance and Private jobs
+function showPFIModal(jobId, category) {
+  const isInsurance = category === 'Insurance';
   openModal('modal-statusUpdate');
   document.getElementById('statusUpdateContent').innerHTML = \`
-    <p class="text-sm text-gray-500 mb-4">Create a Pro Forma Invoice for insurer approval</p>
-    <div class="grid grid-cols-2 gap-3 mb-3">
+    <p class="text-sm text-gray-500 mb-1">\${isInsurance ? 'Create a Pro Forma Invoice for insurer approval' : 'Create a Pro Forma Invoice to send to the customer'}</p>
+    \${isInsurance ? '' : \`<div class="flex items-center gap-2 mb-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700"><i class="fas fa-user-circle"></i> Private / Individual job – PFI will go directly to the customer</div>\`}
+    <div class="grid grid-cols-2 gap-3 mb-3 mt-3">
       <div><label class="form-label">Labour Cost (TZS)</label><input class="form-input" type="number" id="pfi-labour" required min="0"/></div>
       <div><label class="form-label">Parts Cost (TZS)</label><input class="form-input" type="number" id="pfi-parts" required min="0"/></div>
     </div>
     <div class="mb-3"><label class="form-label">Total Estimate</label><input class="form-input" id="pfi-total" readonly placeholder="Auto-calculated"/></div>
-    <div class="mb-5"><label class="form-label">Notes</label><textarea class="form-input" id="pfi-notes" rows="2" placeholder="Additional notes for insurer…"></textarea></div>
+    <div class="mb-5"><label class="form-label">Notes</label><textarea class="form-input" id="pfi-notes" rows="2" placeholder="\${isInsurance ? 'Additional notes for insurer\u2026' : 'Additional notes for customer\u2026'}"></textarea></div>
     <div class="flex gap-3">
       <button class="btn-secondary flex-1" onclick="closeModal('modal-statusUpdate')">Cancel</button>
-      <button class="btn-primary flex-1" id="pfi-submit"><i class="fas fa-paper-plane"></i> Submit PFI</button>
+      <button class="btn-primary flex-1" id="pfi-submit"><i class="fas fa-file-invoice mr-1"></i> \${isInsurance ? 'Submit PFI' : 'Save PFI'}</button>
     </div>
   \`;
   const calcTotal = () => {
@@ -1457,10 +1466,12 @@ function showPFIModal(jobId) {
   document.getElementById('pfi-parts').oninput = calcTotal;
   document.getElementById('pfi-submit').onclick = async () => {
     const l = +document.getElementById('pfi-labour').value, p = +document.getElementById('pfi-parts').value;
-    await axios.post('/api/jobcards/' + jobId + '/pfi', { labourCost:l, partsCost:p, totalEstimate:l+p, status:'Submitted', notes:document.getElementById('pfi-notes').value });
+    // Insurance: starts as Submitted (goes to insurer). Private: starts as Draft (customer-facing).
+    const initialStatus = isInsurance ? 'Submitted' : 'Draft';
+    await axios.post('/api/jobcards/' + jobId + '/pfi', { labourCost:l, partsCost:p, totalEstimate:l+p, status:initialStatus, notes:document.getElementById('pfi-notes').value });
     closeModal('modal-statusUpdate');
     viewJobDetail(jobId);
-    showToast('PFI submitted to insurer');
+    showToast(isInsurance ? 'PFI submitted to insurer' : 'PFI created – ready to send to customer');
   };
 }
 
@@ -2438,14 +2449,21 @@ function buildPFIDoc(detail) {
   doc.text('Tel: +255 700 000 000 | info@autofixgms.co.tz', margin, 29);
   doc.text('P.O. Box 12345, Dar es Salaam, Tanzania', margin, 35);
   // PFI label on right
+  const isInsuranceJob = job?.category === 'Insurance';
+  const pfiTypeLabel = isInsuranceJob ? 'PRO FORMA INVOICE' : 'PRO FORMA INVOICE';
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(18);
-  doc.text('PRO FORMA INVOICE', pageW - margin, 18, { align: 'right' });
-  doc.setFontSize(10);
+  doc.text(pfiTypeLabel, pageW - margin, 18, { align: 'right' });
+  doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.text('Ref: PFI-' + pfi.id.toUpperCase(), pageW - margin, 26, { align: 'right' });
-  doc.text('Date: ' + new Date(pfi.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }), pageW - margin, 32, { align: 'right' });
-  doc.text('Status: ' + pfi.status, pageW - margin, 38, { align: 'right' });
+  if (isInsuranceJob) {
+    doc.text('Insurance Claim PFI', pageW - margin, 25, { align: 'right' });
+  } else {
+    doc.text('Private / Individual Customer', pageW - margin, 25, { align: 'right' });
+  }
+  doc.text('Ref: PFI-' + pfi.id.toUpperCase(), pageW - margin, 31, { align: 'right' });
+  doc.text('Date: ' + new Date(pfi.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }), pageW - margin, 37, { align: 'right' });
+  doc.text('Status: ' + pfi.status, pageW - margin, 43, { align: 'right' });
   y = 52;
 
   // ── Bill To + Vehicle ──
@@ -2471,14 +2489,15 @@ function buildPFIDoc(detail) {
   doc.setFontSize(9); doc.setTextColor(100, 116, 139);
   if (vehicle?.year)         doc.text('Year: ' + vehicle.year,             vx, y + 20);
   if (vehicle?.engineNumber) doc.text('Engine: ' + vehicle.engineNumber,   vx, y + 26);
-  if (job?.claimReference)   doc.text('Claim Ref: ' + job.claimReference,  vx, y + 32);
+  if (isInsuranceJob && job?.claimReference)   doc.text('Claim Ref: ' + job.claimReference,  vx, y + 32);
   y += 46;
 
   // ── Job info ──
   if (job) {
     doc.setTextColor(30, 41, 59);
     doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
-    doc.text('Job Card: ' + (job.jobCardNumber || '—') + '   |   Category: ' + (job.category || '—') + (job.insurer ? '   |   Insurer: ' + job.insurer : ''), margin, y);
+    const jobInfoStr = 'Job Card: ' + (job.jobCardNumber || '—') + '   |   Type: ' + (job.category || '—') + (isInsuranceJob && job.insurer ? '   |   Insurer: ' + job.insurer : '');
+    doc.text(jobInfoStr, margin, y);
     y += 6;
     if (job.damageDescription) {
       doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(100, 116, 139);
@@ -2562,8 +2581,10 @@ function buildPFITextPreview(detail) {
   const NL = String.fromCharCode(10);
   const line = '\u2500'.repeat(52);
   const dash25 = '\u2500'.repeat(25);
+  const isInsuranceJob = job?.category === 'Insurance';
   let t = '';
   t += '       AUTOFIX GMS \u2013 PRO FORMA INVOICE' + NL;
+  t += (isInsuranceJob ? '       Insurance Claim PFI' : '       Private / Individual Customer') + NL;
   t += line + NL;
   t += 'Ref:      PFI-' + pfi.id.toUpperCase() + NL;
   t += 'Date:     ' + new Date(pfi.createdAt).toLocaleDateString('en-GB') + NL;
@@ -2574,6 +2595,8 @@ function buildPFITextPreview(detail) {
   t += 'Phone:    ' + (customer?.phone || '-') + NL;
   t += 'Vehicle:  ' + (vehicle?.registrationNumber || '-') + ' ' + (vehicle?.make||'') + ' ' + (vehicle?.model||'') + ' ' + (vehicle?.year||'') + NL;
   if (job) t += 'Job Card: ' + (job.jobCardNumber||'-') + '  (' + job.category + ')' + NL;
+  if (isInsuranceJob && job?.insurer) t += 'Insurer:  ' + job.insurer + NL;
+  if (isInsuranceJob && job?.claimReference) t += 'Claim:    ' + job.claimReference + NL;
   t += line + NL;
   if (parts?.length) {
     t += 'PARTS & MATERIALS' + NL;
@@ -2617,11 +2640,16 @@ async function showSendPFIModal(pfiId) {
   _currentPFIId = pfiId;
   _currentPFIDetail = await fetchPFIDetail(pfiId);
   const { pfi, job, customer } = _currentPFIDetail;
+  const isInsurance = job?.category === 'Insurance';
 
   // Summary strip
+  const catLabel = isInsurance
+    ? '<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700"><i class="fas fa-shield-alt"></i> Insurance</span>'
+    : '<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700"><i class="fas fa-user"></i> Private</span>';
   document.getElementById('sendPFI-subtitle').textContent = (job?.jobCardNumber || 'PFI') + ' – ' + (customer?.name || '');
   document.getElementById('sendPFI-summary').innerHTML = \`
-    <div class="flex flex-wrap gap-4 text-sm">
+    <div class="flex flex-wrap gap-4 text-sm items-center">
+      \${catLabel}
       <div><span class="text-gray-500">Job:</span> <strong>\${job?.jobCardNumber||'—'}</strong></div>
       <div><span class="text-gray-500">Customer:</span> <strong>\${customer?.name||'—'}</strong></div>
       <div><span class="text-gray-500">Vehicle:</span> <strong>\${_currentPFIDetail.vehicle?.registrationNumber||'—'}</strong></div>
@@ -2634,7 +2662,14 @@ async function showSendPFIModal(pfiId) {
   document.getElementById('sendPFI-email').value   = customer?.email || '';
   // Pre-fill subject
   document.getElementById('sendPFI-subject').value = \`Pro Forma Invoice – \${job?.jobCardNumber||'PFI-'+pfi.id.toUpperCase()} | AutoFix GMS\`;
-  // Pre-fill message
+
+  // Pre-fill message — adapt closing line based on job type
+  const closingLine = isInsurance
+    ? 'Please review and revert with your approval at your earliest convenience.'
+    : 'Kindly review the estimate. Please contact us to confirm and schedule the repair.';
+  const insuranceExtra = isInsurance && job?.insurer ? ('  Insurer:       ' + job.insurer + String.fromCharCode(10)) : '';
+  const claimExtra = isInsurance && job?.claimReference ? ('  Claim Ref:     ' + job.claimReference + String.fromCharCode(10)) : '';
+
   document.getElementById('sendPFI-message').value =
 \`Dear \${customer?.name || 'Valued Customer'},
 
@@ -2642,11 +2677,11 @@ Please find attached the Pro Forma Invoice (PFI) for the service on your vehicle
 
 Summary:
   Job Card:       \${job?.jobCardNumber || '—'}
-  Labour Cost:    \${fmt(pfi.labourCost)}
+\${insuranceExtra}\${claimExtra}  Labour Cost:    \${fmt(pfi.labourCost)}
   Parts Cost:     \${fmt(pfi.partsCost)}
   Total Estimate: \${fmt(pfi.totalEstimate)}
 
-\${pfi.notes ? 'Notes: ' + pfi.notes + '\\n\\n' : ''}Please review and revert with your approval at your earliest convenience.
+\${pfi.notes ? 'Notes: ' + pfi.notes + '\\n\\n' : ''}\${closingLine}
 
 For any queries, please contact us at +255 700 000 000 or info@autofixgms.co.tz.
 
@@ -2696,26 +2731,35 @@ async function submitSendPFI() {
 async function loadClaims() {
   const [pfiData, jobData] = await Promise.all([axios.get('/api/pfis'), axios.get('/api/jobcards')]);
   allPFIs = pfiData.data; allJobCards = jobData.data;
+  _pfiActiveCategory = 'all';
+  _pfiActiveStatus   = 'all';
   renderClaims(allPFIs);
 }
 
 function renderClaims(pfis) {
   const grid = document.getElementById('claimsGrid');
-  if (!pfis.length) { grid.innerHTML = '<div class="col-span-3 text-center py-16 text-gray-400"><i class="fas fa-shield-alt text-4xl mb-3 block"></i>No PFIs found</div>'; return; }
+  if (!pfis.length) { grid.innerHTML = '<div class="col-span-3 text-center py-16 text-gray-400"><i class="fas fa-file-invoice text-4xl mb-3 block"></i>No PFIs found</div>'; return; }
   grid.innerHTML = pfis.map(pfi => {
     const job = allJobCards.find(j => j.id === pfi.jobCardId);
     const cfg = PFI_STATUS_CONFIG[pfi.status] || PFI_STATUS_CONFIG['Draft'];
+    const isInsurance = job?.category === 'Insurance';
+    const catBadge = isInsurance
+      ? \`<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700"><i class="fas fa-shield-alt"></i> Insurance</span>\`
+      : \`<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700"><i class="fas fa-user"></i> Private</span>\`;
     return \`
       <div class="card p-5 flex flex-col">
-        <div class="flex items-start justify-between mb-3">
+        <div class="flex items-start justify-between mb-2">
           <div>
             <p class="font-bold text-gray-900">\${job?.jobCardNumber||'—'}</p>
-            <p class="text-sm text-gray-500">\${job?.customer?.name||'—'}</p>
+            <p class="text-sm text-gray-500 mt-0.5">\${job?.customer?.name||'—'}</p>
           </div>
           <span class="badge" style="background:\${cfg.bg};color:\${cfg.text}"><i class="fas \${cfg.icon} mr-1"></i>\${pfi.status}</span>
         </div>
-        \${job?.insurer ? \`<div class="flex items-center gap-2 mb-3 text-sm text-gray-600"><i class="fas fa-shield-alt text-blue-400"></i>\${job.insurer}</div>\` : ''}
-        \${job?.claimReference ? \`<p class="text-xs text-gray-400 mb-3"><i class="fas fa-hashtag mr-1"></i>\${job.claimReference}</p>\` : ''}
+        <div class="flex items-center gap-2 mb-3">\${catBadge}
+          \${job?.vehicle ? \`<span class="text-xs text-gray-400"><i class="fas fa-car mr-1"></i>\${job.vehicle.registrationNumber||''}</span>\` : ''}
+        </div>
+        \${isInsurance && job?.insurer ? \`<div class="flex items-center gap-2 mb-2 text-sm text-gray-600"><i class="fas fa-shield-alt text-blue-400"></i>\${job.insurer}</div>\` : ''}
+        \${isInsurance && job?.claimReference ? \`<p class="text-xs text-gray-400 mb-2"><i class="fas fa-hashtag mr-1"></i>\${job.claimReference}</p>\` : ''}
         <div class="bg-gray-50 rounded-xl p-3 mb-4">
           <div class="flex justify-between text-sm mb-1"><span class="text-gray-500">Labour</span><span class="font-semibold">\${fmt(pfi.labourCost)}</span></div>
           <div class="flex justify-between text-sm mb-1"><span class="text-gray-500">Parts</span><span class="font-semibold">\${fmt(pfi.partsCost)}</span></div>
@@ -2724,6 +2768,7 @@ function renderClaims(pfis) {
         \${pfi.notes ? \`<p class="text-xs text-gray-500 mb-3 italic">"\${pfi.notes}"</p>\` : ''}
         \${pfi.sentAt ? \`<p class="text-xs text-green-600 mb-2"><i class="fas fa-check-circle mr-1"></i>Sent to <strong>\${pfi.sentTo||'customer'}</strong> on \${new Date(pfi.sentAt).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</p>\` : ''}
         <div class="flex flex-col gap-2 mt-auto">
+          \${isInsurance ? \`
           <div class="flex gap-2">
             \${pfi.status === 'Submitted' ? \`
               <button class="btn-primary text-xs flex-1" onclick="updatePFIStatus('\${pfi.id}','Approved')"><i class="fas fa-check mr-1"></i>Approve</button>
@@ -2731,6 +2776,12 @@ function renderClaims(pfis) {
             \` : ''}
             \${pfi.status === 'Draft' ? \`<button class="btn-primary text-xs w-full" onclick="updatePFIStatus('\${pfi.id}','Submitted')"><i class="fas fa-paper-plane mr-1"></i>Submit to Insurer</button>\` : ''}
           </div>
+          \` : \`
+          <div class="flex gap-2">
+            \${pfi.status === 'Draft' ? \`<button class="btn-primary text-xs flex-1" onclick="updatePFIStatus('\${pfi.id}','Sent')"><i class="fas fa-paper-plane mr-1"></i>Mark as Sent</button>\` : ''}
+            \${pfi.status === 'Sent' ? \`<span class="text-xs text-green-600 font-semibold"><i class="fas fa-check-circle mr-1"></i>Sent to Customer</span>\` : ''}
+          </div>
+          \`}
           <div class="flex gap-2">
             <button class="btn-secondary text-xs flex-1" onclick="downloadPFI('\${pfi.id}')">
               <i class="fas fa-download mr-1"></i>Download PDF
@@ -2745,10 +2796,35 @@ function renderClaims(pfis) {
   }).join('');
 }
 
-function filterPFIs(status, btn) {
-  document.querySelectorAll('#page-claims .flex button').forEach(b => { b.className = 'px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200'; });
+let _pfiActiveCategory = 'all';
+let _pfiActiveStatus   = 'all';
+
+function filterPFICategory(cat, btn) {
+  _pfiActiveCategory = cat;
+  document.querySelectorAll('#pfi-catTabs button').forEach(b => { b.className = 'px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200'; });
   btn.className = 'px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white';
-  renderClaims(status === 'all' ? allPFIs : allPFIs.filter(p => p.status === status));
+  _applyPFIFilters();
+}
+
+function filterPFIs(status, btn) {
+  _pfiActiveStatus = status;
+  document.querySelectorAll('#pfi-statusTabs button').forEach(b => { b.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200'; });
+  btn.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-800 text-white';
+  _applyPFIFilters();
+}
+
+function _applyPFIFilters() {
+  let list = allPFIs;
+  if (_pfiActiveCategory !== 'all') {
+    list = list.filter(p => {
+      const job = allJobCards.find(j => j.id === p.jobCardId);
+      return job?.category === _pfiActiveCategory;
+    });
+  }
+  if (_pfiActiveStatus !== 'all') {
+    list = list.filter(p => p.status === _pfiActiveStatus);
+  }
+  renderClaims(list);
 }
 
 async function updatePFIStatus(pfiId, status) {

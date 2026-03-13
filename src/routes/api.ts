@@ -204,10 +204,15 @@ api.post('/pfi/:id/send', async (c) => {
   const idx = pfis.findIndex(x => x.id === c.req.param('id'))
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
   const { email } = await c.req.json<{ email: string }>()
-  pfis[idx] = { ...pfis[idx], sentAt: now(), sentTo: email, status: pfis[idx].status === 'Draft' ? 'Submitted' : pfis[idx].status }
+  // Determine new status based on job category
+  const job = jobCards.find(j => j.id === pfis[idx].jobCardId)
+  const isInsurance = job?.category === 'Insurance'
+  let newStatus = pfis[idx].status
+  if (isInsurance && pfis[idx].status === 'Draft') newStatus = 'Submitted'
+  if (!isInsurance && pfis[idx].status === 'Draft') newStatus = 'Sent'
+  pfis[idx] = { ...pfis[idx], sentAt: now(), sentTo: email, status: newStatus }
   // Log activity
-  const jIdx = jobCards.findIndex(x => x.id === pfis[idx].jobCardId)
-  if (jIdx !== -1) {
+  if (job) {
     activityLog.push({ id: 'a' + genId(), jobCardId: pfis[idx].jobCardId, action: 'PFI_SENT', description: `PFI sent to ${email}`, userId: 'u3', userName: 'System', timestamp: now() })
   }
   return c.json(pfis[idx])

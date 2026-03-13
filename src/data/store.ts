@@ -16,7 +16,7 @@ export type JobCardStatus =
 
 export type JobCategory = 'Insurance' | 'Private'
 export type UserRole = 'Owner' | 'Manager' | 'Front Desk' | 'Technician' | 'Accountant'
-export type PFIStatus = 'Draft' | 'Submitted' | 'Approved' | 'Rejected' | 'Revision Requested'
+export type PFIStatus = 'Draft' | 'Submitted' | 'Approved' | 'Rejected' | 'Revision Requested' | 'Sent'
 export type InvoiceStatus = 'Draft' | 'Issued' | 'Paid' | 'Overdue'
 export type CustomerType = 'Individual' | 'Corporate'
 
@@ -213,6 +213,8 @@ export const pfis: PFI[] = [
   { id: 'p1', jobCardId: 'j1', labourCost: 350000, partsCost: 480000, totalEstimate: 830000, status: 'Approved', notes: 'Includes panel beating, paint and new bumper', createdAt: '2025-03-02T10:00:00Z' },
   { id: 'p2', jobCardId: 'j2', labourCost: 180000, partsCost: 320000, totalEstimate: 500000, status: 'Submitted', notes: 'Rear bumper, boot lid, tail lights replacement', createdAt: '2025-03-04T10:00:00Z' },
   { id: 'p3', jobCardId: 'j6', labourCost: 80000, partsCost: 120000, totalEstimate: 200000, status: 'Approved', createdAt: '2025-02-16T09:00:00Z' },
+  { id: 'p4', jobCardId: 'j3', labourCost: 150000, partsCost: 130000, totalEstimate: 280000, status: 'Sent', notes: 'Major service estimate – brakes, oil, plugs', createdAt: '2025-02-20T09:00:00Z', sentAt: '2025-02-21T10:00:00Z', sentTo: 'd.kimani@business.co.tz' },
+  { id: 'p5', jobCardId: 'j5', labourCost: 400000, partsCost: 250000, totalEstimate: 650000, status: 'Draft', notes: 'Engine overhaul and gearbox – awaiting customer approval', createdAt: '2025-03-05T12:00:00Z' },
 ]
 
 export const partsConsumption: PartConsumption[] = [
