@@ -387,3 +387,34 @@ export const addOnServices: AddOnService[] = [
   { id: 'aos4', name: 'Wheel Balancing',  price: 4000,  unit: 'Per Tyre', category: 'Tyres',      description: 'Wheel balancing per single tyre' },
   { id: 'aos5', name: 'Wheel Alignment',  price: 30000, unit: 'Per Job',  category: 'Alignment',  description: 'Full 4-wheel alignment service' },
 ]
+
+// ─── Appointments ───────────────────────────────────────────────────────────
+
+export type AppointmentStatus = 'Scheduled' | 'Confirmed' | 'In Progress' | 'Completed' | 'Cancelled' | 'No Show'
+export type AppointmentServiceType = 'Oil Change' | 'Major Service' | 'Minor Service' | 'Brake Service' | 'Tyre Service' | 'Diagnosis' | 'Car Wash' | 'Body Repair' | 'Electrical' | 'Other'
+
+export interface Appointment {
+  id: string
+  customerId: string
+  vehicleId: string
+  serviceType: AppointmentServiceType
+  status: AppointmentStatus
+  date: string          // YYYY-MM-DD
+  time: string          // HH:MM (24h)
+  estimatedDuration: number  // minutes
+  assignedTechnician?: string
+  notes?: string
+  jobCardId?: string    // set when converted to job card
+  createdAt: string
+  updatedAt: string
+}
+
+export const appointments: Appointment[] = [
+  { id: 'apt1', customerId: 'c1', vehicleId: 'v1', serviceType: 'Oil Change',     status: 'Confirmed',  date: '2026-03-13', time: '08:00', estimatedDuration: 60,  assignedTechnician: 'u4', notes: 'Customer requests Castrol oil', createdAt: '2026-03-10T10:00:00Z', updatedAt: '2026-03-10T10:00:00Z' },
+  { id: 'apt2', customerId: 'c2', vehicleId: 'v2', serviceType: 'Minor Service',   status: 'Scheduled',  date: '2026-03-13', time: '10:00', estimatedDuration: 120, assignedTechnician: 'u4', notes: '', createdAt: '2026-03-11T08:00:00Z', updatedAt: '2026-03-11T08:00:00Z' },
+  { id: 'apt3', customerId: 'c3', vehicleId: 'v3', serviceType: 'Major Service',   status: 'Scheduled',  date: '2026-03-14', time: '09:00', estimatedDuration: 240, assignedTechnician: 'u4', notes: 'Fleet vehicle – priority handling', createdAt: '2026-03-11T09:00:00Z', updatedAt: '2026-03-11T09:00:00Z' },
+  { id: 'apt4', customerId: 'c4', vehicleId: 'v4', serviceType: 'Diagnosis',       status: 'Confirmed',  date: '2026-03-14', time: '14:00', estimatedDuration: 60,  notes: 'Engine light on', createdAt: '2026-03-12T07:00:00Z', updatedAt: '2026-03-12T07:00:00Z' },
+  { id: 'apt5', customerId: 'c1', vehicleId: 'v1', serviceType: 'Brake Service',   status: 'Scheduled',  date: '2026-03-17', time: '11:00', estimatedDuration: 90,  assignedTechnician: 'u4', notes: 'Front brakes squeaking', createdAt: '2026-03-12T11:00:00Z', updatedAt: '2026-03-12T11:00:00Z' },
+  { id: 'apt6', customerId: 'c5', vehicleId: 'v5', serviceType: 'Tyre Service',    status: 'Completed',  date: '2026-03-12', time: '08:30', estimatedDuration: 60,  assignedTechnician: 'u4', notes: 'Replace all 4 tyres', createdAt: '2026-03-10T14:00:00Z', updatedAt: '2026-03-12T10:00:00Z' },
+  { id: 'apt7', customerId: 'c2', vehicleId: 'v2', serviceType: 'Car Wash',        status: 'Cancelled',  date: '2026-03-12', time: '15:00', estimatedDuration: 30,  notes: 'Customer cancelled', createdAt: '2026-03-11T16:00:00Z', updatedAt: '2026-03-12T07:00:00Z' },
+]

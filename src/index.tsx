@@ -96,6 +96,9 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
     <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('jobcards')">
       <i class="fas fa-clipboard-list w-5 text-center"></i> Job Cards
     </a>
+    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('appointments')">
+      <i class="fas fa-calendar-check w-5 text-center"></i> Appointments
+    </a>
     <p class="text-xs text-blue-300 font-semibold uppercase tracking-widest px-3 pt-3 pb-1">Operations</p>
     <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('customers')">
       <i class="fas fa-users w-5 text-center"></i> Customers
@@ -200,6 +203,13 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         </div>
         <div class="space-y-5">
           <div class="card p-5">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="font-bold text-gray-800">Today's Appointments</h3>
+              <button class="text-blue-600 text-xs font-semibold hover:underline" onclick="showPage('appointments')">View All →</button>
+            </div>
+            <div id="dashTodayApts"><p class="text-gray-400 text-sm text-center py-4">Loading…</p></div>
+          </div>
+          <div class="card p-5">
             <h3 class="font-bold text-gray-800 mb-4">By Insurer</h3>
             <div id="insurerList"></div>
           </div>
@@ -225,6 +235,90 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
     </div>
 
     <!-- ═══ JOB CARDS ═══ -->
+    <!-- ═══ APPOINTMENTS ═══ -->
+    <div id="page-appointments" class="page">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-900">Appointments</h2>
+          <p class="text-gray-500 text-sm mt-1">Schedule and manage vehicle service appointments</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <button class="btn-primary" onclick="showNewAppointmentModal()"><i class="fas fa-plus"></i> New Appointment</button>
+        </div>
+      </div>
+
+      <!-- Stat chips -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-5" id="apt-statChips"></div>
+
+      <!-- Filters bar -->
+      <div class="card p-4 mb-5">
+        <div class="flex flex-wrap items-center gap-3">
+          <div class="relative flex-1 min-w-[180px]">
+            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+            <input class="search-input w-full" type="text" placeholder="Search customer, vehicle, service…" oninput="filterAppointments()" id="apt-search"/>
+          </div>
+          <input type="date" id="apt-dateFilter" class="form-input w-auto text-sm" onchange="filterAppointments()" title="Filter by date"/>
+          <select id="apt-statusFilter" class="form-input w-auto text-sm" onchange="filterAppointments()">
+            <option value="">All Statuses</option>
+            <option>Scheduled</option><option>Confirmed</option><option>In Progress</option>
+            <option>Completed</option><option>Cancelled</option><option>No Show</option>
+          </select>
+          <button class="btn-secondary text-sm" onclick="clearAptFilters()"><i class="fas fa-times mr-1"></i>Clear</button>
+        </div>
+      </div>
+
+      <!-- View toggle: List / Calendar -->
+      <div class="flex gap-2 mb-4">
+        <button id="apt-view-list" class="px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white" onclick="setAptView('list')"><i class="fas fa-list mr-1"></i>List</button>
+        <button id="apt-view-calendar" class="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200" onclick="setAptView('calendar')"><i class="fas fa-calendar-alt mr-1"></i>Calendar</button>
+      </div>
+
+      <!-- List View -->
+      <div id="apt-listView">
+        <div class="card overflow-hidden">
+          <table class="w-full text-sm">
+            <thead><tr class="border-b border-gray-100 bg-gray-50">
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Date &amp; Time</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Customer</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Vehicle</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Service</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Technician</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Duration</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Status</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Actions</th>
+            </tr></thead>
+            <tbody id="apt-tableBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Calendar View -->
+      <div id="apt-calendarView" class="hidden">
+        <div class="card p-5">
+          <div class="flex items-center justify-between mb-4">
+            <button class="btn-secondary text-sm px-3 py-2" onclick="calNav(-1)"><i class="fas fa-chevron-left"></i></button>
+            <h3 class="text-lg font-bold text-gray-800" id="cal-monthLabel"></h3>
+            <button class="btn-secondary text-sm px-3 py-2" onclick="calNav(1)"><i class="fas fa-chevron-right"></i></button>
+          </div>
+          <div class="grid grid-cols-7 gap-1 mb-2">
+            <div class="text-center text-xs font-semibold text-gray-500 py-1">Sun</div>
+            <div class="text-center text-xs font-semibold text-gray-500 py-1">Mon</div>
+            <div class="text-center text-xs font-semibold text-gray-500 py-1">Tue</div>
+            <div class="text-center text-xs font-semibold text-gray-500 py-1">Wed</div>
+            <div class="text-center text-xs font-semibold text-gray-500 py-1">Thu</div>
+            <div class="text-center text-xs font-semibold text-gray-500 py-1">Fri</div>
+            <div class="text-center text-xs font-semibold text-gray-500 py-1">Sat</div>
+          </div>
+          <div class="grid grid-cols-7 gap-1" id="cal-grid"></div>
+        </div>
+        <!-- Day detail panel -->
+        <div id="cal-dayPanel" class="card p-5 mt-4 hidden">
+          <h4 class="font-bold text-gray-800 mb-3" id="cal-dayTitle"></h4>
+          <div id="cal-dayList"></div>
+        </div>
+      </div>
+    </div>
+
     <div id="page-jobcards" class="page">
       <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
@@ -636,6 +730,96 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
   </div>
 </div>
 
+<!-- New / Edit Appointment Modal -->
+<div id="modal-appointment" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:620px">
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h3 class="text-xl font-bold text-gray-900" id="apt-modal-title"><i class="fas fa-calendar-plus text-blue-500 mr-2"></i>New Appointment</h3>
+        <p class="text-sm text-gray-500 mt-0.5" id="apt-modal-sub">Book a vehicle service appointment</p>
+      </div>
+      <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-appointment')"><i class="fas fa-times"></i></button>
+    </div>
+    <form id="appointmentForm" onsubmit="submitAppointment(event)">
+      <input type="hidden" id="apt-id"/>
+      <!-- Customer + Vehicle -->
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div>
+          <label class="form-label">Customer <span class="text-red-500">*</span></label>
+          <select class="form-input" id="apt-customerId" required onchange="aptLoadVehicles()">
+            <option value="">Select customer…</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Vehicle <span class="text-red-500">*</span></label>
+          <select class="form-input" id="apt-vehicleId" required>
+            <option value="">Select vehicle…</option>
+          </select>
+        </div>
+      </div>
+      <!-- Service + Status -->
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div>
+          <label class="form-label">Service Type <span class="text-red-500">*</span></label>
+          <select class="form-input" id="apt-serviceType" required>
+            <option value="">Select service…</option>
+            <option>Oil Change</option><option>Minor Service</option><option>Major Service</option>
+            <option>Brake Service</option><option>Tyre Service</option><option>Diagnosis</option>
+            <option>Car Wash</option><option>Body Repair</option><option>Electrical</option><option>Other</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Status</label>
+          <select class="form-input" id="apt-status">
+            <option value="Scheduled">Scheduled</option>
+            <option value="Confirmed">Confirmed</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Completed">Completed</option>
+            <option value="Cancelled">Cancelled</option>
+            <option value="No Show">No Show</option>
+          </select>
+        </div>
+      </div>
+      <!-- Date + Time + Duration -->
+      <div class="grid grid-cols-3 gap-4 mb-4">
+        <div>
+          <label class="form-label">Date <span class="text-red-500">*</span></label>
+          <input class="form-input" type="date" id="apt-date" required/>
+        </div>
+        <div>
+          <label class="form-label">Time <span class="text-red-500">*</span></label>
+          <input class="form-input" type="time" id="apt-time" required/>
+        </div>
+        <div>
+          <label class="form-label">Duration (min)</label>
+          <select class="form-input" id="apt-duration">
+            <option value="30">30 min</option><option value="60" selected>1 hr</option>
+            <option value="90">1.5 hr</option><option value="120">2 hr</option>
+            <option value="180">3 hr</option><option value="240">4 hr</option>
+            <option value="360">6 hr</option><option value="480">Full day</option>
+          </select>
+        </div>
+      </div>
+      <!-- Technician -->
+      <div class="mb-4">
+        <label class="form-label">Assign Technician</label>
+        <select class="form-input" id="apt-technician">
+          <option value="">Unassigned</option>
+        </select>
+      </div>
+      <!-- Notes -->
+      <div class="mb-6">
+        <label class="form-label">Notes</label>
+        <textarea class="form-input" id="apt-notes" rows="2" placeholder="Any special instructions or details…"></textarea>
+      </div>
+      <div class="flex gap-3 justify-end">
+        <button type="button" class="btn-secondary" onclick="closeModal('modal-appointment')">Cancel</button>
+        <button type="submit" class="btn-primary"><i class="fas fa-save mr-1"></i><span id="apt-submit-label">Book Appointment</span></button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- Fleet Upload Modal -->
 <div id="modal-fleetUpload" class="modal-overlay hidden">
   <div class="modal-box" style="max-width:760px">
@@ -806,7 +990,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 
 <script>
 // ═══ GLOBAL STATE ═══
-let allJobCards = [], allCustomers = [], allVehicles = [], allPFIs = [], allInvoices = [], allPackages = [], allUsers = [];
+let allJobCards = [], allCustomers = [], allVehicles = [], allPFIs = [], allInvoices = [], allPackages = [], allUsers = [], allAppointments = [];
 let statusChart = null, revenueChart = null, insurerChart = null;
 
 const STATUS_CONFIG = {
@@ -868,6 +1052,7 @@ function showPage(page) {
       n.classList.add('active'); n.style.color='#fff';
     }
   });
+  if (page === 'appointments') loadAppointments();
   if (page === 'dashboard') loadDashboard();
   if (page === 'jobcards') loadJobCards();
   if (page === 'customers') loadCustomers();
@@ -949,6 +1134,8 @@ async function loadDashboard() {
       <div class="progress-bar"><div class="progress-fill" style="width:\${count * 20}%;background:\${insurerColors[i%insurerColors.length]}"></div></div>
     </div>
   \`).join('') || '<p class="text-gray-400 text-sm">No insurance jobs yet</p>';
+  // Load today's appointments for dashboard widget
+  loadDashTodayApts();
 }
 
 // ═══ JOB CARDS ═══
@@ -1568,6 +1755,329 @@ async function submitNewVehicle(e) {
   document.getElementById('newVehicleForm').reset();
   showToast('Vehicle registered successfully');
   loadVehicles();
+}
+
+// ═══ APPOINTMENTS ═══
+const APT_STATUS_CFG = {
+  'Scheduled':   { bg:'#eff6ff', text:'#1d4ed8', dot:'#3b82f6' },
+  'Confirmed':   { bg:'#f0fdf4', text:'#15803d', dot:'#22c55e' },
+  'In Progress': { bg:'#fefce8', text:'#a16207', dot:'#eab308' },
+  'Completed':   { bg:'#f0fdf4', text:'#166534', dot:'#16a34a' },
+  'Cancelled':   { bg:'#fef2f2', text:'#b91c1c', dot:'#ef4444' },
+  'No Show':     { bg:'#faf5ff', text:'#7e22ce', dot:'#a855f7' },
+};
+const APT_STATUSES = Object.keys(APT_STATUS_CFG);
+let aptCurrentView = 'list';
+let calYear = new Date().getFullYear(), calMonth = new Date().getMonth();
+
+function aptStatusBadge(s) {
+  const c = APT_STATUS_CFG[s] || { bg:'#f1f5f9', text:'#64748b', dot:'#94a3b8' };
+  return \`<span class="status-pill" style="background:\${c.bg};color:\${c.text}"><span style="width:6px;height:6px;border-radius:50%;background:\${c.dot};display:inline-block;margin-right:5px"></span>\${s}</span>\`;
+}
+
+function fmtTime(t) {
+  if (!t) return '';
+  const [h, m] = t.split(':').map(Number);
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  return ((h % 12) || 12) + ':' + String(m).padStart(2,'0') + ' ' + ampm;
+}
+function fmtDuration(mins) {
+  if (mins < 60) return mins + ' min';
+  const h = Math.floor(mins/60), m = mins%60;
+  return h + 'h' + (m ? ' ' + m + 'm' : '');
+}
+
+async function loadAppointments() {
+  const [aptRes, cuRes, vRes, uRes] = await Promise.all([
+    axios.get('/api/appointments'),
+    axios.get('/api/customers'),
+    axios.get('/api/vehicles'),
+    axios.get('/api/users'),
+  ]);
+  allAppointments = aptRes.data;
+  allCustomers    = cuRes.data;
+  allVehicles     = vRes.data;
+  allUsers        = uRes.data;
+  renderAptStats();
+  renderAptTable(allAppointments);
+  if (aptCurrentView === 'calendar') renderCalendar();
+}
+
+function renderAptStats() {
+  const counts = {};
+  APT_STATUSES.forEach(s => counts[s] = 0);
+  allAppointments.forEach(a => { if (counts[a.status] !== undefined) counts[a.status]++; });
+  document.getElementById('apt-statChips').innerHTML = APT_STATUSES.map(s => {
+    const c = APT_STATUS_CFG[s];
+    return \`<div class="card p-3 text-center cursor-pointer hover:shadow-md transition-all" onclick="quickFilterApt('\${s}')" style="border-top:3px solid \${c.dot}">
+      <p class="text-xl font-bold" style="color:\${c.text}">\${counts[s]}</p>
+      <p class="text-xs text-gray-500 mt-0.5">\${s}</p>
+    </div>\`;
+  }).join('');
+}
+
+function renderAptTable(list) {
+  const today = new Date().toISOString().split('T')[0];
+  if (!list.length) {
+    document.getElementById('apt-tableBody').innerHTML = '<tr><td colspan="8" class="text-center py-12 text-gray-400"><i class="fas fa-calendar-times text-3xl block mb-2"></i>No appointments found</td></tr>';
+    return;
+  }
+  document.getElementById('apt-tableBody').innerHTML = list.map(a => {
+    const isToday = a.date === today;
+    const isPast  = a.date < today && !['Completed','Cancelled','No Show'].includes(a.status);
+    return \`<tr class="table-row border-b border-gray-50 \${isPast ? 'opacity-60' : ''}">
+      <td class="px-4 py-3">
+        <div class="font-semibold text-gray-800 \${isToday ? 'text-blue-700' : ''}">\${isToday ? '<span class="text-xs bg-blue-100 text-blue-700 rounded px-1 mr-1">Today</span>' : ''}\${a.date}</div>
+        <div class="text-xs text-gray-500">\${fmtTime(a.time)}</div>
+      </td>
+      <td class="px-4 py-3">
+        <div class="font-semibold text-gray-800 text-sm">\${a.customerName||'—'}</div>
+      </td>
+      <td class="px-4 py-3">
+        <div class="font-bold text-blue-600 text-sm">\${a.vehicleReg||'—'}</div>
+        <div class="text-xs text-gray-500">\${a.vehicleMake||''} \${a.vehicleModel||''}</div>
+      </td>
+      <td class="px-4 py-3">
+        <span class="text-sm font-medium text-gray-700">\${a.serviceType}</span>
+        \${a.notes ? \`<p class="text-xs text-gray-400 truncate max-w-[140px]" title="\${a.notes}">\${a.notes}</p>\` : ''}
+      </td>
+      <td class="px-4 py-3 text-sm text-gray-600">\${a.technicianName||'<span class="text-gray-300">—</span>'}</td>
+      <td class="px-4 py-3 text-sm text-gray-500">\${fmtDuration(a.estimatedDuration)}</td>
+      <td class="px-4 py-3">\${aptStatusBadge(a.status)}</td>
+      <td class="px-4 py-3">
+        <div class="flex items-center gap-2">
+          <button class="text-blue-500 hover:text-blue-700 text-sm" title="Edit" onclick="showEditAppointmentModal('\${a.id}')"><i class="fas fa-edit"></i></button>
+          \${!a.jobCardId && !['Completed','Cancelled','No Show'].includes(a.status)
+            ? \`<button class="text-green-600 hover:text-green-800 text-sm" title="Convert to Job Card" onclick="convertAptToJob('\${a.id}')"><i class="fas fa-clipboard-list"></i></button>\`
+            : a.jobCardId ? \`<span class="text-xs bg-green-100 text-green-700 rounded px-1.5 py-0.5 font-semibold">Job Card</span>\` : ''
+          }
+          <button class="text-red-400 hover:text-red-600 text-sm" title="Cancel" onclick="cancelAppointment('\${a.id}')"><i class="fas fa-times"></i></button>
+        </div>
+      </td>
+    </tr>\`;
+  }).join('');
+}
+
+function filterAppointments() {
+  const q      = (document.getElementById('apt-search').value || '').toLowerCase();
+  const date   = document.getElementById('apt-dateFilter').value;
+  const status = document.getElementById('apt-statusFilter').value;
+  let list = allAppointments;
+  if (q)      list = list.filter(a => (a.customerName||'').toLowerCase().includes(q) || (a.vehicleReg||'').toLowerCase().includes(q) || a.serviceType.toLowerCase().includes(q));
+  if (date)   list = list.filter(a => a.date === date);
+  if (status) list = list.filter(a => a.status === status);
+  renderAptTable(list);
+}
+
+function quickFilterApt(status) {
+  document.getElementById('apt-statusFilter').value = status;
+  filterAppointments();
+}
+
+function clearAptFilters() {
+  document.getElementById('apt-search').value = '';
+  document.getElementById('apt-dateFilter').value = '';
+  document.getElementById('apt-statusFilter').value = '';
+  renderAptTable(allAppointments);
+}
+
+function setAptView(v) {
+  aptCurrentView = v;
+  document.getElementById('apt-listView').classList.toggle('hidden', v !== 'list');
+  document.getElementById('apt-calendarView').classList.toggle('hidden', v !== 'calendar');
+  document.getElementById('apt-view-list').className    = v==='list'     ? 'px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white'    : 'px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200';
+  document.getElementById('apt-view-calendar').className= v==='calendar' ? 'px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white' : 'px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200';
+  if (v === 'calendar') renderCalendar();
+}
+
+// ── Calendar ──
+function calNav(dir) {
+  calMonth += dir;
+  if (calMonth > 11) { calMonth = 0; calYear++; }
+  if (calMonth < 0)  { calMonth = 11; calYear--; }
+  renderCalendar();
+}
+
+function renderCalendar() {
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  document.getElementById('cal-monthLabel').textContent = MONTHS[calMonth] + ' ' + calYear;
+  const firstDay  = new Date(calYear, calMonth, 1).getDay();
+  const daysInMo  = new Date(calYear, calMonth + 1, 0).getDate();
+  const todayStr  = new Date().toISOString().split('T')[0];
+  // Map date → apt list
+  const byDate = {};
+  allAppointments.forEach(a => {
+    const d = a.date;
+    if (!byDate[d]) byDate[d] = [];
+    byDate[d].push(a);
+  });
+  let cells = '';
+  for (let i = 0; i < firstDay; i++) cells += '<div></div>';
+  for (let d = 1; d <= daysInMo; d++) {
+    const dateStr = \`\${calYear}-\${String(calMonth+1).padStart(2,'0')}-\${String(d).padStart(2,'0')}\`;
+    const apts    = byDate[dateStr] || [];
+    const isToday = dateStr === todayStr;
+    const dots    = apts.slice(0,3).map(a => {
+      const c = APT_STATUS_CFG[a.status] || { dot:'#94a3b8' };
+      return \`<span style="width:6px;height:6px;border-radius:50%;background:\${c.dot};display:inline-block"></span>\`;
+    }).join('');
+    cells += \`<div class="min-h-[64px] rounded-lg p-1.5 cursor-pointer border \${isToday ? 'bg-blue-50 border-blue-300' : 'border-gray-100 hover:bg-gray-50'} transition-colors" onclick="showCalDay('\${dateStr}')">
+      <p class="text-xs font-bold \${isToday ? 'text-blue-700' : 'text-gray-700'} mb-1">\${d}</p>
+      \${apts.length ? \`<div class="flex flex-wrap gap-0.5 mb-1">\${dots}</div><p class="text-xs text-gray-500">\${apts.length} appt\${apts.length>1?'s':''}</p>\` : ''}
+    </div>\`;
+  }
+  document.getElementById('cal-grid').innerHTML = cells;
+  document.getElementById('cal-dayPanel').classList.add('hidden');
+}
+
+function showCalDay(dateStr) {
+  const apts = allAppointments.filter(a => a.date === dateStr).sort((a,b) => a.time.localeCompare(b.time));
+  const panel = document.getElementById('cal-dayPanel');
+  document.getElementById('cal-dayTitle').textContent = new Date(dateStr + 'T12:00:00').toLocaleDateString('en-GB', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+  if (!apts.length) {
+    document.getElementById('cal-dayList').innerHTML = '<p class="text-gray-400 text-sm py-3 text-center">No appointments on this day. <button class="text-blue-500 underline" onclick="showNewAppointmentModal()">Book one?</button></p>';
+  } else {
+    document.getElementById('cal-dayList').innerHTML = apts.map(a => \`
+      <div class="flex items-center gap-3 py-2.5 border-b border-gray-100">
+        <div class="w-14 text-xs font-bold text-gray-600 flex-shrink-0">\${fmtTime(a.time)}</div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-semibold text-gray-800">\${a.serviceType} <span class="text-gray-400 font-normal">–</span> <span class="text-blue-600">\${a.vehicleReg||''}</span></p>
+          <p class="text-xs text-gray-500">\${a.customerName||''} · \${fmtDuration(a.estimatedDuration)}\${a.technicianName?' · '+a.technicianName:''}</p>
+        </div>
+        <div class="flex items-center gap-2 flex-shrink-0">
+          \${aptStatusBadge(a.status)}
+          <button class="text-blue-500 hover:text-blue-700 text-xs" onclick="showEditAppointmentModal('\${a.id}')"><i class="fas fa-edit"></i></button>
+        </div>
+      </div>
+    \`).join('');
+  }
+  panel.classList.remove('hidden');
+}
+
+// ── Modal open / submit ──
+async function showNewAppointmentModal() {
+  if (!allCustomers.length) { const {data} = await axios.get('/api/customers'); allCustomers = data; }
+  if (!allVehicles.length)  { const {data} = await axios.get('/api/vehicles');  allVehicles  = data; }
+  if (!allUsers.length)     { const {data} = await axios.get('/api/users');     allUsers     = data; }
+  document.getElementById('apt-modal-title').innerHTML = '<i class="fas fa-calendar-plus text-blue-500 mr-2"></i>New Appointment';
+  document.getElementById('apt-modal-sub').textContent = 'Book a vehicle service appointment';
+  document.getElementById('apt-submit-label').textContent = 'Book Appointment';
+  document.getElementById('apt-id').value = '';
+  document.getElementById('appointmentForm').reset();
+  // Default date = today, time = next full hour
+  const now = new Date();
+  document.getElementById('apt-date').value = now.toISOString().split('T')[0];
+  const nextHour = new Date(now); nextHour.setHours(now.getHours()+1,0,0,0);
+  document.getElementById('apt-time').value = nextHour.toTimeString().slice(0,5);
+  document.getElementById('apt-status').value = 'Scheduled';
+  aptPopulateCustomers();
+  aptPopulateTechnicians();
+  openModal('modal-appointment');
+}
+
+async function showEditAppointmentModal(id) {
+  const {data: a} = await axios.get('/api/appointments/' + id);
+  if (!allCustomers.length) { const {data} = await axios.get('/api/customers'); allCustomers = data; }
+  if (!allVehicles.length)  { const {data} = await axios.get('/api/vehicles');  allVehicles  = data; }
+  if (!allUsers.length)     { const {data} = await axios.get('/api/users');     allUsers     = data; }
+  document.getElementById('apt-modal-title').innerHTML = '<i class="fas fa-calendar-edit text-blue-500 mr-2"></i>Edit Appointment';
+  document.getElementById('apt-modal-sub').textContent = 'Update appointment details';
+  document.getElementById('apt-submit-label').textContent = 'Save Changes';
+  document.getElementById('apt-id').value = a.id;
+  aptPopulateCustomers(a.customerId);
+  await aptLoadVehicles(a.vehicleId);
+  document.getElementById('apt-serviceType').value = a.serviceType;
+  document.getElementById('apt-status').value      = a.status;
+  document.getElementById('apt-date').value        = a.date;
+  document.getElementById('apt-time').value        = a.time;
+  document.getElementById('apt-duration').value    = a.estimatedDuration;
+  aptPopulateTechnicians(a.assignedTechnician);
+  document.getElementById('apt-notes').value       = a.notes || '';
+  openModal('modal-appointment');
+}
+
+function aptPopulateCustomers(selectedId) {
+  document.getElementById('apt-customerId').innerHTML =
+    '<option value="">Select customer…</option>' +
+    allCustomers.map(c => \`<option value="\${c.id}" \${c.id===selectedId?'selected':''}>\${c.name}</option>\`).join('');
+}
+
+async function aptLoadVehicles(selectedId) {
+  const custId = document.getElementById('apt-customerId').value;
+  const vehs = custId ? allVehicles.filter(v => v.customerId === custId) : [];
+  document.getElementById('apt-vehicleId').innerHTML =
+    '<option value="">Select vehicle…</option>' +
+    vehs.map(v => \`<option value="\${v.id}" \${v.id===selectedId?'selected':''}>\${v.registrationNumber} – \${v.make} \${v.model}</option>\`).join('');
+}
+
+function aptPopulateTechnicians(selectedId) {
+  const techs = allUsers.filter(u => u.role === 'Technician' || u.role === 'Manager');
+  document.getElementById('apt-technician').innerHTML =
+    '<option value="">Unassigned</option>' +
+    techs.map(u => \`<option value="\${u.id}" \${u.id===selectedId?'selected':''}>\${u.name}</option>\`).join('');
+}
+
+async function submitAppointment(e) {
+  e.preventDefault();
+  const id = document.getElementById('apt-id').value;
+  const payload = {
+    customerId:         document.getElementById('apt-customerId').value,
+    vehicleId:          document.getElementById('apt-vehicleId').value,
+    serviceType:        document.getElementById('apt-serviceType').value,
+    status:             document.getElementById('apt-status').value,
+    date:               document.getElementById('apt-date').value,
+    time:               document.getElementById('apt-time').value,
+    estimatedDuration:  +document.getElementById('apt-duration').value,
+    assignedTechnician: document.getElementById('apt-technician').value,
+    notes:              document.getElementById('apt-notes').value,
+  };
+  if (id) {
+    await axios.put('/api/appointments/' + id, payload);
+    showToast('Appointment updated successfully');
+  } else {
+    await axios.post('/api/appointments', payload);
+    showToast('Appointment booked successfully');
+  }
+  closeModal('modal-appointment');
+  loadAppointments();
+}
+
+async function cancelAppointment(id) {
+  const apt = allAppointments.find(a => a.id === id);
+  if (!apt || ['Completed','Cancelled'].includes(apt.status)) return;
+  if (!confirm('Cancel this appointment?')) return;
+  await axios.patch('/api/appointments/' + id + '/status', { status: 'Cancelled' });
+  showToast('Appointment cancelled');
+  loadAppointments();
+}
+
+async function convertAptToJob(id) {
+  if (!confirm('Convert this appointment to a Job Card?')) return;
+  const { data } = await axios.post('/api/appointments/' + id + '/convert');
+  showToast(\`✅ Job Card \${data.jobCard.jobCardNumber} created!\`);
+  loadAppointments();
+}
+
+// ── Dashboard today's appointments ──
+async function loadDashTodayApts() {
+  const today = new Date().toISOString().split('T')[0];
+  const { data } = await axios.get('/api/appointments?date=' + today);
+  const el = document.getElementById('dashTodayApts');
+  if (!data.length) {
+    el.innerHTML = '<p class="text-gray-400 text-sm text-center py-4"><i class="fas fa-calendar-check block text-2xl mb-1"></i>No appointments today</p>';
+    return;
+  }
+  el.innerHTML = data.map(a => {
+    const c = APT_STATUS_CFG[a.status] || { dot:'#94a3b8', text:'#64748b' };
+    return \`<div class="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
+      <span style="width:8px;height:8px;border-radius:50%;background:\${c.dot};flex-shrink:0;margin-top:2px"></span>
+      <div class="flex-1 min-w-0">
+        <p class="text-sm font-semibold text-gray-800 truncate">\${a.vehicleReg||'?'} – \${a.serviceType}</p>
+        <p class="text-xs text-gray-500">\${fmtTime(a.time)} · \${a.customerName||''}</p>
+      </div>
+      <span class="text-xs font-semibold flex-shrink-0" style="color:\${c.text}">\${a.status}</span>
+    </div>\`;
+  }).join('');
 }
 
 // ═══ FLEET UPLOAD ═══

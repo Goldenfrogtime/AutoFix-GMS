@@ -2,10 +2,10 @@ import { Hono } from 'hono'
 import {
   customers, vehicles, jobCards, pfis, partsConsumption,
   invoices, servicePackages, users, activityLog,
-  oilServiceProducts, catalogueParts, carWashPackages, addOnServices,
+  oilServiceProducts, catalogueParts, carWashPackages, addOnServices, appointments,
   type Customer, type Vehicle, type JobCard, type PFI,
   type PartConsumption, type ServicePackage, type User, type Invoice,
-  type CataloguePart, type CarWashPackage, type AddOnService
+  type CataloguePart, type CarWashPackage, type AddOnService, type Appointment
 } from '../data/store'
 
 const api = new Hono()
@@ -350,6 +350,86 @@ api.get('/catalogue/search', (c) => {
     carwash: carWashPackages.filter(p => p.name.toLowerCase().includes(q)).slice(0, 5),
     addons: addOnServices.filter(s => s.name.toLowerCase().includes(q)).slice(0, 5),
   })
+})
+
+// ─── Appointments ─────────────────────────────────────────────────────────────
+api.get('/appointments', (c) => {
+  const date   = c.req.query('date')
+  const status = c.req.query('status')
+  let list = appointments.map(a => ({
+    ...a,
+    customerName: customers.find(cu => cu.id === a.customerId)?.name,
+    vehicleReg:   vehicles.find(v  => v.id  === a.vehicleId)?.registrationNumber,
+    vehicleMake:  vehicles.find(v  => v.id  === a.vehicleId)?.make,
+    vehicleModel: vehicles.find(v  => v.id  === a.vehicleId)?.model,
+    technicianName: users.find(u => u.id === a.assignedTechnician)?.name,
+  }))
+  if (date)   list = list.filter(a => a.date === date)
+  if (status) list = list.filter(a => a.status === status)
+  return c.json(list.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time)))
+})
+
+api.get('/appointments/:id', (c) => {
+  const a = appointments.find(x => x.id === c.req.param('id'))
+  if (!a) return c.json({ error: 'Not found' }, 404)
+  return c.json({
+    ...a,
+    customer:      customers.find(cu => cu.id === a.customerId),
+    vehicle:       vehicles.find(v  => v.id  === a.vehicleId),
+    technicianName: users.find(u => u.id === a.assignedTechnician)?.name,
+  })
+})
+
+api.post('/appointments', async (c) => {
+  const body = await c.req.json<Omit<Appointment, 'id' | 'createdAt' | 'updatedAt'>>()
+  const newApt: Appointment = { ...body, id: 'apt' + genId(), createdAt: now(), updatedAt: now() }
+  appointments.push(newApt)
+  return c.json(newApt, 201)
+})
+
+api.put('/appointments/:id', async (c) => {
+  const idx = appointments.findIndex(x => x.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const body = await c.req.json<Partial<Appointment>>()
+  appointments[idx] = { ...appointments[idx], ...body, updatedAt: now() }
+  return c.json(appointments[idx])
+})
+
+api.patch('/appointments/:id/status', async (c) => {
+  const idx = appointments.findIndex(x => x.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const { status } = await c.req.json<{ status: string }>()
+  appointments[idx] = { ...appointments[idx], status: status as any, updatedAt: now() }
+  return c.json(appointments[idx])
+})
+
+api.delete('/appointments/:id', (c) => {
+  const idx = appointments.findIndex(x => x.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  appointments.splice(idx, 1)
+  return c.json({ success: true })
+})
+
+// Convert appointment → job card
+api.post('/appointments/:id/convert', async (c) => {
+  const idx = appointments.findIndex(x => x.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const apt = appointments[idx]
+  if (apt.jobCardId) return c.json({ error: 'Already converted', jobCardId: apt.jobCardId }, 400)
+  const num = 'GMS-' + new Date().getFullYear() + '-' + String(jobCards.length + 1).padStart(3, '0')
+  const newJob: JobCard = {
+    id: 'j' + genId(), jobCardNumber: num,
+    customerId: apt.customerId, vehicleId: apt.vehicleId,
+    assignedTechnician: apt.assignedTechnician || '',
+    category: 'Private', status: 'RECEIVED',
+    damageDescription: apt.serviceType + (apt.notes ? ' – ' + apt.notes : ''),
+    notes: apt.notes || '',
+    createdAt: now(), updatedAt: now()
+  }
+  jobCards.push(newJob)
+  activityLog.push({ id: 'a' + genId(), jobCardId: newJob.id, action: 'JOB_CREATED', description: `Job card created from appointment #${apt.id}`, userId: 'u3', userName: 'System', timestamp: now() })
+  appointments[idx] = { ...apt, status: 'In Progress', jobCardId: newJob.id, updatedAt: now() }
+  return c.json({ jobCard: newJob, appointment: appointments[idx] }, 201)
 })
 
 export default api
