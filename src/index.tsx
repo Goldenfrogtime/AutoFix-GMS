@@ -2379,7 +2379,7 @@ function _renderAddServiceModal() {
 
   const tabBar = tabs.map(t => {
     const active = _svcTab === t.id;
-    return '<button onclick="_switchSvcTab(\'' + t.id + '\')" class="flex-1 flex flex-col items-center gap-1 py-2 px-1 rounded-xl text-xs font-semibold transition-all ' +
+    return '<button data-svc-tab="' + t.id + '" class="flex-1 flex flex-col items-center gap-1 py-2 px-1 rounded-xl text-xs font-semibold transition-all ' +
       (active ? 'bg-blue-600 text-white shadow' : 'bg-gray-100 text-gray-500 hover:bg-gray-200') + '">' +
       '<i class="fas ' + t.icon + ' text-sm"></i><span class="svc-tab-label">' + t.label + '</span></button>';
   }).join('');
@@ -2388,6 +2388,11 @@ function _renderAddServiceModal() {
     '<p class="text-sm text-gray-500 mb-3">Choose a category to add services or parts to this job card</p>' +
     '<div class="svc-tab-bar flex gap-1.5 mb-4">' + tabBar + '</div>' +
     '<div id="svc-tab-content" class="min-h-[260px]"></div>';
+
+  // Wire up tab buttons via data attribute (avoids quoting issues in onclick)
+  document.querySelectorAll('#statusUpdateContent [data-svc-tab]').forEach(btn => {
+    btn.addEventListener('click', () => _switchSvcTab(btn.dataset.svcTab));
+  });
 
   _renderSvcTabContent();
 }
@@ -2421,7 +2426,7 @@ function _renderPackagesTab(el) {
   pkgs.forEach(pkg => {
     const partsTotal = pkg.parts ? pkg.parts.reduce((s, p) => s + p.unitCost * p.quantity, 0) : 0;
     const total = (pkg.labourCost || 0) + partsTotal;
-    html += '<div class="border border-gray-200 rounded-xl p-4 hover:border-purple-300 hover:bg-purple-50 transition-colors cursor-pointer" onclick="_selectPackage(\'' + pkg.id + '\')">' +
+    html += '<div class="border border-gray-200 rounded-xl p-4 hover:border-purple-300 hover:bg-purple-50 transition-colors cursor-pointer" data-pkg-id="' + pkg.id + '">' +
       '<div class="flex items-start justify-between gap-2">' +
         '<div class="flex-1 min-w-0">' +
           '<div class="flex items-center gap-2 mb-1">' +
@@ -2440,6 +2445,10 @@ function _renderPackagesTab(el) {
   });
   html += '</div>';
   el.innerHTML = html;
+  // Wire up package clicks via data attribute
+  el.querySelectorAll('[data-pkg-id]').forEach(div => {
+    div.addEventListener('click', () => _selectPackage(div.dataset.pkgId));
+  });
 }
 
 async function _selectPackage(pkgId) {
@@ -2494,7 +2503,7 @@ function _renderOilTiers(brandIdx) {
       '<div class="oil-tier-grid">' +
         ['Standard','Prestige','Premier'].map(tname => {
           const price = tier[tname.toLowerCase() + 'Price'];
-          return '<button onclick="_addOilService(\'' + brand.brand + '\',\'' + tier.engineSize + '\',\'' + tname + '\',' + price + ')" ' +
+          return '<button data-oil-brand="' + brand.brand + '" data-oil-size="' + tier.engineSize + '" data-oil-tier="' + tname + '" data-oil-price="' + price + '" ' +
             'class="flex flex-col items-center py-2 px-1 rounded-lg border border-gray-200 hover:border-amber-400 hover:bg-amber-50 transition-colors cursor-pointer">' +
             '<span class="text-xs font-semibold text-gray-600">' + tname + '</span>' +
             '<span class="text-sm font-bold text-gray-900 mt-0.5">' + fmt(price) + '</span>' +
@@ -2505,6 +2514,12 @@ function _renderOilTiers(brandIdx) {
   });
   html += '</div>';
   el.innerHTML = html;
+  // Wire up oil tier buttons via data attributes
+  el.querySelectorAll('[data-oil-brand]').forEach(btn => {
+    btn.addEventListener('click', () => _addOilService(
+      btn.dataset.oilBrand, btn.dataset.oilSize, btn.dataset.oilTier, +btn.dataset.oilPrice
+    ));
+  });
 }
 
 async function _addOilService(brand, engineSize, tier, price) {
@@ -2533,7 +2548,7 @@ function _renderCarWashTab(el) {
     html += '<div><p class="text-xs font-semibold text-gray-400 uppercase mb-2">' + (typeLabels[type] || type) + '</p>' +
       '<div class="carwash-inner-grid">';
     pkgs.forEach(p => {
-      html += '<div class="border border-gray-200 rounded-xl p-3 hover:border-' + col + '-400 hover:bg-' + col + '-50 transition-colors cursor-pointer" onclick="_addCarWash(\'' + p.id + '\')">' +
+      html += '<div class="border border-gray-200 rounded-xl p-3 hover:border-' + col + '-400 hover:bg-' + col + '-50 transition-colors cursor-pointer" data-carwash-id="' + p.id + '">' +
         '<p class="text-sm font-semibold text-gray-800 mb-1">' + p.name + '</p>' +
         (p.includes ? '<p class="text-xs text-gray-500 mb-2">' + p.includes.join(' · ') + '</p>' : '') +
         (p.vehicleCount ? '<p class="text-xs text-gray-500 mb-2">' + p.vehicleCount + ' vehicles</p>' : '') +
@@ -2544,6 +2559,10 @@ function _renderCarWashTab(el) {
   });
   html += '</div>';
   el.innerHTML = html;
+  // Wire up car wash clicks via data attribute
+  el.querySelectorAll('[data-carwash-id]').forEach(div => {
+    div.addEventListener('click', () => _addCarWash(div.dataset.carwashId));
+  });
 }
 
 async function _addCarWash(pkgId) {
@@ -2590,9 +2609,9 @@ function _renderAddOnsTab(el) {
           ? '<div class="flex items-center gap-2 mt-2">' +
               '<label class="text-xs text-gray-500">Qty:</label>' +
               '<input type="number" min="1" value="1" id="addon-qty-' + s.id + '" class="form-input py-1 text-xs w-16"/>' +
-              '<button onclick="_addAddonWithQty(\'' + s.id + '\')" class="btn-primary text-xs flex-1 py-1.5">Add</button>' +
+              '<button data-addon-id="' + s.id + '" data-addon-qty="per-unit" class="btn-primary text-xs flex-1 py-1.5">Add</button>' +
             '</div>'
-          : '<button onclick="_addAddon(\'' + s.id + '\',1)" class="btn-primary text-xs w-full mt-2 py-1.5">Add to Job</button>'
+          : '<button data-addon-id="' + s.id + '" data-addon-qty="1" class="btn-primary text-xs w-full mt-2 py-1.5">Add to Job</button>'
         ) +
       '</div>';
     });
@@ -2600,6 +2619,17 @@ function _renderAddOnsTab(el) {
   });
   html += '</div>';
   el.innerHTML = html;
+  // Wire up add-on buttons via data attributes
+  el.querySelectorAll('[data-addon-id]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const sid = btn.dataset.addonId;
+      if (btn.dataset.addonQty === 'per-unit') {
+        _addAddonWithQty(sid);
+      } else {
+        _addAddon(sid, 1);
+      }
+    });
+  });
 }
 
 async function _addAddonWithQty(svcId) {
@@ -2647,9 +2677,14 @@ function _renderPartsTab(el) {
       '<div><label class="form-label">Total</label><input class="form-input" id="part2-total" readonly placeholder="Auto"/></div>' +
     '</div>' +
     '<div class="flex gap-3">' +
-      '<button class="btn-secondary flex-1" onclick="closeModal(\'modal-statusUpdate\')">Cancel</button>' +
+      '<button class="btn-secondary flex-1" data-close-modal="modal-statusUpdate">Cancel</button>' +
       '<button class="btn-primary flex-1" id="part2-submit"><i class="fas fa-plus mr-1"></i>Add Part</button>' +
     '</div>';
+
+  // Wire up cancel button
+  document.querySelector('#svc-tab-content [data-close-modal]')?.addEventListener('click', function() {
+    closeModal(this.dataset.closeModal);
+  });
 
   // Wire up calc
   let _sel2 = null;
@@ -2680,7 +2715,7 @@ function _renderPartsTab(el) {
       el2.innerHTML = results.map(p => {
         const stock = p.stockQuantity || 0;
         const sc = stock === 0 ? 'text-red-500' : stock <= 5 ? 'text-amber-500' : 'text-green-600';
-        return '<div class="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-50 last:border-0" onclick="_sel2Part(\'' + p.id + '\')">' +
+        return '<div class="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-50 last:border-0" data-sel2-id="' + p.id + '">' +
           '<div class="flex items-start justify-between gap-2">' +
             '<div class="flex-1 min-w-0"><p class="text-sm font-semibold truncate">' + p.description + '</p>' +
             '<p class="text-xs text-gray-400">' + p.compatibleModels.split(',').slice(0,3).join(', ') + '</p></div>' +
@@ -2688,6 +2723,9 @@ function _renderPartsTab(el) {
             '<p class="text-xs ' + sc + '">' + stock + ' in stock</p></div>' +
           '</div></div>';
       }).join('');
+      el2.querySelectorAll('[data-sel2-id]').forEach(div => {
+        div.addEventListener('click', () => _sel2Part(div.dataset.sel2Id));
+      });
       el2.classList.remove('hidden');
     }, 200);
   });
