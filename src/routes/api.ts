@@ -3,11 +3,11 @@ import {
   customers, vehicles, jobCards, pfis, partsConsumption,
   invoices, servicePackages, users, activityLog,
   oilServiceProducts, catalogueParts, carWashPackages, addOnServices, appointments,
-  jobServices,
+  jobServices, expenses,
   type Customer, type Vehicle, type JobCard, type PFI,
   type PartConsumption, type ServicePackage, type User, type Invoice,
   type CataloguePart, type CarWashPackage, type AddOnService, type Appointment,
-  type JobService
+  type JobService, type Expense
 } from '../data/store'
 
 const api = new Hono()
@@ -552,6 +552,104 @@ api.post('/appointments/:id/convert', async (c) => {
   activityLog.push({ id: 'a' + genId(), jobCardId: newJob.id, action: 'JOB_CREATED', description: `Job card created from appointment #${apt.id}`, userId: 'u3', userName: 'System', timestamp: now() })
   appointments[idx] = { ...apt, status: 'In Progress', jobCardId: newJob.id, updatedAt: now() }
   return c.json({ jobCard: newJob, appointment: appointments[idx] }, 201)
+})
+
+// ─── Expenses ───────────────────────────────────────────────────────────────
+
+// GET /expenses — list all expenses, optionally filtered by jobCardId, category, status, dateFrom, dateTo
+api.get('/expenses', (c) => {
+  const { jobCardId, category, status, dateFrom, dateTo } = c.req.query() as Record<string, string>
+  let list = expenses.map(e => ({
+    ...e,
+    jobCardNumber: e.jobCardId ? jobCards.find(j => j.id === e.jobCardId)?.jobCardNumber : undefined,
+    vehicleReg: e.jobCardId
+      ? vehicles.find(v => v.id === jobCards.find(j => j.id === e.jobCardId)?.vehicleId)?.registrationNumber
+      : undefined,
+  }))
+  if (jobCardId) list = list.filter(e => e.jobCardId === jobCardId)
+  if (category)  list = list.filter(e => e.category === category)
+  if (status)    list = list.filter(e => e.status === status)
+  if (dateFrom)  list = list.filter(e => e.date >= dateFrom)
+  if (dateTo)    list = list.filter(e => e.date <= dateTo)
+  return c.json(list.sort((a, b) => b.date.localeCompare(a.date)))
+})
+
+// GET /expenses/summary — totals by category, status breakdown, monthly trend
+api.get('/expenses/summary', (c) => {
+  const { dateFrom, dateTo } = c.req.query() as Record<string, string>
+  let list = expenses
+  if (dateFrom) list = list.filter(e => e.date >= dateFrom)
+  if (dateTo)   list = list.filter(e => e.date <= dateTo)
+
+  const total       = list.reduce((s, e) => s + e.amount, 0)
+  const totalPaid   = list.filter(e => e.status === 'Paid').reduce((s, e) => s + e.amount, 0)
+  const totalPending= list.filter(e => e.status === 'Pending' || e.status === 'Approved').reduce((s, e) => s + e.amount, 0)
+  const jobLinked   = list.filter(e => e.jobCardId).reduce((s, e) => s + e.amount, 0)
+  const overhead    = list.filter(e => !e.jobCardId).reduce((s, e) => s + e.amount, 0)
+
+  const byCategory: Record<string, number> = {}
+  list.forEach(e => { byCategory[e.category] = (byCategory[e.category] || 0) + e.amount })
+
+  const byStatus: Record<string, number> = {}
+  list.forEach(e => { byStatus[e.status] = (byStatus[e.status] || 0) + e.amount })
+
+  // monthly trend: last 6 months
+  const monthMap: Record<string, number> = {}
+  list.forEach(e => {
+    const m = e.date.substring(0, 7)
+    monthMap[m] = (monthMap[m] || 0) + e.amount
+  })
+  const months = Object.entries(monthMap).sort((a, b) => a[0].localeCompare(b[0])).slice(-6)
+
+  return c.json({ total, totalPaid, totalPending, jobLinked, overhead, byCategory, byStatus, months })
+})
+
+// GET /expenses/:id
+api.get('/expenses/:id', (c) => {
+  const e = expenses.find(x => x.id === c.req.param('id'))
+  if (!e) return c.json({ error: 'Not found' }, 404)
+  const job = e.jobCardId ? jobCards.find(j => j.id === e.jobCardId) : undefined
+  return c.json({ ...e, jobCardNumber: job?.jobCardNumber })
+})
+
+// POST /expenses
+api.post('/expenses', async (c) => {
+  const body = await c.req.json<Omit<Expense, 'id' | 'createdAt' | 'updatedAt'>>()
+  const newExp: Expense = {
+    ...body,
+    id: 'ex' + genId(),
+    status: body.status || 'Pending',
+    createdAt: now(),
+    updatedAt: now(),
+  }
+  expenses.push(newExp)
+  return c.json(newExp, 201)
+})
+
+// PUT /expenses/:id
+api.put('/expenses/:id', async (c) => {
+  const idx = expenses.findIndex(e => e.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const body = await c.req.json<Partial<Expense>>()
+  expenses[idx] = { ...expenses[idx], ...body, updatedAt: now() }
+  return c.json(expenses[idx])
+})
+
+// PATCH /expenses/:id/status
+api.patch('/expenses/:id/status', async (c) => {
+  const idx = expenses.findIndex(e => e.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const { status } = await c.req.json<{ status: Expense['status'] }>()
+  expenses[idx] = { ...expenses[idx], status, updatedAt: now() }
+  return c.json(expenses[idx])
+})
+
+// DELETE /expenses/:id
+api.delete('/expenses/:id', (c) => {
+  const idx = expenses.findIndex(e => e.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  expenses.splice(idx, 1)
+  return c.json({ success: true })
 })
 
 export default api

@@ -183,6 +183,9 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
     <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('invoices')">
       <i class="fas fa-file-invoice-dollar w-5 text-center"></i> Invoices
     </a>
+    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('expenses')">
+      <i class="fas fa-receipt w-5 text-center"></i> Expenses
+    </a>
     <p class="text-xs text-blue-300 font-semibold uppercase tracking-widest px-3 pt-3 pb-1">Management</p>
     <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('packages')">
       <i class="fas fa-box-open w-5 text-center"></i> Service Packages
@@ -308,7 +311,18 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
               <button class="w-full flex items-center gap-3 p-3 rounded-xl bg-amber-50 hover:bg-amber-100 text-amber-700 font-semibold text-sm transition-colors" onclick="showPage('invoices')">
                 <i class="fas fa-file-invoice"></i> View Invoices
               </button>
+              <button class="w-full flex items-center gap-3 p-3 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 font-semibold text-sm transition-colors" onclick="showAddExpenseModal()">
+                <i class="fas fa-receipt"></i> Log an Expense
+              </button>
             </div>
+          </div>
+          <!-- Expense Snapshot -->
+          <div class="card p-5">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="font-bold text-gray-800">Expense Snapshot</h3>
+              <button class="text-red-600 text-xs font-semibold hover:underline" onclick="showPage('expenses')">View All →</button>
+            </div>
+            <div id="dashExpenseSnapshot"><p class="text-gray-400 text-sm text-center py-4">Loading…</p></div>
           </div>
         </div>
       </div>
@@ -716,6 +730,110 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         <p class="text-gray-500 text-sm mt-1">Diagnostic, inspection, tyre and alignment services</p>
       </div>
       <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5" id="addOnsGrid"></div>
+    </div>
+
+    <!-- ═══ EXPENSES ═══ -->
+    <div id="page-expenses" class="page">
+      <!-- Header -->
+      <div class="flex flex-wrap items-start justify-between gap-3 mb-6">
+        <div>
+          <h2 class="text-xl sm:text-2xl font-bold text-gray-900">Expenses</h2>
+          <p class="text-gray-500 text-sm mt-1">Track job costs and overhead spending</p>
+        </div>
+        <button class="btn-primary text-sm" onclick="showAddExpenseModal()">
+          <i class="fas fa-plus mr-1"></i> Add Expense
+        </button>
+      </div>
+
+      <!-- Summary Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6" id="expenseStats"></div>
+
+      <!-- Filter Bar -->
+      <div class="card p-4 mb-5">
+        <div class="flex flex-wrap gap-3 items-end">
+          <div class="flex-1 min-w-[140px]">
+            <label class="form-label">Category</label>
+            <select class="form-input" id="expFilter-category" onchange="applyExpenseFilters()">
+              <option value="">All Categories</option>
+              <option>Parts & Materials</option>
+              <option>Labour</option>
+              <option>Subcontractor</option>
+              <option>Equipment & Tools</option>
+              <option>Utilities</option>
+              <option>Rent & Facilities</option>
+              <option>Marketing & Admin</option>
+              <option>Transport & Delivery</option>
+              <option>Miscellaneous</option>
+            </select>
+          </div>
+          <div class="flex-1 min-w-[130px]">
+            <label class="form-label">Status</label>
+            <select class="form-input" id="expFilter-status" onchange="applyExpenseFilters()">
+              <option value="">All Statuses</option>
+              <option>Pending</option>
+              <option>Approved</option>
+              <option>Paid</option>
+              <option>Rejected</option>
+            </select>
+          </div>
+          <div class="flex-1 min-w-[130px]">
+            <label class="form-label">Scope</label>
+            <select class="form-input" id="expFilter-scope" onchange="applyExpenseFilters()">
+              <option value="">All Expenses</option>
+              <option value="job">Job-Linked Only</option>
+              <option value="overhead">Overhead Only</option>
+            </select>
+          </div>
+          <div class="flex-1 min-w-[130px]">
+            <label class="form-label">From</label>
+            <input type="date" class="form-input" id="expFilter-from" onchange="applyExpenseFilters()"/>
+          </div>
+          <div class="flex-1 min-w-[130px]">
+            <label class="form-label">To</label>
+            <input type="date" class="form-input" id="expFilter-to" onchange="applyExpenseFilters()"/>
+          </div>
+          <button class="btn-secondary text-sm flex-shrink-0" onclick="clearExpenseFilters()">
+            <i class="fas fa-times mr-1"></i>Clear
+          </button>
+        </div>
+      </div>
+
+      <!-- Charts + Category Breakdown -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
+        <div class="card p-5 lg:col-span-2">
+          <h3 class="font-bold text-gray-800 mb-4">Monthly Spend Trend</h3>
+          <div style="height:200px"><canvas id="expenseTrendChart"></canvas></div>
+        </div>
+        <div class="card p-5">
+          <h3 class="font-bold text-gray-800 mb-4">By Category</h3>
+          <div style="height:200px"><canvas id="expenseCategoryChart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Expenses Table -->
+      <div class="card p-0 overflow-hidden">
+        <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <h3 class="font-bold text-gray-800">All Expenses</h3>
+          <span class="text-sm text-gray-500" id="expenseCount">0 records</span>
+        </div>
+        <div class="table-scroll">
+          <table class="w-full text-sm" style="min-width:720px">
+            <thead class="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th class="px-4 py-3 text-left font-semibold text-gray-600">Date</th>
+                <th class="px-4 py-3 text-left font-semibold text-gray-600">Description</th>
+                <th class="px-4 py-3 text-left font-semibold text-gray-600">Category</th>
+                <th class="px-4 py-3 text-left font-semibold text-gray-600">Job Card</th>
+                <th class="px-4 py-3 text-left font-semibold text-gray-600">Vendor</th>
+                <th class="px-4 py-3 text-right font-semibold text-gray-600">Amount</th>
+                <th class="px-4 py-3 text-left font-semibold text-gray-600">Status</th>
+                <th class="px-4 py-3 text-center font-semibold text-gray-600">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="expensesTable"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
   </div>
@@ -1343,10 +1461,115 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
   </div>
 </div>
 
+<!-- Add / Edit Expense Modal -->
+<div id="modal-expense" class="modal-overlay hidden">
+  <div class="modal-box" style="--mw:600px">
+    <div class="flex items-center justify-between mb-5">
+      <div>
+        <h3 class="text-xl font-bold text-gray-900" id="expModal-title">Add Expense</h3>
+        <p class="text-sm text-gray-500" id="expModal-subtitle">Record a new expense entry</p>
+      </div>
+      <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-expense')"><i class="fas fa-times"></i></button>
+    </div>
+    <form id="expenseForm" onsubmit="submitExpense(event)">
+      <!-- Row 1: Date + Category -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+        <div>
+          <label class="form-label">Date <span class="text-red-500">*</span></label>
+          <input type="date" class="form-input" id="exp-date" required/>
+        </div>
+        <div>
+          <label class="form-label">Category <span class="text-red-500">*</span></label>
+          <select class="form-input" id="exp-category" required>
+            <option value="">Select category…</option>
+            <option>Parts & Materials</option>
+            <option>Labour</option>
+            <option>Subcontractor</option>
+            <option>Equipment & Tools</option>
+            <option>Utilities</option>
+            <option>Rent & Facilities</option>
+            <option>Marketing & Admin</option>
+            <option>Transport & Delivery</option>
+            <option>Miscellaneous</option>
+          </select>
+        </div>
+      </div>
+      <!-- Row 2: Description -->
+      <div class="mb-4">
+        <label class="form-label">Description <span class="text-red-500">*</span></label>
+        <input type="text" class="form-input" id="exp-description" required placeholder="e.g. Brake pads for GMS-2025-001"/>
+      </div>
+      <!-- Row 3: Amount + Status -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+        <div>
+          <label class="form-label">Amount (TZS) <span class="text-red-500">*</span></label>
+          <input type="number" class="form-input" id="exp-amount" required min="0" placeholder="e.g. 45000"/>
+        </div>
+        <div>
+          <label class="form-label">Status</label>
+          <select class="form-input" id="exp-status">
+            <option>Pending</option>
+            <option>Approved</option>
+            <option>Paid</option>
+            <option>Rejected</option>
+          </select>
+        </div>
+      </div>
+      <!-- Row 4: Vendor + Receipt Ref -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+        <div>
+          <label class="form-label">Vendor / Supplier</label>
+          <input type="text" class="form-input" id="exp-vendor" placeholder="e.g. AutoSupply Dar"/>
+        </div>
+        <div>
+          <label class="form-label">Receipt / Invoice Ref</label>
+          <input type="text" class="form-input" id="exp-receiptRef" placeholder="e.g. RCP-2025-001"/>
+        </div>
+      </div>
+      <!-- Row 5: Link to Job Card -->
+      <div class="mb-4">
+        <label class="form-label">Link to Job Card <span class="text-gray-400 font-normal">(optional)</span></label>
+        <select class="form-input" id="exp-jobCardId">
+          <option value="">— Overhead / not job-specific —</option>
+        </select>
+      </div>
+      <!-- Row 6: Paid By + Notes -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+        <div>
+          <label class="form-label">Paid By</label>
+          <input type="text" class="form-input" id="exp-paidBy" placeholder="e.g. Michael Osei"/>
+        </div>
+        <div>
+          <label class="form-label">Notes</label>
+          <input type="text" class="form-input" id="exp-notes" placeholder="Optional notes"/>
+        </div>
+      </div>
+      <div class="flex gap-3">
+        <button type="button" class="btn-secondary flex-1" onclick="closeModal('modal-expense')">Cancel</button>
+        <button type="submit" class="btn-primary flex-1" id="expSubmitBtn"><i class="fas fa-save mr-1"></i>Save Expense</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Expense Detail Modal (view + quick status change) -->
+<div id="modal-expenseDetail" class="modal-overlay hidden">
+  <div class="modal-box" style="--mw:520px">
+    <div class="flex items-center justify-between mb-5">
+      <h3 class="text-xl font-bold text-gray-900">Expense Detail</h3>
+      <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-expenseDetail')"><i class="fas fa-times"></i></button>
+    </div>
+    <div id="expenseDetailBody"></div>
+  </div>
+</div>
+
 <script>
 // ═══ GLOBAL STATE ═══
 let allJobCards = [], allCustomers = [], allVehicles = [], allPFIs = [], allInvoices = [], allPackages = [], allUsers = [], allAppointments = [];
 let _allPartsConsumption = [];
+let allExpenses = [];
+let _expenseEditId = null;
+let _expenseTrendChart = null, _expenseCatChart = null;
 let statusChart = null, revenueChart = null, insurerChart = null;
 
 const STATUS_CONFIG = {
@@ -1454,6 +1677,7 @@ function showPage(page) {
   if (page === 'parts-catalogue') loadPartsCatalogue();
   if (page === 'car-wash') loadCarWash();
   if (page === 'add-ons') loadAddOns();
+  if (page === 'expenses') loadExpenses();
   window.scrollTo(0, 0);
 }
 
@@ -1524,6 +1748,52 @@ async function loadDashboard() {
   \`).join('') || '<p class="text-gray-400 text-sm">No insurance jobs yet</p>';
   // Load today's appointments for dashboard widget
   loadDashTodayApts();
+  // Load expense snapshot
+  _loadDashExpenseSnapshot();
+}
+
+async function _loadDashExpenseSnapshot() {
+  try {
+    const { data: s } = await axios.get('/api/expenses/summary');
+    const snap = document.getElementById('dashExpenseSnapshot');
+    if (!snap) return;
+    const cats = Object.entries(s.byCategory || {}).sort((a,b) => b[1]-a[1]).slice(0, 4);
+    snap.innerHTML =
+      '<div class="space-y-2 mb-3">' +
+        '<div class="flex justify-between text-sm">' +
+          '<span class="text-gray-500">Total this period</span>' +
+          '<span class="font-bold text-gray-900">' + fmt(s.total) + '</span>' +
+        '</div>' +
+        '<div class="flex justify-between text-sm">' +
+          '<span class="text-gray-500">Paid</span>' +
+          '<span class="font-semibold text-green-600">' + fmt(s.totalPaid) + '</span>' +
+        '</div>' +
+        '<div class="flex justify-between text-sm">' +
+          '<span class="text-gray-500">Pending / Approved</span>' +
+          '<span class="font-semibold text-amber-600">' + fmt(s.totalPending) + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="border-t border-gray-100 pt-3">' +
+        '<p class="text-xs text-gray-400 font-semibold mb-2">Top Categories</p>' +
+        cats.map(function(entry) {
+          var cat = entry[0], val = entry[1];
+          var color = EXP_CAT_COLORS[cat] || '#94a3b8';
+          var pct = s.total > 0 ? Math.round((val/s.total)*100) : 0;
+          return '<div class="mb-2">' +
+            '<div class="flex justify-between text-xs mb-0.5">' +
+              '<span class="text-gray-600 truncate">' + cat + '</span>' +
+              '<span class="font-semibold text-gray-700 ml-2">' + pct + '%</span>' +
+            '</div>' +
+            '<div class="progress-bar">' +
+              '<div class="progress-fill" style="width:'+pct+'%;background:'+color+'"></div>' +
+            '</div>' +
+          '</div>';
+        }).join('') +
+      '</div>';
+  } catch(err) {
+    var snap2 = document.getElementById('dashExpenseSnapshot');
+    if (snap2) snap2.innerHTML = '<p class="text-gray-400 text-xs text-center py-2">Could not load</p>';
+  }
 }
 
 // ═══ JOB CARDS ═══
@@ -1815,9 +2085,15 @@ async function viewJobDetail(id) {
             <div class="mt-2"><span class="badge \${j.invoice.status==='Paid'?'bg-green-100 text-green-700':'bg-amber-100 text-amber-700'}">\${j.invoice.status}</span></div>
           </div>
         \` : ''}
+        <!-- Expenses Panel (loaded async below) -->
+        <div class="card p-5">
+          <div id="jobExpenses"><p class="text-xs text-gray-400 text-center py-3"><i class="fas fa-spinner fa-spin mr-1"></i>Loading expenses…</p></div>
+        </div>
       </div>
     </div>
   \`;
+  // Load job expenses asynchronously into the sidebar panel
+  loadJobExpenses(j.id);
 }
 
 // Parts Modal
@@ -4918,6 +5194,334 @@ async function loadAddOns() {
 
 function addServiceToJob(name, price, unit) {
   showToast(name + ' (' + fmt(price) + ' ' + unit + ') - Go to a Job Card to add this service', 'info');
+}
+
+// ═══ EXPENSES ═══════════════════════════════════════════════════════════════
+
+const EXP_CAT_COLORS = {
+  'Parts & Materials':   '#3b82f6',
+  'Labour':              '#8b5cf6',
+  'Subcontractor':       '#f59e0b',
+  'Equipment & Tools':   '#10b981',
+  'Utilities':           '#06b6d4',
+  'Rent & Facilities':   '#6366f1',
+  'Marketing & Admin':   '#ec4899',
+  'Transport & Delivery':'#f97316',
+  'Miscellaneous':       '#94a3b8',
+};
+
+const EXP_STATUS_CFG = {
+  Pending:  { bg:'#fff7ed', text:'#c2410c' },
+  Approved: { bg:'#eff6ff', text:'#1d4ed8' },
+  Paid:     { bg:'#f0fdf4', text:'#15803d' },
+  Rejected: { bg:'#fef2f2', text:'#b91c1c' },
+};
+
+function expStatusBadge(s) {
+  const c = EXP_STATUS_CFG[s] || { bg:'#f8fafc', text:'#64748b' };
+  return '<span class="status-pill text-xs" style="background:'+c.bg+';color:'+c.text+'">'+s+'</span>';
+}
+
+function expCatBadge(cat) {
+  const color = EXP_CAT_COLORS[cat] || '#94a3b8';
+  return '<span class="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full" style="background:'+color+'20;color:'+color+'">'+cat+'</span>';
+}
+
+async function loadExpenses() {
+  try {
+    const [expRes, summaryRes] = await Promise.all([
+      axios.get('/api/expenses'),
+      axios.get('/api/expenses/summary'),
+    ]);
+    allExpenses = expRes.data;
+    _renderExpenseSummaryCards(summaryRes.data);
+    _renderExpenseCharts(summaryRes.data);
+    _renderExpensesTable(allExpenses);
+  } catch(e) { showToast('Failed to load expenses', 'error'); }
+}
+
+function _renderExpenseSummaryCards(s) {
+  const cards = [
+    { label:'Total Expenses',    value:fmt(s.total),         icon:'fa-coins',          g1:'#dc2626', g2:'#ef4444' },
+    { label:'Paid',              value:fmt(s.totalPaid),     icon:'fa-check-circle',   g1:'#16a34a', g2:'#22c55e' },
+    { label:'Pending / Approved',value:fmt(s.totalPending),  icon:'fa-clock',          g1:'#d97706', g2:'#f59e0b' },
+    { label:'Job-Linked Costs',  value:fmt(s.jobLinked),     icon:'fa-clipboard-list', g1:'#2563eb', g2:'#3b82f6' },
+  ];
+  document.getElementById('expenseStats').innerHTML = cards.map(c =>
+    '<div class="stat-card" style="--g1:'+c.g1+';--g2:'+c.g2+'">' +
+      '<div class="flex items-start justify-between">' +
+        '<div>' +
+          '<p class="text-blue-100 text-xs font-semibold uppercase tracking-wide mb-1">'+c.label+'</p>' +
+          '<p class="text-xl sm:text-2xl font-bold">'+c.value+'</p>' +
+        '</div>' +
+        '<div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">' +
+          '<i class="fas '+c.icon+' text-white"></i>' +
+        '</div>' +
+      '</div>' +
+    '</div>'
+  ).join('');
+}
+
+function _renderExpenseCharts(s) {
+  const months = s.months || [];
+  const trendLabels = months.map(function(m) { var d = new Date(m[0]+'-01'); return d.toLocaleDateString('en-GB',{month:'short',year:'2-digit'}); });
+  const trendVals   = months.map(function(m) { return m[1]; });
+  if (_expenseTrendChart) _expenseTrendChart.destroy();
+  const tCtx = document.getElementById('expenseTrendChart');
+  if (tCtx) _expenseTrendChart = new Chart(tCtx, {
+    type:'bar',
+    data:{ labels:trendLabels, datasets:[{ label:'Spend (TZS)', data:trendVals, backgroundColor:'rgba(239,68,68,0.7)', borderRadius:6 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ y:{ ticks:{ callback:function(v){ return (v/1000)+'k'; } } } } }
+  });
+  const cats   = Object.keys(s.byCategory || {});
+  const cVals  = Object.values(s.byCategory || {});
+  const cColors = cats.map(function(c){ return EXP_CAT_COLORS[c] || '#94a3b8'; });
+  if (_expenseCatChart) _expenseCatChart.destroy();
+  const cCtx = document.getElementById('expenseCategoryChart');
+  if (cCtx) _expenseCatChart = new Chart(cCtx, {
+    type:'doughnut',
+    data:{ labels:cats, datasets:[{ data:cVals, backgroundColor:cColors, borderWidth:0 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'right', labels:{ font:{ size:10 }, boxWidth:12 } } } }
+  });
+}
+
+function _renderExpensesTable(list) {
+  const tbody = document.getElementById('expensesTable');
+  document.getElementById('expenseCount').textContent = list.length + ' record' + (list.length!==1?'s':'');
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-10 text-gray-400">No expenses found</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(function(e) {
+    return '<tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors">' +
+      '<td class="px-4 py-3 text-gray-700 whitespace-nowrap">'+fmtDate(e.date)+'</td>' +
+      '<td class="px-4 py-3">' +
+        '<p class="font-medium text-gray-800 text-sm">'+e.description+'</p>' +
+        (e.receiptRef ? '<p class="text-xs text-gray-400 mt-0.5">Ref: '+e.receiptRef+'</p>' : '') +
+      '</td>' +
+      '<td class="px-4 py-3">'+expCatBadge(e.category)+'</td>' +
+      '<td class="px-4 py-3">' +
+        (e.jobCardId
+          ? '<button class="text-blue-600 text-xs font-semibold hover:underline" data-exp-job="'+e.jobCardId+'">'+(e.jobCardNumber||e.jobCardId)+'</button>'
+          : '<span class="text-gray-400 text-xs">Overhead</span>') +
+      '</td>' +
+      '<td class="px-4 py-3 text-sm text-gray-600">'+(e.vendor||'—')+'</td>' +
+      '<td class="px-4 py-3 text-right font-semibold text-gray-900 whitespace-nowrap">'+fmt(e.amount)+'</td>' +
+      '<td class="px-4 py-3">'+expStatusBadge(e.status)+'</td>' +
+      '<td class="px-4 py-3">' +
+        '<div class="flex items-center justify-center gap-2">' +
+          '<button class="text-blue-500 hover:text-blue-700 text-sm" title="View" data-exp-view="'+e.id+'"><i class="fas fa-eye"></i></button>' +
+          '<button class="text-amber-500 hover:text-amber-700 text-sm" title="Edit" data-exp-edit="'+e.id+'"><i class="fas fa-edit"></i></button>' +
+          '<button class="text-red-400 hover:text-red-600 text-sm" title="Delete" data-exp-del="'+e.id+'"><i class="fas fa-trash"></i></button>' +
+        '</div>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+
+  tbody.querySelectorAll('[data-exp-view]').forEach(function(btn) {
+    btn.addEventListener('click', function() { viewExpenseDetail(btn.dataset.expView); });
+  });
+  tbody.querySelectorAll('[data-exp-edit]').forEach(function(btn) {
+    btn.addEventListener('click', function() { showEditExpenseModal(btn.dataset.expEdit); });
+  });
+  tbody.querySelectorAll('[data-exp-del]').forEach(function(btn) {
+    btn.addEventListener('click', function() { deleteExpense(btn.dataset.expDel); });
+  });
+  tbody.querySelectorAll('[data-exp-job]').forEach(function(btn) {
+    btn.addEventListener('click', function() { viewJobDetail(btn.dataset.expJob); });
+  });
+}
+
+function applyExpenseFilters() {
+  const cat    = document.getElementById('expFilter-category').value;
+  const status = document.getElementById('expFilter-status').value;
+  const scope  = document.getElementById('expFilter-scope').value;
+  const from   = document.getElementById('expFilter-from').value;
+  const to     = document.getElementById('expFilter-to').value;
+  var list = allExpenses;
+  if (cat)    list = list.filter(function(e){ return e.category === cat; });
+  if (status) list = list.filter(function(e){ return e.status === status; });
+  if (scope === 'job')      list = list.filter(function(e){ return e.jobCardId; });
+  if (scope === 'overhead') list = list.filter(function(e){ return !e.jobCardId; });
+  if (from)   list = list.filter(function(e){ return e.date >= from; });
+  if (to)     list = list.filter(function(e){ return e.date <= to; });
+  _renderExpensesTable(list);
+}
+
+function clearExpenseFilters() {
+  ['expFilter-category','expFilter-status','expFilter-scope','expFilter-from','expFilter-to']
+    .forEach(function(id){ var el = document.getElementById(id); if (el) el.value = ''; });
+  _renderExpensesTable(allExpenses);
+}
+
+async function showAddExpenseModal(preJobId) {
+  _expenseEditId = null;
+  document.getElementById('expModal-title').textContent = 'Add Expense';
+  document.getElementById('expModal-subtitle').textContent = 'Record a new expense entry';
+  document.getElementById('expenseForm').reset();
+  document.getElementById('exp-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('exp-status').value = 'Pending';
+  await _populateExpJobDropdown(preJobId || '');
+  openModal('modal-expense');
+}
+
+async function showEditExpenseModal(expId) {
+  const exp = allExpenses.find(function(e){ return e.id === expId; });
+  if (!exp) return;
+  _expenseEditId = expId;
+  document.getElementById('expModal-title').textContent = 'Edit Expense';
+  document.getElementById('expModal-subtitle').textContent = 'Update expense details';
+  document.getElementById('exp-date').value        = exp.date;
+  document.getElementById('exp-category').value    = exp.category;
+  document.getElementById('exp-description').value = exp.description;
+  document.getElementById('exp-amount').value      = exp.amount;
+  document.getElementById('exp-status').value      = exp.status;
+  document.getElementById('exp-vendor').value      = exp.vendor    || '';
+  document.getElementById('exp-receiptRef').value  = exp.receiptRef|| '';
+  document.getElementById('exp-paidBy').value      = exp.paidBy    || '';
+  document.getElementById('exp-notes').value       = exp.notes     || '';
+  await _populateExpJobDropdown(exp.jobCardId || '');
+  openModal('modal-expense');
+}
+
+async function _populateExpJobDropdown(selectedJobId) {
+  if (!allJobCards.length) {
+    const { data } = await axios.get('/api/jobcards');
+    allJobCards = data;
+  }
+  const sel = document.getElementById('exp-jobCardId');
+  sel.innerHTML = '<option value="">— Overhead / not job-specific —</option>' +
+    allJobCards.map(function(j){
+      return '<option value="'+j.id+'" '+(j.id===selectedJobId?'selected':'')+'>'+j.jobCardNumber+' – '+(j.customerName||'')+' '+(j.vehicleReg||'')+'</option>';
+    }).join('');
+}
+
+async function submitExpense(e) {
+  e.preventDefault();
+  const body = {
+    date:        document.getElementById('exp-date').value,
+    category:    document.getElementById('exp-category').value,
+    description: document.getElementById('exp-description').value,
+    amount:      parseFloat(document.getElementById('exp-amount').value) || 0,
+    status:      document.getElementById('exp-status').value,
+    vendor:      document.getElementById('exp-vendor').value.trim()      || undefined,
+    receiptRef:  document.getElementById('exp-receiptRef').value.trim()  || undefined,
+    jobCardId:   document.getElementById('exp-jobCardId').value           || undefined,
+    paidBy:      document.getElementById('exp-paidBy').value.trim()      || undefined,
+    notes:       document.getElementById('exp-notes').value.trim()       || undefined,
+  };
+  try {
+    if (_expenseEditId) {
+      await axios.put('/api/expenses/' + _expenseEditId, body);
+      showToast('\u2714 Expense updated');
+    } else {
+      await axios.post('/api/expenses', body);
+      showToast('\u2714 Expense recorded');
+    }
+    closeModal('modal-expense');
+    loadExpenses();
+  } catch(err) { showToast('Failed to save expense', 'error'); }
+}
+
+async function deleteExpense(expId) {
+  if (!confirm('Delete this expense? This cannot be undone.')) return;
+  try {
+    await axios.delete('/api/expenses/' + expId);
+    showToast('Expense deleted');
+    loadExpenses();
+  } catch(err) { showToast('Failed to delete', 'error'); }
+}
+
+function viewExpenseDetail(expId) {
+  const e = allExpenses.find(function(x){ return x.id === expId; });
+  if (!e) return;
+  const sc = EXP_STATUS_CFG[e.status] || { bg:'#f8fafc', text:'#64748b' };
+  document.getElementById('expenseDetailBody').innerHTML =
+    '<div class="space-y-4">' +
+      '<div class="flex items-start justify-between gap-3 p-4 bg-gray-50 rounded-xl">' +
+        '<div>' +
+          '<p class="font-semibold text-gray-900">'+e.description+'</p>' +
+          '<p class="text-xs text-gray-500 mt-0.5">'+fmtDate(e.date)+(e.vendor?' &middot; '+e.vendor:'')+'</p>' +
+        '</div>' +
+        '<p class="text-xl font-bold text-gray-900 flex-shrink-0">'+fmt(e.amount)+'</p>' +
+      '</div>' +
+      '<div class="grid grid-cols-2 gap-3">' +
+        '<div><p class="text-xs text-gray-400 mb-0.5">Category</p>'+expCatBadge(e.category)+'</div>' +
+        '<div><p class="text-xs text-gray-400 mb-0.5">Status</p>'+expStatusBadge(e.status)+'</div>' +
+        (e.jobCardId ? '<div><p class="text-xs text-gray-400 mb-0.5">Job Card</p><button class="text-blue-600 text-sm font-semibold hover:underline" data-det-job="'+e.jobCardId+'">'+(e.jobCardNumber||e.jobCardId)+'</button></div>' :
+                       '<div><p class="text-xs text-gray-400 mb-0.5">Scope</p><p class="text-sm text-gray-600">Overhead</p></div>') +
+        (e.paidBy   ? '<div><p class="text-xs text-gray-400 mb-0.5">Paid By</p><p class="text-sm text-gray-700">'+e.paidBy+'</p></div>' : '') +
+        (e.receiptRef ? '<div><p class="text-xs text-gray-400 mb-0.5">Receipt Ref</p><p class="text-sm text-gray-700">'+e.receiptRef+'</p></div>' : '') +
+      '</div>' +
+      (e.notes ? '<div class="p-3 bg-amber-50 border border-amber-100 rounded-lg text-sm text-amber-800"><i class="fas fa-sticky-note mr-1"></i>'+e.notes+'</div>' : '') +
+      '<div class="border-t border-gray-100 pt-4">' +
+        '<p class="text-xs text-gray-400 mb-2 font-semibold">Change Status</p>' +
+        '<div class="flex flex-wrap gap-2" id="expDetailStatusBtns"></div>' +
+      '</div>' +
+      '<div class="flex gap-2 pt-2">' +
+        '<button class="btn-secondary flex-1 text-sm" data-close-exp-detail="1">Close</button>' +
+        '<button class="btn-primary flex-1 text-sm" data-edit-from-detail="'+e.id+'"><i class="fas fa-edit mr-1"></i>Edit</button>' +
+      '</div>' +
+    '</div>';
+
+  document.querySelector('[data-close-exp-detail]')?.addEventListener('click', function() {
+    closeModal('modal-expenseDetail');
+  });
+  document.querySelector('[data-det-job]')?.addEventListener('click', function() {
+    closeModal('modal-expenseDetail'); viewJobDetail(this.dataset.detJob);
+  });
+  document.querySelector('[data-edit-from-detail]')?.addEventListener('click', function() {
+    closeModal('modal-expenseDetail'); showEditExpenseModal(this.dataset.editFromDetail);
+  });
+  var statusContainer = document.getElementById('expDetailStatusBtns');
+  ['Pending','Approved','Paid','Rejected'].forEach(function(st) {
+    var btn = document.createElement('button');
+    btn.className = 'text-xs px-3 py-1.5 rounded-lg font-semibold border transition-colors ' +
+      (e.status === st ? 'bg-gray-800 text-white border-gray-800' : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400');
+    btn.textContent = st;
+    var expId2 = e.id;
+    btn.addEventListener('click', async function() {
+      await axios.patch('/api/expenses/' + expId2 + '/status', { status: st });
+      showToast('Status updated to ' + st);
+      closeModal('modal-expenseDetail');
+      loadExpenses();
+    });
+    statusContainer.appendChild(btn);
+  });
+  openModal('modal-expenseDetail');
+}
+
+// ─── Job-Card Expense Panel ─────────────────────────────────────────────────
+async function loadJobExpenses(jobId) {
+  const { data } = await axios.get('/api/expenses?jobCardId=' + jobId);
+  const container = document.getElementById('jobExpenses');
+  if (!container) return;
+  const total = data.reduce(function(s, e){ return s + e.amount; }, 0);
+  container.innerHTML =
+    '<div class="flex items-center justify-between mb-3">' +
+      '<p class="text-sm font-semibold text-gray-700">Job Expenses</p>' +
+      '<div class="flex items-center gap-2">' +
+        '<span class="text-sm font-bold text-red-600">'+fmt(total)+'</span>' +
+        '<button class="btn-primary text-xs py-1 px-2" data-add-job-exp2="'+jobId+'"><i class="fas fa-plus mr-1"></i>Add</button>' +
+      '</div>' +
+    '</div>' +
+    (data.length ? '<div class="space-y-2">' +
+      data.map(function(e) {
+        return '<div class="flex items-center justify-between gap-2 py-2 border-b border-gray-50 last:border-0">' +
+          '<div class="flex-1 min-w-0">' +
+            '<p class="text-sm text-gray-800 font-medium truncate">'+e.description+'</p>' +
+            '<p class="text-xs text-gray-400">'+fmtDate(e.date)+' &middot; '+e.category+(e.vendor?' &middot; '+e.vendor:'')+'</p>' +
+          '</div>' +
+          '<div class="flex items-center gap-2 flex-shrink-0">' +
+            '<p class="text-sm font-semibold text-gray-900">'+fmt(e.amount)+'</p>' +
+            expStatusBadge(e.status) +
+          '</div>' +
+        '</div>';
+      }).join('') + '</div>'
+    : '<p class="text-xs text-gray-400 text-center py-3">No expenses logged for this job</p>');
+  container.querySelector('[data-add-job-exp2]')?.addEventListener('click', function() {
+    showAddExpenseModal(this.dataset.addJobExp2);
+  });
 }
 
 // ═══ INIT ═══

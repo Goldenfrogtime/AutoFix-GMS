@@ -198,7 +198,38 @@ export interface AddOnService {
   category: 'Diagnostic' | 'Inspection' | 'Tyres' | 'Alignment'
 }
 
-// ─── Seed Data ─────────────────────────────────────────────────────────────
+// ─── Expenses ───────────────────────────────────────────────────────────────
+
+export type ExpenseCategory =
+  | 'Parts & Materials'
+  | 'Labour'
+  | 'Subcontractor'
+  | 'Equipment & Tools'
+  | 'Utilities'
+  | 'Rent & Facilities'
+  | 'Marketing & Admin'
+  | 'Transport & Delivery'
+  | 'Miscellaneous'
+
+export type ExpenseStatus = 'Pending' | 'Approved' | 'Paid' | 'Rejected'
+
+export interface Expense {
+  id: string
+  jobCardId?: string          // optional – if linked to a specific job
+  category: ExpenseCategory
+  description: string
+  amount: number
+  vendor?: string             // supplier / payee name
+  receiptRef?: string         // receipt or invoice number
+  status: ExpenseStatus
+  paidBy?: string             // staff member who paid
+  notes?: string
+  date: string                // YYYY-MM-DD
+  createdAt: string
+  updatedAt: string
+}
+
+
 
 export const customers: Customer[] = [
   { id: 'c1', name: 'James Mwangi', phone: '+255 712 345 678', email: 'james.mwangi@email.com', address: '14 Uhuru St, Dar es Salaam', idNumber: 'TZ123456789', customerType: 'Individual', createdAt: '2025-01-10T08:00:00Z' },
@@ -441,3 +472,18 @@ export const appointments: Appointment[] = [
 
 // ─── Job Services (packages / oil / car wash / add-ons added to a job) ────────
 export const jobServices: JobService[] = []
+
+// ─── Expenses ───────────────────────────────────────────────────────────────
+export const expenses: Expense[] = [
+  { id: 'ex1', jobCardId: 'j1', category: 'Parts & Materials', description: 'Panel beating consumables – primer, body filler', amount: 45000, vendor: 'AutoSupply Dar', receiptRef: 'RCP-2025-0301', status: 'Paid', paidBy: 'Michael Osei', date: '2025-03-02', createdAt: '2025-03-02T09:00:00Z', updatedAt: '2025-03-02T09:00:00Z' },
+  { id: 'ex2', jobCardId: 'j1', category: 'Subcontractor', description: 'Outsourced AC regas – specialist technician', amount: 80000, vendor: 'Cool Air TZ', receiptRef: 'RCP-2025-0302', status: 'Paid', paidBy: 'Michael Osei', date: '2025-03-03', createdAt: '2025-03-03T14:00:00Z', updatedAt: '2025-03-03T14:00:00Z' },
+  { id: 'ex3', jobCardId: 'j3', category: 'Parts & Materials', description: 'Brake fluid and cleaning agent', amount: 18000, vendor: 'Parts Plus', receiptRef: 'RCP-2025-0220', status: 'Paid', paidBy: 'Sarah Njoki', date: '2025-02-21', createdAt: '2025-02-21T10:00:00Z', updatedAt: '2025-02-21T10:00:00Z' },
+  { id: 'ex4', jobCardId: 'j5', category: 'Parts & Materials', description: 'Gasket set for engine overhaul', amount: 125000, vendor: 'Isuzu Parts Centre', receiptRef: 'RCP-2025-0305', status: 'Approved', paidBy: 'Michael Osei', notes: 'Awaiting payment', date: '2025-03-05', createdAt: '2025-03-05T11:00:00Z', updatedAt: '2025-03-05T11:00:00Z' },
+  { id: 'ex5', category: 'Utilities', description: 'Electricity bill – March 2025', amount: 320000, vendor: 'TANESCO', receiptRef: 'ELEC-MAR2025', status: 'Paid', paidBy: 'Michael Osei', date: '2025-03-05', createdAt: '2025-03-05T08:00:00Z', updatedAt: '2025-03-05T08:00:00Z' },
+  { id: 'ex6', category: 'Rent & Facilities', description: 'Workshop monthly rent – March', amount: 850000, vendor: 'Salim Properties Ltd', receiptRef: 'RENT-MAR2025', status: 'Paid', paidBy: 'Michael Osei', date: '2025-03-01', createdAt: '2025-03-01T08:00:00Z', updatedAt: '2025-03-01T08:00:00Z' },
+  { id: 'ex7', category: 'Equipment & Tools', description: 'Hydraulic jack replacement', amount: 180000, vendor: 'ToolMaster Ltd', receiptRef: 'RCP-TM-0891', status: 'Paid', paidBy: 'Sarah Njoki', date: '2025-03-04', createdAt: '2025-03-04T09:00:00Z', updatedAt: '2025-03-04T09:00:00Z' },
+  { id: 'ex8', category: 'Marketing & Admin', description: 'Social media advertising – February', amount: 60000, vendor: 'DigitalBoost TZ', receiptRef: 'INV-DB-4521', status: 'Paid', paidBy: 'Michael Osei', date: '2025-03-01', createdAt: '2025-03-01T10:00:00Z', updatedAt: '2025-03-01T10:00:00Z' },
+  { id: 'ex9', jobCardId: 'j2', category: 'Transport & Delivery', description: 'Vehicle recovery towing to workshop', amount: 35000, vendor: 'Rapid Recovery TZ', receiptRef: 'RCP-RR-0220', status: 'Paid', paidBy: 'Sarah Njoki', date: '2025-03-03', createdAt: '2025-03-03T11:00:00Z', updatedAt: '2025-03-03T11:00:00Z' },
+  { id: 'ex10', category: 'Miscellaneous', description: 'Staff refreshments – team meeting', amount: 15000, status: 'Paid', paidBy: 'Michael Osei', date: '2025-03-06', createdAt: '2025-03-06T15:00:00Z', updatedAt: '2025-03-06T15:00:00Z' },
+]
+
