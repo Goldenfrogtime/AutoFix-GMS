@@ -54,8 +54,8 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 .form-input{width:100%;padding:9px 13px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:.9rem;outline:none;transition:border-color .2s;background:#fff}
 .form-input:focus{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,.1)}
 .form-label{display:block;margin-bottom:5px;font-weight:600;color:#374151;font-size:.85rem}
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;display:flex;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(2px)}
-.modal-box{background:#fff;border-radius:20px;max-width:680px;width:100%;max-height:90vh;overflow-y:auto;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;display:flex;align-items:center;justify-content:center;padding:12px;backdrop-filter:blur(2px)}
+.modal-box{background:#fff;border-radius:20px;max-width:680px;width:100%;max-height:92vh;overflow-y:auto;padding:28px;box-shadow:0 20px 60px rgba(0,0,0,.25)}
 .table-row:hover{background:#f8fafc}
 .stat-card{background:linear-gradient(135deg,var(--g1),var(--g2));border-radius:16px;padding:20px 24px;color:#fff;position:relative;overflow:hidden}
 .stat-card::before{content:'';position:absolute;right:-20px;top:-20px;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,.1)}
@@ -68,8 +68,8 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 ::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
 .progress-bar{height:6px;border-radius:3px;background:#e2e8f0}
 .progress-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,#3b82f6,#06b6d4);transition:width .6s ease}
-.search-input{padding:9px 13px 9px 38px;border:1.5px solid #e2e8f0;border-radius:10px;outline:none;font-size:.9rem;width:260px;transition:border-color .2s}
-.search-input:focus{border-color:#3b82f6;width:320px}
+.search-input{padding:9px 13px 9px 38px;border:1.5px solid #e2e8f0;border-radius:10px;outline:none;font-size:.9rem;width:100%;transition:border-color .2s,width .2s}
+.search-input:focus{border-color:#3b82f6}
 .tag{display:inline-block;padding:2px 8px;border-radius:6px;font-size:.75rem;font-weight:600}
 .parts-cat-tab{padding:6px 16px;border-radius:99px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;font-size:.82rem;font-weight:600;cursor:pointer;transition:all .18s}
 .parts-cat-tab:hover{border-color:#3b82f6;color:#2563eb;background:#eff6ff}
@@ -96,25 +96,48 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
     overflow-y:auto !important;
   }
 }
-.modal-box{padding:20px}
-@media(min-width:640px){.modal-box{padding:28px}}
-.search-input{width:100%}
-@media(min-width:640px){.search-input{width:260px}}
-@media(min-width:640px){.search-input:focus{width:320px}}
+/* Modal box: padding and max-width responsive */
+.modal-box{padding:16px}
+@media(min-width:640px){.modal-box{padding:24px}}
+@media(min-width:768px){.modal-box{padding:28px}}
+/* JS-injected max-width values must not exceed viewport */
+.modal-overlay .modal-box{max-width:min(var(--mw,680px),calc(100vw - 24px)) !important}
+/* Search inputs never expand beyond container */
+.search-input{width:100% !important;max-width:100% !important}
 .table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
 .btn-primary,.btn-secondary,.btn-danger{white-space:nowrap}
 /* Page headings responsive */
 @media(max-width:639px){
   h2.text-2xl{font-size:1.2rem}
   .job-cards-filters .form-input,.job-cards-filters .search-input{min-width:0;width:100%}
+  /* Appointment stat chips: 3 cols on xs instead of 2 */
+  #apt-statChips{grid-template-columns:repeat(3,1fr) !important}
 }
 /* Customer / oil brand tabs horizontal scroll */
-#customerTypeTabs,#oilBrandTabs,#jobStatusStrips{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
-#customerTypeTabs::-webkit-scrollbar,#oilBrandTabs::-webkit-scrollbar,#jobStatusStrips::-webkit-scrollbar{height:3px}
+#customerTypeTabs,#oilBrandTabs,#jobStatusStrips,#pfi-catTabs,#pfi-statusTabs,#partsCategoryTabs{
+  overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;flex-wrap:nowrap !important}
+#customerTypeTabs::-webkit-scrollbar,#oilBrandTabs::-webkit-scrollbar,#jobStatusStrips::-webkit-scrollbar,
+#pfi-catTabs::-webkit-scrollbar,#pfi-statusTabs::-webkit-scrollbar,#partsCategoryTabs::-webkit-scrollbar{display:none}
+/* Prevent filter tab buttons from shrinking */
+#customerTypeTabs button,#oilBrandTabs button,#jobStatusStrips button,
+#pfi-catTabs button,#pfi-statusTabs button,#partsCategoryTabs button{flex-shrink:0}
 /* Job detail actions wrap */
 #jobDetailActions{flex-wrap:wrap;gap:6px}
 /* Parts stats 2 cols on xs */
 @media(max-width:639px){#partsStats{grid-template-columns:repeat(2,1fr)}}
+/* Status progress stepper: always scrollable */
+.status-stepper-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}
+.status-stepper-scroll::-webkit-scrollbar{height:3px}
+.status-stepper-scroll::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
+/* Oil tiers grid: 1 col on xs, 3 cols sm+ */
+.oil-tier-grid{display:grid;grid-template-columns:1fr;gap:8px}
+@media(min-width:480px){.oil-tier-grid{grid-template-columns:repeat(3,1fr)}}
+/* Car wash grid: always 1 col in modal */
+.carwash-inner-grid{display:grid;grid-template-columns:1fr;gap:8px}
+@media(min-width:480px){.carwash-inner-grid{grid-template-columns:repeat(2,1fr)}}
+/* Service modal tab bar: icon-only on xs, icon+label on sm */
+.svc-tab-bar button .svc-tab-label{display:none}
+@media(min-width:480px){.svc-tab-bar button .svc-tab-label{display:inline}}
 </style>
 </head>
 <body>
@@ -305,7 +328,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       </div>
 
       <!-- Stat chips -->
-      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-5" id="apt-statChips"></div>
+      <div class="grid grid-cols-3 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-5" id="apt-statChips"></div>
 
       <!-- Filters bar -->
       <div class="card p-4 mb-5">
@@ -460,7 +483,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
           <i class="fas fa-building"></i> Corporate <span id="custCount-Corporate" class="bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded-full ml-1">0</span>
         </button>
       </div>
-      <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-4" id="customersGrid"></div>
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" id="customersGrid"></div>
     </div>
 
     <!-- ═══ VEHICLES ═══ -->
@@ -519,7 +542,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         <button class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200" onclick="filterPFIs('Sent',this)">Sent</button>
         <button class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200" onclick="filterPFIs('Rejected',this)">Rejected</button>
       </div>
-      <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-4" id="claimsGrid"></div>
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" id="claimsGrid"></div>
     </div>
 
     <!-- ═══ INVOICES ═══ -->
@@ -564,7 +587,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         </div>
         <button class="btn-primary" onclick="showNewPackageModal()"><i class="fas fa-plus"></i> New Package</button>
       </div>
-      <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-5" id="packagesGrid"></div>
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5" id="packagesGrid"></div>
     </div>
 
     <!-- ═══ ANALYTICS ═══ -->
@@ -595,7 +618,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         </div>
         <button class="btn-primary" onclick="showNewUserModal()"><i class="fas fa-user-plus"></i> Add User</button>
       </div>
-      <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-4" id="usersGrid"></div>
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" id="usersGrid"></div>
     </div>
 
     <!-- ═══ OIL SERVICES ═══ -->
@@ -692,7 +715,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         <h2 class="text-2xl font-bold text-gray-900">Add-on Services</h2>
         <p class="text-gray-500 text-sm mt-1">Diagnostic, inspection, tyre and alignment services</p>
       </div>
-      <div class="grid md:grid-cols-2 xl:grid-cols-3 gap-5" id="addOnsGrid"></div>
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5" id="addOnsGrid"></div>
     </div>
 
   </div>
@@ -814,7 +837,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 
 <!-- Send PFI Modal -->
 <div id="modal-sendPFI" class="modal-overlay hidden">
-  <div class="modal-box" style="max-width:640px">
+  <div class="modal-box" style="--mw:640px">
     <div class="flex items-center justify-between mb-5">
       <div>
         <h3 class="text-xl font-bold text-gray-900"><i class="fas fa-paper-plane text-blue-500 mr-2"></i>Send PFI to Customer</h3>
@@ -850,17 +873,17 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <div id="sendPFI-previewBox" class="p-4 font-mono text-xs text-gray-600 bg-white max-h-64 overflow-y-auto leading-relaxed whitespace-pre-wrap"></div>
     </div>
 
-    <div class="flex gap-3 justify-end">
+    <div class="flex flex-wrap gap-2 justify-end">
       <button class="btn-secondary" onclick="closeModal('modal-sendPFI')">Cancel</button>
-      <button class="btn-secondary" onclick="copyAndOpenEmail()"><i class="fas fa-external-link-alt mr-1"></i>Copy &amp; Open Email Client</button>
-      <button class="btn-primary" onclick="submitSendPFI()"><i class="fas fa-paper-plane mr-1"></i><span id="sendPFI-btnLabel">Send &amp; Record</span></button>
+      <button class="btn-secondary flex-shrink-0" onclick="copyAndOpenEmail()"><i class="fas fa-external-link-alt mr-1"></i><span class="hidden sm:inline">Copy &amp; Open Email Client</span><span class="sm:hidden">Open Email</span></button>
+      <button class="btn-primary flex-shrink-0" onclick="submitSendPFI()"><i class="fas fa-paper-plane mr-1"></i><span id="sendPFI-btnLabel">Send &amp; Record</span></button>
     </div>
   </div>
 </div>
 
 <!-- New / Edit Appointment Modal -->
 <div id="modal-appointment" class="modal-overlay hidden">
-  <div class="modal-box" style="max-width:620px">
+  <div class="modal-box" style="--mw:620px">
     <div class="flex items-center justify-between mb-6">
       <div>
         <h3 class="text-xl font-bold text-gray-900" id="apt-modal-title"><i class="fas fa-calendar-plus text-blue-500 mr-2"></i>New Appointment</h3>
@@ -950,7 +973,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 
 <!-- Fleet Upload Modal -->
 <div id="modal-fleetUpload" class="modal-overlay hidden">
-  <div class="modal-box" style="max-width:760px">
+  <div class="modal-box" style="--mw:760px">
     <div class="flex items-center justify-between mb-5">
       <div>
         <h3 class="text-xl font-bold text-gray-900"><i class="fas fa-truck text-blue-500 mr-2"></i>Upload Fleet</h3>
@@ -1046,7 +1069,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 
 <!-- New / Edit Package Modal -->
 <div id="modal-newPackage" class="modal-overlay hidden">
-  <div class="modal-box" style="max-width:600px">
+  <div class="modal-box" style="--mw:600px">
     <div class="flex items-center justify-between mb-6">
       <div>
         <h3 class="text-xl font-bold text-gray-900" id="pkg-modal-title">New Service Package</h3>
@@ -1081,7 +1104,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 
 <!-- New / Edit Car Wash Package Modal -->
 <div id="modal-newCarWash" class="modal-overlay hidden">
-  <div class="modal-box" style="max-width:560px">
+  <div class="modal-box" style="--mw:560px">
     <div class="flex items-center justify-between mb-6">
       <div>
         <h3 class="text-xl font-bold text-gray-900" id="cw-modal-title">New Car Wash Package</h3>
@@ -1160,7 +1183,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 
 <!-- Status Update Modal -->
 <div id="modal-statusUpdate" class="modal-overlay hidden">
-  <div class="modal-box" style="max-width:440px">
+  <div class="modal-box" style="--mw:440px">
     <div class="flex items-center justify-between mb-6">
       <div><h3 class="text-xl font-bold text-gray-900">Update Job Status</h3></div>
       <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-statusUpdate')"><i class="fas fa-times"></i></button>
@@ -1171,7 +1194,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 
 <!-- ═══ ADD CATALOGUE PART MODAL ═══ -->
 <div id="modal-addCatPart" class="modal-overlay hidden">
-  <div class="modal-box" style="max-width:560px">
+  <div class="modal-box" style="--mw:560px">
     <div class="flex items-center justify-between mb-6">
       <div><h3 class="text-xl font-bold text-gray-900"><i class="fas fa-plus-circle text-blue-600 mr-2"></i>Add New Part</h3>
         <p class="text-sm text-gray-500 mt-1">Add a new part to the catalogue</p></div>
@@ -1230,7 +1253,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 
 <!-- ═══ EDIT CATALOGUE PART MODAL ═══ -->
 <div id="modal-editCatPart" class="modal-overlay hidden">
-  <div class="modal-box" style="max-width:560px">
+  <div class="modal-box" style="--mw:560px">
     <div class="flex items-center justify-between mb-6">
       <div><h3 class="text-xl font-bold text-gray-900"><i class="fas fa-pen text-blue-600 mr-2"></i>Edit Part</h3>
         <p class="text-sm text-gray-500 mt-1">Update part details and pricing</p></div>
@@ -1284,7 +1307,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 
 <!-- ═══ RESTOCK MODAL ═══ -->
 <div id="modal-restock" class="modal-overlay hidden">
-  <div class="modal-box" style="max-width:400px">
+  <div class="modal-box" style="--mw:400px">
     <div class="flex items-center justify-between mb-6">
       <div><h3 class="text-xl font-bold text-gray-900"><i class="fas fa-boxes text-green-600 mr-2"></i>Add Stock</h3>
         <p class="text-sm text-gray-500 mt-1" id="restock-part-name"></p></div>
@@ -1369,13 +1392,21 @@ function showToast(msg, type='success') {
 }
 function closeModal(id) {
   document.getElementById(id).classList.add('hidden');
-  // Reset modal-statusUpdate width back to default after PFI modal widens it
+  // Reset modal-statusUpdate width back to default after any modal widens it
   if (id === 'modal-statusUpdate') {
     const box = document.querySelector('#modal-statusUpdate .modal-box');
-    if (box) box.style.maxWidth = '';
+    if (box) { box.style.setProperty('--mw', '440px'); }
   }
 }
 function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
+/** Set modal box max-width safely — never overflows viewport */
+function setModalWidth(selector, px) {
+  const box = document.querySelector(selector + ' .modal-box');
+  if (box) {
+    box.style.setProperty('--mw', px + 'px');
+    box.style.removeProperty('max-width'); // let CSS rule handle it
+  }
+}
 function toggleSidebar() {
   const sb = document.getElementById('sidebar');
   const bd = document.getElementById('sidebar-backdrop');
@@ -1599,7 +1630,7 @@ async function viewJobDetail(id) {
         <!-- Status Progress -->
         <div class="card p-5">
           <h4 class="font-bold text-gray-800 mb-4">Repair Progress</h4>
-          <div class="overflow-x-auto pb-1">
+          <div class="status-stepper-scroll">
           <div class="flex items-center gap-1" style="min-width:max-content">
             \${STATUS_FLOW.map((s, i) => {
               const cur = STATUS_FLOW.indexOf(j.status);
@@ -2137,7 +2168,7 @@ async function showPFIModal(jobId, category) {
   }
 
   openModal('modal-statusUpdate');
-  document.querySelector('#modal-statusUpdate .modal-box').style.maxWidth = '620px';
+  setModalWidth('#modal-statusUpdate', 620);
   document.getElementById('statusUpdateContent').innerHTML = \`
     <p class="text-sm text-gray-500 mb-3">\${isInsurance ? 'Create a Pro Forma Invoice for insurer approval' : 'Create a Pro Forma Invoice to send to the customer'}</p>
     \${isInsurance ? '' : \`<div class="flex items-center gap-2 mb-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700"><i class="fas fa-user-circle"></i> Private / Individual job – PFI will go directly to the customer</div>\`}
@@ -2268,7 +2299,7 @@ async function showInvoiceModal(jobId, labourCost, partsCost) {
   }
 
   openModal('modal-statusUpdate');
-  document.querySelector('#modal-statusUpdate .modal-box').style.maxWidth = (services.length || parts.length) ? '620px' : '480px';
+  setModalWidth('#modal-statusUpdate', (services.length || parts.length) ? 620 : 480);
   document.getElementById('statusUpdateContent').innerHTML = \`
     <p class="text-sm text-gray-500 mb-4">Generate final invoice for this job</p>
     \${servicesHtml}
@@ -2320,7 +2351,7 @@ async function showAddServiceModal(jobId) {
   _svcJobId = jobId;
   _svcTab = 'packages';
   openModal('modal-statusUpdate');
-  document.querySelector('#modal-statusUpdate .modal-box').style.maxWidth = '680px';
+  setModalWidth('#modal-statusUpdate', 680);
   // Load all catalogues in parallel (cache after first load)
   if (!_allServicePackagesCache.length) {
     const [pkgs, oil, cw, ao] = await Promise.all([
@@ -2350,12 +2381,12 @@ function _renderAddServiceModal() {
     const active = _svcTab === t.id;
     return '<button onclick="_switchSvcTab(\'' + t.id + '\')" class="flex-1 flex flex-col items-center gap-1 py-2 px-1 rounded-xl text-xs font-semibold transition-all ' +
       (active ? 'bg-blue-600 text-white shadow' : 'bg-gray-100 text-gray-500 hover:bg-gray-200') + '">' +
-      '<i class="fas ' + t.icon + ' text-sm"></i><span class="hidden sm:inline">' + t.label + '</span></button>';
+      '<i class="fas ' + t.icon + ' text-sm"></i><span class="svc-tab-label">' + t.label + '</span></button>';
   }).join('');
 
   document.getElementById('statusUpdateContent').innerHTML =
     '<p class="text-sm text-gray-500 mb-3">Choose a category to add services or parts to this job card</p>' +
-    '<div class="flex gap-1.5 mb-4">' + tabBar + '</div>' +
+    '<div class="svc-tab-bar flex gap-1.5 mb-4">' + tabBar + '</div>' +
     '<div id="svc-tab-content" class="min-h-[260px]"></div>';
 
   _renderSvcTabContent();
@@ -2365,7 +2396,7 @@ function _switchSvcTab(tab) {
   _svcTab = tab;
   // update tab bar button styles
   const tabs = ['packages','oil','carwash','addons','parts'];
-  const btns = document.querySelectorAll('#statusUpdateContent .flex.gap-1\\.5 button');
+  const btns = document.querySelectorAll('#statusUpdateContent .svc-tab-bar button');
   btns.forEach((btn, i) => {
     btn.className = 'flex-1 flex flex-col items-center gap-1 py-2 px-1 rounded-xl text-xs font-semibold transition-all ' +
       (tabs[i] === tab ? 'bg-blue-600 text-white shadow' : 'bg-gray-100 text-gray-500 hover:bg-gray-200');
@@ -2460,7 +2491,7 @@ function _renderOilTiers(brandIdx) {
       '<div class="flex items-center justify-between mb-2">' +
         '<p class="text-sm font-semibold text-gray-700">' + tier.engineSize + '</p>' +
       '</div>' +
-      '<div class="grid grid-cols-3 gap-2">' +
+      '<div class="oil-tier-grid">' +
         ['Standard','Prestige','Premier'].map(tname => {
           const price = tier[tname.toLowerCase() + 'Price'];
           return '<button onclick="_addOilService(\'' + brand.brand + '\',\'' + tier.engineSize + '\',\'' + tname + '\',' + price + ')" ' +
@@ -2500,7 +2531,7 @@ function _renderCarWashTab(el) {
   Object.entries(groups).forEach(([type, pkgs]) => {
     const col = typeColors[type] || 'gray';
     html += '<div><p class="text-xs font-semibold text-gray-400 uppercase mb-2">' + (typeLabels[type] || type) + '</p>' +
-      '<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">';
+      '<div class="carwash-inner-grid">';
     pkgs.forEach(p => {
       html += '<div class="border border-gray-200 rounded-xl p-3 hover:border-' + col + '-400 hover:bg-' + col + '-50 transition-colors cursor-pointer" onclick="_addCarWash(\'' + p.id + '\')">' +
         '<p class="text-sm font-semibold text-gray-800 mb-1">' + p.name + '</p>' +
