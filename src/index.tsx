@@ -1323,6 +1323,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 <script>
 // ═══ GLOBAL STATE ═══
 let allJobCards = [], allCustomers = [], allVehicles = [], allPFIs = [], allInvoices = [], allPackages = [], allUsers = [], allAppointments = [];
+let _allPartsConsumption = [];
 let statusChart = null, revenueChart = null, insurerChart = null;
 
 const STATUS_CONFIG = {
@@ -1366,7 +1367,14 @@ function showToast(msg, type='success') {
   m.textContent = msg; t.classList.remove('hidden');
   setTimeout(() => t.classList.add('hidden'), 3000);
 }
-function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+function closeModal(id) {
+  document.getElementById(id).classList.add('hidden');
+  // Reset modal-statusUpdate width back to default after PFI modal widens it
+  if (id === 'modal-statusUpdate') {
+    const box = document.querySelector('#modal-statusUpdate .modal-box');
+    if (box) box.style.maxWidth = '';
+  }
+}
 function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
 function toggleSidebar() {
   const sb = document.getElementById('sidebar');
@@ -1672,14 +1680,27 @@ async function viewJobDetail(id) {
         <!-- PFI -->
         \${j.pfi ? \`
           <div class="card p-5">
-            <h4 class="font-bold text-gray-800 mb-4">PFI – Pro Forma Invoice</h4>
+            <h4 class="font-bold text-gray-800 mb-4"><i class="fas fa-file-invoice text-blue-500 mr-2"></i>PFI – Pro Forma Invoice</h4>
+            \${j.parts && j.parts.length ? \`
+              <p class="text-xs font-semibold text-gray-400 uppercase mb-2">Parts Included</p>
+              <div class="space-y-1 mb-3">
+                \${j.parts.map(p => \`
+                  <div class="flex justify-between text-xs">
+                    <span class="text-gray-600 truncate max-w-[60%]">\${p.partName} <span class="text-gray-400">×\${p.quantity}</span></span>
+                    <span class="font-semibold text-gray-700">\${fmt(p.totalCost)}</span>
+                  </div>
+                \`).join('')}
+              </div>
+              <div class="border-t border-gray-100 pt-2 mb-3"></div>
+            \` : ''}
             <div class="space-y-2 text-sm">
               <div class="flex justify-between"><span class="text-gray-400">Labour</span><span class="font-semibold">\${fmt(j.pfi.labourCost)}</span></div>
-              <div class="flex justify-between"><span class="text-gray-400">Parts</span><span class="font-semibold">\${fmt(j.pfi.partsCost)}</span></div>
+              <div class="flex justify-between"><span class="text-gray-400">Parts Total</span><span class="font-semibold">\${fmt(j.pfi.partsCost)}</span></div>
               <div class="flex justify-between border-t pt-2 font-bold"><span>Total Estimate</span><span class="text-blue-600">\${fmt(j.pfi.totalEstimate)}</span></div>
             </div>
-            <div class="mt-3">
+            <div class="mt-3 flex items-center justify-between">
               <span class="badge" style="background:\${PFI_STATUS_CONFIG[j.pfi.status]?.bg};color:\${PFI_STATUS_CONFIG[j.pfi.status]?.text}">\${j.pfi.status}</span>
+              <button class="text-xs text-blue-600 hover:underline font-semibold" onclick="showSendPFIModal('\${j.pfi.id}')"><i class="fas fa-paper-plane mr-1"></i>Send / View</button>
             </div>
           </div>
         \` : ''}
@@ -1955,34 +1976,104 @@ function _clearCatSelection() {
 }
 
 // PFI Modal — works for both Insurance and Private jobs
-function showPFIModal(jobId, category) {
+// Fetches the job's consumed parts to auto-fill and display the breakdown
+async function showPFIModal(jobId, category) {
   const isInsurance = category === 'Insurance';
+
+  // Fetch the full job (with parts) from the API
+  const { data: job } = await axios.get('/api/jobcards/' + jobId);
+  const parts = job.parts || [];
+  const totalPartsCost = parts.reduce((s, p) => s + p.totalCost, 0);
+
+  // Build parts breakdown HTML using string concat (avoids nested backtick issues)
+  let partsHtml;
+  if (parts.length) {
+    const rows = parts.map(p =>
+      '<tr class="border-b border-gray-50 last:border-0">' +
+        '<td class="px-3 py-2 font-medium text-gray-700">' + p.partName + '</td>' +
+        '<td class="px-3 py-2 text-center text-gray-600">' + p.quantity + '</td>' +
+        '<td class="px-3 py-2 text-right text-gray-600">' + fmt(p.unitCost) + '</td>' +
+        '<td class="px-3 py-2 text-right font-semibold text-gray-800">' + fmt(p.totalCost) + '</td>' +
+      '</tr>'
+    ).join('');
+    partsHtml =
+      '<div class="mb-4">' +
+        '<p class="form-label mb-2">Parts Consumed <span class="text-gray-400 font-normal text-xs">(from job card – auto-filled below)</span></p>' +
+        '<div class="border border-gray-200 rounded-xl overflow-hidden">' +
+          '<table class="w-full text-xs">' +
+            '<thead><tr class="bg-gray-50 border-b border-gray-100">' +
+              '<th class="text-left px-3 py-2 font-semibold text-gray-500">Part</th>' +
+              '<th class="text-center px-3 py-2 font-semibold text-gray-500">Qty</th>' +
+              '<th class="text-right px-3 py-2 font-semibold text-gray-500">Unit Cost</th>' +
+              '<th class="text-right px-3 py-2 font-semibold text-gray-500">Total</th>' +
+            '</tr></thead>' +
+            '<tbody>' + rows + '</tbody>' +
+            '<tfoot><tr class="bg-blue-50">' +
+              '<td colspan="3" class="px-3 py-2 text-right font-bold text-gray-600 text-xs">Total Parts Cost:</td>' +
+              '<td class="px-3 py-2 text-right font-bold text-blue-700">' + fmt(totalPartsCost) + '</td>' +
+            '</tr></tfoot>' +
+          '</table>' +
+        '</div>' +
+      '</div>';
+  } else {
+    partsHtml =
+      '<div class="mb-4 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700 flex items-center gap-2">' +
+      '<i class="fas fa-info-circle"></i> No parts have been added to this job yet. You can still enter a parts cost manually.' +
+      '</div>';
+  }
+
   openModal('modal-statusUpdate');
+  // Widen the modal box for PFI (parts table needs more space)
+  document.querySelector('#modal-statusUpdate .modal-box').style.maxWidth = '600px';
   document.getElementById('statusUpdateContent').innerHTML = \`
-    <p class="text-sm text-gray-500 mb-1">\${isInsurance ? 'Create a Pro Forma Invoice for insurer approval' : 'Create a Pro Forma Invoice to send to the customer'}</p>
+    <p class="text-sm text-gray-500 mb-3">\${isInsurance ? 'Create a Pro Forma Invoice for insurer approval' : 'Create a Pro Forma Invoice to send to the customer'}</p>
     \${isInsurance ? '' : \`<div class="flex items-center gap-2 mb-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700"><i class="fas fa-user-circle"></i> Private / Individual job – PFI will go directly to the customer</div>\`}
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3 mt-3">
-      <div><label class="form-label">Labour Cost (TZS)</label><input class="form-input" type="number" id="pfi-labour" required min="0"/></div>
-      <div><label class="form-label">Parts Cost (TZS)</label><input class="form-input" type="number" id="pfi-parts" required min="0"/></div>
+    \${partsHtml}
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+      <div>
+        <label class="form-label">Labour Cost (TZS)</label>
+        <input class="form-input" type="number" id="pfi-labour" required min="0"/>
+      </div>
+      <div>
+        <label class="form-label">Parts Cost (TZS) <span class="text-gray-400 font-normal text-xs">auto-filled</span></label>
+        <input class="form-input" type="number" id="pfi-parts" required min="0" value="\${totalPartsCost}"/>
+      </div>
     </div>
-    <div class="mb-3"><label class="form-label">Total Estimate</label><input class="form-input" id="pfi-total" readonly placeholder="Auto-calculated"/></div>
-    <div class="mb-5"><label class="form-label">Notes</label><textarea class="form-input" id="pfi-notes" rows="2" placeholder="\${isInsurance ? 'Additional notes for insurer\u2026' : 'Additional notes for customer\u2026'}"></textarea></div>
+    <div class="mb-3">
+      <label class="form-label">Total Estimate</label>
+      <input class="form-input font-bold text-blue-700" id="pfi-total" readonly placeholder="Auto-calculated"/>
+    </div>
+    <div class="mb-5">
+      <label class="form-label">Notes</label>
+      <textarea class="form-input" id="pfi-notes" rows="2" placeholder="\${isInsurance ? 'Additional notes for insurer\u2026' : 'Additional notes for customer\u2026'}"></textarea>
+    </div>
     <div class="flex gap-3">
       <button class="btn-secondary flex-1" onclick="closeModal('modal-statusUpdate')">Cancel</button>
       <button class="btn-primary flex-1" id="pfi-submit"><i class="fas fa-file-invoice mr-1"></i> \${isInsurance ? 'Submit PFI' : 'Save PFI'}</button>
     </div>
   \`;
+
+  // Wire up total calculation and trigger with pre-filled parts cost
   const calcTotal = () => {
-    const l = +document.getElementById('pfi-labour').value||0, p = +document.getElementById('pfi-parts').value||0;
-    document.getElementById('pfi-total').value = fmt(l+p);
+    const l = +document.getElementById('pfi-labour').value || 0;
+    const p = +document.getElementById('pfi-parts').value || 0;
+    document.getElementById('pfi-total').value = fmt(l + p);
   };
+  calcTotal();
   document.getElementById('pfi-labour').oninput = calcTotal;
-  document.getElementById('pfi-parts').oninput = calcTotal;
+  document.getElementById('pfi-parts').oninput  = calcTotal;
+
   document.getElementById('pfi-submit').onclick = async () => {
-    const l = +document.getElementById('pfi-labour').value, p = +document.getElementById('pfi-parts').value;
-    // Insurance: starts as Submitted (goes to insurer). Private: starts as Draft (customer-facing).
+    const l = +document.getElementById('pfi-labour').value || 0;
+    const p = +document.getElementById('pfi-parts').value || 0;
     const initialStatus = isInsurance ? 'Submitted' : 'Draft';
-    await axios.post('/api/jobcards/' + jobId + '/pfi', { labourCost:l, partsCost:p, totalEstimate:l+p, status:initialStatus, notes:document.getElementById('pfi-notes').value });
+    await axios.post('/api/jobcards/' + jobId + '/pfi', {
+      labourCost: l,
+      partsCost: p,
+      totalEstimate: l + p,
+      status: initialStatus,
+      notes: document.getElementById('pfi-notes').value
+    });
     closeModal('modal-statusUpdate');
     viewJobDetail(jobId);
     showToast(isInsurance ? 'PFI submitted to insurer' : 'PFI created – ready to send to customer');
@@ -1990,24 +2081,73 @@ function showPFIModal(jobId, category) {
 }
 
 // Invoice Modal
-function showInvoiceModal(jobId, labourCost, partsCost) {
+async function showInvoiceModal(jobId, labourCost, partsCost) {
+  // Fetch full job to get parts list
+  const { data: job } = await axios.get('/api/jobcards/' + jobId);
+  const parts = job.parts || [];
+  const actualPartsCost = parts.reduce((s, p) => s + p.totalCost, 0) || partsCost;
+  const tax = Math.round((labourCost + actualPartsCost) * 0.18);
+
+  // Build parts breakdown HTML (string concat to avoid nested backtick issues)
+  let partsHtml = '';
+  if (parts.length) {
+    const rows = parts.map(p =>
+      '<tr class="border-b border-gray-50 last:border-0">' +
+        '<td class="px-3 py-2 font-medium text-gray-700">' + p.partName + '</td>' +
+        '<td class="px-3 py-2 text-center text-gray-600">' + p.quantity + '</td>' +
+        '<td class="px-3 py-2 text-right text-gray-600">' + fmt(p.unitCost) + '</td>' +
+        '<td class="px-3 py-2 text-right font-semibold text-gray-800">' + fmt(p.totalCost) + '</td>' +
+      '</tr>'
+    ).join('');
+    partsHtml =
+      '<div class="mb-4">' +
+        '<p class="form-label mb-2">Parts Consumed</p>' +
+        '<div class="border border-gray-200 rounded-xl overflow-hidden">' +
+          '<table class="w-full text-xs">' +
+            '<thead><tr class="bg-gray-50 border-b border-gray-100">' +
+              '<th class="text-left px-3 py-2 font-semibold text-gray-500">Part</th>' +
+              '<th class="text-center px-3 py-2 font-semibold text-gray-500">Qty</th>' +
+              '<th class="text-right px-3 py-2 font-semibold text-gray-500">Unit Cost</th>' +
+              '<th class="text-right px-3 py-2 font-semibold text-gray-500">Total</th>' +
+            '</tr></thead>' +
+            '<tbody>' + rows + '</tbody>' +
+            '<tfoot><tr class="bg-green-50">' +
+              '<td colspan="3" class="px-3 py-2 text-right font-bold text-gray-600 text-xs">Total Parts Cost:</td>' +
+              '<td class="px-3 py-2 text-right font-bold text-green-700">' + fmt(actualPartsCost) + '</td>' +
+            '</tr></tfoot>' +
+          '</table>' +
+        '</div>' +
+      '</div>';
+  }
+
   openModal('modal-statusUpdate');
-  const tax = Math.round((labourCost + partsCost) * 0.18);
+  document.querySelector('#modal-statusUpdate .modal-box').style.maxWidth = parts.length ? '600px' : '480px';
   document.getElementById('statusUpdateContent').innerHTML = \`
     <p class="text-sm text-gray-500 mb-4">Generate final invoice for this job</p>
+    \${partsHtml}
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-      <div><label class="form-label">Labour Cost</label><input class="form-input" type="number" id="inv-labour" value="\${labourCost}"/></div>
-      <div><label class="form-label">Parts Cost</label><input class="form-input" type="number" id="inv-parts" value="\${partsCost}"/></div>
+      <div><label class="form-label">Labour Cost (TZS)</label><input class="form-input" type="number" id="inv-labour" value="\${labourCost}"/></div>
+      <div><label class="form-label">Parts Cost (TZS) <span class="text-gray-400 font-normal text-xs">auto-filled</span></label><input class="form-input" type="number" id="inv-parts" value="\${actualPartsCost}"/></div>
     </div>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
-      <div><label class="form-label">Tax (TZS)</label><input class="form-input" type="number" id="inv-tax" value="\${tax}"/></div>
+      <div><label class="form-label">Tax (18%) (TZS)</label><input class="form-input" type="number" id="inv-tax" value="\${tax}"/></div>
       <div><label class="form-label">Status</label><select class="form-input" id="inv-status"><option>Issued</option><option>Paid</option></select></div>
     </div>
     <div class="flex gap-3">
       <button class="btn-secondary flex-1" onclick="closeModal('modal-statusUpdate')">Cancel</button>
-      <button class="btn-primary flex-1" id="inv-submit"><i class="fas fa-receipt"></i> Generate Invoice</button>
+      <button class="btn-primary flex-1" id="inv-submit"><i class="fas fa-receipt mr-1"></i> Generate Invoice</button>
     </div>
   \`;
+
+  // Auto-recalculate tax when labour or parts change
+  const recalcTax = () => {
+    const l = +document.getElementById('inv-labour').value || 0;
+    const p = +document.getElementById('inv-parts').value || 0;
+    document.getElementById('inv-tax').value = Math.round((l + p) * 0.18);
+  };
+  document.getElementById('inv-labour').oninput = recalcTax;
+  document.getElementById('inv-parts').oninput = recalcTax;
+
   document.getElementById('inv-submit').onclick = async () => {
     const l = +document.getElementById('inv-labour').value, p = +document.getElementById('inv-parts').value, t = +document.getElementById('inv-tax').value;
     await axios.post('/api/jobcards/' + jobId + '/invoice', { labourCost:l, partsCost:p, tax:t, totalAmount:l+p+t, status:document.getElementById('inv-status').value });
@@ -3153,8 +3293,24 @@ async function showSendPFIModal(pfiId) {
   showToast('Loading PFI details…');
   _currentPFIId = pfiId;
   _currentPFIDetail = await fetchPFIDetail(pfiId);
-  const { pfi, job, customer } = _currentPFIDetail;
+  const { pfi, job, customer, parts } = _currentPFIDetail;
   const isInsurance = job?.category === 'Insurance';
+
+  // Parts breakdown HTML for summary (use string concat to avoid nested backtick issues)
+  let partsBreakdownHtml = '';
+  if (parts && parts.length) {
+    const rows = parts.map(p =>
+      '<div class="flex justify-between text-xs">' +
+        '<span class="text-blue-800">' + p.partName + ' <span class="text-blue-500">\xd7' + p.quantity + '</span></span>' +
+        '<span class="font-semibold text-blue-900">' + fmt(p.totalCost) + '</span>' +
+      '</div>'
+    ).join('');
+    partsBreakdownHtml =
+      '<div class="mt-3 border-t border-blue-200 pt-3">' +
+        '<p class="text-xs font-semibold text-blue-700 uppercase mb-2">Parts Consumed</p>' +
+        '<div class="space-y-1">' + rows + '</div>' +
+      '</div>';
+  }
 
   // Summary strip
   const catLabel = isInsurance
@@ -3162,20 +3318,27 @@ async function showSendPFIModal(pfiId) {
     : '<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700"><i class="fas fa-user"></i> Private</span>';
   document.getElementById('sendPFI-subtitle').textContent = (job?.jobCardNumber || 'PFI') + ' – ' + (customer?.name || '');
   document.getElementById('sendPFI-summary').innerHTML = \`
-    <div class="flex flex-wrap gap-4 text-sm items-center">
+    <div class="flex flex-wrap gap-4 text-sm items-center mb-2">
       \${catLabel}
       <div><span class="text-gray-500">Job:</span> <strong>\${job?.jobCardNumber||'—'}</strong></div>
       <div><span class="text-gray-500">Customer:</span> <strong>\${customer?.name||'—'}</strong></div>
       <div><span class="text-gray-500">Vehicle:</span> <strong>\${_currentPFIDetail.vehicle?.registrationNumber||'—'}</strong></div>
+      <div><span class="text-gray-500">Labour:</span> <strong>\${fmt(pfi.labourCost)}</strong></div>
+      <div><span class="text-gray-500">Parts:</span> <strong>\${fmt(pfi.partsCost)}</strong></div>
       <div><span class="text-gray-500">Total:</span> <strong class="text-blue-700">\${fmt(pfi.totalEstimate)}</strong></div>
-      <div><span class="text-gray-500">Status:</span> <strong>\${pfi.status}</strong></div>
     </div>
+    \${partsBreakdownHtml}
   \`;
 
   // Pre-fill email
   document.getElementById('sendPFI-email').value   = customer?.email || '';
   // Pre-fill subject
   document.getElementById('sendPFI-subject').value = \`Pro Forma Invoice – \${job?.jobCardNumber||'PFI-'+pfi.id.toUpperCase()} | AutoFix GMS\`;
+
+  // Build parts lines for email body
+  const partsLines = parts && parts.length
+    ? parts.map(p => '    ' + p.partName + ' ×' + p.quantity + '  @ ' + fmt(p.unitCost) + '  = ' + fmt(p.totalCost)).join(String.fromCharCode(10))
+    : '    (none)';
 
   // Pre-fill message — adapt closing line based on job type
   const closingLine = isInsurance
@@ -3191,7 +3354,11 @@ Please find attached the Pro Forma Invoice (PFI) for the service on your vehicle
 
 Summary:
   Job Card:       \${job?.jobCardNumber || '—'}
-\${insuranceExtra}\${claimExtra}  Labour Cost:    \${fmt(pfi.labourCost)}
+\${insuranceExtra}\${claimExtra}
+Parts Consumed:
+\${partsLines}
+
+  Labour Cost:    \${fmt(pfi.labourCost)}
   Parts Cost:     \${fmt(pfi.partsCost)}
   Total Estimate: \${fmt(pfi.totalEstimate)}
 
@@ -3243,8 +3410,14 @@ async function submitSendPFI() {
 
 // ═══ CLAIMS ═══
 async function loadClaims() {
-  const [pfiData, jobData] = await Promise.all([axios.get('/api/pfis'), axios.get('/api/jobcards')]);
-  allPFIs = pfiData.data; allJobCards = jobData.data;
+  const [pfiData, jobData, partsData] = await Promise.all([
+    axios.get('/api/pfis'),
+    axios.get('/api/jobcards'),
+    axios.get('/api/parts/all')
+  ]);
+  allPFIs = pfiData.data;
+  allJobCards = jobData.data;
+  _allPartsConsumption = partsData.data;
   _pfiActiveCategory = 'all';
   _pfiActiveStatus   = 'all';
   renderClaims(allPFIs);
@@ -3260,6 +3433,23 @@ function renderClaims(pfis) {
     const catBadge = isInsurance
       ? \`<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700"><i class="fas fa-shield-alt"></i> Insurance</span>\`
       : \`<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700"><i class="fas fa-user"></i> Private</span>\`;
+
+    // Parts consumed for this job
+    const jobParts = _allPartsConsumption.filter(p => p.jobCardId === pfi.jobCardId);
+    const partsBreakdownHtml = jobParts.length
+      ? \`<div class="mb-3">
+          <p class="text-xs font-semibold text-gray-400 uppercase mb-1.5">Parts Consumed</p>
+          <div class="space-y-1">
+            \${jobParts.map(p => \`
+              <div class="flex justify-between text-xs">
+                <span class="text-gray-600 truncate max-w-[65%]">\${p.partName} <span class="text-gray-400">×\${p.quantity}</span></span>
+                <span class="font-semibold text-gray-700">\${fmt(p.totalCost)}</span>
+              </div>\`).join('')}
+          </div>
+          <div class="border-t border-gray-100 mt-2"></div>
+        </div>\`
+      : '';
+
     return \`
       <div class="card p-5 flex flex-col">
         <div class="flex items-start justify-between mb-2">
@@ -3275,8 +3465,9 @@ function renderClaims(pfis) {
         \${isInsurance && job?.insurer ? \`<div class="flex items-center gap-2 mb-2 text-sm text-gray-600"><i class="fas fa-shield-alt text-blue-400"></i>\${job.insurer}</div>\` : ''}
         \${isInsurance && job?.claimReference ? \`<p class="text-xs text-gray-400 mb-2"><i class="fas fa-hashtag mr-1"></i>\${job.claimReference}</p>\` : ''}
         <div class="bg-gray-50 rounded-xl p-3 mb-4">
+          \${partsBreakdownHtml}
           <div class="flex justify-between text-sm mb-1"><span class="text-gray-500">Labour</span><span class="font-semibold">\${fmt(pfi.labourCost)}</span></div>
-          <div class="flex justify-between text-sm mb-1"><span class="text-gray-500">Parts</span><span class="font-semibold">\${fmt(pfi.partsCost)}</span></div>
+          <div class="flex justify-between text-sm mb-1"><span class="text-gray-500">Parts Total</span><span class="font-semibold">\${fmt(pfi.partsCost)}</span></div>
           <div class="flex justify-between text-sm font-bold border-t pt-2"><span>Total Estimate</span><span class="text-blue-600">\${fmt(pfi.totalEstimate)}</span></div>
         </div>
         \${pfi.notes ? \`<p class="text-xs text-gray-500 mb-3 italic">"\${pfi.notes}"</p>\` : ''}

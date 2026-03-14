@@ -230,6 +230,8 @@ api.get('/pfi/:id/detail', (c) => {
 })
 
 // ─── Parts Consumption ───────────────────────────────────────────────────────
+api.get('/parts/all', (c) => c.json(partsConsumption))
+
 api.get('/jobcards/:id/parts', (c) => {
   return c.json(partsConsumption.filter(x => x.jobCardId === c.req.param('id')))
 })
