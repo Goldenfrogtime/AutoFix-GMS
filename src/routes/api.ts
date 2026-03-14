@@ -277,6 +277,21 @@ api.post('/packages', async (c) => {
   return c.json(newPkg, 201)
 })
 
+api.put('/packages/:id', async (c) => {
+  const idx = servicePackages.findIndex(p => p.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const body = await c.req.json<Partial<ServicePackage>>()
+  servicePackages[idx] = { ...servicePackages[idx], ...body }
+  return c.json(servicePackages[idx])
+})
+
+api.delete('/packages/:id', (c) => {
+  const idx = servicePackages.findIndex(p => p.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  servicePackages.splice(idx, 1)
+  return c.json({ success: true })
+})
+
 // ─── Users ───────────────────────────────────────────────────────────────────
 api.get('/users', (c) => c.json(users))
 
@@ -388,12 +403,26 @@ api.patch('/catalogue/parts/:id/restock', async (c) => {
 // ─── Twiga Catalogue: Car Wash ────────────────────────────────────────────────
 api.get('/catalogue/carwash', (c) => c.json(carWashPackages))
 
+api.post('/catalogue/carwash', async (c) => {
+  const body = await c.req.json<Omit<CarWashPackage, 'id'>>()
+  const newPkg: CarWashPackage = { ...body, id: 'cw' + genId() }
+  carWashPackages.push(newPkg)
+  return c.json(newPkg, 201)
+})
+
 api.put('/catalogue/carwash/:id', async (c) => {
   const idx = carWashPackages.findIndex(p => p.id === c.req.param('id'))
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
   const body = await c.req.json<Partial<CarWashPackage>>()
   carWashPackages[idx] = { ...carWashPackages[idx], ...body }
   return c.json(carWashPackages[idx])
+})
+
+api.delete('/catalogue/carwash/:id', (c) => {
+  const idx = carWashPackages.findIndex(p => p.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  carWashPackages.splice(idx, 1)
+  return c.json({ success: true })
 })
 
 // ─── Twiga Catalogue: Add-on Services ────────────────────────────────────────

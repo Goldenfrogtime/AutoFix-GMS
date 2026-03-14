@@ -613,9 +613,12 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 
     <!-- ═══ CAR WASH ═══ -->
     <div id="page-car-wash" class="page">
-      <div class="mb-6">
-        <h2 class="text-2xl font-bold text-gray-900">Car Wash Packages</h2>
-        <p class="text-gray-500 text-sm mt-1">Standard, deep clean and monthly fleet packages</p>
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-900">Car Wash Packages</h2>
+          <p class="text-gray-500 text-sm mt-1">Standard, deep clean and monthly fleet packages</p>
+        </div>
+        <button class="btn-primary" onclick="showNewCarWashModal()"><i class="fas fa-plus"></i> New Package</button>
       </div>
       <div class="grid lg:grid-cols-3 gap-6" id="carWashGrid"></div>
     </div>
@@ -695,7 +698,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
           <div><label class="form-label">Company Name</label><input class="form-input" id="cust-company" placeholder="Acme Ltd"/></div>
           <div><label class="form-label">Contact Person</label><input class="form-input" id="cust-contact" placeholder="Jane Doe"/></div>
         </div>
-        <div class="mb-4"><label class="form-label">Tax PIN / TIN</label><input class="form-input" id="cust-taxpin" placeholder="TIN-123456789"/></div>
+        <div class="mb-4"><label class="form-label">TIN Number</label><input class="form-input" id="cust-taxpin" placeholder="TIN-123456789"/></div>
       </div>
       <div class="grid grid-cols-2 gap-4 mb-4">
         <div><label class="form-label" id="cust-name-label">Full Name</label><input class="form-input" id="cust-name" required placeholder="John Doe"/></div>
@@ -978,28 +981,89 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
   </div>
 </div>
 
-<!-- New Package Modal -->
+<!-- New / Edit Package Modal -->
 <div id="modal-newPackage" class="modal-overlay hidden">
-  <div class="modal-box">
+  <div class="modal-box" style="max-width:600px">
     <div class="flex items-center justify-between mb-6">
-      <div><h3 class="text-xl font-bold text-gray-900">New Service Package</h3></div>
+      <div>
+        <h3 class="text-xl font-bold text-gray-900" id="pkg-modal-title">New Service Package</h3>
+        <p class="text-sm text-gray-500 mt-1" id="pkg-modal-sub">Create a new service bundle</p>
+      </div>
       <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-newPackage')"><i class="fas fa-times"></i></button>
     </div>
-    <form id="newPackageForm" onsubmit="submitNewPackage(event)">
-      <div class="grid grid-cols-2 gap-4 mb-4">
-        <div><label class="form-label">Package Name</label><input class="form-input" id="pkg-name" required placeholder="e.g. Major Service"/></div>
-        <div><label class="form-label">Labour Cost (TZS)</label><input class="form-input" type="number" id="pkg-labour" required min="0"/></div>
+    <input type="hidden" id="pkg-edit-id"/>
+    <div class="grid grid-cols-2 gap-4 mb-4">
+      <div><label class="form-label">Package Name *</label><input class="form-input" id="pkg-name" required placeholder="e.g. Major Service"/></div>
+      <div><label class="form-label">Labour Cost (TZS) *</label><input class="form-input" type="number" id="pkg-labour" required min="0"/></div>
+    </div>
+    <div class="grid grid-cols-2 gap-4 mb-4">
+      <div><label class="form-label">Estimated Hours *</label><input class="form-input" type="number" id="pkg-hours" required min="0.5" step="0.5"/></div>
+      <div></div>
+    </div>
+    <div class="mb-5"><label class="form-label">Description</label><textarea class="form-input" id="pkg-desc" rows="2" placeholder="Brief description of this service package…"></textarea></div>
+    <!-- Parts Section -->
+    <div class="mb-5">
+      <div class="flex items-center justify-between mb-3">
+        <label class="form-label mb-0">Included Parts</label>
+        <button type="button" onclick="pkgAddPartRow()" class="text-xs text-blue-600 font-semibold hover:underline"><i class="fas fa-plus mr-1"></i>Add Part</button>
       </div>
-      <div class="grid grid-cols-2 gap-4 mb-4">
-        <div><label class="form-label">Estimated Hours</label><input class="form-input" type="number" id="pkg-hours" required min="0.5" step="0.5"/></div>
-        <div></div>
+      <div id="pkg-parts-list" class="space-y-2"></div>
+    </div>
+    <div class="flex gap-3 justify-end">
+      <button type="button" class="btn-secondary" onclick="closeModal('modal-newPackage')">Cancel</button>
+      <button type="button" class="btn-primary" id="pkg-save-btn" onclick="submitPackageModal()"><i class="fas fa-save"></i> <span id="pkg-save-label">Save Package</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- New / Edit Car Wash Package Modal -->
+<div id="modal-newCarWash" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:560px">
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h3 class="text-xl font-bold text-gray-900" id="cw-modal-title">New Car Wash Package</h3>
+        <p class="text-sm text-gray-500 mt-1" id="cw-modal-sub">Add a package to the car wash menu</p>
       </div>
-      <div class="mb-4"><label class="form-label">Description</label><textarea class="form-input" id="pkg-desc" rows="2" placeholder="Brief description of this service package…"></textarea></div>
-      <div class="flex gap-3 justify-end">
-        <button type="button" class="btn-secondary" onclick="closeModal('modal-newPackage')">Cancel</button>
-        <button type="submit" class="btn-primary"><i class="fas fa-save"></i> Save Package</button>
+      <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-newCarWash')"><i class="fas fa-times"></i></button>
+    </div>
+    <input type="hidden" id="cw-edit-id"/>
+    <div class="grid grid-cols-2 gap-4 mb-4">
+      <div>
+        <label class="form-label">Package Name *</label>
+        <input class="form-input" id="cw-name" placeholder="e.g. Interior & Exterior"/>
       </div>
-    </form>
+      <div>
+        <label class="form-label">Type *</label>
+        <select class="form-input" id="cw-type">
+          <option value="Standard">Standard Wash</option>
+          <option value="AddOn">Add-On Service</option>
+          <option value="DeepClean">Deep Clean</option>
+          <option value="Monthly">Monthly Fleet Plan</option>
+        </select>
+      </div>
+    </div>
+    <div class="grid grid-cols-2 gap-4 mb-4">
+      <div>
+        <label class="form-label">Price (TZS) <span class="text-gray-400 font-normal">0 = Quote</span></label>
+        <input class="form-input" type="number" id="cw-price" min="0" placeholder="0"/>
+      </div>
+      <div id="cw-vehicle-count-wrap">
+        <label class="form-label">Vehicle Count <span class="text-gray-400 font-normal">(Monthly only)</span></label>
+        <input class="form-input" type="number" id="cw-vehicles" min="1" placeholder="e.g. 5"/>
+      </div>
+    </div>
+    <div class="mb-4">
+      <label class="form-label">Description</label>
+      <textarea class="form-input" id="cw-desc" rows="2" placeholder="Brief description…"></textarea>
+    </div>
+    <div class="mb-5">
+      <label class="form-label">What's Included <span class="text-gray-400 font-normal">(comma-separated)</span></label>
+      <input class="form-input" id="cw-includes" placeholder="e.g. Exterior wash, Interior vacuum, Dashboard wipe"/>
+    </div>
+    <div class="flex gap-3 justify-end">
+      <button type="button" class="btn-secondary" onclick="closeModal('modal-newCarWash')">Cancel</button>
+      <button type="button" class="btn-primary" onclick="submitCarWashModal()"><i class="fas fa-save"></i> <span id="cw-save-label">Save Package</span></button>
+    </div>
   </div>
 </div>
 
@@ -3227,14 +3291,18 @@ async function loadPackages() {
   const { data } = await axios.get('/api/packages');
   allPackages = data;
   document.getElementById('packagesGrid').innerHTML = data.map(pkg => \`
-    <div class="card p-5">
+    <div class="card p-5 flex flex-col">
       <div class="flex items-start gap-3 mb-4">
-        <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center">
+        <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center flex-shrink-0">
           <i class="fas fa-box-open text-white"></i>
         </div>
-        <div>
+        <div class="flex-1 min-w-0">
           <h3 class="font-bold text-gray-900">\${pkg.packageName}</h3>
           <p class="text-xs text-gray-400">\${pkg.estimatedHours}h estimated</p>
+        </div>
+        <div class="flex gap-1 flex-shrink-0">
+          <button onclick="showEditPackageModal('\${pkg.id}')" title="Edit" class="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center transition-colors"><i class="fas fa-pen text-xs"></i></button>
+          <button onclick="deletePackage('\${pkg.id}',this.dataset.name)" data-name="\${pkg.packageName}" title="Delete" class="w-7 h-7 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center transition-colors"><i class="fas fa-trash text-xs"></i></button>
         </div>
       </div>
       <p class="text-sm text-gray-600 mb-4">\${pkg.description||'—'}</p>
@@ -3244,7 +3312,7 @@ async function loadPackages() {
           \${pkg.parts.map(p => \`<div class="flex justify-between text-xs py-1"><span>\${p.name} x\${p.quantity}</span><span class="text-gray-500">\${fmt(p.unitCost)}</span></div>\`).join('')}
         </div>
       \` : ''}
-      <div class="flex items-center justify-between border-t pt-3">
+      <div class="flex items-center justify-between border-t pt-3 mt-auto">
         <span class="text-xs text-gray-500">Labour Cost</span>
         <span class="font-bold text-blue-600">\${fmt(pkg.labourCost)}</span>
       </div>
@@ -3252,16 +3320,157 @@ async function loadPackages() {
   \`).join('');
 }
 
-function showNewPackageModal() { openModal('modal-newPackage'); }
+// ─── Package Modal helpers ────────────────────────────────────────────────────
+let _pkgParts = [];
 
-async function submitNewPackage(e) {
-  e.preventDefault();
-  const payload = { packageName:document.getElementById('pkg-name').value, description:document.getElementById('pkg-desc').value, labourCost:+document.getElementById('pkg-labour').value, estimatedHours:+document.getElementById('pkg-hours').value, parts:[] };
-  await axios.post('/api/packages', payload);
+function pkgAddPartRow(name='', qty=1, cost=0) {
+  const idx = _pkgParts.length;
+  _pkgParts.push({ name, quantity: qty, unitCost: cost });
+  const list = document.getElementById('pkg-parts-list');
+  const row = document.createElement('div');
+  row.className = 'flex gap-2 items-center pkg-part-row';
+  row.dataset.idx = idx;
+  row.innerHTML = \`
+    <input class="form-input flex-1 text-sm" placeholder="Part name" value="\${name}" oninput="pkgUpdatePart(\${idx},'name',this.value)"/>
+    <input class="form-input w-16 text-sm text-center" type="number" min="1" placeholder="Qty" value="\${qty}" oninput="pkgUpdatePart(\${idx},'quantity',+this.value)"/>
+    <input class="form-input w-28 text-sm" type="number" min="0" placeholder="Unit cost" value="\${cost||''}" oninput="pkgUpdatePart(\${idx},'unitCost',+this.value)"/>
+    <button type="button" onclick="pkgRemovePart(\${idx},this)" class="w-7 h-7 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center flex-shrink-0"><i class="fas fa-times text-xs"></i></button>
+  \`;
+  list.appendChild(row);
+}
+
+function pkgUpdatePart(idx, field, val) { if (_pkgParts[idx]) _pkgParts[idx][field] = val; }
+function pkgRemovePart(idx, btn) { btn.closest('.pkg-part-row').remove(); _pkgParts[idx] = null; }
+
+function showNewPackageModal() {
+  document.getElementById('pkg-modal-title').textContent = 'New Service Package';
+  document.getElementById('pkg-modal-sub').textContent = 'Create a new service bundle';
+  document.getElementById('pkg-save-label').textContent = 'Save Package';
+  document.getElementById('pkg-edit-id').value = '';
+  document.getElementById('pkg-name').value = '';
+  document.getElementById('pkg-labour').value = '';
+  document.getElementById('pkg-hours').value = '';
+  document.getElementById('pkg-desc').value = '';
+  document.getElementById('pkg-parts-list').innerHTML = '';
+  _pkgParts = [];
+  openModal('modal-newPackage');
+}
+
+function showEditPackageModal(id) {
+  const pkg = allPackages.find(p => p.id === id);
+  if (!pkg) return;
+  document.getElementById('pkg-modal-title').textContent = 'Edit Service Package';
+  document.getElementById('pkg-modal-sub').textContent = 'Update package details';
+  document.getElementById('pkg-save-label').textContent = 'Save Changes';
+  document.getElementById('pkg-edit-id').value = pkg.id;
+  document.getElementById('pkg-name').value = pkg.packageName;
+  document.getElementById('pkg-labour').value = pkg.labourCost;
+  document.getElementById('pkg-hours').value = pkg.estimatedHours;
+  document.getElementById('pkg-desc').value = pkg.description || '';
+  document.getElementById('pkg-parts-list').innerHTML = '';
+  _pkgParts = [];
+  (pkg.parts || []).forEach(p => pkgAddPartRow(p.name, p.quantity, p.unitCost));
+  openModal('modal-newPackage');
+}
+
+async function submitPackageModal() {
+  const name = document.getElementById('pkg-name').value.trim();
+  const labour = +document.getElementById('pkg-labour').value;
+  const hours = +document.getElementById('pkg-hours').value;
+  const desc = document.getElementById('pkg-desc').value.trim();
+  const editId = document.getElementById('pkg-edit-id').value;
+  if (!name) { showToast('Package name is required', 'error'); return; }
+  if (!labour || labour <= 0) { showToast('Please enter a labour cost', 'error'); return; }
+  const parts = _pkgParts.filter(p => p && p.name);
+  const payload = { packageName: name, description: desc, labourCost: labour, estimatedHours: hours || 1, parts };
+  if (editId) {
+    const { data } = await axios.put('/api/packages/' + editId, payload);
+    const idx = allPackages.findIndex(p => p.id === editId);
+    if (idx !== -1) allPackages[idx] = data;
+    showToast('Package updated successfully');
+  } else {
+    await axios.post('/api/packages', payload);
+    showToast('Service package created');
+  }
   closeModal('modal-newPackage');
-  document.getElementById('newPackageForm').reset();
-  showToast('Service package created');
   loadPackages();
+}
+
+// Keep old submitNewPackage for backward-compat (modal now uses submitPackageModal)
+async function submitNewPackage(e) { e && e.preventDefault(); await submitPackageModal(); }
+
+async function deletePackage(id, name) {
+  if (!confirm('Delete package "' + name + '"? This cannot be undone.')) return;
+  await axios.delete('/api/packages/' + id);
+  showToast('Package deleted');
+  loadPackages();
+}
+
+// ─── Car Wash Modal helpers ───────────────────────────────────────────────────
+let allCarWash = [];
+
+function showNewCarWashModal() {
+  document.getElementById('cw-modal-title').textContent = 'New Car Wash Package';
+  document.getElementById('cw-modal-sub').textContent = 'Add a package to the car wash menu';
+  document.getElementById('cw-save-label').textContent = 'Save Package';
+  document.getElementById('cw-edit-id').value = '';
+  document.getElementById('cw-name').value = '';
+  document.getElementById('cw-type').value = 'Standard';
+  document.getElementById('cw-price').value = '';
+  document.getElementById('cw-vehicles').value = '';
+  document.getElementById('cw-desc').value = '';
+  document.getElementById('cw-includes').value = '';
+  openModal('modal-newCarWash');
+}
+
+function showEditCarWashModal(id) {
+  const pkg = allCarWash.find(p => p.id === id);
+  if (!pkg) return;
+  document.getElementById('cw-modal-title').textContent = 'Edit Car Wash Package';
+  document.getElementById('cw-modal-sub').textContent = 'Update package details';
+  document.getElementById('cw-save-label').textContent = 'Save Changes';
+  document.getElementById('cw-edit-id').value = pkg.id;
+  document.getElementById('cw-name').value = pkg.name;
+  document.getElementById('cw-type').value = pkg.type;
+  document.getElementById('cw-price').value = pkg.price || '';
+  document.getElementById('cw-vehicles').value = pkg.vehicleCount || '';
+  document.getElementById('cw-desc').value = pkg.description || '';
+  document.getElementById('cw-includes').value = (pkg.includes || []).join(', ');
+  openModal('modal-newCarWash');
+}
+
+async function submitCarWashModal() {
+  const name = document.getElementById('cw-name').value.trim();
+  const type = document.getElementById('cw-type').value;
+  const price = +document.getElementById('cw-price').value || 0;
+  const vehicles = +document.getElementById('cw-vehicles').value || undefined;
+  const desc = document.getElementById('cw-desc').value.trim();
+  const includesRaw = document.getElementById('cw-includes').value.trim();
+  const includes = includesRaw ? includesRaw.split(',').map(s => s.trim()).filter(Boolean) : undefined;
+  const editId = document.getElementById('cw-edit-id').value;
+  if (!name) { showToast('Package name is required', 'error'); return; }
+  const payload = { name, type, price, description: desc, ...(includes?.length ? { includes } : {}), ...(vehicles ? { vehicleCount: vehicles } : {}) };
+  if (editId) {
+    const { data } = await axios.put('/api/catalogue/carwash/' + editId, payload);
+    const idx = allCarWash.findIndex(p => p.id === editId);
+    if (idx !== -1) allCarWash[idx] = data;
+    renderCarWashGrid(allCarWash);
+    showToast('Package updated successfully');
+  } else {
+    const { data } = await axios.post('/api/catalogue/carwash', payload);
+    allCarWash.push(data);
+    renderCarWashGrid(allCarWash);
+    showToast('Car wash package created');
+  }
+  closeModal('modal-newCarWash');
+}
+
+async function deleteCarWash(id, name) {
+  if (!confirm('Delete "' + name + '"? This cannot be undone.')) return;
+  await axios.delete('/api/catalogue/carwash/' + id);
+  allCarWash = allCarWash.filter(p => p.id !== id);
+  renderCarWashGrid(allCarWash);
+  showToast('Package deleted');
 }
 
 // ═══ ANALYTICS ═══
@@ -3652,6 +3861,11 @@ async function submitRestock() {
 // ═══ CAR WASH ═══
 async function loadCarWash() {
   const { data } = await axios.get('/api/catalogue/carwash');
+  allCarWash = data;
+  renderCarWashGrid(data);
+}
+
+function renderCarWashGrid(data) {
   const groups = { Standard: [], AddOn: [], DeepClean: [], Monthly: [] };
   data.forEach(p => { if (groups[p.type]) groups[p.type].push(p); });
   const groupConfig = [
@@ -3662,26 +3876,32 @@ async function loadCarWash() {
   ];
   document.getElementById('carWashGrid').innerHTML = groupConfig.map(cfg => \`
     <div class="card p-5">
-      <div class="flex items-center gap-3 mb-5">
-        <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:\${cfg.color}20">
-          <i class="fas \${cfg.icon}" style="color:\${cfg.color}"></i>
+      <div class="flex items-center justify-between gap-3 mb-5">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:\${cfg.color}20">
+            <i class="fas \${cfg.icon}" style="color:\${cfg.color}"></i>
+          </div>
+          <div><h3 class="font-bold text-gray-900">\${cfg.title}</h3><p class="text-xs text-gray-400">\${cfg.desc}</p></div>
         </div>
-        <div><h3 class="font-bold text-gray-900">\${cfg.title}</h3><p class="text-xs text-gray-400">\${cfg.desc}</p></div>
       </div>
-      <div class="space-y-3">
+      <div class="space-y-2">
         \${(groups[cfg.type] || []).map(pkg => \`
-          <div class="flex items-start justify-between p-3 rounded-xl hover:bg-gray-50 border border-gray-100 transition-colors">
-            <div class="flex-1 pr-3">
+          <div class="group flex items-start gap-2 p-3 rounded-xl hover:bg-gray-50 border border-gray-100 transition-colors">
+            <div class="flex-1 min-w-0 pr-1">
               <p class="font-semibold text-gray-800 text-sm">\${pkg.name}</p>
               <p class="text-xs text-gray-500 mt-0.5">\${pkg.description}</p>
               \${pkg.includes ? \`<div class="flex flex-wrap gap-1 mt-2">\${pkg.includes.map(i => \`<span class="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full">\${i}</span>\`).join('')}</div>\` : ''}
               \${pkg.vehicleCount ? \`<p class="text-xs text-blue-600 font-semibold mt-1"><i class="fas fa-car mr-1"></i>\${pkg.vehicleCount} vehicles</p>\` : ''}
             </div>
-            <div class="text-right flex-shrink-0">
-              \${pkg.price > 0 ? \`<p class="font-bold text-gray-900 text-sm">\${fmt(pkg.price)}</p><p class="text-xs text-gray-400">\${pkg.vehicleCount ? '/month' : '/visit'}</p>\` : \`<span class="text-xs font-semibold text-blue-500 bg-blue-50 px-2 py-1 rounded-lg">Quote</span>\`}
+            <div class="flex items-center gap-1 flex-shrink-0">
+              <div class="text-right mr-1">
+                \${pkg.price > 0 ? \`<p class="font-bold text-gray-900 text-sm">\${fmt(pkg.price)}</p><p class="text-xs text-gray-400">\${pkg.vehicleCount ? '/month' : '/visit'}</p>\` : \`<span class="text-xs font-semibold text-blue-500 bg-blue-50 px-2 py-1 rounded-lg">Quote</span>\`}
+              </div>
+              <button onclick="showEditCarWashModal('\${pkg.id}')" title="Edit" class="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center transition-colors flex-shrink-0"><i class="fas fa-pen text-xs"></i></button>
+              <button onclick="deleteCarWash('\${pkg.id}',this.dataset.name)" data-name="\${pkg.name}" title="Delete" class="w-7 h-7 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center transition-colors flex-shrink-0"><i class="fas fa-trash text-xs"></i></button>
             </div>
           </div>
-        \`).join('') || \`<p class="text-center text-gray-300 py-4 text-sm">No items</p>\`}
+        \`).join('') || \`<p class="text-center text-gray-300 py-4 text-sm">No items in this category</p>\`}
       </div>
     </div>
   \`).join('');
