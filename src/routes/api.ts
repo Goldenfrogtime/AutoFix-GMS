@@ -339,6 +339,23 @@ api.get('/catalogue/parts/categories', (c) => {
   return c.json(cats)
 })
 
+// Add a new part to the catalogue
+api.post('/catalogue/parts', async (c) => {
+  const body = await c.req.json<Omit<CataloguePart, 'id'>>()
+  const newPart: CataloguePart = {
+    id: 'cp' + genId(),
+    category: body.category,
+    description: body.description,
+    compatibleModels: body.compatibleModels || '',
+    buyingPrice: Number(body.buyingPrice) || 0,
+    sellingPrice: Number(body.sellingPrice) || 0,
+    margin: Number(body.sellingPrice || 0) - Number(body.buyingPrice || 0),
+    stockQuantity: Number(body.stockQuantity) || 0,
+  }
+  catalogueParts.push(newPart)
+  return c.json(newPart, 201)
+})
+
 api.put('/catalogue/parts/:id', async (c) => {
   const idx = catalogueParts.findIndex(p => p.id === c.req.param('id'))
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
@@ -355,6 +372,16 @@ api.patch('/catalogue/parts/:id/deduct', async (c) => {
   const current = catalogueParts[idx].stockQuantity ?? 0
   if (current < quantity) return c.json({ error: 'Insufficient stock', available: current }, 409)
   catalogueParts[idx] = { ...catalogueParts[idx], stockQuantity: current - quantity }
+  return c.json(catalogueParts[idx])
+})
+
+// Restock: add units to a catalogue part
+api.patch('/catalogue/parts/:id/restock', async (c) => {
+  const idx = catalogueParts.findIndex(p => p.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const { quantity } = await c.req.json<{ quantity: number }>()
+  const current = catalogueParts[idx].stockQuantity ?? 0
+  catalogueParts[idx] = { ...catalogueParts[idx], stockQuantity: current + Number(quantity) }
   return c.json(catalogueParts[idx])
 })
 

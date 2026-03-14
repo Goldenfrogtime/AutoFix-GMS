@@ -71,6 +71,9 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 .search-input{padding:9px 13px 9px 38px;border:1.5px solid #e2e8f0;border-radius:10px;outline:none;font-size:.9rem;width:260px;transition:border-color .2s}
 .search-input:focus{border-color:#3b82f6;width:320px}
 .tag{display:inline-block;padding:2px 8px;border-radius:6px;font-size:.75rem;font-weight:600}
+.parts-cat-tab{padding:6px 16px;border-radius:99px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;font-size:.82rem;font-weight:600;cursor:pointer;transition:all .18s}
+.parts-cat-tab:hover{border-color:#3b82f6;color:#2563eb;background:#eff6ff}
+.parts-cat-tab.active{background:#2563eb;color:#fff;border-color:#2563eb}
 </style>
 </head>
 <body>
@@ -562,7 +565,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 
     <!-- ═══ PARTS CATALOGUE ═══ -->
     <div id="page-parts-catalogue" class="page">
-      <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div>
           <h2 class="text-2xl font-bold text-gray-900">Parts & Accessories Catalogue</h2>
           <p class="text-gray-500 text-sm mt-1">Complete Twiga Group parts list with buying price, selling price & margin</p>
@@ -572,16 +575,20 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
             <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
             <input class="search-input" type="text" placeholder="Search parts or models…" id="partsSearch" oninput="filterParts(this.value)"/>
           </div>
-          <select class="form-input w-auto" id="partsCategoryFilter" onchange="filterParts()">
-            <option value="">All Categories</option>
-            <option>Air Filter</option>
-            <option>AC Filter</option>
-            <option>Oil Filter</option>
-            <option>Diesel Filter</option>
-            <option>Spark Plugs</option>
-            <option>Accessory</option>
-          </select>
+          <button onclick="showAddCataloguePartModal()" class="btn-primary flex items-center gap-2">
+            <i class="fas fa-plus"></i> Add Part
+          </button>
         </div>
+      </div>
+      <!-- Category tabs -->
+      <div class="flex flex-wrap gap-2 mb-5" id="partsCategoryTabs">
+        <button onclick="setPartsCategoryTab('')" class="parts-cat-tab active" data-cat="">All</button>
+        <button onclick="setPartsCategoryTab('Air Filter')" class="parts-cat-tab" data-cat="Air Filter">Air Filter</button>
+        <button onclick="setPartsCategoryTab('AC Filter')" class="parts-cat-tab" data-cat="AC Filter">AC Filter</button>
+        <button onclick="setPartsCategoryTab('Oil Filter')" class="parts-cat-tab" data-cat="Oil Filter">Oil Filter</button>
+        <button onclick="setPartsCategoryTab('Diesel Filter')" class="parts-cat-tab" data-cat="Diesel Filter">Diesel Filter</button>
+        <button onclick="setPartsCategoryTab('Spark Plugs')" class="parts-cat-tab" data-cat="Spark Plugs">Spark Plugs</button>
+        <button onclick="setPartsCategoryTab('Accessory')" class="parts-cat-tab" data-cat="Accessory">Accessory</button>
       </div>
       <!-- Stats row -->
       <div class="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-5" id="partsStats"></div>
@@ -597,6 +604,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
             <th class="text-right px-4 py-3 font-semibold text-gray-600">Margin</th>
             <th class="text-right px-4 py-3 font-semibold text-gray-600">Margin %</th>
             <th class="text-right px-4 py-3 font-semibold text-gray-600">In Stock</th>
+            <th class="text-center px-4 py-3 font-semibold text-gray-600">Actions</th>
           </tr></thead>
           <tbody id="partsTable"></tbody>
         </table>
@@ -1031,6 +1039,149 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-statusUpdate')"><i class="fas fa-times"></i></button>
     </div>
     <div id="statusUpdateContent"></div>
+  </div>
+</div>
+
+<!-- ═══ ADD CATALOGUE PART MODAL ═══ -->
+<div id="modal-addCatPart" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:560px">
+    <div class="flex items-center justify-between mb-6">
+      <div><h3 class="text-xl font-bold text-gray-900"><i class="fas fa-plus-circle text-blue-600 mr-2"></i>Add New Part</h3>
+        <p class="text-sm text-gray-500 mt-1">Add a new part to the catalogue</p></div>
+      <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-addCatPart')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="grid grid-cols-1 gap-4">
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="form-label">Category *</label>
+          <select class="form-input" id="acp-category">
+            <option value="">Select category…</option>
+            <option>Air Filter</option>
+            <option>AC Filter</option>
+            <option>Oil Filter</option>
+            <option>Diesel Filter</option>
+            <option>Spark Plugs</option>
+            <option>Accessory</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Description *</label>
+          <input class="form-input" type="text" id="acp-description" placeholder="e.g. Air Filter – Toyota Hilux"/>
+        </div>
+      </div>
+      <div>
+        <label class="form-label">Compatible Models <span class="text-gray-400 font-normal">(comma-separated)</span></label>
+        <input class="form-input" type="text" id="acp-models" placeholder="e.g. HILUX, PRADO, FORTUNER"/>
+      </div>
+      <div class="grid grid-cols-3 gap-4">
+        <div>
+          <label class="form-label">Buying Price (TZS) *</label>
+          <input class="form-input" type="number" id="acp-buy" placeholder="0" oninput="acpCalcMargin()"/>
+        </div>
+        <div>
+          <label class="form-label">Selling Price (TZS) *</label>
+          <input class="form-input" type="number" id="acp-sell" placeholder="0" oninput="acpCalcMargin()"/>
+        </div>
+        <div>
+          <label class="form-label">Initial Stock (units)</label>
+          <input class="form-input" type="number" id="acp-stock" placeholder="0" min="0"/>
+        </div>
+      </div>
+      <!-- Margin preview -->
+      <div id="acp-margin-preview" class="hidden rounded-xl p-3 bg-gray-50 border border-gray-100 text-sm flex items-center gap-4">
+        <span class="text-gray-500">Margin:</span>
+        <span id="acp-margin-amt" class="font-bold text-green-600"></span>
+        <span id="acp-margin-pct" class="font-bold text-blue-600"></span>
+      </div>
+    </div>
+    <div class="flex gap-3 mt-6">
+      <button class="btn-secondary flex-1" onclick="closeModal('modal-addCatPart')">Cancel</button>
+      <button class="btn-primary flex-1" onclick="submitAddCatPart()"><i class="fas fa-plus mr-1"></i>Add Part</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ EDIT CATALOGUE PART MODAL ═══ -->
+<div id="modal-editCatPart" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:560px">
+    <div class="flex items-center justify-between mb-6">
+      <div><h3 class="text-xl font-bold text-gray-900"><i class="fas fa-pen text-blue-600 mr-2"></i>Edit Part</h3>
+        <p class="text-sm text-gray-500 mt-1">Update part details and pricing</p></div>
+      <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-editCatPart')"><i class="fas fa-times"></i></button>
+    </div>
+    <input type="hidden" id="ecp-id"/>
+    <div class="grid grid-cols-1 gap-4">
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="form-label">Category *</label>
+          <select class="form-input" id="ecp-category">
+            <option>Air Filter</option>
+            <option>AC Filter</option>
+            <option>Oil Filter</option>
+            <option>Diesel Filter</option>
+            <option>Spark Plugs</option>
+            <option>Accessory</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Description *</label>
+          <input class="form-input" type="text" id="ecp-description"/>
+        </div>
+      </div>
+      <div>
+        <label class="form-label">Compatible Models <span class="text-gray-400 font-normal">(comma-separated)</span></label>
+        <input class="form-input" type="text" id="ecp-models"/>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="form-label">Buying Price (TZS) *</label>
+          <input class="form-input" type="number" id="ecp-buy" oninput="ecpCalcMargin()"/>
+        </div>
+        <div>
+          <label class="form-label">Selling Price (TZS) *</label>
+          <input class="form-input" type="number" id="ecp-sell" oninput="ecpCalcMargin()"/>
+        </div>
+      </div>
+      <div id="ecp-margin-preview" class="rounded-xl p-3 bg-gray-50 border border-gray-100 text-sm flex items-center gap-4">
+        <span class="text-gray-500">Margin:</span>
+        <span id="ecp-margin-amt" class="font-bold text-green-600"></span>
+        <span id="ecp-margin-pct" class="font-bold text-blue-600"></span>
+      </div>
+    </div>
+    <div class="flex gap-3 mt-6">
+      <button class="btn-secondary flex-1" onclick="closeModal('modal-editCatPart')">Cancel</button>
+      <button class="btn-primary flex-1" onclick="submitEditCatPart()"><i class="fas fa-save mr-1"></i>Save Changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ RESTOCK MODAL ═══ -->
+<div id="modal-restock" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:400px">
+    <div class="flex items-center justify-between mb-6">
+      <div><h3 class="text-xl font-bold text-gray-900"><i class="fas fa-boxes text-green-600 mr-2"></i>Add Stock</h3>
+        <p class="text-sm text-gray-500 mt-1" id="restock-part-name"></p></div>
+      <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-restock')"><i class="fas fa-times"></i></button>
+    </div>
+    <input type="hidden" id="restock-id"/>
+    <div class="mb-2">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-sm text-gray-500">Current stock:</span>
+        <span class="font-bold text-gray-800" id="restock-current"></span>
+      </div>
+    </div>
+    <div>
+      <label class="form-label">Units to Add *</label>
+      <input class="form-input text-lg font-bold text-center" type="number" id="restock-qty" min="1" placeholder="0"/>
+    </div>
+    <div class="flex items-center justify-between mt-3 rounded-xl p-3 bg-green-50 border border-green-100 text-sm hidden" id="restock-preview">
+      <span class="text-gray-600">New stock level:</span>
+      <span class="font-bold text-green-700 text-lg" id="restock-new-total"></span>
+    </div>
+    <div class="flex gap-3 mt-6">
+      <button class="btn-secondary flex-1" onclick="closeModal('modal-restock')">Cancel</button>
+      <button class="btn-primary flex-1" onclick="submitRestock()"><i class="fas fa-plus mr-1"></i>Add Stock</button>
+    </div>
   </div>
 </div>
 
@@ -3346,14 +3497,29 @@ function renderPartsTable(parts) {
               : \`<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700"><i class="fas fa-check"></i>\${p.stockQuantity}</span>\`
           }
         </td>
+        <td class="px-4 py-3 text-center">
+          <div class="flex items-center justify-center gap-1">
+            <button onclick="showEditCataloguePartModal('\${p.id}')" title="Edit part" class="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center transition-colors"><i class="fas fa-pen text-xs"></i></button>
+            <button onclick="showRestockModal('\${p.id}')" title="Add stock" class="w-7 h-7 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 flex items-center justify-center transition-colors"><i class="fas fa-plus text-xs"></i></button>
+          </div>
+        </td>
       </tr>
     \`;
   }).join('');
 }
 
+let _activeCatTab = '';
+function setPartsCategoryTab(cat) {
+  _activeCatTab = cat;
+  document.querySelectorAll('.parts-cat-tab').forEach(function(btn) {
+    btn.classList.toggle('active', btn.getAttribute('data-cat') === cat);
+  });
+  filterParts();
+}
+
 function filterParts(search) {
   const q = (search !== undefined ? search : (document.getElementById('partsSearch')?.value || '')).toLowerCase();
-  const cat = document.getElementById('partsCategoryFilter')?.value || '';
+  const cat = _activeCatTab;
   let filtered = allParts;
   if (cat) filtered = filtered.filter(p => p.category === cat);
   if (q) filtered = filtered.filter(p =>
@@ -3362,6 +3528,125 @@ function filterParts(search) {
   );
   renderPartsStats(filtered);
   renderPartsTable(filtered);
+}
+
+// ─── Add Catalogue Part ───────────────────────────────────────────────────────
+function showAddCataloguePartModal() {
+  document.getElementById('acp-category').value = '';
+  document.getElementById('acp-description').value = '';
+  document.getElementById('acp-models').value = '';
+  document.getElementById('acp-buy').value = '';
+  document.getElementById('acp-sell').value = '';
+  document.getElementById('acp-stock').value = '0';
+  document.getElementById('acp-margin-preview').classList.add('hidden');
+  openModal('modal-addCatPart');
+}
+function acpCalcMargin() {
+  const buy = parseFloat(document.getElementById('acp-buy').value) || 0;
+  const sell = parseFloat(document.getElementById('acp-sell').value) || 0;
+  const margin = sell - buy;
+  const pct = sell > 0 ? Math.round((margin / sell) * 100) : 0;
+  const el = document.getElementById('acp-margin-preview');
+  if (buy > 0 || sell > 0) {
+    el.classList.remove('hidden');
+    document.getElementById('acp-margin-amt').textContent = 'TZS ' + fmt(margin);
+    document.getElementById('acp-margin-pct').textContent = pct + '%';
+  } else {
+    el.classList.add('hidden');
+  }
+}
+async function submitAddCatPart() {
+  const cat = document.getElementById('acp-category').value.trim();
+  const desc = document.getElementById('acp-description').value.trim();
+  const buy = parseFloat(document.getElementById('acp-buy').value) || 0;
+  const sell = parseFloat(document.getElementById('acp-sell').value) || 0;
+  const stock = parseInt(document.getElementById('acp-stock').value) || 0;
+  const models = document.getElementById('acp-models').value.trim();
+  if (!cat) { showToast('Please select a category', 'error'); return; }
+  if (!desc) { showToast('Please enter a description', 'error'); return; }
+  if (sell <= 0) { showToast('Please enter a selling price', 'error'); return; }
+  const { data } = await axios.post('/api/catalogue/parts', {
+    category: cat, description: desc, compatibleModels: models,
+    buyingPrice: buy, sellingPrice: sell, stockQuantity: stock
+  });
+  allParts.push(data);
+  closeModal('modal-addCatPart');
+  filterParts();
+  showToast('Part added to catalogue');
+}
+
+// ─── Edit Catalogue Part ──────────────────────────────────────────────────────
+function showEditCataloguePartModal(id) {
+  const p = allParts.find(x => x.id === id);
+  if (!p) return;
+  document.getElementById('ecp-id').value = p.id;
+  document.getElementById('ecp-category').value = p.category;
+  document.getElementById('ecp-description').value = p.description;
+  document.getElementById('ecp-models').value = p.compatibleModels;
+  document.getElementById('ecp-buy').value = p.buyingPrice;
+  document.getElementById('ecp-sell').value = p.sellingPrice;
+  ecpCalcMargin();
+  openModal('modal-editCatPart');
+}
+function ecpCalcMargin() {
+  const buy = parseFloat(document.getElementById('ecp-buy').value) || 0;
+  const sell = parseFloat(document.getElementById('ecp-sell').value) || 0;
+  const margin = sell - buy;
+  const pct = sell > 0 ? Math.round((margin / sell) * 100) : 0;
+  document.getElementById('ecp-margin-amt').textContent = 'TZS ' + fmt(margin);
+  document.getElementById('ecp-margin-pct').textContent = pct + '%';
+}
+async function submitEditCatPart() {
+  const id = document.getElementById('ecp-id').value;
+  const cat = document.getElementById('ecp-category').value.trim();
+  const desc = document.getElementById('ecp-description').value.trim();
+  const buy = parseFloat(document.getElementById('ecp-buy').value) || 0;
+  const sell = parseFloat(document.getElementById('ecp-sell').value) || 0;
+  const models = document.getElementById('ecp-models').value.trim();
+  if (!desc || sell <= 0) { showToast('Please fill in required fields', 'error'); return; }
+  const margin = sell - buy;
+  const { data } = await axios.put('/api/catalogue/parts/' + id, {
+    category: cat, description: desc, compatibleModels: models,
+    buyingPrice: buy, sellingPrice: sell, margin
+  });
+  const idx = allParts.findIndex(x => x.id === id);
+  if (idx !== -1) allParts[idx] = { ...allParts[idx], ...data };
+  closeModal('modal-editCatPart');
+  filterParts();
+  showToast('Part updated successfully');
+}
+
+// ─── Restock Modal ────────────────────────────────────────────────────────────
+function showRestockModal(id) {
+  const p = allParts.find(x => x.id === id);
+  if (!p) return;
+  document.getElementById('restock-id').value = p.id;
+  document.getElementById('restock-part-name').textContent = p.description;
+  document.getElementById('restock-current').textContent = (p.stockQuantity || 0) + ' units';
+  document.getElementById('restock-qty').value = '';
+  document.getElementById('restock-preview').classList.add('hidden');
+  document.getElementById('restock-qty').oninput = function() {
+    const qty = parseInt(this.value) || 0;
+    const prev = document.getElementById('restock-preview');
+    if (qty > 0) {
+      prev.classList.remove('hidden');
+      document.getElementById('restock-new-total').textContent = ((p.stockQuantity || 0) + qty) + ' units';
+    } else {
+      prev.classList.add('hidden');
+    }
+  };
+  openModal('modal-restock');
+}
+async function submitRestock() {
+  const id = document.getElementById('restock-id').value;
+  const qty = parseInt(document.getElementById('restock-qty').value) || 0;
+  if (qty <= 0) { showToast('Enter a valid quantity', 'error'); return; }
+  const { data } = await axios.patch('/api/catalogue/parts/' + id + '/restock', { quantity: qty });
+  const idx = allParts.findIndex(x => x.id === id);
+  if (idx !== -1) allParts[idx] = { ...allParts[idx], stockQuantity: data.stockQuantity };
+  closeModal('modal-restock');
+  filterParts();
+  showToast('Stock updated – ' + data.stockQuantity + ' units now in stock');
 }
 
 // ═══ CAR WASH ═══
