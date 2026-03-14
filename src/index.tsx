@@ -74,10 +74,38 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 .parts-cat-tab{padding:6px 16px;border-radius:99px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;font-size:.82rem;font-weight:600;cursor:pointer;transition:all .18s}
 .parts-cat-tab:hover{border-color:#3b82f6;color:#2563eb;background:#eff6ff}
 .parts-cat-tab.active{background:#2563eb;color:#fff;border-color:#2563eb}
+/* ── Responsive ── */
+@media(max-width:1023px){
+  .sidebar{position:fixed;top:0;left:0;height:100vh;-webkit-transform:translateX(-100%);transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  #sidebar-backdrop{display:block!important}
+}
+.modal-box{padding:20px}
+@media(min-width:640px){.modal-box{padding:28px}}
+.search-input{width:100%}
+@media(min-width:640px){.search-input{width:260px}}
+@media(min-width:640px){.search-input:focus{width:320px}}
+.table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.btn-primary,.btn-secondary,.btn-danger{white-space:nowrap}
+/* Page headings responsive */
+@media(max-width:639px){
+  h2.text-2xl{font-size:1.2rem}
+  .job-cards-filters .form-input,.job-cards-filters .search-input{min-width:0;width:100%}
+}
+/* Customer / oil brand tabs horizontal scroll */
+#customerTypeTabs,#oilBrandTabs,#jobStatusStrips{overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+#customerTypeTabs::-webkit-scrollbar,#oilBrandTabs::-webkit-scrollbar,#jobStatusStrips::-webkit-scrollbar{height:3px}
+/* Job detail actions wrap */
+#jobDetailActions{flex-wrap:wrap;gap:6px}
+/* Parts stats 2 cols on xs */
+@media(max-width:639px){#partsStats{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
 <div class="flex h-screen overflow-hidden">
+
+<!-- Sidebar backdrop (mobile) -->
+<div id="sidebar-backdrop" onclick="closeSidebar()" class="fixed inset-0 bg-black/40 z-40 backdrop-blur-sm" style="display:none"></div>
 
 <!-- SIDEBAR -->
 <aside id="sidebar" class="sidebar w-64 flex-shrink-0 flex flex-col text-white overflow-y-auto z-50" style="background:linear-gradient(180deg,#1e3a8a 0%,#1d4ed8 50%,#1e40af 100%)">
@@ -154,44 +182,53 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 <!-- MAIN CONTENT -->
 <main class="flex-1 flex flex-col overflow-hidden">
   <!-- Top Bar -->
-  <header class="bg-white border-b border-gray-100 px-6 py-3 flex items-center justify-between flex-shrink-0">
-    <div class="flex items-center gap-3">
-      <button class="lg:hidden text-gray-500" onclick="toggleSidebar()"><i class="fas fa-bars text-lg"></i></button>
-      <div class="relative hidden sm:block">
+  <header class="bg-white border-b border-gray-100 px-3 sm:px-6 py-3 flex items-center justify-between flex-shrink-0 gap-2">
+    <div class="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+      <button class="lg:hidden text-gray-500 flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-100" onclick="toggleSidebar()"><i class="fas fa-bars text-lg"></i></button>
+      <div class="relative hidden sm:block flex-1 max-w-xs">
         <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
         <input class="search-input" type="text" placeholder="Search jobs, vehicles, customers…" id="globalSearch" oninput="handleGlobalSearch(this.value)"/>
       </div>
+      <!-- Mobile search toggle -->
+      <button class="sm:hidden text-gray-500 w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-100" onclick="toggleMobileSearch()" id="mobileSearchBtn"><i class="fas fa-search"></i></button>
     </div>
-    <div class="flex items-center gap-4">
+    <div class="flex items-center gap-2 sm:gap-4 flex-shrink-0">
       <button class="relative text-gray-500 hover:text-gray-700" title="Notifications">
         <i class="fas fa-bell text-lg"></i>
         <span class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">3</span>
       </button>
-      <button class="btn-primary text-sm" onclick="showNewJobModal()">
-        <i class="fas fa-plus"></i> New Job Card
+      <button class="btn-primary text-sm px-3 sm:px-4" onclick="showNewJobModal()">
+        <i class="fas fa-plus"></i><span class="hidden sm:inline"> New Job Card</span><span class="sm:hidden"> New</span>
       </button>
     </div>
   </header>
+  <!-- Mobile search bar (shown on toggle) -->
+  <div id="mobileSearchBar" class="hidden sm:hidden bg-white border-b border-gray-100 px-3 py-2">
+    <div class="relative">
+      <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+      <input class="search-input pl-9 w-full" type="text" placeholder="Search jobs, vehicles, customers…" id="globalSearchMobile" oninput="handleGlobalSearch(this.value)"/>
+    </div>
+  </div>
 
   <!-- Pages Container -->
-  <div class="flex-1 overflow-y-auto p-6" id="pageContainer">
+  <div class="flex-1 overflow-y-auto p-3 sm:p-6" id="pageContainer">
 
     <!-- ═══ DASHBOARD ═══ -->
     <div id="page-dashboard" class="page active">
-      <div class="flex items-center justify-between mb-6">
+      <div class="flex flex-wrap items-start justify-between gap-3 mb-6">
         <div>
-          <h2 class="text-2xl font-bold text-gray-900">Dashboard</h2>
+          <h2 class="text-xl sm:text-2xl font-bold text-gray-900">Dashboard</h2>
           <p class="text-gray-500 text-sm mt-1">Welcome back, Michael! Here's what's happening today.</p>
         </div>
-        <div class="text-right">
+        <div class="text-right flex-shrink-0">
           <p class="text-xs text-gray-400">Today</p>
           <p class="text-sm font-semibold text-gray-700" id="todayDate"></p>
         </div>
       </div>
       <!-- Stats Grid -->
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6" id="dashStats"></div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6" id="dashStats"></div>
       <!-- Content Grid -->
-      <div class="grid lg:grid-cols-3 gap-6">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2">
           <div class="card p-5 mb-5">
             <div class="flex items-center justify-between mb-4">
@@ -256,8 +293,8 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 
       <!-- Filters bar -->
       <div class="card p-4 mb-5">
-        <div class="flex flex-wrap items-center gap-3">
-          <div class="relative flex-1 min-w-[180px]">
+        <div class="flex flex-wrap items-center gap-2">
+          <div class="relative flex-1 min-w-[160px]">
             <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
             <input class="search-input w-full" type="text" placeholder="Search customer, vehicle, service…" oninput="filterAppointments()" id="apt-search"/>
           </div>
@@ -280,7 +317,8 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <!-- List View -->
       <div id="apt-listView">
         <div class="card overflow-hidden">
-          <table class="w-full text-sm">
+          <div class="table-scroll">
+          <table class="w-full text-sm" style="min-width:640px">
             <thead><tr class="border-b border-gray-100 bg-gray-50">
               <th class="text-left px-4 py-3 font-semibold text-gray-600">Date &amp; Time</th>
               <th class="text-left px-4 py-3 font-semibold text-gray-600">Customer</th>
@@ -293,6 +331,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
             </tr></thead>
             <tbody id="apt-tableBody"></tbody>
           </table>
+          </div>
         </div>
       </div>
 
@@ -329,26 +368,27 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
           <h2 class="text-2xl font-bold text-gray-900">Job Cards</h2>
           <p class="text-gray-500 text-sm mt-1">Manage all repair and service jobs</p>
         </div>
-        <div class="flex items-center gap-3">
-          <div class="relative">
+        <div class="flex flex-wrap items-center gap-2 job-cards-filters w-full sm:w-auto mt-2 sm:mt-0">
+          <div class="relative flex-1 min-w-[150px]">
             <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-            <input class="search-input" type="text" placeholder="Search job cards…" id="jobSearch" oninput="filterJobCards(this.value)"/>
+            <input class="search-input w-full" type="text" placeholder="Search job cards…" id="jobSearch" oninput="filterJobCards(this.value)"/>
           </div>
-          <select class="form-input w-auto" id="jobStatusFilter" onchange="filterJobCards()">
+          <select class="form-input flex-1 min-w-[120px] sm:w-auto" id="jobStatusFilter" onchange="filterJobCards()">
             <option value="">All Statuses</option>
             <option>RECEIVED</option><option>INSPECTION</option><option>PFI_PREPARATION</option>
             <option>AWAITING_INSURER_APPROVAL</option><option>REPAIR_IN_PROGRESS</option>
             <option>WAITING_FOR_PARTS</option><option>QUALITY_CHECK</option>
             <option>COMPLETED</option><option>INVOICED</option><option>RELEASED</option>
           </select>
-          <button class="btn-primary" onclick="showNewJobModal()"><i class="fas fa-plus"></i> New Job</button>
+          <button class="btn-primary flex-shrink-0" onclick="showNewJobModal()"><i class="fas fa-plus"></i> New Job</button>
         </div>
       </div>
       <!-- Kanban-style status strips -->
       <div class="flex gap-2 mb-5 flex-wrap" id="jobStatusStrips"></div>
       <!-- Jobs Table -->
       <div class="card overflow-hidden">
-        <table class="w-full text-sm">
+        <div class="table-scroll">
+        <table class="w-full text-sm" style="min-width:700px">
           <thead><tr class="border-b border-gray-100 bg-gray-50">
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Job #</th>
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Customer / Vehicle</th>
@@ -360,18 +400,19 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
           </tr></thead>
           <tbody id="jobCardsTable"></tbody>
         </table>
+        </div>
       </div>
     </div>
 
     <!-- ═══ JOB DETAIL ═══ -->
     <div id="page-jobdetail" class="page">
-      <div class="flex items-center gap-3 mb-6">
-        <button class="btn-secondary text-sm" onclick="showPage('jobcards')"><i class="fas fa-arrow-left"></i> Back</button>
-        <div class="flex-1">
-          <h2 class="text-2xl font-bold text-gray-900" id="jobDetailTitle">Job Card Detail</h2>
+      <div class="flex flex-wrap items-center gap-2 mb-6">
+        <button class="btn-secondary text-sm flex-shrink-0" onclick="showPage('jobcards')"><i class="fas fa-arrow-left"></i> Back</button>
+        <div class="flex-1 min-w-0">
+          <h2 class="text-xl sm:text-2xl font-bold text-gray-900 truncate" id="jobDetailTitle">Job Card Detail</h2>
           <p class="text-gray-500 text-sm mt-1" id="jobDetailSub"></p>
         </div>
-        <div id="jobDetailActions" class="flex gap-2"></div>
+        <div id="jobDetailActions" class="flex flex-wrap gap-2"></div>
       </div>
       <div id="jobDetailContent"></div>
     </div>
@@ -383,12 +424,12 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
           <h2 class="text-2xl font-bold text-gray-900">Customers</h2>
           <p class="text-gray-500 text-sm mt-1">Manage customer profiles and history</p>
         </div>
-        <div class="flex items-center gap-3">
-          <div class="relative">
+        <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+          <div class="relative flex-1 min-w-[150px]">
             <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-            <input class="search-input" type="text" placeholder="Search customers…" id="customerSearchInput" oninput="filterCustomers(this.value)"/>
+            <input class="search-input w-full" type="text" placeholder="Search customers…" id="customerSearchInput" oninput="filterCustomers(this.value)"/>
           </div>
-          <button class="btn-primary" onclick="showNewCustomerModal()"><i class="fas fa-user-plus"></i> Add Customer</button>
+          <button class="btn-primary flex-shrink-0" onclick="showNewCustomerModal()"><i class="fas fa-user-plus"></i> Add Customer</button>
         </div>
       </div>
       <!-- Customer Type Tabs -->
@@ -413,17 +454,18 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
           <h2 class="text-2xl font-bold text-gray-900">Vehicles</h2>
           <p class="text-gray-500 text-sm mt-1">Fleet and vehicle registry</p>
         </div>
-        <div class="flex items-center gap-3">
-          <div class="relative">
+        <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+          <div class="relative flex-1 min-w-[150px]">
             <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-            <input class="search-input" type="text" placeholder="Search vehicles…" oninput="filterVehicles(this.value)"/>
+            <input class="search-input w-full" type="text" placeholder="Search vehicles…" oninput="filterVehicles(this.value)"/>
           </div>
-          <button class="btn-secondary" onclick="showFleetUploadModal()"><i class="fas fa-file-upload"></i> Upload Fleet</button>
-          <button class="btn-primary" onclick="showNewVehicleModal()"><i class="fas fa-plus"></i> Add Vehicle</button>
+          <button class="btn-secondary flex-shrink-0" onclick="showFleetUploadModal()"><i class="fas fa-file-upload"></i><span class="hidden sm:inline"> Upload Fleet</span></button>
+          <button class="btn-primary flex-shrink-0" onclick="showNewVehicleModal()"><i class="fas fa-plus"></i><span class="hidden sm:inline"> Add Vehicle</span></button>
         </div>
       </div>
       <div class="card overflow-hidden">
-        <table class="w-full text-sm">
+        <div class="table-scroll">
+        <table class="w-full text-sm" style="min-width:600px">
           <thead><tr class="border-b border-gray-100 bg-gray-50">
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Reg. Number</th>
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Make / Model</th>
@@ -435,6 +477,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
           </tr></thead>
           <tbody id="vehiclesTable"></tbody>
         </table>
+        </div>
       </div>
     </div>
 
@@ -478,7 +521,8 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         </div>
       </div>
       <div class="card overflow-hidden">
-        <table class="w-full text-sm">
+        <div class="table-scroll">
+        <table class="w-full text-sm" style="min-width:700px">
           <thead><tr class="border-b border-gray-100 bg-gray-50">
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Invoice #</th>
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Job Card</th>
@@ -491,6 +535,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
           </tr></thead>
           <tbody id="invoicesTable"></tbody>
         </table>
+        </div>
       </div>
     </div>
 
@@ -512,8 +557,8 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         <h2 class="text-2xl font-bold text-gray-900">Analytics & Margin Report</h2>
         <p class="text-gray-500 text-sm mt-1">Business performance and profitability overview</p>
       </div>
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6" id="analyticsStats"></div>
-      <div class="grid lg:grid-cols-2 gap-6">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6" id="analyticsStats"></div>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div class="card p-5">
           <h3 class="font-bold text-gray-800 mb-4">Revenue Breakdown</h3>
           <div style="height:260px"><canvas id="revenueChart"></canvas></div>
@@ -570,10 +615,10 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
           <h2 class="text-2xl font-bold text-gray-900">Parts & Accessories Catalogue</h2>
           <p class="text-gray-500 text-sm mt-1">Complete Twiga Group parts list with buying price, selling price & margin</p>
         </div>
-        <div class="flex items-center gap-3 flex-wrap">
-          <div class="relative">
+        <div class="flex flex-wrap items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0">
+          <div class="relative flex-1 min-w-[160px]">
             <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-            <input class="search-input" type="text" placeholder="Search parts or models…" id="partsSearch" oninput="filterParts(this.value)"/>
+            <input class="search-input w-full" type="text" placeholder="Search parts or models…" id="partsSearch" oninput="filterParts(this.value)"/>
           </div>
           <button onclick="showAddCataloguePartModal()" class="btn-primary flex items-center gap-2">
             <i class="fas fa-plus"></i> Add Part
@@ -594,7 +639,8 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <div class="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-5" id="partsStats"></div>
       <!-- Table -->
       <div class="card overflow-hidden">
-        <table class="w-full text-sm">
+        <div class="table-scroll">
+        <table class="w-full text-sm" style="min-width:780px">
           <thead><tr class="border-b border-gray-100 bg-gray-50">
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Category</th>
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Description</th>
@@ -608,6 +654,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
           </tr></thead>
           <tbody id="partsTable"></tbody>
         </table>
+        </div>
       </div>
     </div>
 
@@ -620,7 +667,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         </div>
         <button class="btn-primary" onclick="showNewCarWashModal()"><i class="fas fa-plus"></i> New Package</button>
       </div>
-      <div class="grid lg:grid-cols-3 gap-6" id="carWashGrid"></div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="carWashGrid"></div>
     </div>
 
     <!-- ═══ ADD-ON SERVICES ═══ -->
@@ -646,16 +693,16 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-newJob')"><i class="fas fa-times"></i></button>
     </div>
     <form id="newJobForm" onsubmit="submitNewJob(event)">
-      <div class="grid grid-cols-2 gap-4 mb-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <div><label class="form-label">Customer</label><select class="form-input" id="job-customerId" onchange="loadCustomerVehicles()" required><option value="">Select customer…</option></select></div>
         <div><label class="form-label">Vehicle</label><select class="form-input" id="job-vehicleId" required><option value="">Select vehicle…</option></select></div>
       </div>
-      <div class="grid grid-cols-2 gap-4 mb-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <div><label class="form-label">Job Category</label><select class="form-input" id="job-category" onchange="toggleInsuranceFields()" required><option>Insurance</option><option>Private</option></select></div>
         <div><label class="form-label">Assigned Technician</label><select class="form-input" id="job-technician" required><option value="">Select…</option></select></div>
       </div>
       <div id="insuranceFields">
-        <div class="grid grid-cols-2 gap-4 mb-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
           <div><label class="form-label">Claim Reference #</label><input class="form-input" id="job-claimRef" placeholder="e.g. CLM-JUB-12345"/></div>
           <div><label class="form-label">Insurer Name</label><input class="form-input" id="job-insurer" placeholder="e.g. Jubilee Insurance"/></div>
         </div>
@@ -694,17 +741,17 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       </div>
       <!-- Corporate Fields (hidden by default) -->
       <div id="corporateFields" class="hidden">
-        <div class="grid grid-cols-2 gap-4 mb-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
           <div><label class="form-label">Company Name</label><input class="form-input" id="cust-company" placeholder="Acme Ltd"/></div>
           <div><label class="form-label">Contact Person</label><input class="form-input" id="cust-contact" placeholder="Jane Doe"/></div>
         </div>
         <div class="mb-4"><label class="form-label">TIN Number</label><input class="form-input" id="cust-taxpin" placeholder="TIN-123456789"/></div>
       </div>
-      <div class="grid grid-cols-2 gap-4 mb-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <div><label class="form-label" id="cust-name-label">Full Name</label><input class="form-input" id="cust-name" required placeholder="John Doe"/></div>
         <div><label class="form-label">Phone Number</label><input class="form-input" id="cust-phone" required placeholder="+255 7XX XXX XXX"/></div>
       </div>
-      <div class="grid grid-cols-2 gap-4 mb-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <div><label class="form-label">Email Address</label><input class="form-input" type="email" id="cust-email" placeholder="john@example.com"/></div>
         <div><label class="form-label">ID Number (optional)</label><input class="form-input" id="cust-id" placeholder="TZ123456789"/></div>
       </div>
@@ -725,16 +772,16 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-newVehicle')"><i class="fas fa-times"></i></button>
     </div>
     <form id="newVehicleForm" onsubmit="submitNewVehicle(event)">
-      <div class="grid grid-cols-2 gap-4 mb-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <div><label class="form-label">Owner (Customer)</label><select class="form-input" id="veh-customerId" required><option value="">Select customer…</option></select></div>
         <div><label class="form-label">Registration Number</label><input class="form-input" id="veh-reg" required placeholder="T123 ABC"/></div>
       </div>
-      <div class="grid grid-cols-3 gap-4 mb-4">
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
         <div><label class="form-label">Make</label><input class="form-input" id="veh-make" required placeholder="Toyota"/></div>
         <div><label class="form-label">Model</label><input class="form-input" id="veh-model" required placeholder="Corolla"/></div>
         <div><label class="form-label">Year</label><input class="form-input" type="number" id="veh-year" required min="1990" max="2030" placeholder="2022"/></div>
       </div>
-      <div class="grid grid-cols-2 gap-4 mb-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <div><label class="form-label">VIN / Chassis Number</label><input class="form-input" id="veh-vin" placeholder="17-character VIN / Chassis Number"/></div>
         <div><label class="form-label">Engine Number</label><input class="form-input" id="veh-engine" placeholder="Engine number"/></div>
       </div>
@@ -808,7 +855,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
     <form id="appointmentForm" onsubmit="submitAppointment(event)">
       <input type="hidden" id="apt-id"/>
       <!-- Customer + Vehicle -->
-      <div class="grid grid-cols-2 gap-4 mb-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <div>
           <label class="form-label">Customer <span class="text-red-500">*</span></label>
           <select class="form-input" id="apt-customerId" required onchange="aptLoadVehicles()">
@@ -823,7 +870,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         </div>
       </div>
       <!-- Service + Status -->
-      <div class="grid grid-cols-2 gap-4 mb-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <div>
           <label class="form-label">Service Type <span class="text-red-500">*</span></label>
           <select class="form-input" id="apt-serviceType" required>
@@ -846,7 +893,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         </div>
       </div>
       <!-- Date + Time + Duration -->
-      <div class="grid grid-cols-3 gap-4 mb-4">
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
         <div>
           <label class="form-label">Date <span class="text-red-500">*</span></label>
           <input class="form-input" type="date" id="apt-date" required/>
@@ -992,11 +1039,11 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-newPackage')"><i class="fas fa-times"></i></button>
     </div>
     <input type="hidden" id="pkg-edit-id"/>
-    <div class="grid grid-cols-2 gap-4 mb-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
       <div><label class="form-label">Package Name *</label><input class="form-input" id="pkg-name" required placeholder="e.g. Major Service"/></div>
       <div><label class="form-label">Labour Cost (TZS) *</label><input class="form-input" type="number" id="pkg-labour" required min="0"/></div>
     </div>
-    <div class="grid grid-cols-2 gap-4 mb-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
       <div><label class="form-label">Estimated Hours *</label><input class="form-input" type="number" id="pkg-hours" required min="0.5" step="0.5"/></div>
       <div></div>
     </div>
@@ -1027,7 +1074,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-newCarWash')"><i class="fas fa-times"></i></button>
     </div>
     <input type="hidden" id="cw-edit-id"/>
-    <div class="grid grid-cols-2 gap-4 mb-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
       <div>
         <label class="form-label">Package Name *</label>
         <input class="form-input" id="cw-name" placeholder="e.g. Interior & Exterior"/>
@@ -1042,7 +1089,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         </select>
       </div>
     </div>
-    <div class="grid grid-cols-2 gap-4 mb-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
       <div>
         <label class="form-label">Price (TZS) <span class="text-gray-400 font-normal">0 = Quote</span></label>
         <input class="form-input" type="number" id="cw-price" min="0" placeholder="0"/>
@@ -1075,11 +1122,11 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-newUser')"><i class="fas fa-times"></i></button>
     </div>
     <form id="newUserForm" onsubmit="submitNewUser(event)">
-      <div class="grid grid-cols-2 gap-4 mb-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <div><label class="form-label">Full Name</label><input class="form-input" id="usr-name" required/></div>
         <div><label class="form-label">Email</label><input class="form-input" type="email" id="usr-email" required/></div>
       </div>
-      <div class="grid grid-cols-2 gap-4 mb-6">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <div><label class="form-label">Phone</label><input class="form-input" id="usr-phone"/></div>
         <div><label class="form-label">Role</label>
           <select class="form-input" id="usr-role" required>
@@ -1115,7 +1162,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-addCatPart')"><i class="fas fa-times"></i></button>
     </div>
     <div class="grid grid-cols-1 gap-4">
-      <div class="grid grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label class="form-label">Category *</label>
           <select class="form-input" id="acp-category">
@@ -1137,7 +1184,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         <label class="form-label">Compatible Models <span class="text-gray-400 font-normal">(comma-separated)</span></label>
         <input class="form-input" type="text" id="acp-models" placeholder="e.g. HILUX, PRADO, FORTUNER"/>
       </div>
-      <div class="grid grid-cols-3 gap-4">
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
         <div>
           <label class="form-label">Buying Price (TZS) *</label>
           <input class="form-input" type="number" id="acp-buy" placeholder="0" oninput="acpCalcMargin()"/>
@@ -1175,7 +1222,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
     </div>
     <input type="hidden" id="ecp-id"/>
     <div class="grid grid-cols-1 gap-4">
-      <div class="grid grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label class="form-label">Category *</label>
           <select class="form-input" id="ecp-category">
@@ -1196,7 +1243,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         <label class="form-label">Compatible Models <span class="text-gray-400 font-normal">(comma-separated)</span></label>
         <input class="form-input" type="text" id="ecp-models"/>
       </div>
-      <div class="grid grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label class="form-label">Buying Price (TZS) *</label>
           <input class="form-input" type="number" id="ecp-buy" oninput="ecpCalcMargin()"/>
@@ -1305,7 +1352,21 @@ function showToast(msg, type='success') {
 }
 function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
 function openModal(id) { document.getElementById(id).classList.remove('hidden'); }
-function toggleSidebar() { document.getElementById('sidebar').classList.toggle('-translate-x-full'); }
+function toggleSidebar() {
+  const sb = document.getElementById('sidebar');
+  const bd = document.getElementById('sidebar-backdrop');
+  const isOpen = sb.classList.toggle('open');
+  bd.style.display = isOpen ? 'block' : 'none';
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-backdrop').style.display = 'none';
+}
+function toggleMobileSearch() {
+  const bar = document.getElementById('mobileSearchBar');
+  bar.classList.toggle('hidden');
+  if (!bar.classList.contains('hidden')) document.getElementById('globalSearchMobile').focus();
+}
 
 function statusBadge(s) {
   const c = STATUS_CONFIG[s] || { bg:'#f1f5f9', text:'#64748b', label:s };
@@ -1313,6 +1374,8 @@ function statusBadge(s) {
 }
 
 function showPage(page) {
+  // Auto-close sidebar on mobile when navigating
+  if (window.innerWidth < 1024) closeSidebar();
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => { n.classList.remove('active'); n.style.color=''; });
   const pg = document.getElementById('page-' + page);
@@ -1488,13 +1551,14 @@ async function viewJobDetail(id) {
   const totalPartsCost = j.parts ? j.parts.reduce((s, p) => s + p.totalCost, 0) : 0;
   
   document.getElementById('jobDetailContent').innerHTML = \`
-    <div class="grid lg:grid-cols-3 gap-5">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
       <!-- Main Info -->
-      <div class="lg:col-span-2 space-y-5">
+      <div class="lg:col-span-2 space-y-4">
         <!-- Status Progress -->
         <div class="card p-5">
           <h4 class="font-bold text-gray-800 mb-4">Repair Progress</h4>
-          <div class="flex items-center gap-1 flex-wrap">
+          <div class="overflow-x-auto pb-1">
+          <div class="flex items-center gap-1" style="min-width:max-content">
             \${STATUS_FLOW.map((s, i) => {
               const cur = STATUS_FLOW.indexOf(j.status);
               const done = i < cur;
@@ -1508,11 +1572,11 @@ async function viewJobDetail(id) {
               </div>\`;
             }).join('')}
           </div>
+          </div>
         </div>
-        <!-- Details -->
         <div class="card p-5">
           <h4 class="font-bold text-gray-800 mb-4">Job Details</h4>
-          <div class="grid grid-cols-2 gap-4 text-sm">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
             <div><p class="text-gray-400 text-xs font-semibold uppercase mb-1">Category</p><p class="font-semibold">\${j.category}</p></div>
             <div><p class="text-gray-400 text-xs font-semibold uppercase mb-1">Technician</p><p class="font-semibold">\${j.technicianName||'—'}</p></div>
             \${j.claimReference ? \`<div><p class="text-gray-400 text-xs font-semibold uppercase mb-1">Claim Ref</p><p class="font-semibold">\${j.claimReference}</p></div>\` : ''}
@@ -1533,7 +1597,8 @@ async function viewJobDetail(id) {
             <button class="btn-secondary text-xs" onclick="showPartsModal('\${j.id}')"><i class="fas fa-plus"></i> Add Part</button>
           </div>
           \${j.parts && j.parts.length ? \`
-            <table class="w-full text-sm">
+            <div class="overflow-x-auto">
+            <table class="w-full text-sm" style="min-width:360px">
               <thead><tr class="text-xs text-gray-400 uppercase border-b">
                 <th class="text-left pb-2">Part</th><th class="text-right pb-2">Qty</th><th class="text-right pb-2">Unit Cost</th><th class="text-right pb-2">Total</th>
               </tr></thead>
@@ -1664,7 +1729,7 @@ async function showPartsModal(jobId) {
     </div>
 
     <!-- Qty / Unit Cost / Total -->
-    <div class="grid grid-cols-3 gap-3 mb-5">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
       <div>
         <label class="form-label">Qty</label>
         <input class="form-input" type="number" id="part-qty" required min="1" value="1"/>
@@ -1880,7 +1945,7 @@ function showPFIModal(jobId, category) {
   document.getElementById('statusUpdateContent').innerHTML = \`
     <p class="text-sm text-gray-500 mb-1">\${isInsurance ? 'Create a Pro Forma Invoice for insurer approval' : 'Create a Pro Forma Invoice to send to the customer'}</p>
     \${isInsurance ? '' : \`<div class="flex items-center gap-2 mb-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700"><i class="fas fa-user-circle"></i> Private / Individual job – PFI will go directly to the customer</div>\`}
-    <div class="grid grid-cols-2 gap-3 mb-3 mt-3">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3 mt-3">
       <div><label class="form-label">Labour Cost (TZS)</label><input class="form-input" type="number" id="pfi-labour" required min="0"/></div>
       <div><label class="form-label">Parts Cost (TZS)</label><input class="form-input" type="number" id="pfi-parts" required min="0"/></div>
     </div>
@@ -1914,11 +1979,11 @@ function showInvoiceModal(jobId, labourCost, partsCost) {
   const tax = Math.round((labourCost + partsCost) * 0.18);
   document.getElementById('statusUpdateContent').innerHTML = \`
     <p class="text-sm text-gray-500 mb-4">Generate final invoice for this job</p>
-    <div class="grid grid-cols-2 gap-3 mb-3">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
       <div><label class="form-label">Labour Cost</label><input class="form-input" type="number" id="inv-labour" value="\${labourCost}"/></div>
       <div><label class="form-label">Parts Cost</label><input class="form-input" type="number" id="inv-parts" value="\${partsCost}"/></div>
     </div>
-    <div class="grid grid-cols-2 gap-3 mb-5">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
       <div><label class="form-label">Tax (TZS)</label><input class="form-input" type="number" id="inv-tax" value="\${tax}"/></div>
       <div><label class="form-label">Status</label><select class="form-input" id="inv-status"><option>Issued</option><option>Paid</option></select></div>
     </div>
