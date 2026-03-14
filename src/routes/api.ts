@@ -3,9 +3,11 @@ import {
   customers, vehicles, jobCards, pfis, partsConsumption,
   invoices, servicePackages, users, activityLog,
   oilServiceProducts, catalogueParts, carWashPackages, addOnServices, appointments,
+  jobServices,
   type Customer, type Vehicle, type JobCard, type PFI,
   type PartConsumption, type ServicePackage, type User, type Invoice,
-  type CataloguePart, type CarWashPackage, type AddOnService, type Appointment
+  type CataloguePart, type CarWashPackage, type AddOnService, type Appointment,
+  type JobService
 } from '../data/store'
 
 const api = new Hono()
@@ -147,9 +149,10 @@ api.get('/jobcards/:id', (c) => {
   const tech = users.find(x => x.id === j.assignedTechnician)
   const pfi = pfis.find(x => x.jobCardId === j.id)
   const parts = partsConsumption.filter(x => x.jobCardId === j.id)
+  const services = jobServices.filter(x => x.jobCardId === j.id)
   const invoice = invoices.find(x => x.jobCardId === j.id)
   const logs = activityLog.filter(x => x.jobCardId === j.id).sort((a, b) => b.timestamp.localeCompare(a.timestamp))
-  return c.json({ ...j, vehicle: v, customer: cu, technicianName: tech?.name, pfi, parts, invoice, logs })
+  return c.json({ ...j, vehicle: v, customer: cu, technicianName: tech?.name, pfi, parts, services, invoice, logs })
 })
 
 api.post('/jobcards', async (c) => {
@@ -226,7 +229,8 @@ api.get('/pfi/:id/detail', (c) => {
   const customer = job ? customers.find(cu => cu.id === job.customerId) : null
   const vehicle  = job ? vehicles.find(v  => v.id  === job.vehicleId)  : null
   const parts    = partsConsumption.filter(p => p.jobCardId === pfi.jobCardId)
-  return c.json({ pfi, job, customer, vehicle, parts })
+  const services = jobServices.filter(s => s.jobCardId === pfi.jobCardId)
+  return c.json({ pfi, job, customer, vehicle, parts, services })
 })
 
 // ─── Parts Consumption ───────────────────────────────────────────────────────
@@ -247,6 +251,25 @@ api.delete('/parts/:id', (c) => {
   const idx = partsConsumption.findIndex(x => x.id === c.req.param('id'))
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
   partsConsumption.splice(idx, 1)
+  return c.json({ success: true })
+})
+
+// ─── Job Services (Packages / Oil / Car Wash / Add-ons on a job) ─────────────
+api.get('/jobcards/:id/services', (c) => {
+  return c.json(jobServices.filter(x => x.jobCardId === c.req.param('id')))
+})
+
+api.post('/jobcards/:id/services', async (c) => {
+  const body = await c.req.json<Omit<JobService, 'id' | 'jobCardId'>>()
+  const newSvc: JobService = { ...body, id: 'svc' + genId(), jobCardId: c.req.param('id') }
+  jobServices.push(newSvc)
+  return c.json(newSvc, 201)
+})
+
+api.delete('/services/:id', (c) => {
+  const idx = jobServices.findIndex(x => x.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  jobServices.splice(idx, 1)
   return c.json({ success: true })
 })
 

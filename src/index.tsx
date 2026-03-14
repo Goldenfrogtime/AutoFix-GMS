@@ -1573,6 +1573,24 @@ async function viewJobDetail(id) {
   \`;
   
   const totalPartsCost = j.parts ? j.parts.reduce((s, p) => s + p.totalCost, 0) : 0;
+  const totalServicesCost = j.services ? j.services.reduce((s, sv) => s + sv.totalCost, 0) : 0;
+  const totalLabourFromServices = j.services
+    ? j.services.filter(sv => sv.category === 'Service Package').reduce((s, sv) => s + sv.totalCost, 0)
+    : 0;
+  
+  // Helper: icon + colour per service category
+  function svcIcon(cat) {
+    return cat === 'Service Package' ? 'fa-box-open text-purple-500'
+         : cat === 'Oil Service'     ? 'fa-oil-can text-amber-500'
+         : cat === 'Car Wash'        ? 'fa-car-wash text-cyan-500'
+         : 'fa-plus-circle text-green-500'; // Add-on
+  }
+  function svcBg(cat) {
+    return cat === 'Service Package' ? 'bg-purple-50 border-purple-200'
+         : cat === 'Oil Service'     ? 'bg-amber-50 border-amber-200'
+         : cat === 'Car Wash'        ? 'bg-cyan-50 border-cyan-200'
+         : 'bg-green-50 border-green-200';
+  }
   
   document.getElementById('jobDetailContent').innerHTML = \`
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
@@ -1614,29 +1632,65 @@ async function viewJobDetail(id) {
           </div>
           \${j.inspectionNotes ? \`<div class="mt-3 pt-3 border-t border-gray-100"><p class="text-gray-400 text-xs font-semibold uppercase mb-2">Inspection Notes</p><p class="text-sm text-gray-700">\${j.inspectionNotes}</p></div>\` : ''}
         </div>
-        <!-- Parts Consumption -->
+        <!-- Services & Parts -->
         <div class="card p-5">
           <div class="flex items-center justify-between mb-4">
-            <h4 class="font-bold text-gray-800">Parts Consumed</h4>
-            <button class="btn-secondary text-xs" onclick="showPartsModal('\${j.id}')"><i class="fas fa-plus"></i> Add Part</button>
+            <h4 class="font-bold text-gray-800">Services &amp; Parts</h4>
+            <button class="btn-secondary text-xs" onclick="showAddServiceModal('\${j.id}')"><i class="fas fa-plus mr-1"></i> Add Service / Part</button>
           </div>
-          \${j.parts && j.parts.length ? \`
-            <div class="overflow-x-auto">
-            <table class="w-full text-sm" style="min-width:360px">
-              <thead><tr class="text-xs text-gray-400 uppercase border-b">
-                <th class="text-left pb-2">Part</th><th class="text-right pb-2">Qty</th><th class="text-right pb-2">Unit Cost</th><th class="text-right pb-2">Total</th>
-              </tr></thead>
-              <tbody>\${j.parts.map(p => \`
-                <tr class="border-b border-gray-50">
-                  <td class="py-2 font-medium">\${p.partName}</td>
-                  <td class="py-2 text-right">\${p.quantity}</td>
-                  <td class="py-2 text-right">\${fmt(p.unitCost)}</td>
-                  <td class="py-2 text-right font-semibold">\${fmt(p.totalCost)}</td>
-                </tr>
-              \`).join('')}</tbody>
-              <tfoot><tr><td colspan="3" class="pt-3 font-bold text-gray-600 text-right">Total Parts Cost:</td><td class="pt-3 font-bold text-right text-blue-600">\${fmt(totalPartsCost)}</td></tr></tfoot>
-            </table>
-          \` : '<p class="text-gray-400 text-sm text-center py-4"><i class="fas fa-box-open text-2xl mb-2 block"></i>No parts recorded yet</p>'}
+
+          \${(j.services && j.services.length) || (j.parts && j.parts.length) ? \`
+
+            \${j.services && j.services.length ? \`
+              <p class="text-xs font-semibold text-gray-400 uppercase mb-2 tracking-wide">Services</p>
+              <div class="space-y-2 mb-4">
+                \${j.services.map(sv => \`
+                  <div class="flex items-start justify-between gap-3 px-3 py-2.5 rounded-xl border \${svcBg(sv.category)}">
+                    <div class="flex items-start gap-2 flex-1 min-w-0">
+                      <i class="fas \${svcIcon(sv.category)} mt-0.5 text-sm flex-shrink-0"></i>
+                      <div class="min-w-0">
+                        <p class="text-sm font-semibold text-gray-800 truncate">\${sv.serviceName}</p>
+                        <p class="text-xs text-gray-500 mt-0.5">\${sv.category}\${sv.notes ? ' · ' + sv.notes : ''}\${sv.quantity > 1 ? ' · ×' + sv.quantity : ''}</p>
+                      </div>
+                    </div>
+                    <div class="text-right flex-shrink-0">
+                      <p class="font-semibold text-sm text-gray-800">\${fmt(sv.totalCost)}</p>
+                      <button class="text-xs text-red-400 hover:text-red-600 mt-0.5" onclick="removeJobService('\${j.id}','\${sv.id}')"><i class="fas fa-trash-alt"></i></button>
+                    </div>
+                  </div>
+                \`).join('')}
+              </div>
+            \` : ''}
+
+            \${j.parts && j.parts.length ? \`
+              <p class="text-xs font-semibold text-gray-400 uppercase mb-2 tracking-wide">Parts Consumed</p>
+              <div class="overflow-x-auto mb-3">
+                <table class="w-full text-sm" style="min-width:320px">
+                  <thead><tr class="text-xs text-gray-400 uppercase border-b">
+                    <th class="text-left pb-2">Part</th><th class="text-right pb-2">Qty</th><th class="text-right pb-2">Unit</th><th class="text-right pb-2">Total</th>
+                  </tr></thead>
+                  <tbody>\${j.parts.map(p => \`
+                    <tr class="border-b border-gray-50">
+                      <td class="py-2 font-medium text-gray-700">\${p.partName}</td>
+                      <td class="py-2 text-right">\${p.quantity}</td>
+                      <td class="py-2 text-right">\${fmt(p.unitCost)}</td>
+                      <td class="py-2 text-right font-semibold">\${fmt(p.totalCost)}</td>
+                    </tr>
+                  \`).join('')}</tbody>
+                </table>
+              </div>
+            \` : ''}
+
+            <div class="border-t border-gray-100 pt-3 mt-1 space-y-1 text-sm">
+              \${j.services && j.services.length ? \`<div class="flex justify-between text-gray-500"><span>Services Total</span><span class="font-semibold">\${fmt(totalServicesCost)}</span></div>\` : ''}
+              \${j.parts && j.parts.length ? \`<div class="flex justify-between text-gray-500"><span>Parts Total</span><span class="font-semibold">\${fmt(totalPartsCost)}</span></div>\` : ''}
+              <div class="flex justify-between font-bold text-gray-800 pt-1 border-t border-gray-100">
+                <span>Grand Total</span>
+                <span class="text-blue-600">\${fmt(totalServicesCost + totalPartsCost)}</span>
+              </div>
+            </div>
+
+          \` : '<p class="text-gray-400 text-sm text-center py-6"><i class="fas fa-concierge-bell text-2xl mb-2 block"></i>No services or parts added yet</p>'}
         </div>
         <!-- Activity Log -->
         <div class="card p-5">
@@ -1681,6 +1735,18 @@ async function viewJobDetail(id) {
         \${j.pfi ? \`
           <div class="card p-5">
             <h4 class="font-bold text-gray-800 mb-4"><i class="fas fa-file-invoice text-blue-500 mr-2"></i>PFI – Pro Forma Invoice</h4>
+            \${j.services && j.services.length ? \`
+              <p class="text-xs font-semibold text-gray-400 uppercase mb-2">Services</p>
+              <div class="space-y-1 mb-3">
+                \${j.services.map(sv => \`
+                  <div class="flex justify-between text-xs">
+                    <span class="text-gray-600 truncate max-w-[65%]"><i class="fas \${svcIcon(sv.category)} mr-1"></i>\${sv.serviceName} \${sv.quantity > 1 ? '<span class=\\"text-gray-400\\">×' + sv.quantity + '</span>' : ''}</span>
+                    <span class="font-semibold text-gray-700">\${fmt(sv.totalCost)}</span>
+                  </div>
+                \`).join('')}
+              </div>
+              <div class="border-t border-gray-100 mb-3"></div>
+            \` : ''}
             \${j.parts && j.parts.length ? \`
               <p class="text-xs font-semibold text-gray-400 uppercase mb-2">Parts Included</p>
               <div class="space-y-1 mb-3">
@@ -1980,13 +2046,59 @@ function _clearCatSelection() {
 async function showPFIModal(jobId, category) {
   const isInsurance = category === 'Insurance';
 
-  // Fetch the full job (with parts) from the API
+  // Fetch the full job (with parts + services) from the API
   const { data: job } = await axios.get('/api/jobcards/' + jobId);
-  const parts = job.parts || [];
-  const totalPartsCost = parts.reduce((s, p) => s + p.totalCost, 0);
+  const parts    = job.parts    || [];
+  const services = job.services || [];
+  const totalPartsCost    = parts.reduce((s, p) => s + p.totalCost, 0);
+  const totalServicesCost = services.reduce((s, sv) => s + sv.totalCost, 0);
+  // Grand total of all billable items (services + parts) goes into partsCost field
+  const totalBillable = totalPartsCost + totalServicesCost;
 
-  // Build parts breakdown HTML using string concat (avoids nested backtick issues)
-  let partsHtml;
+  // ── Services breakdown HTML ──
+  let servicesHtml = '';
+  if (services.length) {
+    const catIcon = cat =>
+      cat === 'Service Package' ? 'fa-box-open' :
+      cat === 'Oil Service'     ? 'fa-oil-can'  :
+      cat === 'Car Wash'        ? 'fa-car'       : 'fa-plus-circle';
+    const sRows = services.map(sv =>
+      '<tr class="border-b border-gray-50 last:border-0">' +
+        '<td class="px-3 py-2">' +
+          '<span class="inline-flex items-center gap-1.5">' +
+            '<i class="fas ' + catIcon(sv.category) + ' text-xs text-gray-400"></i>' +
+            '<span class="font-medium text-gray-700">' + sv.serviceName + '</span>' +
+          '</span>' +
+          (sv.notes ? '<p class="text-xs text-gray-400 mt-0.5 pl-4">' + sv.notes + '</p>' : '') +
+        '</td>' +
+        '<td class="px-3 py-2 text-center text-gray-600">' + sv.quantity + '</td>' +
+        '<td class="px-3 py-2 text-right text-gray-600">' + fmt(sv.unitCost) + '</td>' +
+        '<td class="px-3 py-2 text-right font-semibold text-gray-800">' + fmt(sv.totalCost) + '</td>' +
+      '</tr>'
+    ).join('');
+    servicesHtml =
+      '<div class="mb-3">' +
+        '<p class="form-label mb-2">Services <span class="text-gray-400 font-normal text-xs">(from job card)</span></p>' +
+        '<div class="border border-gray-200 rounded-xl overflow-hidden">' +
+          '<table class="w-full text-xs">' +
+            '<thead><tr class="bg-gray-50 border-b border-gray-100">' +
+              '<th class="text-left px-3 py-2 font-semibold text-gray-500">Service</th>' +
+              '<th class="text-center px-3 py-2 font-semibold text-gray-500">Qty</th>' +
+              '<th class="text-right px-3 py-2 font-semibold text-gray-500">Unit</th>' +
+              '<th class="text-right px-3 py-2 font-semibold text-gray-500">Total</th>' +
+            '</tr></thead>' +
+            '<tbody>' + sRows + '</tbody>' +
+            '<tfoot><tr class="bg-purple-50">' +
+              '<td colspan="3" class="px-3 py-2 text-right font-bold text-gray-600 text-xs">Services Total:</td>' +
+              '<td class="px-3 py-2 text-right font-bold text-purple-700">' + fmt(totalServicesCost) + '</td>' +
+            '</tr></tfoot>' +
+          '</table>' +
+        '</div>' +
+      '</div>';
+  }
+
+  // ── Parts breakdown HTML ──
+  let partsHtml = '';
   if (parts.length) {
     const rows = parts.map(p =>
       '<tr class="border-b border-gray-50 last:border-0">' +
@@ -1997,8 +2109,8 @@ async function showPFIModal(jobId, category) {
       '</tr>'
     ).join('');
     partsHtml =
-      '<div class="mb-4">' +
-        '<p class="form-label mb-2">Parts Consumed <span class="text-gray-400 font-normal text-xs">(from job card – auto-filled below)</span></p>' +
+      '<div class="mb-3">' +
+        '<p class="form-label mb-2">Parts Consumed <span class="text-gray-400 font-normal text-xs">(from job card)</span></p>' +
         '<div class="border border-gray-200 rounded-xl overflow-hidden">' +
           '<table class="w-full text-xs">' +
             '<thead><tr class="bg-gray-50 border-b border-gray-100">' +
@@ -2009,25 +2121,27 @@ async function showPFIModal(jobId, category) {
             '</tr></thead>' +
             '<tbody>' + rows + '</tbody>' +
             '<tfoot><tr class="bg-blue-50">' +
-              '<td colspan="3" class="px-3 py-2 text-right font-bold text-gray-600 text-xs">Total Parts Cost:</td>' +
+              '<td colspan="3" class="px-3 py-2 text-right font-bold text-gray-600 text-xs">Parts Total:</td>' +
               '<td class="px-3 py-2 text-right font-bold text-blue-700">' + fmt(totalPartsCost) + '</td>' +
             '</tr></tfoot>' +
           '</table>' +
         '</div>' +
       '</div>';
-  } else {
+  }
+
+  if (!parts.length && !services.length) {
     partsHtml =
-      '<div class="mb-4 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700 flex items-center gap-2">' +
-      '<i class="fas fa-info-circle"></i> No parts have been added to this job yet. You can still enter a parts cost manually.' +
+      '<div class="mb-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700 flex items-center gap-2">' +
+      '<i class="fas fa-info-circle"></i> No services or parts added yet. You can still enter costs manually below.' +
       '</div>';
   }
 
   openModal('modal-statusUpdate');
-  // Widen the modal box for PFI (parts table needs more space)
-  document.querySelector('#modal-statusUpdate .modal-box').style.maxWidth = '600px';
+  document.querySelector('#modal-statusUpdate .modal-box').style.maxWidth = '620px';
   document.getElementById('statusUpdateContent').innerHTML = \`
     <p class="text-sm text-gray-500 mb-3">\${isInsurance ? 'Create a Pro Forma Invoice for insurer approval' : 'Create a Pro Forma Invoice to send to the customer'}</p>
     \${isInsurance ? '' : \`<div class="flex items-center gap-2 mb-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700"><i class="fas fa-user-circle"></i> Private / Individual job – PFI will go directly to the customer</div>\`}
+    \${servicesHtml}
     \${partsHtml}
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
       <div>
@@ -2035,8 +2149,8 @@ async function showPFIModal(jobId, category) {
         <input class="form-input" type="number" id="pfi-labour" required min="0"/>
       </div>
       <div>
-        <label class="form-label">Parts Cost (TZS) <span class="text-gray-400 font-normal text-xs">auto-filled</span></label>
-        <input class="form-input" type="number" id="pfi-parts" required min="0" value="\${totalPartsCost}"/>
+        <label class="form-label">Services + Parts Cost (TZS) <span class="text-gray-400 font-normal text-xs">auto-filled</span></label>
+        <input class="form-input" type="number" id="pfi-parts" required min="0" value="\${totalBillable}"/>
       </div>
     </div>
     <div class="mb-3">
@@ -2053,7 +2167,7 @@ async function showPFIModal(jobId, category) {
     </div>
   \`;
 
-  // Wire up total calculation and trigger with pre-filled parts cost
+  // Wire up total calculation and trigger with pre-filled billable cost
   const calcTotal = () => {
     const l = +document.getElementById('pfi-labour').value || 0;
     const p = +document.getElementById('pfi-parts').value || 0;
@@ -2082,11 +2196,44 @@ async function showPFIModal(jobId, category) {
 
 // Invoice Modal
 async function showInvoiceModal(jobId, labourCost, partsCost) {
-  // Fetch full job to get parts list
+  // Fetch full job to get parts + services
   const { data: job } = await axios.get('/api/jobcards/' + jobId);
-  const parts = job.parts || [];
-  const actualPartsCost = parts.reduce((s, p) => s + p.totalCost, 0) || partsCost;
-  const tax = Math.round((labourCost + actualPartsCost) * 0.18);
+  const parts    = job.parts    || [];
+  const services = job.services || [];
+  const actualPartsCost    = parts.reduce((s, p) => s + p.totalCost, 0);
+  const actualServicesCost = services.reduce((s, sv) => s + sv.totalCost, 0);
+  // Total billable = services + parts (use passed-in partsCost as fallback if nothing recorded yet)
+  const totalBillable = (actualPartsCost + actualServicesCost) || partsCost;
+  const tax = Math.round((labourCost + totalBillable) * 0.18);
+
+  // Build services HTML
+  let servicesHtml = '';
+  if (services.length) {
+    const catIcon = cat =>
+      cat === 'Service Package' ? 'fa-box-open' :
+      cat === 'Oil Service'     ? 'fa-oil-can'  :
+      cat === 'Car Wash'        ? 'fa-car'       : 'fa-plus-circle';
+    const rows = services.map(sv =>
+      '<tr class="border-b border-gray-50 last:border-0">' +
+        '<td class="px-3 py-2"><span class="inline-flex items-center gap-1"><i class="fas ' + catIcon(sv.category) + ' text-xs text-gray-400"></i><span class="font-medium text-gray-700">' + sv.serviceName + '</span></span></td>' +
+        '<td class="px-3 py-2 text-center">' + sv.quantity + '</td>' +
+        '<td class="px-3 py-2 text-right">' + fmt(sv.unitCost) + '</td>' +
+        '<td class="px-3 py-2 text-right font-semibold">' + fmt(sv.totalCost) + '</td>' +
+      '</tr>'
+    ).join('');
+    servicesHtml =
+      '<div class="mb-3"><p class="form-label mb-2">Services</p>' +
+      '<div class="border border-gray-200 rounded-xl overflow-hidden">' +
+      '<table class="w-full text-xs"><thead><tr class="bg-gray-50 border-b">' +
+        '<th class="text-left px-3 py-2 text-gray-500">Service</th>' +
+        '<th class="text-center px-3 py-2 text-gray-500">Qty</th>' +
+        '<th class="text-right px-3 py-2 text-gray-500">Unit</th>' +
+        '<th class="text-right px-3 py-2 text-gray-500">Total</th>' +
+      '</tr></thead><tbody>' + rows + '</tbody>' +
+      '<tfoot><tr class="bg-purple-50"><td colspan="3" class="px-3 py-2 text-right font-bold text-gray-600 text-xs">Services Total:</td>' +
+      '<td class="px-3 py-2 text-right font-bold text-purple-700">' + fmt(actualServicesCost) + '</td></tr></tfoot>' +
+      '</table></div></div>';
+  }
 
   // Build parts breakdown HTML (string concat to avoid nested backtick issues)
   let partsHtml = '';
@@ -2121,13 +2268,14 @@ async function showInvoiceModal(jobId, labourCost, partsCost) {
   }
 
   openModal('modal-statusUpdate');
-  document.querySelector('#modal-statusUpdate .modal-box').style.maxWidth = parts.length ? '600px' : '480px';
+  document.querySelector('#modal-statusUpdate .modal-box').style.maxWidth = (services.length || parts.length) ? '620px' : '480px';
   document.getElementById('statusUpdateContent').innerHTML = \`
     <p class="text-sm text-gray-500 mb-4">Generate final invoice for this job</p>
+    \${servicesHtml}
     \${partsHtml}
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
       <div><label class="form-label">Labour Cost (TZS)</label><input class="form-input" type="number" id="inv-labour" value="\${labourCost}"/></div>
-      <div><label class="form-label">Parts Cost (TZS) <span class="text-gray-400 font-normal text-xs">auto-filled</span></label><input class="form-input" type="number" id="inv-parts" value="\${actualPartsCost}"/></div>
+      <div><label class="form-label">Services + Parts (TZS) <span class="text-gray-400 font-normal text-xs">auto-filled</span></label><input class="form-input" type="number" id="inv-parts" value="\${totalBillable}"/></div>
     </div>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
       <div><label class="form-label">Tax (18%) (TZS)</label><input class="form-input" type="number" id="inv-tax" value="\${tax}"/></div>
@@ -2155,6 +2303,417 @@ async function showInvoiceModal(jobId, labourCost, partsCost) {
     viewJobDetail(jobId);
     showToast('Invoice generated successfully');
   };
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ADD SERVICE / PART MODAL  (5 tabs: Packages | Oil | Car Wash | Add-ons | Parts)
+// ═══════════════════════════════════════════════════════════════════
+
+let _svcTab = 'packages'; // active tab
+let _svcJobId = null;
+let _allServicePackagesCache = [];
+let _allOilProductsCache = [];
+let _allCarWashCache = [];
+let _allAddOnsCache = [];
+
+async function showAddServiceModal(jobId) {
+  _svcJobId = jobId;
+  _svcTab = 'packages';
+  openModal('modal-statusUpdate');
+  document.querySelector('#modal-statusUpdate .modal-box').style.maxWidth = '680px';
+  // Load all catalogues in parallel (cache after first load)
+  if (!_allServicePackagesCache.length) {
+    const [pkgs, oil, cw, ao] = await Promise.all([
+      axios.get('/api/packages'),
+      axios.get('/api/catalogue/oil'),
+      axios.get('/api/catalogue/carwash'),
+      axios.get('/api/catalogue/addons'),
+    ]);
+    _allServicePackagesCache = pkgs.data;
+    _allOilProductsCache     = oil.data;
+    _allCarWashCache         = cw.data;
+    _allAddOnsCache          = ao.data;
+  }
+  _renderAddServiceModal();
+}
+
+function _renderAddServiceModal() {
+  const tabs = [
+    { id: 'packages', label: 'Service Packages', icon: 'fa-box-open',     color: 'purple' },
+    { id: 'oil',      label: 'Oil Service',       icon: 'fa-oil-can',      color: 'amber'  },
+    { id: 'carwash',  label: 'Car Wash',           icon: 'fa-car',          color: 'cyan'   },
+    { id: 'addons',   label: 'Add-ons',            icon: 'fa-plus-circle',  color: 'green'  },
+    { id: 'parts',    label: 'Parts',              icon: 'fa-cogs',         color: 'blue'   },
+  ];
+
+  const tabBar = tabs.map(t => {
+    const active = _svcTab === t.id;
+    return '<button onclick="_switchSvcTab(\'' + t.id + '\')" class="flex-1 flex flex-col items-center gap-1 py-2 px-1 rounded-xl text-xs font-semibold transition-all ' +
+      (active ? 'bg-blue-600 text-white shadow' : 'bg-gray-100 text-gray-500 hover:bg-gray-200') + '">' +
+      '<i class="fas ' + t.icon + ' text-sm"></i><span class="hidden sm:inline">' + t.label + '</span></button>';
+  }).join('');
+
+  document.getElementById('statusUpdateContent').innerHTML =
+    '<p class="text-sm text-gray-500 mb-3">Choose a category to add services or parts to this job card</p>' +
+    '<div class="flex gap-1.5 mb-4">' + tabBar + '</div>' +
+    '<div id="svc-tab-content" class="min-h-[260px]"></div>';
+
+  _renderSvcTabContent();
+}
+
+function _switchSvcTab(tab) {
+  _svcTab = tab;
+  // update tab bar button styles
+  const tabs = ['packages','oil','carwash','addons','parts'];
+  const btns = document.querySelectorAll('#statusUpdateContent .flex.gap-1\\.5 button');
+  btns.forEach((btn, i) => {
+    btn.className = 'flex-1 flex flex-col items-center gap-1 py-2 px-1 rounded-xl text-xs font-semibold transition-all ' +
+      (tabs[i] === tab ? 'bg-blue-600 text-white shadow' : 'bg-gray-100 text-gray-500 hover:bg-gray-200');
+  });
+  _renderSvcTabContent();
+}
+
+function _renderSvcTabContent() {
+  const el = document.getElementById('svc-tab-content');
+  if (!el) return;
+  if (_svcTab === 'packages')  _renderPackagesTab(el);
+  else if (_svcTab === 'oil')  _renderOilTab(el);
+  else if (_svcTab === 'carwash') _renderCarWashTab(el);
+  else if (_svcTab === 'addons') _renderAddOnsTab(el);
+  else if (_svcTab === 'parts') _renderPartsTab(el);
+}
+
+// ── Tab: Service Packages ──────────────────────────────────────────
+function _renderPackagesTab(el) {
+  const pkgs = _allServicePackagesCache;
+  let html = '<div class="space-y-3">';
+  pkgs.forEach(pkg => {
+    const partsTotal = pkg.parts ? pkg.parts.reduce((s, p) => s + p.unitCost * p.quantity, 0) : 0;
+    const total = (pkg.labourCost || 0) + partsTotal;
+    html += '<div class="border border-gray-200 rounded-xl p-4 hover:border-purple-300 hover:bg-purple-50 transition-colors cursor-pointer" onclick="_selectPackage(\'' + pkg.id + '\')">' +
+      '<div class="flex items-start justify-between gap-2">' +
+        '<div class="flex-1 min-w-0">' +
+          '<div class="flex items-center gap-2 mb-1">' +
+            '<i class="fas fa-box-open text-purple-500 text-sm"></i>' +
+            '<p class="font-semibold text-gray-800 text-sm">' + pkg.packageName + '</p>' +
+          '</div>' +
+          '<p class="text-xs text-gray-500 mb-2">' + (pkg.description || '') + '</p>' +
+          (pkg.parts && pkg.parts.length ? '<div class="flex flex-wrap gap-1">' + pkg.parts.map(p => '<span class="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">' + p.name + ' ×' + p.quantity + '</span>').join('') + '</div>' : '') +
+        '</div>' +
+        '<div class="text-right flex-shrink-0">' +
+          '<p class="font-bold text-gray-900 text-sm">' + fmt(total) + '</p>' +
+          '<p class="text-xs text-gray-400">' + (pkg.estimatedHours || 0) + 'h est.</p>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+async function _selectPackage(pkgId) {
+  const pkg = _allServicePackagesCache.find(p => p.id === pkgId);
+  if (!pkg) return;
+  const partsTotal = pkg.parts ? pkg.parts.reduce((s, p) => s + p.unitCost * p.quantity, 0) : 0;
+  const total = (pkg.labourCost || 0) + partsTotal;
+  await axios.post('/api/jobcards/' + _svcJobId + '/services', {
+    category: 'Service Package', serviceId: pkg.id, serviceName: pkg.packageName,
+    description: pkg.description, quantity: 1, unitCost: total, totalCost: total,
+    notes: 'Labour: ' + fmt(pkg.labourCost) + (partsTotal ? ' + Parts: ' + fmt(partsTotal) : '')
+  });
+  closeModal('modal-statusUpdate');
+  viewJobDetail(_svcJobId);
+  showToast('\u2714 ' + pkg.packageName + ' added to job');
+}
+
+// ── Tab: Oil Service ───────────────────────────────────────────────
+function _renderOilTab(el) {
+  const brands = _allOilProductsCache;
+  // Build brand tabs
+  const brandBtns = brands.map((b, i) =>
+    '<button onclick="_switchOilBrand(' + i + ')" id="oil-brand-' + i + '" class="px-3 py-1.5 rounded-lg text-xs font-semibold ' +
+    (i === 0 ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200') + '">' + b.brand + '</button>'
+  ).join('');
+
+  el.innerHTML =
+    '<div class="flex gap-2 mb-3">' + brandBtns + '</div>' +
+    '<div id="oil-tiers-content"></div>';
+  _renderOilTiers(0);
+}
+
+function _switchOilBrand(idx) {
+  document.querySelectorAll('#svc-tab-content button[id^="oil-brand-"]').forEach((btn, i) => {
+    btn.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold ' +
+      (i === idx ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200');
+  });
+  _renderOilTiers(idx);
+}
+
+function _renderOilTiers(brandIdx) {
+  const brand = _allOilProductsCache[brandIdx];
+  if (!brand) return;
+  const el = document.getElementById('oil-tiers-content');
+  if (!el) return;
+  let html = '<div class="space-y-2 max-h-56 overflow-y-auto pr-1">';
+  brand.tiers.forEach(tier => {
+    html += '<div class="border border-gray-200 rounded-xl p-3">' +
+      '<div class="flex items-center justify-between mb-2">' +
+        '<p class="text-sm font-semibold text-gray-700">' + tier.engineSize + '</p>' +
+      '</div>' +
+      '<div class="grid grid-cols-3 gap-2">' +
+        ['Standard','Prestige','Premier'].map(tname => {
+          const price = tier[tname.toLowerCase() + 'Price'];
+          return '<button onclick="_addOilService(\'' + brand.brand + '\',\'' + tier.engineSize + '\',\'' + tname + '\',' + price + ')" ' +
+            'class="flex flex-col items-center py-2 px-1 rounded-lg border border-gray-200 hover:border-amber-400 hover:bg-amber-50 transition-colors cursor-pointer">' +
+            '<span class="text-xs font-semibold text-gray-600">' + tname + '</span>' +
+            '<span class="text-sm font-bold text-gray-900 mt-0.5">' + fmt(price) + '</span>' +
+            '</button>';
+        }).join('') +
+      '</div>' +
+    '</div>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+async function _addOilService(brand, engineSize, tier, price) {
+  await axios.post('/api/jobcards/' + _svcJobId + '/services', {
+    category: 'Oil Service',
+    serviceId: 'oil-' + brand.toLowerCase(),
+    serviceName: brand + ' Oil Service – ' + tier,
+    description: engineSize + ' engine',
+    quantity: 1, unitCost: price, totalCost: price,
+    notes: brand + ' · ' + tier + ' · ' + engineSize
+  });
+  closeModal('modal-statusUpdate');
+  viewJobDetail(_svcJobId);
+  showToast('\u2714 ' + brand + ' Oil Service (' + tier + ') added');
+}
+
+// ── Tab: Car Wash ──────────────────────────────────────────────────
+function _renderCarWashTab(el) {
+  const typeLabels = { Standard: 'Standard Wash', AddOn: 'Add-On', DeepClean: 'Deep Clean', Monthly: 'Monthly Package' };
+  const typeColors = { Standard: 'cyan', AddOn: 'blue', DeepClean: 'indigo', Monthly: 'violet' };
+  const groups = {};
+  _allCarWashCache.forEach(p => { (groups[p.type] = groups[p.type] || []).push(p); });
+  let html = '<div class="space-y-4 max-h-64 overflow-y-auto pr-1">';
+  Object.entries(groups).forEach(([type, pkgs]) => {
+    const col = typeColors[type] || 'gray';
+    html += '<div><p class="text-xs font-semibold text-gray-400 uppercase mb-2">' + (typeLabels[type] || type) + '</p>' +
+      '<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">';
+    pkgs.forEach(p => {
+      html += '<div class="border border-gray-200 rounded-xl p-3 hover:border-' + col + '-400 hover:bg-' + col + '-50 transition-colors cursor-pointer" onclick="_addCarWash(\'' + p.id + '\')">' +
+        '<p class="text-sm font-semibold text-gray-800 mb-1">' + p.name + '</p>' +
+        (p.includes ? '<p class="text-xs text-gray-500 mb-2">' + p.includes.join(' · ') + '</p>' : '') +
+        (p.vehicleCount ? '<p class="text-xs text-gray-500 mb-2">' + p.vehicleCount + ' vehicles</p>' : '') +
+        '<p class="font-bold text-gray-900 text-sm">' + (p.price ? fmt(p.price) : 'POA') + '</p>' +
+      '</div>';
+    });
+    html += '</div></div>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+async function _addCarWash(pkgId) {
+  const pkg = _allCarWashCache.find(p => p.id === pkgId);
+  if (!pkg) return;
+  const price = pkg.price || 0;
+  await axios.post('/api/jobcards/' + _svcJobId + '/services', {
+    category: 'Car Wash',
+    serviceId: pkg.id, serviceName: pkg.name,
+    description: pkg.description, quantity: 1, unitCost: price, totalCost: price,
+    notes: pkg.type + (pkg.includes ? ' · ' + pkg.includes.join(', ') : '')
+  });
+  closeModal('modal-statusUpdate');
+  viewJobDetail(_svcJobId);
+  showToast('\u2714 ' + pkg.name + ' added');
+}
+
+// ── Tab: Add-on Services ───────────────────────────────────────────
+function _renderAddOnsTab(el) {
+  const catColors = { Diagnostic: 'blue', Inspection: 'green', Tyres: 'amber', Alignment: 'indigo' };
+  const catIcons  = { Diagnostic: 'fa-stethoscope', Inspection: 'fa-search', Tyres: 'fa-circle', Alignment: 'fa-crosshairs' };
+  const groups = {};
+  _allAddOnsCache.forEach(s => { (groups[s.category] = groups[s.category] || []).push(s); });
+  let html = '<div class="space-y-4 max-h-64 overflow-y-auto pr-1">';
+  Object.entries(groups).forEach(([cat, svcs]) => {
+    const col = catColors[cat] || 'gray';
+    const ico = catIcons[cat] || 'fa-plus';
+    html += '<div><p class="text-xs font-semibold text-gray-400 uppercase mb-2"><i class="fas ' + ico + ' mr-1"></i>' + cat + '</p>' +
+      '<div class="grid grid-cols-1 sm:grid-cols-2 gap-2">';
+    svcs.forEach(s => {
+      const isPerUnit = s.unit !== 'Per Job';
+      html += '<div class="border border-gray-200 rounded-xl p-3 hover:border-' + col + '-400 hover:bg-' + col + '-50 transition-colors">' +
+        '<div class="flex items-start justify-between gap-2">' +
+          '<div class="flex-1 min-w-0">' +
+            '<p class="text-sm font-semibold text-gray-800">' + s.name + '</p>' +
+            '<p class="text-xs text-gray-500 mt-0.5">' + s.description + '</p>' +
+          '</div>' +
+          '<div class="text-right flex-shrink-0">' +
+            '<p class="font-bold text-gray-900 text-sm">' + fmt(s.price) + '</p>' +
+            '<p class="text-xs text-gray-400">' + s.unit + '</p>' +
+          '</div>' +
+        '</div>' +
+        (isPerUnit
+          ? '<div class="flex items-center gap-2 mt-2">' +
+              '<label class="text-xs text-gray-500">Qty:</label>' +
+              '<input type="number" min="1" value="1" id="addon-qty-' + s.id + '" class="form-input py-1 text-xs w-16"/>' +
+              '<button onclick="_addAddonWithQty(\'' + s.id + '\')" class="btn-primary text-xs flex-1 py-1.5">Add</button>' +
+            '</div>'
+          : '<button onclick="_addAddon(\'' + s.id + '\',1)" class="btn-primary text-xs w-full mt-2 py-1.5">Add to Job</button>'
+        ) +
+      '</div>';
+    });
+    html += '</div></div>';
+  });
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+async function _addAddonWithQty(svcId) {
+  const qtyEl = document.getElementById('addon-qty-' + svcId);
+  const qty = qtyEl ? (+qtyEl.value || 1) : 1;
+  await _addAddon(svcId, qty);
+}
+
+async function _addAddon(svcId, qty) {
+  const svc = _allAddOnsCache.find(s => s.id === svcId);
+  if (!svc) return;
+  const total = svc.price * qty;
+  await axios.post('/api/jobcards/' + _svcJobId + '/services', {
+    category: 'Add-on',
+    serviceId: svc.id, serviceName: svc.name,
+    description: svc.description, quantity: qty, unitCost: svc.price, totalCost: total,
+    notes: svc.unit + (qty > 1 ? ' ×' + qty : '')
+  });
+  closeModal('modal-statusUpdate');
+  viewJobDetail(_svcJobId);
+  showToast('\u2714 ' + svc.name + (qty > 1 ? ' ×' + qty : '') + ' added');
+}
+
+// ── Tab: Parts (catalogue search – reuses existing logic) ──────────
+function _renderPartsTab(el) {
+  el.innerHTML =
+    '<p class="text-sm text-gray-500 mb-3">Search the parts catalogue or enter a custom part manually</p>' +
+    '<div class="relative mb-2">' +
+      '<i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>' +
+      '<input class="form-input pl-8" id="catSearch2" placeholder="Search by name or compatible model\u2026" autocomplete="off"/>' +
+    '</div>' +
+    '<div id="catResults2" class="hidden mb-3 border border-gray-200 rounded-xl overflow-hidden max-h-44 overflow-y-auto shadow-sm"></div>' +
+    '<div id="catSelected2" class="hidden mb-3 px-3 py-2.5 bg-blue-50 border border-blue-200 rounded-xl text-sm">' +
+      '<div class="flex items-start justify-between gap-2">' +
+        '<div><p class="font-semibold text-blue-900 text-sm" id="catSel2-name"></p><p class="text-xs text-blue-600 mt-0.5" id="catSel2-meta"></p></div>' +
+        '<button class="text-blue-400 hover:text-blue-600 text-xs" onclick="_clearCatSel2()"><i class="fas fa-times"></i></button>' +
+      '</div>' +
+    '</div>' +
+    '<div class="mb-3"><label class="form-label">Part Name</label>' +
+      '<input class="form-input" id="part2-name" required placeholder="e.g. Front Bumper Assembly"/>' +
+    '</div>' +
+    '<div class="grid grid-cols-3 gap-3 mb-4">' +
+      '<div><label class="form-label">Qty</label><input class="form-input" type="number" id="part2-qty" min="1" value="1"/></div>' +
+      '<div><label class="form-label">Unit Cost (TZS)</label><input class="form-input" type="number" id="part2-unit" min="0"/></div>' +
+      '<div><label class="form-label">Total</label><input class="form-input" id="part2-total" readonly placeholder="Auto"/></div>' +
+    '</div>' +
+    '<div class="flex gap-3">' +
+      '<button class="btn-secondary flex-1" onclick="closeModal(\'modal-statusUpdate\')">Cancel</button>' +
+      '<button class="btn-primary flex-1" id="part2-submit"><i class="fas fa-plus mr-1"></i>Add Part</button>' +
+    '</div>';
+
+  // Wire up calc
+  let _sel2 = null;
+  const recalc = () => {
+    const q = +document.getElementById('part2-qty').value || 0;
+    const u = +document.getElementById('part2-unit').value || 0;
+    document.getElementById('part2-total').value = fmt(q * u);
+  };
+  document.getElementById('part2-qty').addEventListener('input', recalc);
+  document.getElementById('part2-unit').addEventListener('input', recalc);
+
+  // Catalogue search
+  if (!_catalogueCache.length) {
+    axios.get('/api/catalogue/parts').then(r => { _catalogueCache = r.data; }).catch(() => {});
+  }
+  let _timer2;
+  document.getElementById('catSearch2').addEventListener('input', function() {
+    clearTimeout(_timer2);
+    const q = this.value.trim();
+    if (q.length < 2) { document.getElementById('catResults2').classList.add('hidden'); return; }
+    _timer2 = setTimeout(() => {
+      const ql = q.toLowerCase();
+      const results = _catalogueCache.filter(p =>
+        p.description.toLowerCase().includes(ql) || p.compatibleModels.toLowerCase().includes(ql)
+      ).slice(0, 6);
+      const el2 = document.getElementById('catResults2');
+      if (!results.length) { el2.innerHTML = '<div class="px-4 py-3 text-sm text-gray-400 text-center">No results</div>'; el2.classList.remove('hidden'); return; }
+      el2.innerHTML = results.map(p => {
+        const stock = p.stockQuantity || 0;
+        const sc = stock === 0 ? 'text-red-500' : stock <= 5 ? 'text-amber-500' : 'text-green-600';
+        return '<div class="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-50 last:border-0" onclick="_sel2Part(\'' + p.id + '\')">' +
+          '<div class="flex items-start justify-between gap-2">' +
+            '<div class="flex-1 min-w-0"><p class="text-sm font-semibold truncate">' + p.description + '</p>' +
+            '<p class="text-xs text-gray-400">' + p.compatibleModels.split(',').slice(0,3).join(', ') + '</p></div>' +
+            '<div class="text-right"><p class="font-bold text-sm">' + fmt(p.sellingPrice) + '</p>' +
+            '<p class="text-xs ' + sc + '">' + stock + ' in stock</p></div>' +
+          '</div></div>';
+      }).join('');
+      el2.classList.remove('hidden');
+    }, 200);
+  });
+
+  window._sel2Part = function(partId) {
+    const p = _catalogueCache.find(x => x.id === partId);
+    if (!p) return;
+    _sel2 = p;
+    document.getElementById('part2-name').value = p.description;
+    document.getElementById('part2-unit').value = p.sellingPrice;
+    document.getElementById('catResults2').classList.add('hidden');
+    document.getElementById('catSearch2').value = '';
+    const banner = document.getElementById('catSelected2');
+    banner.classList.remove('hidden');
+    document.getElementById('catSel2-name').textContent = p.description;
+    document.getElementById('catSel2-meta').textContent = p.category + ' · ' + p.compatibleModels.split(',').slice(0,2).join(', ');
+    document.getElementById('part2-qty').dispatchEvent(new Event('input'));
+  };
+  window._clearCatSel2 = function() {
+    _sel2 = null;
+    document.getElementById('catSelected2').classList.add('hidden');
+    document.getElementById('part2-name').value = '';
+    document.getElementById('part2-unit').value = '';
+    document.getElementById('part2-total').value = '';
+  };
+
+  document.getElementById('part2-submit').addEventListener('click', async () => {
+    const qty  = +document.getElementById('part2-qty').value;
+    const unit = +document.getElementById('part2-unit').value;
+    const name = document.getElementById('part2-name').value.trim();
+    if (!name || !qty || !unit) { showToast('Please fill all fields', 'error'); return; }
+    if (_sel2 && qty > (_sel2.stockQuantity || 0)) { showToast('Only ' + (_sel2.stockQuantity || 0) + ' in stock', 'error'); return; }
+    const btn = document.getElementById('part2-submit');
+    btn.disabled = true; btn.textContent = 'Adding\u2026';
+    try {
+      await axios.post('/api/jobcards/' + _svcJobId + '/parts', { partName: name, quantity: qty, unitCost: unit, totalCost: qty * unit });
+      if (_sel2) {
+        await axios.patch('/api/catalogue/parts/' + _sel2.id + '/deduct', { quantity: qty });
+        const ci = _catalogueCache.findIndex(p => p.id === _sel2.id);
+        if (ci !== -1) _catalogueCache[ci] = { ..._catalogueCache[ci], stockQuantity: (_catalogueCache[ci].stockQuantity || 0) - qty };
+      }
+      closeModal('modal-statusUpdate');
+      viewJobDetail(_svcJobId);
+      showToast('\u2714 Part added');
+    } catch(err) {
+      showToast('Error: ' + (err.response?.data?.error || err.message), 'error');
+      btn.disabled = false; btn.textContent = 'Add Part';
+    }
+  });
+}
+
+// ── Remove a service from a job ────────────────────────────────────
+async function removeJobService(jobId, serviceId) {
+  if (!confirm('Remove this service from the job?')) return;
+  await axios.delete('/api/services/' + serviceId);
+  viewJobDetail(jobId);
+  showToast('Service removed');
 }
 
 // Status Update Modal
@@ -3161,6 +3720,38 @@ function buildPFIDoc(detail) {
     y += 2;
   }
 
+  // ── Services table ──
+  const services = detail.services || [];
+  if (services.length) {
+    doc.setFillColor(88, 28, 135);
+    doc.rect(margin, y, contentW, 8, 'F');
+    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+    doc.text('SERVICES', margin + 3, y + 5.5);
+    y += 8;
+    doc.setFillColor(248, 250, 252);
+    doc.rect(margin, y, contentW, 7, 'F');
+    doc.setTextColor(71, 85, 105); doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+    doc.text('#',           margin + 3,               y + 5);
+    doc.text('Service',     margin + 10,              y + 5);
+    doc.text('Category',    margin + contentW * 0.55, y + 5);
+    doc.text('Qty',         margin + contentW * 0.72, y + 5);
+    doc.text('Total',       margin + contentW - 3,    y + 5, { align: 'right' });
+    y += 7;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+    services.forEach((sv, i) => {
+      if (i % 2 === 0) { doc.setFillColor(250, 245, 255); doc.rect(margin, y, contentW, 7, 'F'); }
+      doc.setTextColor(30, 41, 59);
+      doc.text(String(i + 1),     margin + 3,               y + 5);
+      const nameStr = sv.serviceName.length > 30 ? sv.serviceName.substring(0, 28) + '…' : sv.serviceName;
+      doc.text(nameStr,           margin + 10,              y + 5);
+      doc.text(sv.category,       margin + contentW * 0.55, y + 5);
+      doc.text(String(sv.quantity),margin + contentW * 0.72,y + 5);
+      doc.text(fmt(sv.totalCost), margin + contentW - 3,    y + 5, { align: 'right' });
+      y += 7;
+    });
+    y += 4;
+  }
+
   // ── Parts table ──
   if (parts && parts.length) {
     doc.setFillColor(30, 64, 175);
@@ -3232,6 +3823,7 @@ function buildPFIDoc(detail) {
 // ── Text preview for the modal ──
 function buildPFITextPreview(detail) {
   const { pfi, job, customer, vehicle, parts } = detail;
+  const services = detail.services || [];
   const NL = String.fromCharCode(10);
   const line = '\u2500'.repeat(52);
   const dash25 = '\u2500'.repeat(25);
@@ -3252,6 +3844,14 @@ function buildPFITextPreview(detail) {
   if (isInsuranceJob && job?.insurer) t += 'Insurer:  ' + job.insurer + NL;
   if (isInsuranceJob && job?.claimReference) t += 'Claim:    ' + job.claimReference + NL;
   t += line + NL;
+  if (services.length) {
+    t += 'SERVICES' + NL;
+    services.forEach((sv, i) => {
+      t += '  ' + (i+1) + '. ' + sv.serviceName + (sv.quantity > 1 ? ' x' + sv.quantity : '') + '  [' + sv.category + ']  = ' + fmt(sv.totalCost) + NL;
+      if (sv.notes) t += '     ' + sv.notes + NL;
+    });
+    t += line + NL;
+  }
   if (parts?.length) {
     t += 'PARTS & MATERIALS' + NL;
     parts.forEach((p, i) => {
@@ -3260,7 +3860,7 @@ function buildPFITextPreview(detail) {
     t += line + NL;
   }
   t += '  Labour:         ' + fmt(pfi.labourCost) + NL;
-  t += '  Parts:          ' + fmt(pfi.partsCost) + NL;
+  t += '  Services+Parts: ' + fmt(pfi.partsCost) + NL;
   t += '  ' + dash25 + NL;
   t += '  TOTAL ESTIMATE: ' + fmt(pfi.totalEstimate) + NL;
   if (pfi.notes) t += NL + 'Notes: ' + pfi.notes + NL;
@@ -3294,7 +3894,29 @@ async function showSendPFIModal(pfiId) {
   _currentPFIId = pfiId;
   _currentPFIDetail = await fetchPFIDetail(pfiId);
   const { pfi, job, customer, parts } = _currentPFIDetail;
+  const services = _currentPFIDetail.services || [];
   const isInsurance = job?.category === 'Insurance';
+
+  // Services breakdown HTML for summary
+  let servicesBreakdownHtml = '';
+  if (services.length) {
+    const catIcon = cat =>
+      cat === 'Service Package' ? 'fa-box-open' :
+      cat === 'Oil Service'     ? 'fa-oil-can'  :
+      cat === 'Car Wash'        ? 'fa-car'       : 'fa-plus-circle';
+    const rows = services.map(sv =>
+      '<div class="flex justify-between text-xs">' +
+        '<span class="text-purple-800"><i class="fas ' + catIcon(sv.category) + ' mr-1 text-purple-400"></i>' + sv.serviceName +
+        (sv.quantity > 1 ? ' <span class="text-purple-400">\xd7' + sv.quantity + '</span>' : '') + '</span>' +
+        '<span class="font-semibold text-purple-900">' + fmt(sv.totalCost) + '</span>' +
+      '</div>'
+    ).join('');
+    servicesBreakdownHtml =
+      '<div class="mt-3 border-t border-blue-200 pt-3">' +
+        '<p class="text-xs font-semibold text-purple-700 uppercase mb-2">Services</p>' +
+        '<div class="space-y-1">' + rows + '</div>' +
+      '</div>';
+  }
 
   // Parts breakdown HTML for summary (use string concat to avoid nested backtick issues)
   let partsBreakdownHtml = '';
@@ -3324,9 +3946,10 @@ async function showSendPFIModal(pfiId) {
       <div><span class="text-gray-500">Customer:</span> <strong>\${customer?.name||'—'}</strong></div>
       <div><span class="text-gray-500">Vehicle:</span> <strong>\${_currentPFIDetail.vehicle?.registrationNumber||'—'}</strong></div>
       <div><span class="text-gray-500">Labour:</span> <strong>\${fmt(pfi.labourCost)}</strong></div>
-      <div><span class="text-gray-500">Parts:</span> <strong>\${fmt(pfi.partsCost)}</strong></div>
+      <div><span class="text-gray-500">Services+Parts:</span> <strong>\${fmt(pfi.partsCost)}</strong></div>
       <div><span class="text-gray-500">Total:</span> <strong class="text-blue-700">\${fmt(pfi.totalEstimate)}</strong></div>
     </div>
+    \${servicesBreakdownHtml}
     \${partsBreakdownHtml}
   \`;
 
@@ -3335,10 +3958,20 @@ async function showSendPFIModal(pfiId) {
   // Pre-fill subject
   document.getElementById('sendPFI-subject').value = \`Pro Forma Invoice – \${job?.jobCardNumber||'PFI-'+pfi.id.toUpperCase()} | AutoFix GMS\`;
 
+  // Build services lines for email body
+  const servicesLines = services.length
+    ? services.map(sv => '    ' + sv.serviceName + (sv.quantity > 1 ? ' ×' + sv.quantity : '') + '  [' + sv.category + ']  = ' + fmt(sv.totalCost)).join(String.fromCharCode(10))
+    : '';
+
   // Build parts lines for email body
   const partsLines = parts && parts.length
     ? parts.map(p => '    ' + p.partName + ' ×' + p.quantity + '  @ ' + fmt(p.unitCost) + '  = ' + fmt(p.totalCost)).join(String.fromCharCode(10))
-    : '    (none)';
+    : '';
+
+  const itemsSection = (servicesLines || partsLines)
+    ? (servicesLines ? 'Services:' + String.fromCharCode(10) + servicesLines + String.fromCharCode(10) : '') +
+      (partsLines ? (servicesLines ? String.fromCharCode(10) : '') + 'Parts Consumed:' + String.fromCharCode(10) + partsLines + String.fromCharCode(10) : '')
+    : '    (none)' + String.fromCharCode(10);
 
   // Pre-fill message — adapt closing line based on job type
   const closingLine = isInsurance
@@ -3355,11 +3988,9 @@ Please find attached the Pro Forma Invoice (PFI) for the service on your vehicle
 Summary:
   Job Card:       \${job?.jobCardNumber || '—'}
 \${insuranceExtra}\${claimExtra}
-Parts Consumed:
-\${partsLines}
-
+\${itemsSection}
   Labour Cost:    \${fmt(pfi.labourCost)}
-  Parts Cost:     \${fmt(pfi.partsCost)}
+  Services+Parts: \${fmt(pfi.partsCost)}
   Total Estimate: \${fmt(pfi.totalEstimate)}
 
 \${pfi.notes ? 'Notes: ' + pfi.notes + '\\n\\n' : ''}\${closingLine}

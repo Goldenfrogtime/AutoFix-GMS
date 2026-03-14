@@ -101,6 +101,21 @@ export interface Invoice {
   pfiReference?: string
 }
 
+// A service (package / oil service / car wash / add-on) added to a job card
+export type JobServiceCategory = 'Service Package' | 'Oil Service' | 'Car Wash' | 'Add-on'
+export interface JobService {
+  id: string
+  jobCardId: string
+  category: JobServiceCategory
+  serviceId: string        // id of the source catalogue item
+  serviceName: string      // display name
+  description?: string
+  quantity: number         // e.g. number of tyres for 'Per Tyre' add-ons
+  unitCost: number
+  totalCost: number
+  notes?: string           // e.g. oil brand/tier for oil services
+}
+
 export interface ServicePackage {
   id: string
   packageName: string
@@ -423,3 +438,6 @@ export const appointments: Appointment[] = [
   { id: 'apt6', customerId: 'c5', vehicleId: 'v5', serviceType: 'Tyre Service',    status: 'Completed',  date: '2026-03-12', time: '08:30', estimatedDuration: 60,  assignedTechnician: 'u4', notes: 'Replace all 4 tyres', createdAt: '2026-03-10T14:00:00Z', updatedAt: '2026-03-12T10:00:00Z' },
   { id: 'apt7', customerId: 'c2', vehicleId: 'v2', serviceType: 'Car Wash',        status: 'Cancelled',  date: '2026-03-12', time: '15:00', estimatedDuration: 30,  notes: 'Customer cancelled', createdAt: '2026-03-11T16:00:00Z', updatedAt: '2026-03-12T07:00:00Z' },
 ]
+
+// ─── Job Services (packages / oil / car wash / add-ons added to a job) ────────
+export const jobServices: JobService[] = []
