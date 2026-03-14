@@ -76,9 +76,25 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 .parts-cat-tab.active{background:#2563eb;color:#fff;border-color:#2563eb}
 /* ── Responsive ── */
 @media(max-width:1023px){
-  .sidebar{position:fixed;top:0;left:0;height:100vh;-webkit-transform:translateX(-100%);transform:translateX(-100%)}
-  .sidebar.open{transform:translateX(0)}
-  #sidebar-backdrop{display:block!important}
+  /* Sidebar becomes a fixed full-height overlay on mobile/tablet */
+  aside#sidebar{
+    position:fixed !important;
+    top:0;left:0;
+    height:100vh;
+    width:256px;
+    max-width:82vw;
+    -webkit-transform:translateX(-100%);
+    transform:translateX(-100%);
+    z-index:50;
+    /* KEY: make the aside take zero flex-space so <main> fills 100% */
+    flex:0 0 0px !important;
+    min-width:0 !important;
+    overflow:hidden !important;
+  }
+  aside#sidebar.open{
+    transform:translateX(0) !important;
+    overflow-y:auto !important;
+  }
 }
 .modal-box{padding:20px}
 @media(min-width:640px){.modal-box{padding:28px}}
