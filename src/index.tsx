@@ -914,9 +914,15 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 
     <!-- ═══ OIL SERVICES ═══ -->
     <div id="page-oil-services" class="page">
-      <div class="mb-6">
-        <h2 class="text-2xl font-bold text-gray-900">Oil Services – Pricing</h2>
-        <p class="text-gray-500 text-sm mt-1">Toyota, Total & Castrol oil service packages with 3 customer tiers and fleet discounts</p>
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-900">Oil Services – Pricing</h2>
+          <p class="text-gray-500 text-sm mt-1">Toyota, Total &amp; Castrol oil service packages with 3 customer tiers and fleet discounts</p>
+        </div>
+        <div class="flex gap-2" id="oilManageActions" data-perm="oil_services.view">
+          <button class="btn-secondary text-sm" id="oilFleetEditBtn" onclick="showOilFleetModal()" data-perm="packages.manage"><i class="fas fa-truck mr-1"></i>Fleet Discounts</button>
+          <button class="btn-primary text-sm" id="oilAddTierBtn" onclick="showOilTierModal()" data-perm="packages.manage"><i class="fas fa-plus mr-1"></i>Add Tier</button>
+        </div>
       </div>
       <!-- Brand Tabs -->
       <div class="flex gap-2 mb-6" id="oilBrandTabs">
@@ -926,11 +932,13 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       </div>
       <!-- Fleet Discount Banner -->
       <div id="oilFleetBanner" class="hidden card p-4 mb-5 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200">
-        <div class="flex items-center gap-3">
-          <i class="fas fa-truck text-amber-500 text-xl"></i>
-          <div>
-            <p class="font-bold text-amber-800">Fleet Discounts Available (Toyota Only)</p>
-            <p class="text-sm text-amber-700">3–5 vehicles: <strong>TZS 5,000 off</strong> per car &nbsp;|&nbsp; 5+ vehicles: <strong>TZS 8,000 off</strong> per car</p>
+        <div class="flex items-center justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <i class="fas fa-truck text-amber-500 text-xl"></i>
+            <div>
+              <p class="font-bold text-amber-800">Fleet Discounts Available</p>
+              <p class="text-sm text-amber-700" id="oilFleetBannerText">3–5 vehicles: <strong>TZS 5,000 off</strong> per car &nbsp;|&nbsp; 5+ vehicles: <strong>TZS 8,000 off</strong> per car</p>
+            </div>
           </div>
         </div>
       </div>
@@ -1002,9 +1010,21 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 
     <!-- ═══ ADD-ON SERVICES ═══ -->
     <div id="page-add-ons" class="page">
-      <div class="mb-6">
-        <h2 class="text-2xl font-bold text-gray-900">Add-on Services</h2>
-        <p class="text-gray-500 text-sm mt-1">Diagnostic, inspection, tyre and alignment services</p>
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-900">Add-on Services</h2>
+          <p class="text-gray-500 text-sm mt-1">Diagnostic, inspection, tyre and alignment services</p>
+        </div>
+        <button class="btn-primary" onclick="showNewAddonModal()" data-perm="addons.manage"><i class="fas fa-plus mr-1"></i>New Service</button>
+      </div>
+      <!-- Category filter chips -->
+      <div class="flex flex-wrap gap-2 mb-5" id="addonCatTabs">
+        <button class="parts-cat-tab active" data-cat="" onclick="setAddonCatFilter('',this)">All</button>
+        <button class="parts-cat-tab" data-cat="Diagnostic" onclick="setAddonCatFilter('Diagnostic',this)">Diagnostic</button>
+        <button class="parts-cat-tab" data-cat="Inspection" onclick="setAddonCatFilter('Inspection',this)">Inspection</button>
+        <button class="parts-cat-tab" data-cat="Tyres" onclick="setAddonCatFilter('Tyres',this)">Tyres</button>
+        <button class="parts-cat-tab" data-cat="Alignment" onclick="setAddonCatFilter('Alignment',this)">Alignment</button>
+        <button class="parts-cat-tab" data-cat="Other" onclick="setAddonCatFilter('Other',this)">Other</button>
       </div>
       <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5" id="addOnsGrid"></div>
     </div>
@@ -1861,6 +1881,163 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
     <div class="flex gap-3 mt-6">
       <button class="btn-secondary flex-1" onclick="closeModal('modal-restock')">Cancel</button>
       <button class="btn-primary flex-1" onclick="submitRestock()"><i class="fas fa-plus mr-1"></i>Add Stock</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: Oil Tier (Add / Edit) ═══ -->
+<div id="modal-oilTier" class="modal-overlay hidden">
+  <div class="modal-box" style="--mw:600px">
+    <div class="flex items-center justify-between mb-5">
+      <div>
+        <h3 class="text-xl font-bold text-gray-900"><i class="fas fa-oil-can text-amber-500 mr-2"></i><span id="oilTierModalTitle">Add Engine Size Tier</span></h3>
+        <p class="text-sm text-gray-500 mt-1">Set pricing for Standard, Prestige and Premier customer tiers</p>
+      </div>
+      <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-oilTier')"><i class="fas fa-times"></i></button>
+    </div>
+    <input type="hidden" id="oilTier-brand"/>
+    <input type="hidden" id="oilTier-index"/>
+    <div class="mb-4">
+      <label class="form-label">Engine Size Label *</label>
+      <input class="form-input" type="text" id="oilTier-engineSize" placeholder="e.g. Up to 4L, 4–5L, 6L …"/>
+      <p class="text-xs text-gray-400 mt-1">Descriptive label shown in the pricing table</p>
+    </div>
+    <!-- Price grid -->
+    <div class="grid grid-cols-3 gap-4 mb-4">
+      <!-- Standard -->
+      <div>
+        <p class="text-xs font-bold text-blue-600 mb-2 flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-blue-500 inline-block"></span>Standard</p>
+        <div class="space-y-2">
+          <div>
+            <label class="form-label text-xs">Price (TZS)</label>
+            <input class="form-input text-sm" type="number" id="oilTier-stdPrice" placeholder="0" oninput="oilTierCalcMargin()"/>
+          </div>
+          <div>
+            <label class="form-label text-xs">Margin (TZS)</label>
+            <input class="form-input text-sm bg-gray-50" type="number" id="oilTier-stdMargin" placeholder="auto" oninput="oilTierMarginChanged('std')"/>
+          </div>
+          <div class="text-xs text-blue-600 font-semibold hidden" id="oilTier-stdPct"></div>
+        </div>
+      </div>
+      <!-- Prestige -->
+      <div>
+        <p class="text-xs font-bold text-purple-600 mb-2 flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-purple-500 inline-block"></span>Prestige</p>
+        <div class="space-y-2">
+          <div>
+            <label class="form-label text-xs">Price (TZS)</label>
+            <input class="form-input text-sm" type="number" id="oilTier-presPrice" placeholder="0" oninput="oilTierCalcMargin()"/>
+          </div>
+          <div>
+            <label class="form-label text-xs">Margin (TZS)</label>
+            <input class="form-input text-sm bg-gray-50" type="number" id="oilTier-presMargin" placeholder="auto" oninput="oilTierMarginChanged('pres')"/>
+          </div>
+          <div class="text-xs text-purple-600 font-semibold hidden" id="oilTier-presPct"></div>
+        </div>
+      </div>
+      <!-- Premier -->
+      <div>
+        <p class="text-xs font-bold text-amber-600 mb-2 flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-500 inline-block"></span>Premier</p>
+        <div class="space-y-2">
+          <div>
+            <label class="form-label text-xs">Price (TZS)</label>
+            <input class="form-input text-sm" type="number" id="oilTier-premPrice" placeholder="0" oninput="oilTierCalcMargin()"/>
+          </div>
+          <div>
+            <label class="form-label text-xs">Margin (TZS)</label>
+            <input class="form-input text-sm bg-gray-50" type="number" id="oilTier-premMargin" placeholder="auto" oninput="oilTierMarginChanged('prem')"/>
+          </div>
+          <div class="text-xs text-amber-600 font-semibold hidden" id="oilTier-premPct"></div>
+        </div>
+      </div>
+    </div>
+    <!-- Margin preview strip -->
+    <div class="hidden p-3 bg-green-50 border border-green-100 rounded-xl mb-4 text-xs" id="oilTier-marginPreview">
+      <p class="font-semibold text-green-700 mb-1"><i class="fas fa-chart-line mr-1"></i>Margin Summary</p>
+      <div class="flex gap-4 flex-wrap" id="oilTier-marginDetails"></div>
+    </div>
+    <div class="flex gap-3 mt-2">
+      <button class="btn-secondary flex-1" onclick="closeModal('modal-oilTier')">Cancel</button>
+      <button class="btn-primary flex-1" onclick="submitOilTier()"><i class="fas fa-save mr-1"></i>Save Tier</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: Oil Fleet Discounts ═══ -->
+<div id="modal-oilFleet" class="modal-overlay hidden">
+  <div class="modal-box" style="--mw:440px">
+    <div class="flex items-center justify-between mb-5">
+      <div>
+        <h3 class="text-xl font-bold text-gray-900"><i class="fas fa-truck text-amber-500 mr-2"></i>Fleet Discounts</h3>
+        <p class="text-sm text-gray-500 mt-1">Per-vehicle discount for fleet customers — <span id="oilFleet-brandLabel" class="font-semibold text-amber-600"></span></p>
+      </div>
+      <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-oilFleet')"><i class="fas fa-times"></i></button>
+    </div>
+    <input type="hidden" id="oilFleet-brand"/>
+    <div class="space-y-4">
+      <div>
+        <label class="form-label">3–5 Vehicles — Discount per car (TZS)</label>
+        <input class="form-input" type="number" id="oilFleet-3to5" placeholder="0" min="0"/>
+        <p class="text-xs text-gray-400 mt-1">Amount deducted per vehicle when a fleet has 3–5 vehicles</p>
+      </div>
+      <div>
+        <label class="form-label">5+ Vehicles — Discount per car (TZS)</label>
+        <input class="form-input" type="number" id="oilFleet-5plus" placeholder="0" min="0"/>
+        <p class="text-xs text-gray-400 mt-1">Amount deducted per vehicle when a fleet has 5 or more vehicles</p>
+      </div>
+    </div>
+    <div class="flex gap-3 mt-6">
+      <button class="btn-secondary flex-1" onclick="closeModal('modal-oilFleet')">Cancel</button>
+      <button class="btn-primary flex-1" onclick="submitOilFleet()"><i class="fas fa-save mr-1"></i>Save Discounts</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: New / Edit Add-on Service ═══ -->
+<div id="modal-addonService" class="modal-overlay hidden">
+  <div class="modal-box" style="--mw:500px">
+    <div class="flex items-center justify-between mb-5">
+      <div>
+        <h3 class="text-xl font-bold text-gray-900"><i class="fas fa-tools text-blue-500 mr-2"></i><span id="addonModal-title">New Add-on Service</span></h3>
+        <p class="text-sm text-gray-500 mt-1">Define service name, category, description and pricing</p>
+      </div>
+      <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-addonService')"><i class="fas fa-times"></i></button>
+    </div>
+    <input type="hidden" id="addon-id"/>
+    <div class="grid grid-cols-2 gap-4 mb-4">
+      <div class="col-span-2">
+        <label class="form-label">Service Name *</label>
+        <input class="form-input" type="text" id="addon-name" placeholder="e.g. Full Diagnostic Scan"/>
+      </div>
+      <div>
+        <label class="form-label">Category *</label>
+        <select class="form-input" id="addon-category">
+          <option value="">Select category…</option>
+          <option>Diagnostic</option>
+          <option>Inspection</option>
+          <option>Tyres</option>
+          <option>Alignment</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Unit *</label>
+        <input class="form-input" type="text" id="addon-unit" placeholder="e.g. per service, per wheel"/>
+      </div>
+      <div class="col-span-2">
+        <label class="form-label">Description</label>
+        <textarea class="form-input" id="addon-description" rows="2" placeholder="Brief description of what this service includes…"></textarea>
+      </div>
+      <div>
+        <label class="form-label">Price (TZS) *</label>
+        <input class="form-input" type="number" id="addon-price" placeholder="0" min="0" oninput="addonPricePreview()"/>
+      </div>
+      <div class="flex items-end pb-1">
+        <div class="text-sm font-semibold text-blue-700 hidden" id="addon-pricePreview"></div>
+      </div>
+    </div>
+    <div class="flex gap-3 mt-2">
+      <button class="btn-secondary flex-1" onclick="closeModal('modal-addonService')">Cancel</button>
+      <button class="btn-primary flex-1" onclick="submitAddonService()"><i class="fas fa-save mr-1"></i><span id="addonModal-submitLabel">Add Service</span></button>
     </div>
   </div>
 </div>
@@ -5566,68 +5743,227 @@ async function loadOilServices() {
   showOilBrand('Toyota', document.querySelector('#oilBrandTabs button'));
 }
 
+let _currentOilBrand = 'Toyota';
+
 function showOilBrand(brand, btn) {
+  _currentOilBrand = brand;
   document.querySelectorAll('#oilBrandTabs button').forEach(b => {
     b.className = 'px-5 py-2.5 rounded-xl text-sm font-bold bg-gray-100 text-gray-600 hover:bg-gray-200';
   });
   if (btn) btn.className = 'px-5 py-2.5 rounded-xl text-sm font-bold bg-blue-600 text-white shadow';
   const product = oilData.find(p => p.brand === brand);
   const banner = document.getElementById('oilFleetBanner');
-  banner.classList.toggle('hidden', brand !== 'Toyota');
+  // Show fleet banner for any brand that has fleet discounts configured
+  if (product && (product.fleetDiscount3to5 > 0 || product.fleetDiscount5plus > 0)) {
+    banner.classList.remove('hidden');
+    document.getElementById('oilFleetBannerText').innerHTML =
+      '3\u20135 vehicles: <strong>TZS ' + fmt(product.fleetDiscount3to5) + ' off</strong> per car &nbsp;|&nbsp; 5+ vehicles: <strong>TZS ' + fmt(product.fleetDiscount5plus) + ' off</strong> per car';
+  } else {
+    banner.classList.add('hidden');
+  }
+  const canManage = can('packages.manage');
   if (!product) {
-    document.getElementById('oilPricingTable').innerHTML = '<div class="p-8 text-center text-gray-400"><i class="fas fa-oil-can text-3xl mb-3 block"></i>No pricing data available</div>';
+    document.getElementById('oilPricingTable').innerHTML =
+      '<div class="p-8 text-center text-gray-400"><i class="fas fa-oil-can text-3xl mb-3 block"></i>No pricing data for ' + brand + '.' +
+      (canManage ? ' <button class="mt-3 btn-primary text-sm" onclick="showOilTierModal()"><i class="fas fa-plus mr-1"></i>Add First Tier</button>' : '') +
+      '</div>';
     return;
   }
-  const tierColors = { Standard: { bg:'#eff6ff', text:'#2563eb', border:'#bfdbfe' }, Prestige: { bg:'#f5f3ff', text:'#7c3aed', border:'#ddd6fe' }, Premier: { bg:'#fffbeb', text:'#d97706', border:'#fde68a' } };
-  document.getElementById('oilPricingTable').innerHTML = \`
-    <div class="overflow-x-auto">
-      <table class="w-full text-sm">
-        <thead>
-          <tr class="bg-gray-50 border-b">
-            <th class="text-left px-5 py-4 font-bold text-gray-700">Engine Size</th>
-            <th class="text-right px-5 py-4 font-bold" style="color:\${tierColors.Standard.text}">
-              <div class="flex items-center justify-end gap-2"><span class="w-3 h-3 rounded-full inline-block" style="background:\${tierColors.Standard.text}"></span>Standard</div>
-            </th>
-            <th class="text-right px-5 py-4 font-bold" style="color:\${tierColors.Prestige.text}">
-              <div class="flex items-center justify-end gap-2"><span class="w-3 h-3 rounded-full inline-block" style="background:\${tierColors.Prestige.text}"></span>Prestige</div>
-            </th>
-            <th class="text-right px-5 py-4 font-bold" style="color:\${tierColors.Premier.text}">
-              <div class="flex items-center justify-end gap-2"><span class="w-3 h-3 rounded-full inline-block" style="background:\${tierColors.Premier.text}"></span>Premier</div>
-            </th>
-            <th class="text-right px-5 py-4 font-semibold text-gray-500">Std Margin</th>
-            <th class="text-right px-5 py-4 font-semibold text-gray-500">Pres Margin</th>
-            <th class="text-right px-5 py-4 font-semibold text-gray-500">Prem Margin</th>
-          </tr>
-        </thead>
-        <tbody>
-          \${product.tiers.map((t, i) => \`
-            <tr class="border-b hover:bg-gray-50 transition-colors \${i % 2 === 0 ? '' : 'bg-gray-50/50'}">
-              <td class="px-5 py-3.5 font-semibold text-gray-800">
-                <i class="fas fa-tachometer-alt text-gray-400 mr-2 text-xs"></i>\${t.engineSize}
-              </td>
-              <td class="px-5 py-3.5 text-right">
-                <span class="inline-block px-3 py-1 rounded-lg font-bold text-sm" style="background:\${tierColors.Standard.bg};color:\${tierColors.Standard.text}">\${fmt(t.standardPrice)}</span>
-              </td>
-              <td class="px-5 py-3.5 text-right">
-                <span class="inline-block px-3 py-1 rounded-lg font-bold text-sm" style="background:\${tierColors.Prestige.bg};color:\${tierColors.Prestige.text}">\${fmt(t.prestigePrice)}</span>
-              </td>
-              <td class="px-5 py-3.5 text-right">
-                <span class="inline-block px-3 py-1 rounded-lg font-bold text-sm" style="background:\${tierColors.Premier.bg};color:\${tierColors.Premier.text}">\${fmt(t.premierPrice)}</span>
-              </td>
-              <td class="px-5 py-3.5 text-right text-green-600 font-medium">\${fmt(t.standardMargin)}</td>
-              <td class="px-5 py-3.5 text-right text-green-600 font-medium">\${fmt(t.prestigeMargin)}</td>
-              <td class="px-5 py-3.5 text-right text-green-600 font-medium">\${fmt(t.premierMargin)}</td>
-            </tr>
-          \`).join('')}
-        </tbody>
-      </table>
-    </div>
-    \${brand === 'Toyota' ? \`
-      <div class="p-4 bg-amber-50 border-t border-amber-100">
-        <p class="text-xs text-amber-700 font-semibold"><i class="fas fa-info-circle mr-1"></i>Fleet Discount: TZS 5,000/car for 3-5 vehicles | TZS 8,000/car for 5+ vehicles (per service)</p>
-      </div>
-    \` : ''}
-  \`;
+  const tc = { Standard: { bg:'#eff6ff', text:'#2563eb' }, Prestige: { bg:'#f5f3ff', text:'#7c3aed' }, Premier: { bg:'#fffbeb', text:'#d97706' } };
+  const actionCol = canManage ? '<th class="text-center px-4 py-4 font-semibold text-gray-500">Actions</th>' : '';
+  const rows = product.tiers.map((t, i) => {
+    const actions = canManage
+      ? '<td class="px-4 py-3.5 text-center"><div class="flex items-center justify-center gap-1">' +
+          '<button onclick="showOilTierModal(\'' + brand + '\',' + i + ')" title="Edit" class="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center transition-colors"><i class="fas fa-pen text-xs"></i></button>' +
+          '<button onclick="deleteOilTier(\'' + brand + '\',' + i + ')" title="Delete" class="w-7 h-7 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center transition-colors"><i class="fas fa-trash text-xs"></i></button>' +
+        '</div></td>'
+      : '';
+    return '<tr class="border-b hover:bg-gray-50 transition-colors ' + (i % 2 === 0 ? '' : 'bg-gray-50/50') + '">' +
+      '<td class="px-5 py-3.5 font-semibold text-gray-800"><i class="fas fa-tachometer-alt text-gray-400 mr-2 text-xs"></i>' + t.engineSize + '</td>' +
+      '<td class="px-5 py-3.5 text-right"><span class="inline-block px-3 py-1 rounded-lg font-bold text-sm" style="background:' + tc.Standard.bg + ';color:' + tc.Standard.text + '">' + fmt(t.standardPrice) + '</span></td>' +
+      '<td class="px-5 py-3.5 text-right"><span class="inline-block px-3 py-1 rounded-lg font-bold text-sm" style="background:' + tc.Prestige.bg + ';color:' + tc.Prestige.text + '">' + fmt(t.prestigePrice) + '</span></td>' +
+      '<td class="px-5 py-3.5 text-right"><span class="inline-block px-3 py-1 rounded-lg font-bold text-sm" style="background:' + tc.Premier.bg + ';color:' + tc.Premier.text + '">' + fmt(t.premierPrice) + '</span></td>' +
+      '<td class="px-5 py-3.5 text-right text-green-600 font-medium">' + fmt(t.standardMargin) + '</td>' +
+      '<td class="px-5 py-3.5 text-right text-green-600 font-medium">' + fmt(t.prestigeMargin) + '</td>' +
+      '<td class="px-5 py-3.5 text-right text-green-600 font-medium">' + fmt(t.premierMargin) + '</td>' +
+      actions +
+      '</tr>';
+  }).join('');
+  const fleetNote = (product.fleetDiscount3to5 > 0 || product.fleetDiscount5plus > 0)
+    ? '<div class="p-4 bg-amber-50 border-t border-amber-100"><p class="text-xs text-amber-700 font-semibold"><i class="fas fa-info-circle mr-1"></i>Fleet Discount: TZS ' + fmt(product.fleetDiscount3to5) + '/car for 3\u20135 vehicles | TZS ' + fmt(product.fleetDiscount5plus) + '/car for 5+ vehicles (per service)</p></div>'
+    : '';
+  document.getElementById('oilPricingTable').innerHTML =
+    '<div class="overflow-x-auto"><table class="w-full text-sm">' +
+    '<thead><tr class="bg-gray-50 border-b">' +
+    '<th class="text-left px-5 py-4 font-bold text-gray-700">Engine Size</th>' +
+    '<th class="text-right px-5 py-4 font-bold" style="color:' + tc.Standard.text + '"><div class="flex items-center justify-end gap-2"><span class="w-3 h-3 rounded-full inline-block" style="background:' + tc.Standard.text + '"></span>Standard</div></th>' +
+    '<th class="text-right px-5 py-4 font-bold" style="color:' + tc.Prestige.text + '"><div class="flex items-center justify-end gap-2"><span class="w-3 h-3 rounded-full inline-block" style="background:' + tc.Prestige.text + '"></span>Prestige</div></th>' +
+    '<th class="text-right px-5 py-4 font-bold" style="color:' + tc.Premier.text + '"><div class="flex items-center justify-end gap-2"><span class="w-3 h-3 rounded-full inline-block" style="background:' + tc.Premier.text + '"></span>Premier</div></th>' +
+    '<th class="text-right px-5 py-4 font-semibold text-gray-500">Std Margin</th>' +
+    '<th class="text-right px-5 py-4 font-semibold text-gray-500">Pres Margin</th>' +
+    '<th class="text-right px-5 py-4 font-semibold text-gray-500">Prem Margin</th>' +
+    actionCol +
+    '</tr></thead>' +
+    '<tbody>' + rows + '</tbody>' +
+    '</table></div>' +
+    fleetNote;
+}
+
+// ═══ OIL TIER MODAL ═══
+function showOilTierModal(brand, tierIndex) {
+  if (!can('packages.manage')) { showToast('Permission denied', 'error'); return; }
+  const b = brand || _currentOilBrand;
+  document.getElementById('oilTier-brand').value = b;
+  document.getElementById('oilTier-index').value = tierIndex !== undefined ? String(tierIndex) : '';
+  const isEdit = tierIndex !== undefined && tierIndex !== null && tierIndex !== '';
+  document.getElementById('oilTierModalTitle').textContent = isEdit ? 'Edit Engine Size Tier' : 'Add Engine Size Tier';
+  if (isEdit) {
+    const product = oilData.find(p => p.brand === b);
+    const t = product && product.tiers[tierIndex];
+    if (t) {
+      document.getElementById('oilTier-engineSize').value = t.engineSize || '';
+      document.getElementById('oilTier-stdPrice').value = t.standardPrice || '';
+      document.getElementById('oilTier-stdMargin').value = t.standardMargin || '';
+      document.getElementById('oilTier-presPrice').value = t.prestigePrice || '';
+      document.getElementById('oilTier-presMargin').value = t.prestigeMargin || '';
+      document.getElementById('oilTier-premPrice').value = t.premierPrice || '';
+      document.getElementById('oilTier-premMargin').value = t.premierMargin || '';
+    }
+  } else {
+    ['oilTier-engineSize','oilTier-stdPrice','oilTier-stdMargin','oilTier-presPrice','oilTier-presMargin','oilTier-premPrice','oilTier-premMargin'].forEach(id => {
+      document.getElementById(id).value = '';
+    });
+  }
+  ['oilTier-stdPct','oilTier-presPct','oilTier-premPct'].forEach(id => document.getElementById(id).classList.add('hidden'));
+  document.getElementById('oilTier-marginPreview').classList.add('hidden');
+  oilTierCalcMargin();
+  openModal('modal-oilTier');
+}
+
+function oilTierCalcMargin() {
+  const pairs = [
+    { priceId:'oilTier-stdPrice',  marginId:'oilTier-stdMargin',  pctId:'oilTier-stdPct'  },
+    { priceId:'oilTier-presPrice', marginId:'oilTier-presMargin', pctId:'oilTier-presPct' },
+    { priceId:'oilTier-premPrice', marginId:'oilTier-premMargin', pctId:'oilTier-premPct' },
+  ];
+  const details = [];
+  pairs.forEach(p => {
+    const price = parseFloat(document.getElementById(p.priceId).value) || 0;
+    const marginEl = document.getElementById(p.marginId);
+    const existingMargin = parseFloat(marginEl.value);
+    // Only auto-fill margin if not already entered by user
+    if (!marginEl.dataset.userEdited && price > 0) {
+      // Don't overwrite if user typed a value
+    }
+    const margin = parseFloat(marginEl.value) || 0;
+    const pct = price > 0 ? Math.round((margin / price) * 100) : 0;
+    const pctEl = document.getElementById(p.pctId);
+    if (price > 0) {
+      pctEl.textContent = pct + '% margin';
+      pctEl.classList.remove('hidden');
+      details.push(pct + '%');
+    } else {
+      pctEl.classList.add('hidden');
+    }
+  });
+  const preview = document.getElementById('oilTier-marginPreview');
+  if (details.length > 0) {
+    preview.classList.remove('hidden');
+    document.getElementById('oilTier-marginDetails').innerHTML =
+      ['Standard','Prestige','Premier'].map((label, i) => {
+        const price = parseFloat(document.getElementById(['oilTier-stdPrice','oilTier-presPrice','oilTier-premPrice'][i]).value) || 0;
+        const margin = parseFloat(document.getElementById(['oilTier-stdMargin','oilTier-presMargin','oilTier-premMargin'][i]).value) || 0;
+        const pct = price > 0 ? Math.round((margin / price) * 100) : 0;
+        return '<span class="text-green-700">' + label + ': <strong>TZS ' + fmt(margin) + '</strong> (' + pct + '%)</span>';
+      }).join(' &nbsp;|&nbsp; ');
+  } else {
+    preview.classList.add('hidden');
+  }
+}
+
+function oilTierMarginChanged(tier) {
+  const marginId = 'oilTier-' + tier + 'Margin';
+  document.getElementById(marginId).dataset.userEdited = '1';
+  oilTierCalcMargin();
+}
+
+async function submitOilTier() {
+  const brand = document.getElementById('oilTier-brand').value;
+  const indexStr = document.getElementById('oilTier-index').value;
+  const engineSize = document.getElementById('oilTier-engineSize').value.trim();
+  const stdPrice  = parseFloat(document.getElementById('oilTier-stdPrice').value)  || 0;
+  const stdMargin = parseFloat(document.getElementById('oilTier-stdMargin').value) || 0;
+  const presPrice  = parseFloat(document.getElementById('oilTier-presPrice').value)  || 0;
+  const presMargin = parseFloat(document.getElementById('oilTier-presMargin').value) || 0;
+  const premPrice  = parseFloat(document.getElementById('oilTier-premPrice').value)  || 0;
+  const premMargin = parseFloat(document.getElementById('oilTier-premMargin').value) || 0;
+  if (!engineSize) { showToast('Please enter an engine size label', 'error'); return; }
+  if (stdPrice <= 0 || presPrice <= 0 || premPrice <= 0) { showToast('All three tier prices are required', 'error'); return; }
+  const payload = {
+    engineSize,
+    standardPrice: stdPrice, standardMargin: stdMargin,
+    prestigePrice: presPrice, prestigeMargin: presMargin,
+    premierPrice: premPrice, premierMargin: premMargin
+  };
+  try {
+    if (indexStr !== '' && indexStr !== undefined) {
+      await axios.patch('/api/catalogue/oil/' + brand + '/tier/' + indexStr, payload);
+      showToast('Tier updated successfully');
+    } else {
+      await axios.post('/api/catalogue/oil/' + brand + '/tier', payload);
+      showToast('New tier added');
+    }
+    closeModal('modal-oilTier');
+    const { data } = await axios.get('/api/catalogue/oil');
+    oilData = data;
+    showOilBrand(brand, null);
+  } catch(err) {
+    showToast(err.response?.data?.error || 'Failed to save tier', 'error');
+  }
+}
+
+async function deleteOilTier(brand, tierIndex) {
+  const product = oilData.find(p => p.brand === brand);
+  const t = product && product.tiers[tierIndex];
+  if (!t) return;
+  if (!confirm('Delete tier "' + t.engineSize + '" from ' + brand + '? This cannot be undone.')) return;
+  try {
+    await axios.delete('/api/catalogue/oil/' + brand + '/tier/' + tierIndex);
+    showToast('Tier deleted');
+    const { data } = await axios.get('/api/catalogue/oil');
+    oilData = data;
+    showOilBrand(brand, null);
+  } catch(err) {
+    showToast('Failed to delete tier', 'error');
+  }
+}
+
+// ═══ OIL FLEET MODAL ═══
+function showOilFleetModal() {
+  if (!can('packages.manage')) { showToast('Permission denied', 'error'); return; }
+  const brand = _currentOilBrand;
+  const product = oilData.find(p => p.brand === brand);
+  document.getElementById('oilFleet-brand').value = brand;
+  document.getElementById('oilFleet-brandLabel').textContent = brand;
+  document.getElementById('oilFleet-3to5').value = product ? (product.fleetDiscount3to5 || '') : '';
+  document.getElementById('oilFleet-5plus').value = product ? (product.fleetDiscount5plus || '') : '';
+  openModal('modal-oilFleet');
+}
+
+async function submitOilFleet() {
+  const brand = document.getElementById('oilFleet-brand').value;
+  const d3to5 = parseFloat(document.getElementById('oilFleet-3to5').value) || 0;
+  const d5plus = parseFloat(document.getElementById('oilFleet-5plus').value) || 0;
+  try {
+    await axios.patch('/api/catalogue/oil/' + brand + '/fleet', { fleetDiscount3to5: d3to5, fleetDiscount5plus: d5plus });
+    showToast('Fleet discounts updated for ' + brand);
+    closeModal('modal-oilFleet');
+    const { data } = await axios.get('/api/catalogue/oil');
+    oilData = data;
+    showOilBrand(brand, null);
+  } catch(err) {
+    showToast(err.response?.data?.error || 'Failed to update fleet discounts', 'error');
+  }
 }
 
 // ═══ PARTS CATALOGUE ═══
@@ -5910,44 +6246,159 @@ function renderCarWashGrid(data) {
 }
 
 // ═══ ADD-ON SERVICES ═══
+let allAddOns = [];
+let _addonCatFilter = '';
+
 async function loadAddOns() {
   const { data } = await axios.get('/api/catalogue/addons');
+  allAddOns = data;
+  renderAddOns(data);
+}
+
+function setAddonCatFilter(cat, btn) {
+  _addonCatFilter = cat;
+  document.querySelectorAll('#addonCatTabs button').forEach(function(b) {
+    b.classList.toggle('active', b.getAttribute('data-cat') === cat);
+  });
+  const filtered = cat ? allAddOns.filter(s => s.category === cat) : allAddOns;
+  renderAddOns(filtered);
+}
+
+function renderAddOns(list) {
   const catConfig = {
     Diagnostic: { icon:'fa-laptop-medical', color:'#dc2626', bg:'#fee2e2' },
-    Inspection: { icon:'fa-search-plus',    color:'#2563eb', bg:'#dbeafe' },
-    Tyres:      { icon:'fa-circle-notch',   color:'#7c3aed', bg:'#ede9fe' },
-    Alignment:  { icon:'fa-ruler-combined', color:'#16a34a', bg:'#dcfce7' },
+    Inspection:  { icon:'fa-search-plus',    color:'#2563eb', bg:'#dbeafe' },
+    Tyres:       { icon:'fa-circle-notch',   color:'#7c3aed', bg:'#ede9fe' },
+    Alignment:   { icon:'fa-ruler-combined', color:'#16a34a', bg:'#dcfce7' },
+    Other:       { icon:'fa-wrench',         color:'#64748b', bg:'#f1f5f9' },
   };
-  document.getElementById('addOnsGrid').innerHTML = data.map(s => {
-    const cfg = catConfig[s.category] || { icon:'fa-wrench', color:'#64748b', bg:'#f1f5f9' };
-    return \`
-      <div class="card p-6 hover:shadow-lg transition-shadow">
-        <div class="flex items-start gap-4 mb-4">
-          <div class="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0" style="background:\${cfg.bg}">
-            <i class="fas \${cfg.icon} text-xl" style="color:\${cfg.color}"></i>
-          </div>
-          <div class="flex-1">
-            <h3 class="font-bold text-gray-900 text-lg">\${s.name}</h3>
-            <span class="badge mt-1" style="background:\${cfg.bg};color:\${cfg.color}">\${s.category}</span>
-          </div>
-        </div>
-        <p class="text-sm text-gray-600 mb-5 leading-relaxed">\${s.description}</p>
-        <div class="flex items-center justify-between border-t pt-4">
-          <div>
-            <p class="text-2xl font-bold text-gray-900">\${fmt(s.price)}</p>
-            <p class="text-xs text-gray-400 mt-0.5">\${s.unit}</p>
-          </div>
-          <button class="btn-primary text-sm" onclick="addServiceToJob('\${s.name}', \${s.price}, '\${s.unit}')">
-            <i class="fas fa-plus"></i> Add to Job
-          </button>
-        </div>
-      </div>
-    \`;
+  const canManage = can('addons.manage');
+  if (!list.length) {
+    document.getElementById('addOnsGrid').innerHTML =
+      '<div class="col-span-3 text-center py-16 text-gray-400">' +
+      '<i class="fas fa-tools text-4xl mb-4 block"></i>' +
+      '<p class="text-lg font-semibold mb-2">No add-on services yet</p>' +
+      (canManage ? '<button class="btn-primary text-sm mt-2" onclick="showNewAddonModal()"><i class="fas fa-plus mr-1"></i>Add First Service</button>' : '') +
+      '</div>';
+    return;
+  }
+  document.getElementById('addOnsGrid').innerHTML = list.map(s => {
+    const cfg = catConfig[s.category] || catConfig['Other'];
+    const actions = canManage
+      ? '<div class="flex items-center gap-2 mt-4 pt-4 border-t">' +
+          '<button class="flex-1 btn-secondary text-sm py-2" onclick="showEditAddonModal(\'' + s.id + '\')"><i class="fas fa-pen mr-1"></i>Edit</button>' +
+          '<button class="flex-1 btn-danger text-sm py-2" onclick="deleteAddon(\'' + s.id + '\',\'' + s.name.replace(/'/g, "\\'") + '\')"><i class="fas fa-trash mr-1"></i>Delete</button>' +
+        '</div>'
+      : '<div class="mt-4 pt-4 border-t"><button class="w-full btn-primary text-sm" onclick="addServiceToJob(\'' + s.name.replace(/'/g, "\\'") + '\', ' + s.price + ', \'' + s.unit + '\')"><i class="fas fa-plus mr-1"></i>Add to Job</button></div>';
+    return '<div class="card p-6 hover:shadow-lg transition-shadow">' +
+      '<div class="flex items-start gap-4 mb-4">' +
+        '<div class="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0" style="background:' + cfg.bg + '">' +
+          '<i class="fas ' + cfg.icon + ' text-xl" style="color:' + cfg.color + '"></i>' +
+        '</div>' +
+        '<div class="flex-1 min-w-0">' +
+          '<h3 class="font-bold text-gray-900 text-lg leading-tight">' + s.name + '</h3>' +
+          '<span class="badge mt-1 inline-block" style="background:' + cfg.bg + ';color:' + cfg.color + '">' + s.category + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<p class="text-sm text-gray-600 mb-4 leading-relaxed">' + (s.description || '') + '</p>' +
+      '<div class="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3">' +
+        '<div>' +
+          '<p class="text-2xl font-bold text-gray-900">' + fmt(s.price) + '</p>' +
+          '<p class="text-xs text-gray-400 mt-0.5">' + s.unit + '</p>' +
+        '</div>' +
+        (canManage ? '' : '') +
+      '</div>' +
+      actions +
+    '</div>';
   }).join('');
 }
 
+// ─── Add-on Modal ─────────────────────────────────────────────────────────────
+function showNewAddonModal() {
+  if (!can('addons.manage')) { showToast('Permission denied', 'error'); return; }
+  document.getElementById('addon-id').value = '';
+  document.getElementById('addonModal-title').textContent = 'New Add-on Service';
+  document.getElementById('addonModal-submitLabel').textContent = 'Add Service';
+  document.getElementById('addon-name').value = '';
+  document.getElementById('addon-category').value = '';
+  document.getElementById('addon-unit').value = '';
+  document.getElementById('addon-description').value = '';
+  document.getElementById('addon-price').value = '';
+  document.getElementById('addon-pricePreview').classList.add('hidden');
+  openModal('modal-addonService');
+}
+
+function showEditAddonModal(id) {
+  if (!can('addons.manage')) { showToast('Permission denied', 'error'); return; }
+  const s = allAddOns.find(a => a.id === id);
+  if (!s) return;
+  document.getElementById('addon-id').value = s.id;
+  document.getElementById('addonModal-title').textContent = 'Edit Add-on Service';
+  document.getElementById('addonModal-submitLabel').textContent = 'Save Changes';
+  document.getElementById('addon-name').value = s.name || '';
+  document.getElementById('addon-category').value = s.category || '';
+  document.getElementById('addon-unit').value = s.unit || '';
+  document.getElementById('addon-description').value = s.description || '';
+  document.getElementById('addon-price').value = s.price || '';
+  addonPricePreview();
+  openModal('modal-addonService');
+}
+
+function addonPricePreview() {
+  const price = parseFloat(document.getElementById('addon-price').value) || 0;
+  const el = document.getElementById('addon-pricePreview');
+  if (price > 0) {
+    el.textContent = 'TZS ' + fmt(price);
+    el.classList.remove('hidden');
+  } else {
+    el.classList.add('hidden');
+  }
+}
+
+async function submitAddonService() {
+  const id   = document.getElementById('addon-id').value;
+  const name = document.getElementById('addon-name').value.trim();
+  const cat  = document.getElementById('addon-category').value;
+  const unit = document.getElementById('addon-unit').value.trim();
+  const desc = document.getElementById('addon-description').value.trim();
+  const price = parseFloat(document.getElementById('addon-price').value) || 0;
+  if (!name) { showToast('Service name is required', 'error'); return; }
+  if (!cat)  { showToast('Please select a category', 'error'); return; }
+  if (!unit) { showToast('Unit label is required (e.g. "per service")', 'error'); return; }
+  if (price <= 0) { showToast('Please enter a price greater than 0', 'error'); return; }
+  const payload = { name, category: cat, unit, description: desc, price };
+  try {
+    if (id) {
+      await axios.put('/api/catalogue/addons/' + id, payload);
+      showToast('Add-on service updated');
+    } else {
+      await axios.post('/api/catalogue/addons', payload);
+      showToast('New add-on service created');
+    }
+    closeModal('modal-addonService');
+    await loadAddOns();
+    // Re-apply category filter
+    if (_addonCatFilter) setAddonCatFilter(_addonCatFilter, null);
+  } catch(err) {
+    showToast(err.response?.data?.error || 'Failed to save add-on service', 'error');
+  }
+}
+
+async function deleteAddon(id, name) {
+  if (!can('addons.manage')) { showToast('Permission denied', 'error'); return; }
+  if (!confirm('Delete "' + name + '"? This cannot be undone.')) return;
+  try {
+    await axios.delete('/api/catalogue/addons/' + id);
+    showToast('"' + name + '" deleted');
+    await loadAddOns();
+    if (_addonCatFilter) setAddonCatFilter(_addonCatFilter, null);
+  } catch(err) {
+    showToast('Failed to delete add-on service', 'error');
+  }
+}
+
 function addServiceToJob(name, price, unit) {
-  showToast(name + ' (' + fmt(price) + ' ' + unit + ') - Go to a Job Card to add this service', 'info');
+  showToast(name + ' (' + fmt(price) + ' ' + unit + ') — open a Job Card to add this service', 'info');
 }
 
 // ═══ EXPENSES ═══════════════════════════════════════════════════════════════

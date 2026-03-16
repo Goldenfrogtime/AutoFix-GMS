@@ -675,6 +675,59 @@ api.get('/analytics', (c) => {
 // ─── Twiga Catalogue: Oil Services ──────────────────────────────────────────
 api.get('/catalogue/oil', (c) => c.json(oilServiceProducts))
 
+// PUT /catalogue/oil/:brand/tiers  — replace full tier array for a brand
+api.put('/catalogue/oil/:brand/tiers', async (c) => {
+  const brand = c.req.param('brand') as any
+  const idx = oilServiceProducts.findIndex(p => p.brand === brand)
+  if (idx === -1) return c.json({ error: 'Brand not found' }, 404)
+  const { tiers } = await c.req.json<{ tiers: any[] }>()
+  oilServiceProducts[idx] = { ...oilServiceProducts[idx], tiers }
+  return c.json(oilServiceProducts[idx])
+})
+
+// PATCH /catalogue/oil/:brand/tier/:index — update a single tier row
+api.patch('/catalogue/oil/:brand/tier/:index', async (c) => {
+  const brand = c.req.param('brand') as any
+  const tierIdx = parseInt(c.req.param('index'), 10)
+  const idx = oilServiceProducts.findIndex(p => p.brand === brand)
+  if (idx === -1) return c.json({ error: 'Brand not found' }, 404)
+  if (tierIdx < 0 || tierIdx >= oilServiceProducts[idx].tiers.length)
+    return c.json({ error: 'Tier index out of range' }, 404)
+  const body = await c.req.json()
+  oilServiceProducts[idx].tiers[tierIdx] = { ...oilServiceProducts[idx].tiers[tierIdx], ...body }
+  return c.json(oilServiceProducts[idx])
+})
+
+// POST /catalogue/oil/:brand/tier — add a new tier row
+api.post('/catalogue/oil/:brand/tier', async (c) => {
+  const brand = c.req.param('brand') as any
+  const idx = oilServiceProducts.findIndex(p => p.brand === brand)
+  if (idx === -1) return c.json({ error: 'Brand not found' }, 404)
+  const body = await c.req.json()
+  oilServiceProducts[idx].tiers.push(body)
+  return c.json(oilServiceProducts[idx])
+})
+
+// DELETE /catalogue/oil/:brand/tier/:index — remove a tier row
+api.delete('/catalogue/oil/:brand/tier/:index', (c) => {
+  const brand = c.req.param('brand') as any
+  const tierIdx = parseInt(c.req.param('index'), 10)
+  const idx = oilServiceProducts.findIndex(p => p.brand === brand)
+  if (idx === -1) return c.json({ error: 'Brand not found' }, 404)
+  oilServiceProducts[idx].tiers.splice(tierIdx, 1)
+  return c.json(oilServiceProducts[idx])
+})
+
+// PATCH /catalogue/oil/:brand/fleet — update fleet discounts for a brand
+api.patch('/catalogue/oil/:brand/fleet', async (c) => {
+  const brand = c.req.param('brand') as any
+  const idx = oilServiceProducts.findIndex(p => p.brand === brand)
+  if (idx === -1) return c.json({ error: 'Brand not found' }, 404)
+  const { fleetDiscount3to5, fleetDiscount5plus } = await c.req.json<{ fleetDiscount3to5: number; fleetDiscount5plus: number }>()
+  oilServiceProducts[idx] = { ...oilServiceProducts[idx], fleetDiscount3to5, fleetDiscount5plus }
+  return c.json(oilServiceProducts[idx])
+})
+
 // ─── Twiga Catalogue: Parts & Accessories ────────────────────────────────────
 api.get('/catalogue/parts', (c) => {
   const category = c.req.query('category')
@@ -776,12 +829,26 @@ api.delete('/catalogue/carwash/:id', (c) => {
 // ─── Twiga Catalogue: Add-on Services ────────────────────────────────────────
 api.get('/catalogue/addons', (c) => c.json(addOnServices))
 
+api.post('/catalogue/addons', async (c) => {
+  const body = await c.req.json<Omit<AddOnService, 'id'>>()
+  const newSvc: AddOnService = { ...body, id: 'ao' + genId() }
+  addOnServices.push(newSvc)
+  return c.json(newSvc, 201)
+})
+
 api.put('/catalogue/addons/:id', async (c) => {
   const idx = addOnServices.findIndex(s => s.id === c.req.param('id'))
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
   const body = await c.req.json<Partial<AddOnService>>()
   addOnServices[idx] = { ...addOnServices[idx], ...body }
   return c.json(addOnServices[idx])
+})
+
+api.delete('/catalogue/addons/:id', (c) => {
+  const idx = addOnServices.findIndex(s => s.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  addOnServices.splice(idx, 1)
+  return c.json({ success: true })
 })
 
 // ─── Catalogue Search (unified) ───────────────────────────────────────────────
