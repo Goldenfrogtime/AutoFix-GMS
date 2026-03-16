@@ -186,6 +186,10 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
     <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('expenses')">
       <i class="fas fa-receipt w-5 text-center"></i> Expenses
     </a>
+    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('notifications')">
+      <i class="fas fa-bell w-5 text-center"></i> Notifications
+      <span id="navNotifBadge" class="ml-auto text-xs bg-red-500 text-white font-bold px-1.5 py-0.5 rounded-full hidden">0</span>
+    </a>
     <p class="text-xs text-blue-300 font-semibold uppercase tracking-widest px-3 pt-3 pb-1">Management</p>
     <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('packages')">
       <i class="fas fa-box-open w-5 text-center"></i> Service Packages
@@ -235,10 +239,34 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <button class="sm:hidden text-gray-500 w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-100" onclick="toggleMobileSearch()" id="mobileSearchBtn"><i class="fas fa-search"></i></button>
     </div>
     <div class="flex items-center gap-2 sm:gap-4 flex-shrink-0">
-      <button class="relative text-gray-500 hover:text-gray-700" title="Notifications">
-        <i class="fas fa-bell text-lg"></i>
-        <span class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">3</span>
-      </button>
+      <!-- Notification Bell -->
+      <div class="relative" id="notifBellWrap">
+        <button id="notifBell" class="relative text-gray-500 hover:text-gray-700 w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors" title="Notifications" onclick="toggleNotifDropdown()">
+          <i class="fas fa-bell text-lg"></i>
+          <span id="notifBadge" class="absolute -top-0.5 -right-0.5 w-5 h-5 bg-red-500 text-white text-xs rounded-full hidden items-center justify-center font-bold leading-none">0</span>
+        </button>
+        <!-- Notification Dropdown -->
+        <div id="notifDropdown" class="hidden absolute right-0 top-full mt-2 w-80 sm:w-96 bg-white rounded-2xl shadow-2xl border border-gray-100 z-50 overflow-hidden" style="max-height:520px">
+          <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50">
+            <div class="flex items-center gap-2">
+              <i class="fas fa-bell text-blue-600 text-sm"></i>
+              <span class="font-bold text-gray-800 text-sm">Notifications</span>
+              <span id="notifDropBadge" class="text-xs bg-red-100 text-red-600 font-bold px-2 py-0.5 rounded-full hidden">0 new</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <button class="text-xs text-blue-600 hover:text-blue-700 font-semibold" onclick="markAllRead()">Mark all read</button>
+              <button class="text-xs text-gray-500 hover:text-gray-700 font-semibold" onclick="showPage('notifications');closeNotifDropdown()">View all</button>
+            </div>
+          </div>
+          <div id="notifList" class="overflow-y-auto" style="max-height:420px">
+            <p class="text-center text-gray-400 text-sm py-8"><i class="fas fa-bell-slash mb-2 block text-2xl"></i>No notifications</p>
+          </div>
+          <div class="border-t border-gray-100 px-4 py-2 bg-gray-50 flex items-center justify-between">
+            <button class="text-xs text-gray-500 hover:text-red-500 font-medium" onclick="clearReadNotifs()"><i class="fas fa-trash-alt mr-1"></i>Clear read</button>
+            <button class="text-xs text-blue-600 hover:text-blue-700 font-semibold" onclick="showPage('notifications');closeNotifDropdown()"><i class="fas fa-external-link-alt mr-1"></i>All notifications</button>
+          </div>
+        </div>
+      </div>
       <button class="btn-primary text-sm px-3 sm:px-4" onclick="showNewJobModal()">
         <i class="fas fa-plus"></i><span class="hidden sm:inline"> New Job Card</span><span class="sm:hidden"> New</span>
       </button>
@@ -832,6 +860,81 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
             </thead>
             <tbody id="expensesTable"></tbody>
           </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ NOTIFICATIONS ═══ -->
+    <div id="page-notifications" class="page">
+      <div class="flex flex-wrap items-start justify-between gap-3 mb-6">
+        <div>
+          <h2 class="text-xl sm:text-2xl font-bold text-gray-900">Notifications</h2>
+          <p class="text-gray-500 text-sm mt-1">Real-time alerts for job updates, appointments, stock and more</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button class="btn-secondary text-sm" onclick="markAllRead();loadNotificationsPage()"><i class="fas fa-check-double mr-1"></i>Mark all read</button>
+          <button class="btn-secondary text-sm text-red-600 border-red-200 hover:bg-red-50" onclick="clearReadNotifs();loadNotificationsPage()"><i class="fas fa-trash-alt mr-1"></i>Clear read</button>
+        </div>
+      </div>
+
+      <!-- Stats Row -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6" id="notifStats"></div>
+
+      <!-- Filters -->
+      <div class="card p-4 mb-5">
+        <div class="flex flex-wrap gap-3 items-end">
+          <div class="flex-1 min-w-[120px]">
+            <label class="form-label">Type</label>
+            <select class="form-input" id="notifFilter-type" onchange="loadNotificationsPage()">
+              <option value="">All Types</option>
+              <option value="job_created">Job Created</option>
+              <option value="job_status">Job Status</option>
+              <option value="job_completed">Job Completed</option>
+              <option value="pfi_created">PFI Created</option>
+              <option value="pfi_sent">PFI Sent</option>
+              <option value="pfi_approved">PFI Approved</option>
+              <option value="pfi_rejected">PFI Rejected</option>
+              <option value="invoice_created">Invoice Created</option>
+              <option value="invoice_paid">Invoice Paid</option>
+              <option value="appointment_created">Appointment Booked</option>
+              <option value="appointment_reminder">Appointment Reminder</option>
+              <option value="appointment_cancelled">Appointment Cancelled</option>
+              <option value="expense_created">Expense Created</option>
+              <option value="expense_approved">Expense Approved</option>
+              <option value="low_stock">Low Stock</option>
+              <option value="parts_added">Parts Added</option>
+              <option value="service_added">Service Added</option>
+            </select>
+          </div>
+          <div class="flex-1 min-w-[120px]">
+            <label class="form-label">Status</label>
+            <select class="form-input" id="notifFilter-read" onchange="loadNotificationsPage()">
+              <option value="">All</option>
+              <option value="unread">Unread only</option>
+              <option value="read">Read only</option>
+            </select>
+          </div>
+          <div class="flex-1 min-w-[120px]">
+            <label class="form-label">Priority</label>
+            <select class="form-input" id="notifFilter-priority" onchange="loadNotificationsPage()">
+              <option value="">All Priorities</option>
+              <option value="error">Critical</option>
+              <option value="warning">Warning</option>
+              <option value="success">Success</option>
+              <option value="info">Info</option>
+            </select>
+          </div>
+          <button class="btn-secondary text-sm" onclick="resetNotifFilters()"><i class="fas fa-times mr-1"></i>Reset</button>
+        </div>
+      </div>
+
+      <!-- Notification List -->
+      <div class="card p-0 overflow-hidden">
+        <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50">
+          <span class="text-sm font-semibold text-gray-700" id="notifPageCount">0 notifications</span>
+        </div>
+        <div id="notifPageList" class="divide-y divide-gray-50">
+          <p class="text-center text-gray-400 text-sm py-12"><i class="fas fa-bell-slash text-3xl mb-3 block"></i>No notifications yet</p>
         </div>
       </div>
     </div>
@@ -1678,6 +1781,7 @@ function showPage(page) {
   if (page === 'car-wash') loadCarWash();
   if (page === 'add-ons') loadAddOns();
   if (page === 'expenses') loadExpenses();
+  if (page === 'notifications') loadNotificationsPage();
   window.scrollTo(0, 0);
 }
 
@@ -5524,9 +5628,265 @@ async function loadJobExpenses(jobId) {
   });
 }
 
+// ═══ NOTIFICATIONS ═══
+
+// Priority meta — colours and icons
+var NOTIF_META = {
+  info:    { bg:'#eff6ff', border:'#bfdbfe', icon:'fas fa-info-circle',  iconColor:'#3b82f6', dot:'bg-blue-500'   },
+  success: { bg:'#f0fdf4', border:'#bbf7d0', icon:'fas fa-check-circle', iconColor:'#22c55e', dot:'bg-green-500'  },
+  warning: { bg:'#fffbeb', border:'#fde68a', icon:'fas fa-exclamation-triangle', iconColor:'#f59e0b', dot:'bg-yellow-500' },
+  error:   { bg:'#fef2f2', border:'#fecaca', icon:'fas fa-times-circle', iconColor:'#ef4444', dot:'bg-red-500'    },
+};
+var NOTIF_TYPE_LABEL = {
+  job_created:'Job Created', job_status:'Status Update', job_completed:'Job Completed',
+  pfi_created:'PFI Created', pfi_sent:'PFI Sent', pfi_approved:'PFI Approved', pfi_rejected:'PFI Rejected',
+  invoice_created:'Invoice', invoice_paid:'Invoice Paid',
+  appointment_created:'Appointment', appointment_reminder:'Reminder', appointment_cancelled:'Cancelled',
+  expense_created:'Expense', expense_approved:'Expense Status',
+  low_stock:'Low Stock', parts_added:'Parts Added', service_added:'Service Added',
+};
+
+function notifTimeAgo(iso) {
+  var d = Date.now() - new Date(iso).getTime();
+  var m = Math.floor(d/60000);
+  if (m < 1)  return 'just now';
+  if (m < 60) return m + 'm ago';
+  var h = Math.floor(m/60);
+  if (h < 24) return h + 'h ago';
+  var dy = Math.floor(h/24);
+  if (dy < 7) return dy + 'd ago';
+  return new Date(iso).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+}
+
+// ── Bell dropdown ────────────────────────────────────────────────────────────
+async function loadNotifDropdown() {
+  var res = await axios.get('/api/notifications?limit=15');
+  var list = res.data.notifications;
+  var unread = res.data.unreadCount;
+  // Update badge
+  var badge = document.getElementById('notifBadge');
+  var dropBadge = document.getElementById('notifDropBadge');
+  var navBadge = document.getElementById('navNotifBadge');
+  if (unread > 0) {
+    var label = unread > 99 ? '99+' : String(unread);
+    badge.textContent = label; badge.classList.remove('hidden'); badge.classList.add('flex');
+    dropBadge.textContent = label + ' new'; dropBadge.classList.remove('hidden');
+    navBadge.textContent = label; navBadge.classList.remove('hidden');
+  } else {
+    badge.classList.add('hidden'); badge.classList.remove('flex');
+    dropBadge.classList.add('hidden');
+    navBadge.classList.add('hidden');
+  }
+  var el = document.getElementById('notifList');
+  if (!list.length) {
+    el.innerHTML = '<p class="text-center text-gray-400 text-sm py-8"><i class="fas fa-bell-slash mb-2 block text-2xl"></i>All caught up!</p>';
+    return;
+  }
+  el.innerHTML = list.map(function(n) {
+    var m = NOTIF_META[n.priority] || NOTIF_META.info;
+    return '<div class="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer ' + (n.read ? 'opacity-60' : '') + '" data-notif-id="' + n.id + '">' +
+      '<div class="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center mt-0.5" style="background:' + m.bg + ';border:1px solid ' + m.border + '">' +
+        '<i class="' + m.icon + ' text-xs" style="color:' + m.iconColor + '"></i>' +
+      '</div>' +
+      '<div class="flex-1 min-w-0">' +
+        (n.read ? '' : '<span class="inline-block w-2 h-2 rounded-full bg-blue-500 mr-1.5 mb-0.5 align-middle"></span>') +
+        '<span class="text-xs font-bold text-gray-800">' + escHtml(n.title) + '</span>' +
+        '<p class="text-xs text-gray-500 mt-0.5 leading-relaxed">' + escHtml(n.message) + '</p>' +
+        '<div class="flex items-center gap-2 mt-1">' +
+          '<span class="text-xs text-gray-400">' + notifTimeAgo(n.createdAt) + '</span>' +
+          '<span class="text-xs px-1.5 py-0.5 rounded font-medium" style="background:' + m.bg + ';color:' + m.iconColor + '">' + (NOTIF_TYPE_LABEL[n.type] || n.type) + '</span>' +
+        '</div>' +
+      '</div>' +
+      (!n.read ? '<button class="text-gray-300 hover:text-blue-500 text-xs flex-shrink-0 mt-1" data-mark-read="' + n.id + '" title="Mark read"><i class="fas fa-check"></i></button>' : '') +
+    '</div>';
+  }).join('');
+  // Click handlers
+  el.querySelectorAll('[data-notif-id]').forEach(function(row) {
+    row.addEventListener('click', async function(e) {
+      if (e.target.closest('[data-mark-read]')) return;
+      var id = this.dataset.notifId;
+      await axios.patch('/api/notifications/' + id + '/read');
+      loadNotifDropdown();
+    });
+  });
+  el.querySelectorAll('[data-mark-read]').forEach(function(btn) {
+    btn.addEventListener('click', async function(e) {
+      e.stopPropagation();
+      await axios.patch('/api/notifications/' + this.dataset.markRead + '/read');
+      loadNotifDropdown();
+    });
+  });
+}
+
+function toggleNotifDropdown() {
+  var dd = document.getElementById('notifDropdown');
+  var isHidden = dd.classList.contains('hidden');
+  if (isHidden) {
+    dd.classList.remove('hidden');
+    loadNotifDropdown();
+    // Close on outside click
+    setTimeout(function() {
+      document.addEventListener('click', closeNotifOnOutside, { once: true });
+    }, 0);
+  } else {
+    closeNotifDropdown();
+  }
+}
+function closeNotifOnOutside(e) {
+  var wrap = document.getElementById('notifBellWrap');
+  if (!wrap.contains(e.target)) closeNotifDropdown();
+  else document.addEventListener('click', closeNotifOnOutside, { once: true });
+}
+function closeNotifDropdown() {
+  document.getElementById('notifDropdown').classList.add('hidden');
+}
+
+async function markAllRead() {
+  await axios.patch('/api/notifications/read-all');
+  loadNotifDropdown();
+  if (document.getElementById('page-notifications').classList.contains('active')) loadNotificationsPage();
+  showToast('All notifications marked as read','success');
+}
+async function clearReadNotifs() {
+  await axios.delete('/api/notifications/clear-read');
+  loadNotifDropdown();
+  if (document.getElementById('page-notifications').classList.contains('active')) loadNotificationsPage();
+  showToast('Read notifications cleared');
+}
+
+// ── Notifications page ───────────────────────────────────────────────────────
+async function loadNotificationsPage() {
+  var typeF  = document.getElementById('notifFilter-type')?.value || '';
+  var readF  = document.getElementById('notifFilter-read')?.value || '';
+  var priF   = document.getElementById('notifFilter-priority')?.value || '';
+
+  var params = '/api/notifications?limit=200';
+  if (typeF) params += '&type=' + encodeURIComponent(typeF);
+
+  var res = await axios.get(params);
+  var all  = res.data.notifications;
+
+  // Client-side filter for read/priority (API doesn't have these)
+  if (readF === 'unread') all = all.filter(function(n){ return !n.read; });
+  if (readF === 'read')   all = all.filter(function(n){ return n.read; });
+  if (priF)               all = all.filter(function(n){ return n.priority === priF; });
+
+  // Stats
+  var total   = all.length;
+  var unread  = all.filter(function(n){ return !n.read; }).length;
+  var crit    = all.filter(function(n){ return n.priority==='error'||n.priority==='warning'; }).length;
+  var success = all.filter(function(n){ return n.priority==='success'; }).length;
+  var statsEl = document.getElementById('notifStats');
+  if (statsEl) statsEl.innerHTML = [
+    { label:'Total',    value:total,   icon:'fas fa-bell',         color:'#3b82f6', bg:'#eff6ff' },
+    { label:'Unread',   value:unread,  icon:'fas fa-envelope',     color:'#8b5cf6', bg:'#f5f3ff' },
+    { label:'Alerts',   value:crit,    icon:'fas fa-exclamation-triangle', color:'#f59e0b', bg:'#fffbeb' },
+    { label:'Success',  value:success, icon:'fas fa-check-circle', color:'#22c55e', bg:'#f0fdf4' },
+  ].map(function(s) {
+    return '<div class="card p-4 flex items-center gap-3">' +
+      '<div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style="background:' + s.bg + '">' +
+        '<i class="' + s.icon + '" style="color:' + s.color + '"></i>' +
+      '</div>' +
+      '<div><p class="text-xs text-gray-500 font-medium">' + s.label + '</p><p class="text-xl font-bold text-gray-900">' + s.value + '</p></div>' +
+    '</div>';
+  }).join('');
+
+  // Count
+  var countEl = document.getElementById('notifPageCount');
+  if (countEl) countEl.textContent = total + ' notification' + (total !== 1 ? 's' : '');
+
+  // List
+  var listEl = document.getElementById('notifPageList');
+  if (!listEl) return;
+  if (!all.length) {
+    listEl.innerHTML = '<p class="text-center text-gray-400 text-sm py-12"><i class="fas fa-bell-slash text-3xl mb-3 block"></i>No notifications match your filters</p>';
+    return;
+  }
+  listEl.innerHTML = all.map(function(n) {
+    var m = NOTIF_META[n.priority] || NOTIF_META.info;
+    return '<div class="flex items-start gap-4 px-5 py-4 hover:bg-gray-50 transition-colors ' + (n.read ? 'opacity-60' : '') + '" data-np-id="' + n.id + '">' +
+      '<div class="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center mt-0.5" style="background:' + m.bg + ';border:1px solid ' + m.border + '">' +
+        '<i class="' + m.icon + '" style="color:' + m.iconColor + '"></i>' +
+      '</div>' +
+      '<div class="flex-1 min-w-0">' +
+        '<div class="flex items-center gap-2 flex-wrap">' +
+          (!n.read ? '<span class="inline-block w-2 h-2 rounded-full bg-blue-500 flex-shrink-0"></span>' : '') +
+          '<span class="font-bold text-gray-900 text-sm">' + escHtml(n.title) + '</span>' +
+          '<span class="text-xs px-2 py-0.5 rounded-full font-semibold" style="background:' + m.bg + ';color:' + m.iconColor + '">' + (NOTIF_TYPE_LABEL[n.type] || n.type) + '</span>' +
+        '</div>' +
+        '<p class="text-sm text-gray-600 mt-1">' + escHtml(n.message) + '</p>' +
+        '<div class="flex items-center gap-3 mt-2 flex-wrap">' +
+          '<span class="text-xs text-gray-400"><i class="fas fa-clock mr-1"></i>' + notifTimeAgo(n.createdAt) + '</span>' +
+          (n.jobCardNumber ? '<span class="text-xs text-blue-600 font-medium cursor-pointer hover:underline" data-np-job="' + n.jobCardId + '">' + n.jobCardNumber + '</span>' : '') +
+        '</div>' +
+      '</div>' +
+      '<div class="flex items-center gap-1 flex-shrink-0">' +
+        (!n.read ? '<button class="text-xs px-2.5 py-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 font-medium" data-np-mark="' + n.id + '"><i class="fas fa-check mr-1"></i>Read</button>' : '<span class="text-xs text-gray-400 font-medium"><i class="fas fa-check-double mr-1"></i>Read</span>') +
+        '<button class="text-xs px-2 py-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50" data-np-del="' + n.id + '" title="Delete"><i class="fas fa-trash"></i></button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  listEl.querySelectorAll('[data-np-mark]').forEach(function(btn) {
+    btn.addEventListener('click', async function(e) {
+      e.stopPropagation();
+      await axios.patch('/api/notifications/' + this.dataset.npMark + '/read');
+      loadNotificationsPage(); loadNotifDropdown();
+    });
+  });
+  listEl.querySelectorAll('[data-np-del]').forEach(function(btn) {
+    btn.addEventListener('click', async function(e) {
+      e.stopPropagation();
+      if (!confirm('Delete this notification?')) return;
+      await axios.delete('/api/notifications/' + this.dataset.npDel);
+      loadNotificationsPage(); loadNotifDropdown();
+    });
+  });
+  listEl.querySelectorAll('[data-np-job]').forEach(function(span) {
+    span.addEventListener('click', function() {
+      viewJobDetail(this.dataset.npJob);
+    });
+  });
+}
+
+function resetNotifFilters() {
+  ['notifFilter-type','notifFilter-read','notifFilter-priority'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  loadNotificationsPage();
+}
+
+// Helper: escape HTML
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
 // ═══ INIT ═══
 document.getElementById('todayDate').textContent = new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 loadDashboard();
+// Initial notification badge load
+loadNotifDropdown();
+// Poll every 30 seconds for new notifications
+setInterval(function() {
+  axios.get('/api/notifications/summary').then(function(r) {
+    var unread = r.data.unreadCount;
+    var badge   = document.getElementById('notifBadge');
+    var navBadge= document.getElementById('navNotifBadge');
+    var dropBadge = document.getElementById('notifDropBadge');
+    if (unread > 0) {
+      var label = unread > 99 ? '99+' : String(unread);
+      badge.textContent = label; badge.classList.remove('hidden'); badge.classList.add('flex');
+      navBadge.textContent = label; navBadge.classList.remove('hidden');
+      dropBadge.textContent = label + ' new'; dropBadge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden'); badge.classList.remove('flex');
+      navBadge.classList.add('hidden');
+      dropBadge.classList.add('hidden');
+    }
+  }).catch(function(){});
+}, 30000);
 </script>
 </body>
 </html>`;

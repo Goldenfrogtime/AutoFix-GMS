@@ -487,3 +487,66 @@ export const expenses: Expense[] = [
   { id: 'ex10', category: 'Miscellaneous', description: 'Staff refreshments – team meeting', amount: 15000, status: 'Paid', paidBy: 'Michael Osei', date: '2025-03-06', createdAt: '2025-03-06T15:00:00Z', updatedAt: '2025-03-06T15:00:00Z' },
 ]
 
+// ─── Notifications ───────────────────────────────────────────────────────────
+
+export type NotificationType =
+  | 'job_created'
+  | 'job_status'
+  | 'job_completed'
+  | 'pfi_created'
+  | 'pfi_sent'
+  | 'pfi_approved'
+  | 'pfi_rejected'
+  | 'invoice_created'
+  | 'invoice_paid'
+  | 'appointment_created'
+  | 'appointment_reminder'
+  | 'appointment_cancelled'
+  | 'expense_created'
+  | 'expense_approved'
+  | 'low_stock'
+  | 'parts_added'
+  | 'service_added'
+
+export type NotificationPriority = 'info' | 'success' | 'warning' | 'error'
+
+export interface Notification {
+  id: string
+  type: NotificationType
+  priority: NotificationPriority
+  title: string
+  message: string
+  read: boolean
+  // optional links
+  jobCardId?: string
+  jobCardNumber?: string
+  entityId?: string        // pfi id, invoice id, appointment id, expense id, part id
+  entityType?: string      // 'pfi' | 'invoice' | 'appointment' | 'expense' | 'part'
+  createdAt: string
+}
+
+export const notifications: Notification[] = [
+  // Job card notifications
+  { id: 'n1', type: 'job_status', priority: 'info', title: 'Job Status Updated', message: 'GMS-2025-001 moved to Repair In Progress', read: false, jobCardId: 'j1', jobCardNumber: 'GMS-2025-001', createdAt: '2025-03-03T14:00:00Z' },
+  { id: 'n2', type: 'job_status', priority: 'warning', title: 'Awaiting Insurer Approval', message: 'GMS-2025-002 is waiting for Sanlam Tanzania approval', read: false, jobCardId: 'j2', jobCardNumber: 'GMS-2025-002', createdAt: '2025-03-04T09:00:00Z' },
+  { id: 'n3', type: 'job_completed', priority: 'success', title: 'Job Completed', message: 'GMS-2025-003 has been completed and is ready for invoicing', read: true, jobCardId: 'j3', jobCardNumber: 'GMS-2025-003', createdAt: '2025-02-24T16:00:00Z' },
+  { id: 'n4', type: 'job_status', priority: 'warning', title: 'Waiting for Parts', message: 'GMS-2025-005 is stalled – parts not yet received', read: false, jobCardId: 'j5', jobCardNumber: 'GMS-2025-005', createdAt: '2025-03-05T10:00:00Z' },
+  // PFI notifications
+  { id: 'n5', type: 'pfi_sent', priority: 'info', title: 'PFI Sent to Customer', message: 'PFI for GMS-2025-003 was emailed to d.kimani@business.co.tz', read: true, jobCardId: 'j3', jobCardNumber: 'GMS-2025-003', entityId: 'p4', entityType: 'pfi', createdAt: '2025-02-21T10:00:00Z' },
+  { id: 'n6', type: 'pfi_approved', priority: 'success', title: 'PFI Approved', message: 'Jubilee Insurance approved PFI for GMS-2025-001 (TZS 830,000)', read: false, jobCardId: 'j1', jobCardNumber: 'GMS-2025-001', entityId: 'p1', entityType: 'pfi', createdAt: '2025-03-03T10:00:00Z' },
+  // Invoice notifications
+  { id: 'n7', type: 'invoice_created', priority: 'info', title: 'Invoice Generated', message: 'INV-2025-002 created for GMS-2025-006 — TZS 230,000', read: true, jobCardId: 'j6', jobCardNumber: 'GMS-2025-006', entityId: 'i2', entityType: 'invoice', createdAt: '2025-02-22T15:00:00Z' },
+  { id: 'n8', type: 'invoice_paid', priority: 'success', title: 'Invoice Paid', message: 'INV-2025-001 marked as paid — TZS 287,500 received', read: false, jobCardId: 'j3', jobCardNumber: 'GMS-2025-003', entityId: 'i1', entityType: 'invoice', createdAt: '2025-02-25T10:00:00Z' },
+  // Appointment notifications
+  { id: 'n9', type: 'appointment_reminder', priority: 'warning', title: 'Appointment Tomorrow', message: 'Twiga Fleet Services – Major Service scheduled for tomorrow at 09:00', read: false, entityId: 'apt3', entityType: 'appointment', createdAt: '2026-03-13T08:00:00Z' },
+  { id: 'n10', type: 'appointment_cancelled', priority: 'error', title: 'Appointment Cancelled', message: 'Fatuma Hassan cancelled her Car Wash appointment', read: true, entityId: 'apt7', entityType: 'appointment', createdAt: '2026-03-12T07:00:00Z' },
+  // Expense notifications
+  { id: 'n11', type: 'expense_approved', priority: 'success', title: 'Expense Approved', message: 'Gasket set expense (TZS 125,000) for GMS-2025-005 approved', read: false, jobCardId: 'j5', jobCardNumber: 'GMS-2025-005', entityId: 'ex4', entityType: 'expense', createdAt: '2025-03-05T11:00:00Z' },
+  // Low stock notifications
+  { id: 'n12', type: 'low_stock', priority: 'warning', title: 'Low Stock Alert', message: 'Oil Filter stock is critically low — only 2 units remaining', read: false, entityType: 'part', createdAt: '2025-03-06T08:00:00Z' },
+  { id: 'n13', type: 'low_stock', priority: 'warning', title: 'Low Stock Alert', message: 'Spark Plugs (Set) — 3 units left, consider restocking', read: false, entityType: 'part', createdAt: '2025-03-06T08:01:00Z' },
+  // Service added
+  { id: 'n14', type: 'service_added', priority: 'info', title: 'Service Added to Job', message: 'Toyota Oil Service (Prestige) added to GMS-2025-001', read: true, jobCardId: 'j1', jobCardNumber: 'GMS-2025-001', createdAt: '2025-03-03T15:00:00Z' },
+]
+
+

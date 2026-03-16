@@ -3,11 +3,11 @@ import {
   customers, vehicles, jobCards, pfis, partsConsumption,
   invoices, servicePackages, users, activityLog,
   oilServiceProducts, catalogueParts, carWashPackages, addOnServices, appointments,
-  jobServices, expenses,
+  jobServices, expenses, notifications,
   type Customer, type Vehicle, type JobCard, type PFI,
   type PartConsumption, type ServicePackage, type User, type Invoice,
   type CataloguePart, type CarWashPackage, type AddOnService, type Appointment,
-  type JobService, type Expense
+  type JobService, type Expense, type Notification, type NotificationType, type NotificationPriority
 } from '../data/store'
 
 const api = new Hono()
@@ -18,6 +18,38 @@ function genId() {
 }
 function now() {
   return new Date().toISOString()
+}
+
+// ─── Notification Helper ─────────────────────────────────────────────────────
+function addNotification(
+  type: NotificationType,
+  priority: NotificationPriority,
+  title: string,
+  message: string,
+  meta?: {
+    jobCardId?: string
+    jobCardNumber?: string
+    entityId?: string
+    entityType?: string
+  }
+): Notification {
+  const n: Notification = {
+    id: 'n' + genId(),
+    type,
+    priority,
+    title,
+    message,
+    read: false,
+    jobCardId: meta?.jobCardId,
+    jobCardNumber: meta?.jobCardNumber,
+    entityId: meta?.entityId,
+    entityType: meta?.entityType,
+    createdAt: now(),
+  }
+  notifications.unshift(n)          // newest first
+  if (notifications.length > 200)   // cap at 200 entries
+    notifications.splice(200)
+  return n
 }
 
 // ─── Dashboard ──────────────────────────────────────────────────────────────
@@ -161,6 +193,11 @@ api.post('/jobcards', async (c) => {
   const newJob: JobCard = { ...body, id: 'j' + genId(), jobCardNumber: num, status: 'RECEIVED', createdAt: now(), updatedAt: now() }
   jobCards.push(newJob)
   activityLog.push({ id: 'a' + genId(), jobCardId: newJob.id, action: 'JOB_CREATED', description: 'New job card created', userId: 'u3', userName: 'System', timestamp: now() })
+  const cust = customers.find(x => x.id === newJob.customerId)
+  const veh  = vehicles.find(x => x.id === newJob.vehicleId)
+  addNotification('job_created', 'info', 'New Job Card Created',
+    `${num} opened for ${cust?.name || 'customer'} – ${veh?.make || ''} ${veh?.model || ''} (${veh?.registrationNumber || ''})`,
+    { jobCardId: newJob.id, jobCardNumber: num })
   return c.json(newJob, 201)
 })
 
@@ -171,6 +208,21 @@ api.patch('/jobcards/:id/status', async (c) => {
   const old = jobCards[idx].status
   jobCards[idx] = { ...jobCards[idx], status: status as any, updatedAt: now() }
   activityLog.push({ id: 'a' + genId(), jobCardId: jobCards[idx].id, action: 'STATUS_CHANGE', description: `Status changed from ${old} to ${status}`, userId: 'u2', userName: 'System', timestamp: now() })
+  const jc = jobCards[idx]
+  const statusLabels: Record<string, string> = {
+    RECEIVED: 'Received', INSPECTION: 'Under Inspection', PFI_PREPARATION: 'PFI Preparation',
+    AWAITING_INSURER_APPROVAL: 'Awaiting Insurer Approval', REPAIR_IN_PROGRESS: 'Repair In Progress',
+    WAITING_FOR_PARTS: 'Waiting for Parts', QUALITY_CHECK: 'Quality Check',
+    COMPLETED: 'Completed', INVOICED: 'Invoiced', RELEASED: 'Released'
+  }
+  const isCompleted = status === 'COMPLETED'
+  const isWaiting   = status === 'WAITING_FOR_PARTS' || status === 'AWAITING_INSURER_APPROVAL'
+  const priority: NotificationPriority = isCompleted ? 'success' : isWaiting ? 'warning' : 'info'
+  const type: NotificationType = isCompleted ? 'job_completed' : 'job_status'
+  addNotification(type, priority,
+    isCompleted ? 'Job Completed ✔' : `Status: ${statusLabels[status] || status}`,
+    `${jc.jobCardNumber} moved to ${statusLabels[status] || status}`,
+    { jobCardId: jc.id, jobCardNumber: jc.jobCardNumber })
   return c.json(jobCards[idx])
 })
 
@@ -191,6 +243,10 @@ api.post('/jobcards/:id/pfi', async (c) => {
   pfis.push(newPFI)
   const jIdx = jobCards.findIndex(x => x.id === c.req.param('id'))
   if (jIdx !== -1) { jobCards[jIdx].status = 'PFI_PREPARATION'; jobCards[jIdx].updatedAt = now() }
+  const jc = jobCards[jIdx]
+  if (jc) addNotification('pfi_created', 'info', 'PFI Created',
+    `Pro Forma Invoice created for ${jc.jobCardNumber} — TZS ${newPFI.totalEstimate.toLocaleString()}`,
+    { jobCardId: jc.id, jobCardNumber: jc.jobCardNumber, entityId: newPFI.id, entityType: 'pfi' })
   return c.json(newPFI, 201)
 })
 
@@ -207,16 +263,17 @@ api.post('/pfi/:id/send', async (c) => {
   const idx = pfis.findIndex(x => x.id === c.req.param('id'))
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
   const { email } = await c.req.json<{ email: string }>()
-  // Determine new status based on job category
   const job = jobCards.find(j => j.id === pfis[idx].jobCardId)
   const isInsurance = job?.category === 'Insurance'
   let newStatus = pfis[idx].status
   if (isInsurance && pfis[idx].status === 'Draft') newStatus = 'Submitted'
   if (!isInsurance && pfis[idx].status === 'Draft') newStatus = 'Sent'
   pfis[idx] = { ...pfis[idx], sentAt: now(), sentTo: email, status: newStatus }
-  // Log activity
   if (job) {
     activityLog.push({ id: 'a' + genId(), jobCardId: pfis[idx].jobCardId, action: 'PFI_SENT', description: `PFI sent to ${email}`, userId: 'u3', userName: 'System', timestamp: now() })
+    addNotification('pfi_sent', 'info', 'PFI Sent',
+      `PFI for ${job.jobCardNumber} emailed to ${email}`,
+      { jobCardId: job.id, jobCardNumber: job.jobCardNumber, entityId: pfis[idx].id, entityType: 'pfi' })
   }
   return c.json(pfis[idx])
 })
@@ -289,6 +346,10 @@ api.post('/jobcards/:id/invoice', async (c) => {
   invoices.push(newInv)
   const jIdx = jobCards.findIndex(x => x.id === c.req.param('id'))
   if (jIdx !== -1) { jobCards[jIdx].status = 'INVOICED'; jobCards[jIdx].updatedAt = now() }
+  const jc = jobCards[jIdx]
+  if (jc) addNotification('invoice_created', 'success', 'Invoice Generated',
+    `${invNum} issued for ${jc.jobCardNumber} — TZS ${newInv.totalAmount.toLocaleString()}`,
+    { jobCardId: jc.id, jobCardNumber: jc.jobCardNumber, entityId: newInv.id, entityType: 'invoice' })
   return c.json(newInv, 201)
 })
 
@@ -411,7 +472,16 @@ api.patch('/catalogue/parts/:id/deduct', async (c) => {
   const { quantity } = await c.req.json<{ quantity: number }>()
   const current = catalogueParts[idx].stockQuantity ?? 0
   if (current < quantity) return c.json({ error: 'Insufficient stock', available: current }, 409)
-  catalogueParts[idx] = { ...catalogueParts[idx], stockQuantity: current - quantity }
+  const newStock = current - quantity
+  catalogueParts[idx] = { ...catalogueParts[idx], stockQuantity: newStock }
+  // Fire low-stock alert when stock drops to 5 or below
+  if (newStock <= 5) {
+    const p = catalogueParts[idx]
+    addNotification('low_stock', newStock === 0 ? 'error' : 'warning',
+      newStock === 0 ? 'Out of Stock!' : 'Low Stock Alert',
+      `${p.description} — ${newStock === 0 ? 'no units remaining' : `only ${newStock} unit${newStock !== 1 ? 's' : ''} left`}. Consider restocking.`,
+      { entityId: p.id, entityType: 'part' })
+  }
   return c.json(catalogueParts[idx])
 })
 
@@ -506,6 +576,11 @@ api.post('/appointments', async (c) => {
   const body = await c.req.json<Omit<Appointment, 'id' | 'createdAt' | 'updatedAt'>>()
   const newApt: Appointment = { ...body, id: 'apt' + genId(), createdAt: now(), updatedAt: now() }
   appointments.push(newApt)
+  const cust = customers.find(x => x.id === newApt.customerId)
+  const veh  = vehicles.find(x => x.id === newApt.vehicleId)
+  addNotification('appointment_created', 'info', 'Appointment Scheduled',
+    `${cust?.name || 'Customer'} booked for ${newApt.serviceType} on ${newApt.date} at ${newApt.time} — ${veh?.make || ''} ${veh?.registrationNumber || ''}`,
+    { entityId: newApt.id, entityType: 'appointment' })
   return c.json(newApt, 201)
 })
 
@@ -522,6 +597,17 @@ api.patch('/appointments/:id/status', async (c) => {
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
   const { status } = await c.req.json<{ status: string }>()
   appointments[idx] = { ...appointments[idx], status: status as any, updatedAt: now() }
+  const apt = appointments[idx]
+  const cust = customers.find(x => x.id === apt.customerId)
+  if (status === 'Cancelled') {
+    addNotification('appointment_cancelled', 'error', 'Appointment Cancelled',
+      `${cust?.name || 'Customer'}\'s ${apt.serviceType} on ${apt.date} at ${apt.time} was cancelled`,
+      { entityId: apt.id, entityType: 'appointment' })
+  } else if (status === 'Completed') {
+    addNotification('job_completed', 'success', 'Appointment Completed',
+      `${cust?.name || 'Customer'}\'s ${apt.serviceType} on ${apt.date} marked as completed`,
+      { entityId: apt.id, entityType: 'appointment' })
+  }
   return c.json(appointments[idx])
 })
 
@@ -623,6 +709,10 @@ api.post('/expenses', async (c) => {
     updatedAt: now(),
   }
   expenses.push(newExp)
+  const jc = newExp.jobCardId ? jobCards.find(j => j.id === newExp.jobCardId) : null
+  addNotification('expense_created', 'info', 'Expense Recorded',
+    `${newExp.category} – ${newExp.description} (TZS ${newExp.amount.toLocaleString()})${jc ? ` for ${jc.jobCardNumber}` : ' [Overhead]'}`,
+    { jobCardId: jc?.id, jobCardNumber: jc?.jobCardNumber, entityId: newExp.id, entityType: 'expense' })
   return c.json(newExp, 201)
 })
 
@@ -641,6 +731,14 @@ api.patch('/expenses/:id/status', async (c) => {
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
   const { status } = await c.req.json<{ status: Expense['status'] }>()
   expenses[idx] = { ...expenses[idx], status, updatedAt: now() }
+  if (status === 'Approved' || status === 'Paid') {
+    const exp = expenses[idx]
+    const jc = exp.jobCardId ? jobCards.find(j => j.id === exp.jobCardId) : null
+    addNotification('expense_approved', status === 'Paid' ? 'success' : 'info',
+      status === 'Paid' ? 'Expense Paid' : 'Expense Approved',
+      `${exp.description} (TZS ${exp.amount.toLocaleString()}) marked as ${status}${jc ? ` – ${jc.jobCardNumber}` : ''}`,
+      { jobCardId: jc?.id, jobCardNumber: jc?.jobCardNumber, entityId: exp.id, entityType: 'expense' })
+  }
   return c.json(expenses[idx])
 })
 
@@ -649,6 +747,55 @@ api.delete('/expenses/:id', (c) => {
   const idx = expenses.findIndex(e => e.id === c.req.param('id'))
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
   expenses.splice(idx, 1)
+  return c.json({ success: true })
+})
+
+// ─── Notifications ───────────────────────────────────────────────────────────
+
+// GET /notifications?unread=true&type=&limit=50
+api.get('/notifications', (c) => {
+  const unreadOnly = c.req.query('unread') === 'true'
+  const typeFilter = c.req.query('type')
+  const limit      = parseInt(c.req.query('limit') || '50', 10)
+  let list = notifications as Notification[]
+  if (unreadOnly) list = list.filter(n => !n.read)
+  if (typeFilter) list = list.filter(n => n.type === typeFilter)
+  const unreadCount = notifications.filter(n => !n.read).length
+  return c.json({ notifications: list.slice(0, limit), unreadCount })
+})
+
+// GET /notifications/summary — just the unread count (cheap poll)
+api.get('/notifications/summary', (c) => {
+  return c.json({ unreadCount: notifications.filter(n => !n.read).length })
+})
+
+// PATCH /notifications/read-all — mark all as read  (MUST be before /:id routes)
+api.patch('/notifications/read-all', (c) => {
+  notifications.forEach(n => { n.read = true })
+  return c.json({ success: true })
+})
+
+// DELETE /notifications/clear-read — remove all read notifications (MUST be before /:id)
+api.delete('/notifications/clear-read', (c) => {
+  const before = notifications.length
+  const keep   = notifications.filter(n => !n.read)
+  notifications.splice(0, notifications.length, ...keep)
+  return c.json({ removed: before - notifications.length })
+})
+
+// PATCH /notifications/:id/read — mark one as read
+api.patch('/notifications/:id/read', (c) => {
+  const n = notifications.find(x => x.id === c.req.param('id'))
+  if (!n) return c.json({ error: 'Not found' }, 404)
+  n.read = true
+  return c.json(n)
+})
+
+// DELETE /notifications/:id
+api.delete('/notifications/:id', (c) => {
+  const idx = notifications.findIndex(x => x.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  notifications.splice(idx, 1)
   return c.json({ success: true })
 })
 
