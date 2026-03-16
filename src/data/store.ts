@@ -231,77 +231,23 @@ export interface Expense {
 
 
 
-export const customers: Customer[] = [
-  { id: 'c1', name: 'James Mwangi', phone: '+255 712 345 678', email: 'james.mwangi@email.com', address: '14 Uhuru St, Dar es Salaam', idNumber: 'TZ123456789', customerType: 'Individual', createdAt: '2025-01-10T08:00:00Z' },
-  { id: 'c2', name: 'Fatuma Hassan', phone: '+255 756 234 567', email: 'fatuma.hassan@email.com', address: '8 Kariakoo Rd, Dar es Salaam', customerType: 'Individual', createdAt: '2025-01-15T09:30:00Z' },
-  { id: 'c3', name: 'Twiga Fleet Services Ltd', phone: '+255 769 876 543', email: 'd.kimani@business.co.tz', address: '22 Samora Ave, Dodoma', customerType: 'Corporate', companyName: 'Twiga Fleet Services Ltd', contactPerson: 'David Kimani', taxPin: 'TIN-987654321', createdAt: '2025-02-01T11:00:00Z' },
-  { id: 'c4', name: 'Amina Odhiambo', phone: '+255 783 456 789', email: 'amina.o@gmail.com', address: '5 Mwembe Tayari, Mombasa Rd', customerType: 'Individual', createdAt: '2025-02-14T14:00:00Z' },
-  { id: 'c5', name: 'Ndegwa Logistics Co.', phone: '+255 798 123 456', email: 'r.ndegwa@fleet.co.tz', address: '33 Industrial Zone, Arusha', customerType: 'Corporate', companyName: 'Ndegwa Logistics Co.', contactPerson: 'Robert Ndegwa', taxPin: 'TIN-456789012', createdAt: '2025-03-01T08:30:00Z' },
-]
+export const customers: Customer[] = []
 
-export const vehicles: Vehicle[] = [
-  { id: 'v1', customerId: 'c1', registrationNumber: 'T123 ABC', make: 'Toyota', model: 'Corolla', year: 2020, vin: '1NXBR32E85Z123456', engineNumber: '4ZZ-FE12345', insurer: 'Jubilee Insurance', policyNumber: 'JUB-2024-789', createdAt: '2025-01-10T08:10:00Z' },
-  { id: 'v2', customerId: 'c2', registrationNumber: 'T456 DEF', make: 'Nissan', model: 'X-Trail', year: 2019, vin: 'JN8BT3DD0PW123456', engineNumber: 'QR25DE67890', insurer: 'Sanlam Tanzania', policyNumber: 'SAN-2024-456', createdAt: '2025-01-15T09:40:00Z' },
-  { id: 'v3', customerId: 'c3', registrationNumber: 'T789 GHI', make: 'Suzuki', model: 'Swift', year: 2022, vin: 'JS1ZC44A0B0012345', engineNumber: 'K12B-98765', insurer: 'UAP Insurance', policyNumber: 'UAP-2024-321', createdAt: '2025-02-01T11:10:00Z' },
-  { id: 'v4', customerId: 'c4', registrationNumber: 'T321 JKL', make: 'Toyota', model: 'Land Cruiser', year: 2021, vin: 'JT111UT0XB0012345', engineNumber: '1HZ-56789', insurer: 'Jubilee Insurance', policyNumber: 'JUB-2024-990', createdAt: '2025-02-14T14:10:00Z' },
-  { id: 'v5', customerId: 'c5', registrationNumber: 'T654 MNO', make: 'Isuzu', model: 'D-Max', year: 2023, vin: 'JAABXS16KH4012345', engineNumber: '4JJ1-34567', insurer: 'Britam Insurance', policyNumber: 'BRI-2024-112', createdAt: '2025-03-01T08:40:00Z' },
-]
+export const vehicles: Vehicle[] = []
 
-export const jobCards: JobCard[] = [
-  { id: 'j1', jobCardNumber: 'GMS-2025-001', vehicleId: 'v1', customerId: 'c1', assignedTechnician: 'u4', category: 'Insurance', claimReference: 'CLM-JUB-78901', insurer: 'Jubilee Insurance', assessor: 'Thomas Mlay', damageDescription: 'Front bumper damage and hood dent from collision. Right headlight broken.', inspectionNotes: 'Moderate structural damage. Requires panel beating and painting.', status: 'REPAIR_IN_PROGRESS', createdAt: '2025-03-01T09:00:00Z', updatedAt: '2025-03-03T14:00:00Z' },
-  { id: 'j2', jobCardNumber: 'GMS-2025-002', vehicleId: 'v2', customerId: 'c2', assignedTechnician: 'u4', category: 'Insurance', claimReference: 'CLM-SAN-45612', insurer: 'Sanlam Tanzania', assessor: 'Grace Njoro', damageDescription: 'Rear-end collision. Bumper, boot lid and rear lamps damaged.', status: 'AWAITING_INSURER_APPROVAL', createdAt: '2025-03-03T10:00:00Z', updatedAt: '2025-03-04T09:00:00Z' },
-  { id: 'j3', jobCardNumber: 'GMS-2025-003', vehicleId: 'v3', customerId: 'c3', assignedTechnician: 'u4', category: 'Private', damageDescription: 'Major service + brake pad replacement.', status: 'COMPLETED', createdAt: '2025-02-20T08:00:00Z', updatedAt: '2025-02-24T16:00:00Z' },
-  { id: 'j4', jobCardNumber: 'GMS-2025-004', vehicleId: 'v4', customerId: 'c4', assignedTechnician: 'u4', category: 'Insurance', claimReference: 'CLM-JUB-66789', insurer: 'Jubilee Insurance', assessor: 'Samuel Weru', damageDescription: 'Side impact damage. Left doors and A-pillar affected.', status: 'INSPECTION', createdAt: '2025-03-05T08:00:00Z', updatedAt: '2025-03-05T08:00:00Z' },
-  { id: 'j5', jobCardNumber: 'GMS-2025-005', vehicleId: 'v5', customerId: 'c5', assignedTechnician: 'u4', category: 'Private', damageDescription: 'Engine overhaul and gearbox service.', status: 'WAITING_FOR_PARTS', createdAt: '2025-03-04T11:00:00Z', updatedAt: '2025-03-05T10:00:00Z' },
-  { id: 'j6', jobCardNumber: 'GMS-2025-006', vehicleId: 'v1', customerId: 'c1', assignedTechnician: 'u4', category: 'Insurance', claimReference: 'CLM-JUB-12350', insurer: 'Jubilee Insurance', assessor: 'Thomas Mlay', damageDescription: 'Windscreen crack and wiper motor failure.', status: 'INVOICED', createdAt: '2025-02-15T09:00:00Z', updatedAt: '2025-02-22T15:00:00Z' },
-]
+export const jobCards: JobCard[] = []
 
-export const pfis: PFI[] = [
-  { id: 'p1', jobCardId: 'j1', labourCost: 350000, partsCost: 480000, totalEstimate: 830000, status: 'Approved', notes: 'Includes panel beating, paint and new bumper', createdAt: '2025-03-02T10:00:00Z' },
-  { id: 'p2', jobCardId: 'j2', labourCost: 180000, partsCost: 320000, totalEstimate: 500000, status: 'Submitted', notes: 'Rear bumper, boot lid, tail lights replacement', createdAt: '2025-03-04T10:00:00Z' },
-  { id: 'p3', jobCardId: 'j6', labourCost: 80000, partsCost: 120000, totalEstimate: 200000, status: 'Approved', createdAt: '2025-02-16T09:00:00Z' },
-  { id: 'p4', jobCardId: 'j3', labourCost: 150000, partsCost: 130000, totalEstimate: 280000, status: 'Sent', notes: 'Major service estimate – brakes, oil, plugs', createdAt: '2025-02-20T09:00:00Z', sentAt: '2025-02-21T10:00:00Z', sentTo: 'd.kimani@business.co.tz' },
-  { id: 'p5', jobCardId: 'j5', labourCost: 400000, partsCost: 250000, totalEstimate: 650000, status: 'Draft', notes: 'Engine overhaul and gearbox – awaiting customer approval', createdAt: '2025-03-05T12:00:00Z' },
-]
+export const pfis: PFI[] = []
 
-export const partsConsumption: PartConsumption[] = [
-  { id: 'pc1', jobCardId: 'j1', partName: 'Front Bumper Assembly', quantity: 1, unitCost: 280000, totalCost: 280000 },
-  { id: 'pc2', jobCardId: 'j1', partName: '2K Paint Material', quantity: 3, unitCost: 45000, totalCost: 135000 },
-  { id: 'pc3', jobCardId: 'j1', partName: 'Right Headlight Unit', quantity: 1, unitCost: 65000, totalCost: 65000 },
-  { id: 'pc4', jobCardId: 'j3', partName: 'Brake Pads (Set)', quantity: 1, unitCost: 45000, totalCost: 45000 },
-  { id: 'pc5', jobCardId: 'j3', partName: 'Engine Oil (5L)', quantity: 2, unitCost: 35000, totalCost: 70000 },
-  { id: 'pc6', jobCardId: 'j3', partName: 'Oil Filter', quantity: 1, unitCost: 15000, totalCost: 15000 },
-  { id: 'pc7', jobCardId: 'j6', partName: 'Windscreen Glass', quantity: 1, unitCost: 95000, totalCost: 95000 },
-  { id: 'pc8', jobCardId: 'j6', partName: 'Wiper Motor Assembly', quantity: 1, unitCost: 25000, totalCost: 25000 },
-]
+export const partsConsumption: PartConsumption[] = []
 
-export const invoices: Invoice[] = [
-  { id: 'i1', jobCardId: 'j3', invoiceNumber: 'INV-2025-001', labourCost: 120000, partsCost: 130000, tax: 37500, totalAmount: 287500, status: 'Paid', issuedAt: '2025-02-25T10:00:00Z' },
-  { id: 'i2', jobCardId: 'j6', invoiceNumber: 'INV-2025-002', labourCost: 80000, partsCost: 120000, tax: 30000, totalAmount: 230000, status: 'Paid', issuedAt: '2025-02-22T15:00:00Z', claimReference: 'CLM-JUB-12350', pfiReference: 'p3' },
-]
+export const invoices: Invoice[] = []
 
-export const servicePackages: ServicePackage[] = [
-  { id: 'sp1', packageName: 'Minor Service', description: 'Oil change, filter replacement, basic inspection', labourCost: 50000, estimatedHours: 2, parts: [{ name: 'Engine Oil 5L', quantity: 1, unitCost: 35000 }, { name: 'Oil Filter', quantity: 1, unitCost: 15000 }] },
-  { id: 'sp2', packageName: 'Major Service', description: 'Full service including plugs, belts, fluids', labourCost: 150000, estimatedHours: 6, parts: [{ name: 'Engine Oil 5L', quantity: 2, unitCost: 35000 }, { name: 'Oil Filter', quantity: 1, unitCost: 15000 }, { name: 'Air Filter', quantity: 1, unitCost: 20000 }, { name: 'Spark Plugs (Set)', quantity: 1, unitCost: 40000 }] },
-  { id: 'sp3', packageName: 'Brake Service', description: 'Brake pads, fluid and disc inspection', labourCost: 80000, estimatedHours: 3, parts: [{ name: 'Brake Pads (Set)', quantity: 1, unitCost: 45000 }, { name: 'Brake Fluid', quantity: 1, unitCost: 12000 }] },
-  { id: 'sp4', packageName: 'Oil Change', description: 'Quick oil and filter change', labourCost: 25000, estimatedHours: 1, parts: [{ name: 'Engine Oil 5L', quantity: 1, unitCost: 35000 }, { name: 'Oil Filter', quantity: 1, unitCost: 15000 }] },
-]
+export const servicePackages: ServicePackage[] = []
 
-export const users: User[] = [
-  { id: 'u1', name: 'Michael Osei', email: 'michael.osei@garage.co.tz', role: 'Owner', phone: '+255 712 000 001', active: true, createdAt: '2024-12-01T08:00:00Z' },
-  { id: 'u2', name: 'Sandra Kiprop', email: 'sandra.kiprop@garage.co.tz', role: 'Manager', phone: '+255 712 000 002', active: true, createdAt: '2024-12-01T08:00:00Z' },
-  { id: 'u3', name: 'Kevin Mutua', email: 'kevin.mutua@garage.co.tz', role: 'Front Desk', phone: '+255 712 000 003', active: true, createdAt: '2025-01-05T08:00:00Z' },
-  { id: 'u4', name: 'Peter Abuya', email: 'peter.abuya@garage.co.tz', role: 'Technician', phone: '+255 712 000 004', active: true, createdAt: '2025-01-05T08:00:00Z' },
-  { id: 'u5', name: 'Esther Wanjiru', email: 'esther.wanjiru@garage.co.tz', role: 'Accountant', phone: '+255 712 000 005', active: true, createdAt: '2025-01-10T08:00:00Z' },
-]
+export const users: User[] = []
 
-export const activityLog: ActivityLog[] = [
-  { id: 'a1', jobCardId: 'j1', action: 'STATUS_CHANGE', description: 'Status changed from RECEIVED to INSPECTION', userId: 'u3', userName: 'Kevin Mutua', timestamp: '2025-03-01T10:00:00Z' },
-  { id: 'a2', jobCardId: 'j1', action: 'PFI_CREATED', description: 'PFI created with estimate 830,000 TZS', userId: 'u2', userName: 'Sandra Kiprop', timestamp: '2025-03-02T10:00:00Z' },
-  { id: 'a3', jobCardId: 'j1', action: 'STATUS_CHANGE', description: 'Status changed to REPAIR_IN_PROGRESS after insurer approval', userId: 'u2', userName: 'Sandra Kiprop', timestamp: '2025-03-03T14:00:00Z' },
-  { id: 'a4', jobCardId: 'j2', action: 'STATUS_CHANGE', description: 'PFI submitted to Sanlam Tanzania for approval', userId: 'u3', userName: 'Kevin Mutua', timestamp: '2025-03-04T09:00:00Z' },
-  { id: 'a5', jobCardId: 'j4', action: 'JOB_CREATED', description: 'New job card created - Vehicle received for inspection', userId: 'u3', userName: 'Kevin Mutua', timestamp: '2025-03-05T08:00:00Z' },
-]
+export const activityLog: ActivityLog[] = []
 
 // ─── Twiga Group Oil Service Products ────────────────────────────────────────
 
@@ -460,32 +406,13 @@ export interface Appointment {
   updatedAt: string
 }
 
-export const appointments: Appointment[] = [
-  { id: 'apt1', customerId: 'c1', vehicleId: 'v1', serviceType: 'Oil Change',     status: 'Confirmed',  date: '2026-03-13', time: '08:00', estimatedDuration: 60,  assignedTechnician: 'u4', notes: 'Customer requests Castrol oil', createdAt: '2026-03-10T10:00:00Z', updatedAt: '2026-03-10T10:00:00Z' },
-  { id: 'apt2', customerId: 'c2', vehicleId: 'v2', serviceType: 'Minor Service',   status: 'Scheduled',  date: '2026-03-13', time: '10:00', estimatedDuration: 120, assignedTechnician: 'u4', notes: '', createdAt: '2026-03-11T08:00:00Z', updatedAt: '2026-03-11T08:00:00Z' },
-  { id: 'apt3', customerId: 'c3', vehicleId: 'v3', serviceType: 'Major Service',   status: 'Scheduled',  date: '2026-03-14', time: '09:00', estimatedDuration: 240, assignedTechnician: 'u4', notes: 'Fleet vehicle – priority handling', createdAt: '2026-03-11T09:00:00Z', updatedAt: '2026-03-11T09:00:00Z' },
-  { id: 'apt4', customerId: 'c4', vehicleId: 'v4', serviceType: 'Diagnosis',       status: 'Confirmed',  date: '2026-03-14', time: '14:00', estimatedDuration: 60,  notes: 'Engine light on', createdAt: '2026-03-12T07:00:00Z', updatedAt: '2026-03-12T07:00:00Z' },
-  { id: 'apt5', customerId: 'c1', vehicleId: 'v1', serviceType: 'Brake Service',   status: 'Scheduled',  date: '2026-03-17', time: '11:00', estimatedDuration: 90,  assignedTechnician: 'u4', notes: 'Front brakes squeaking', createdAt: '2026-03-12T11:00:00Z', updatedAt: '2026-03-12T11:00:00Z' },
-  { id: 'apt6', customerId: 'c5', vehicleId: 'v5', serviceType: 'Tyre Service',    status: 'Completed',  date: '2026-03-12', time: '08:30', estimatedDuration: 60,  assignedTechnician: 'u4', notes: 'Replace all 4 tyres', createdAt: '2026-03-10T14:00:00Z', updatedAt: '2026-03-12T10:00:00Z' },
-  { id: 'apt7', customerId: 'c2', vehicleId: 'v2', serviceType: 'Car Wash',        status: 'Cancelled',  date: '2026-03-12', time: '15:00', estimatedDuration: 30,  notes: 'Customer cancelled', createdAt: '2026-03-11T16:00:00Z', updatedAt: '2026-03-12T07:00:00Z' },
-]
+export const appointments: Appointment[] = []
 
 // ─── Job Services (packages / oil / car wash / add-ons added to a job) ────────
 export const jobServices: JobService[] = []
 
 // ─── Expenses ───────────────────────────────────────────────────────────────
-export const expenses: Expense[] = [
-  { id: 'ex1', jobCardId: 'j1', category: 'Parts & Materials', description: 'Panel beating consumables – primer, body filler', amount: 45000, vendor: 'AutoSupply Dar', receiptRef: 'RCP-2025-0301', status: 'Paid', paidBy: 'Michael Osei', date: '2025-03-02', createdAt: '2025-03-02T09:00:00Z', updatedAt: '2025-03-02T09:00:00Z' },
-  { id: 'ex2', jobCardId: 'j1', category: 'Subcontractor', description: 'Outsourced AC regas – specialist technician', amount: 80000, vendor: 'Cool Air TZ', receiptRef: 'RCP-2025-0302', status: 'Paid', paidBy: 'Michael Osei', date: '2025-03-03', createdAt: '2025-03-03T14:00:00Z', updatedAt: '2025-03-03T14:00:00Z' },
-  { id: 'ex3', jobCardId: 'j3', category: 'Parts & Materials', description: 'Brake fluid and cleaning agent', amount: 18000, vendor: 'Parts Plus', receiptRef: 'RCP-2025-0220', status: 'Paid', paidBy: 'Sarah Njoki', date: '2025-02-21', createdAt: '2025-02-21T10:00:00Z', updatedAt: '2025-02-21T10:00:00Z' },
-  { id: 'ex4', jobCardId: 'j5', category: 'Parts & Materials', description: 'Gasket set for engine overhaul', amount: 125000, vendor: 'Isuzu Parts Centre', receiptRef: 'RCP-2025-0305', status: 'Approved', paidBy: 'Michael Osei', notes: 'Awaiting payment', date: '2025-03-05', createdAt: '2025-03-05T11:00:00Z', updatedAt: '2025-03-05T11:00:00Z' },
-  { id: 'ex5', category: 'Utilities', description: 'Electricity bill – March 2025', amount: 320000, vendor: 'TANESCO', receiptRef: 'ELEC-MAR2025', status: 'Paid', paidBy: 'Michael Osei', date: '2025-03-05', createdAt: '2025-03-05T08:00:00Z', updatedAt: '2025-03-05T08:00:00Z' },
-  { id: 'ex6', category: 'Rent & Facilities', description: 'Workshop monthly rent – March', amount: 850000, vendor: 'Salim Properties Ltd', receiptRef: 'RENT-MAR2025', status: 'Paid', paidBy: 'Michael Osei', date: '2025-03-01', createdAt: '2025-03-01T08:00:00Z', updatedAt: '2025-03-01T08:00:00Z' },
-  { id: 'ex7', category: 'Equipment & Tools', description: 'Hydraulic jack replacement', amount: 180000, vendor: 'ToolMaster Ltd', receiptRef: 'RCP-TM-0891', status: 'Paid', paidBy: 'Sarah Njoki', date: '2025-03-04', createdAt: '2025-03-04T09:00:00Z', updatedAt: '2025-03-04T09:00:00Z' },
-  { id: 'ex8', category: 'Marketing & Admin', description: 'Social media advertising – February', amount: 60000, vendor: 'DigitalBoost TZ', receiptRef: 'INV-DB-4521', status: 'Paid', paidBy: 'Michael Osei', date: '2025-03-01', createdAt: '2025-03-01T10:00:00Z', updatedAt: '2025-03-01T10:00:00Z' },
-  { id: 'ex9', jobCardId: 'j2', category: 'Transport & Delivery', description: 'Vehicle recovery towing to workshop', amount: 35000, vendor: 'Rapid Recovery TZ', receiptRef: 'RCP-RR-0220', status: 'Paid', paidBy: 'Sarah Njoki', date: '2025-03-03', createdAt: '2025-03-03T11:00:00Z', updatedAt: '2025-03-03T11:00:00Z' },
-  { id: 'ex10', category: 'Miscellaneous', description: 'Staff refreshments – team meeting', amount: 15000, status: 'Paid', paidBy: 'Michael Osei', date: '2025-03-06', createdAt: '2025-03-06T15:00:00Z', updatedAt: '2025-03-06T15:00:00Z' },
-]
+export const expenses: Expense[] = []
 
 // ─── Notifications ───────────────────────────────────────────────────────────
 
@@ -525,28 +452,6 @@ export interface Notification {
   createdAt: string
 }
 
-export const notifications: Notification[] = [
-  // Job card notifications
-  { id: 'n1', type: 'job_status', priority: 'info', title: 'Job Status Updated', message: 'GMS-2025-001 moved to Repair In Progress', read: false, jobCardId: 'j1', jobCardNumber: 'GMS-2025-001', createdAt: '2025-03-03T14:00:00Z' },
-  { id: 'n2', type: 'job_status', priority: 'warning', title: 'Awaiting Insurer Approval', message: 'GMS-2025-002 is waiting for Sanlam Tanzania approval', read: false, jobCardId: 'j2', jobCardNumber: 'GMS-2025-002', createdAt: '2025-03-04T09:00:00Z' },
-  { id: 'n3', type: 'job_completed', priority: 'success', title: 'Job Completed', message: 'GMS-2025-003 has been completed and is ready for invoicing', read: true, jobCardId: 'j3', jobCardNumber: 'GMS-2025-003', createdAt: '2025-02-24T16:00:00Z' },
-  { id: 'n4', type: 'job_status', priority: 'warning', title: 'Waiting for Parts', message: 'GMS-2025-005 is stalled – parts not yet received', read: false, jobCardId: 'j5', jobCardNumber: 'GMS-2025-005', createdAt: '2025-03-05T10:00:00Z' },
-  // PFI notifications
-  { id: 'n5', type: 'pfi_sent', priority: 'info', title: 'PFI Sent to Customer', message: 'PFI for GMS-2025-003 was emailed to d.kimani@business.co.tz', read: true, jobCardId: 'j3', jobCardNumber: 'GMS-2025-003', entityId: 'p4', entityType: 'pfi', createdAt: '2025-02-21T10:00:00Z' },
-  { id: 'n6', type: 'pfi_approved', priority: 'success', title: 'PFI Approved', message: 'Jubilee Insurance approved PFI for GMS-2025-001 (TZS 830,000)', read: false, jobCardId: 'j1', jobCardNumber: 'GMS-2025-001', entityId: 'p1', entityType: 'pfi', createdAt: '2025-03-03T10:00:00Z' },
-  // Invoice notifications
-  { id: 'n7', type: 'invoice_created', priority: 'info', title: 'Invoice Generated', message: 'INV-2025-002 created for GMS-2025-006 — TZS 230,000', read: true, jobCardId: 'j6', jobCardNumber: 'GMS-2025-006', entityId: 'i2', entityType: 'invoice', createdAt: '2025-02-22T15:00:00Z' },
-  { id: 'n8', type: 'invoice_paid', priority: 'success', title: 'Invoice Paid', message: 'INV-2025-001 marked as paid — TZS 287,500 received', read: false, jobCardId: 'j3', jobCardNumber: 'GMS-2025-003', entityId: 'i1', entityType: 'invoice', createdAt: '2025-02-25T10:00:00Z' },
-  // Appointment notifications
-  { id: 'n9', type: 'appointment_reminder', priority: 'warning', title: 'Appointment Tomorrow', message: 'Twiga Fleet Services – Major Service scheduled for tomorrow at 09:00', read: false, entityId: 'apt3', entityType: 'appointment', createdAt: '2026-03-13T08:00:00Z' },
-  { id: 'n10', type: 'appointment_cancelled', priority: 'error', title: 'Appointment Cancelled', message: 'Fatuma Hassan cancelled her Car Wash appointment', read: true, entityId: 'apt7', entityType: 'appointment', createdAt: '2026-03-12T07:00:00Z' },
-  // Expense notifications
-  { id: 'n11', type: 'expense_approved', priority: 'success', title: 'Expense Approved', message: 'Gasket set expense (TZS 125,000) for GMS-2025-005 approved', read: false, jobCardId: 'j5', jobCardNumber: 'GMS-2025-005', entityId: 'ex4', entityType: 'expense', createdAt: '2025-03-05T11:00:00Z' },
-  // Low stock notifications
-  { id: 'n12', type: 'low_stock', priority: 'warning', title: 'Low Stock Alert', message: 'Oil Filter stock is critically low — only 2 units remaining', read: false, entityType: 'part', createdAt: '2025-03-06T08:00:00Z' },
-  { id: 'n13', type: 'low_stock', priority: 'warning', title: 'Low Stock Alert', message: 'Spark Plugs (Set) — 3 units left, consider restocking', read: false, entityType: 'part', createdAt: '2025-03-06T08:01:00Z' },
-  // Service added
-  { id: 'n14', type: 'service_added', priority: 'info', title: 'Service Added to Job', message: 'Toyota Oil Service (Prestige) added to GMS-2025-001', read: true, jobCardId: 'j1', jobCardNumber: 'GMS-2025-001', createdAt: '2025-03-03T15:00:00Z' },
-]
+export const notifications: Notification[] = []
 
 
