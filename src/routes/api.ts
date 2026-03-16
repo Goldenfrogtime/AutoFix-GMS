@@ -3,13 +3,13 @@ import {
   customers, vehicles, jobCards, pfis, partsConsumption,
   invoices, servicePackages, users, activityLog, sessions,
   oilServiceProducts, catalogueParts, carWashPackages, addOnServices, appointments,
-  jobServices, expenses, notifications,
+  jobServices, expenses, notifications, lubricantProducts,
   ROLE_PERMISSIONS,
   type Customer, type Vehicle, type JobCard, type PFI,
   type PartConsumption, type ServicePackage, type User, type Invoice,
   type CataloguePart, type CarWashPackage, type AddOnService, type Appointment,
   type JobService, type Expense, type Notification, type NotificationType, type NotificationPriority,
-  type Permission
+  type LubricantProduct, type Permission
 } from '../data/store'
 
 const api = new Hono()
@@ -848,6 +848,93 @@ api.delete('/catalogue/addons/:id', (c) => {
   const idx = addOnServices.findIndex(s => s.id === c.req.param('id'))
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
   addOnServices.splice(idx, 1)
+  return c.json({ success: true })
+})
+
+// ─── Catalogue: Lubricants ────────────────────────────────────────────────────
+api.get('/catalogue/lubricants', (c) => {
+  const brand = c.req.query('brand')
+  const type  = c.req.query('type')
+  const q     = c.req.query('q')?.toLowerCase()
+  let list = lubricantProducts
+  if (brand) list = list.filter(l => l.brand === brand)
+  if (type)  list = list.filter(l => l.lubricantType === type)
+  if (q)     list = list.filter(l =>
+    l.description.toLowerCase().includes(q) ||
+    l.viscosity.toLowerCase().includes(q) ||
+    l.brand.toLowerCase().includes(q)
+  )
+  return c.json(list)
+})
+
+api.get('/catalogue/lubricants/brands', (c) => {
+  const brands = [...new Set(lubricantProducts.map(l => l.brand))]
+  return c.json(brands)
+})
+
+api.get('/catalogue/lubricants/types', (c) => {
+  const types = [...new Set(lubricantProducts.map(l => l.lubricantType))]
+  return c.json(types)
+})
+
+api.post('/catalogue/lubricants', async (c) => {
+  const body = await c.req.json<Omit<LubricantProduct, 'id' | 'margin'>>()
+  const newItem: LubricantProduct = {
+    id: 'lub' + genId(),
+    brand: body.brand,
+    description: body.description,
+    viscosity: body.viscosity || '',
+    volume: body.volume || '',
+    lubricantType: body.lubricantType,
+    buyingPrice: Number(body.buyingPrice) || 0,
+    sellingPrice: Number(body.sellingPrice) || 0,
+    margin: Number(body.sellingPrice || 0) - Number(body.buyingPrice || 0),
+    stockQuantity: Number(body.stockQuantity) || 0,
+  }
+  lubricantProducts.push(newItem)
+  return c.json(newItem, 201)
+})
+
+api.put('/catalogue/lubricants/:id', async (c) => {
+  const idx = lubricantProducts.findIndex(l => l.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const body = await c.req.json<Partial<LubricantProduct>>()
+  const updated = { ...lubricantProducts[idx], ...body }
+  updated.margin = updated.sellingPrice - updated.buyingPrice
+  lubricantProducts[idx] = updated
+  return c.json(lubricantProducts[idx])
+})
+
+api.patch('/catalogue/lubricants/:id/restock', async (c) => {
+  const idx = lubricantProducts.findIndex(l => l.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const { quantity } = await c.req.json<{ quantity: number }>()
+  lubricantProducts[idx] = { ...lubricantProducts[idx], stockQuantity: (lubricantProducts[idx].stockQuantity ?? 0) + Number(quantity) }
+  return c.json(lubricantProducts[idx])
+})
+
+api.patch('/catalogue/lubricants/:id/deduct', async (c) => {
+  const idx = lubricantProducts.findIndex(l => l.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const { quantity } = await c.req.json<{ quantity: number }>()
+  const current = lubricantProducts[idx].stockQuantity ?? 0
+  if (current < quantity) return c.json({ error: 'Insufficient stock', available: current }, 409)
+  const newStock = current - quantity
+  lubricantProducts[idx] = { ...lubricantProducts[idx], stockQuantity: newStock }
+  if (newStock <= 5) {
+    const l = lubricantProducts[idx]
+    addNotification('low_stock', newStock === 0 ? 'error' : 'warning',
+      newStock === 0 ? 'Out of Stock!' : 'Low Stock Alert',
+      `${l.description} — ${newStock === 0 ? 'no units remaining' : `only ${newStock} unit${newStock !== 1 ? 's' : ''} left`}. Consider restocking.`,
+      { entityId: l.id, entityType: 'lubricant' })
+  }
+  return c.json(lubricantProducts[idx])
+})
+
+api.delete('/catalogue/lubricants/:id', (c) => {
+  const idx = lubricantProducts.findIndex(l => l.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  lubricantProducts.splice(idx, 1)
   return c.json({ success: true })
 })
 

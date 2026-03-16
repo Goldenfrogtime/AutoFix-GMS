@@ -235,7 +235,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <i class="fas fa-box-open w-5 text-center"></i> Service Packages
     </a>
     <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('oil-services')" data-perm="oil_services.view">
-      <i class="fas fa-oil-can w-5 text-center"></i> Oil Services
+      <i class="fas fa-tint w-5 text-center"></i> Lubricants
     </a>
     <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('parts-catalogue')" data-perm="parts.view">
       <i class="fas fa-cubes w-5 text-center"></i> Parts Catalogue
@@ -914,36 +914,66 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 
     <!-- ═══ OIL SERVICES ═══ -->
     <div id="page-oil-services" class="page">
-      <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div>
-          <h2 class="text-2xl font-bold text-gray-900">Oil Services – Pricing</h2>
-          <p class="text-gray-500 text-sm mt-1">Toyota, Total &amp; Castrol oil service packages with 3 customer tiers and fleet discounts</p>
+          <h2 class="text-2xl font-bold text-gray-900">Lubricants Catalogue</h2>
+          <p class="text-gray-500 text-sm mt-1">Engine oils, gear oils, fluids &amp; greases — buying price, selling price, margin &amp; stock levels</p>
         </div>
-        <div class="flex gap-2" id="oilManageActions" data-perm="oil_services.view">
-          <button class="btn-secondary text-sm" id="oilFleetEditBtn" onclick="showOilFleetModal()" data-perm="packages.manage"><i class="fas fa-truck mr-1"></i>Fleet Discounts</button>
-          <button class="btn-primary text-sm" id="oilAddTierBtn" onclick="showOilTierModal()" data-perm="packages.manage"><i class="fas fa-plus mr-1"></i>Add Tier</button>
-        </div>
-      </div>
-      <!-- Brand Tabs -->
-      <div class="flex gap-2 mb-6" id="oilBrandTabs">
-        <button class="px-5 py-2.5 rounded-xl text-sm font-bold bg-blue-600 text-white shadow" onclick="showOilBrand('Toyota',this)">🛢 Toyota</button>
-        <button class="px-5 py-2.5 rounded-xl text-sm font-bold bg-gray-100 text-gray-600 hover:bg-gray-200" onclick="showOilBrand('Total',this)">🛢 Total</button>
-        <button class="px-5 py-2.5 rounded-xl text-sm font-bold bg-gray-100 text-gray-600 hover:bg-gray-200" onclick="showOilBrand('Castrol',this)">🛢 Castrol</button>
-      </div>
-      <!-- Fleet Discount Banner -->
-      <div id="oilFleetBanner" class="hidden card p-4 mb-5 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200">
-        <div class="flex items-center justify-between gap-3">
-          <div class="flex items-center gap-3">
-            <i class="fas fa-truck text-amber-500 text-xl"></i>
-            <div>
-              <p class="font-bold text-amber-800">Fleet Discounts Available</p>
-              <p class="text-sm text-amber-700" id="oilFleetBannerText">3–5 vehicles: <strong>TZS 5,000 off</strong> per car &nbsp;|&nbsp; 5+ vehicles: <strong>TZS 8,000 off</strong> per car</p>
-            </div>
+        <div class="flex flex-wrap items-center gap-2 mt-2 sm:mt-0">
+          <div class="relative min-w-[180px]">
+            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+            <input class="search-input w-full" type="text" placeholder="Search lubricants…" id="lubSearch" oninput="filterLubricants(this.value)"/>
           </div>
+          <button onclick="showAddLubricantModal()" class="btn-primary flex items-center gap-2" data-perm="oil_services.view">
+            <i class="fas fa-plus"></i> Add Lubricant
+          </button>
         </div>
       </div>
-      <!-- Pricing Table -->
-      <div class="card overflow-hidden" id="oilPricingTable"></div>
+      <!-- Brand filter tabs -->
+      <div class="flex flex-wrap gap-2 mb-3" id="lubBrandTabs">
+        <button class="parts-cat-tab active" data-brand="" onclick="setLubBrandTab('',this)">All Brands</button>
+        <button class="parts-cat-tab" data-brand="Toyota"   onclick="setLubBrandTab('Toyota',this)">🛢 Toyota</button>
+        <button class="parts-cat-tab" data-brand="Total"    onclick="setLubBrandTab('Total',this)">🛢 Total</button>
+        <button class="parts-cat-tab" data-brand="Castrol"  onclick="setLubBrandTab('Castrol',this)">🛢 Castrol</button>
+        <button class="parts-cat-tab" data-brand="Shell"    onclick="setLubBrandTab('Shell',this)">🛢 Shell</button>
+        <button class="parts-cat-tab" data-brand="Mobil"    onclick="setLubBrandTab('Mobil',this)">🛢 Mobil</button>
+        <button class="parts-cat-tab" data-brand="Valvoline" onclick="setLubBrandTab('Valvoline',this)">🛢 Valvoline</button>
+        <button class="parts-cat-tab" data-brand="Other"    onclick="setLubBrandTab('Other',this)">Other</button>
+      </div>
+      <!-- Type filter tabs -->
+      <div class="flex flex-wrap gap-2 mb-5" id="lubTypeTabs">
+        <button class="parts-cat-tab active" data-type="" onclick="setLubTypeTab('',this)">All Types</button>
+        <button class="parts-cat-tab" data-type="Engine Oil"            onclick="setLubTypeTab('Engine Oil',this)">Engine Oil</button>
+        <button class="parts-cat-tab" data-type="Gear Oil"              onclick="setLubTypeTab('Gear Oil',this)">Gear Oil</button>
+        <button class="parts-cat-tab" data-type="Transmission Fluid"    onclick="setLubTypeTab('Transmission Fluid',this)">Transmission Fluid</button>
+        <button class="parts-cat-tab" data-type="Brake Fluid"           onclick="setLubTypeTab('Brake Fluid',this)">Brake Fluid</button>
+        <button class="parts-cat-tab" data-type="Power Steering Fluid"  onclick="setLubTypeTab('Power Steering Fluid',this)">Power Steering Fluid</button>
+        <button class="parts-cat-tab" data-type="Coolant"               onclick="setLubTypeTab('Coolant',this)">Coolant</button>
+        <button class="parts-cat-tab" data-type="Grease"                onclick="setLubTypeTab('Grease',this)">Grease</button>
+      </div>
+      <!-- Stats row -->
+      <div class="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-5" id="lubStats"></div>
+      <!-- Table -->
+      <div class="card overflow-hidden">
+        <div class="table-scroll">
+          <table class="w-full text-sm" style="min-width:900px">
+            <thead><tr class="border-b border-gray-100 bg-gray-50">
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Brand</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Description</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Type</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Viscosity</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Volume</th>
+              <th class="text-right px-4 py-3 font-semibold text-gray-600">Buy Price</th>
+              <th class="text-right px-4 py-3 font-semibold text-gray-600">Sell Price</th>
+              <th class="text-right px-4 py-3 font-semibold text-gray-600">Margin</th>
+              <th class="text-right px-4 py-3 font-semibold text-gray-600">Margin %</th>
+              <th class="text-right px-4 py-3 font-semibold text-gray-600">In Stock</th>
+              <th class="text-center px-4 py-3 font-semibold text-gray-600">Actions</th>
+            </tr></thead>
+            <tbody id="lubTable"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
     <!-- ═══ PARTS CATALOGUE ═══ -->
@@ -1885,6 +1915,103 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
   </div>
 </div>
 
+<!-- ═══ MODAL: Add / Edit Lubricant ═══ -->
+<div id="modal-lubricant" class="modal-overlay hidden">
+  <div class="modal-box" style="--mw:560px">
+    <div class="flex items-center justify-between mb-5">
+      <div>
+        <h3 class="text-xl font-bold text-gray-900"><i class="fas fa-tint text-blue-500 mr-2"></i><span id="lubModal-title">Add Lubricant</span></h3>
+        <p class="text-sm text-gray-500 mt-1">Set brand, type, viscosity, volume and pricing</p>
+      </div>
+      <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-lubricant')"><i class="fas fa-times"></i></button>
+    </div>
+    <input type="hidden" id="lub-id"/>
+    <div class="grid grid-cols-2 gap-4 mb-4">
+      <div>
+        <label class="form-label">Brand *</label>
+        <select class="form-input" id="lub-brand">
+          <option value="">Select brand…</option>
+          <option>Toyota</option><option>Total</option><option>Castrol</option>
+          <option>Shell</option><option>Mobil</option><option>Valvoline</option><option>Other</option>
+        </select>
+      </div>
+      <div>
+        <label class="form-label">Type *</label>
+        <select class="form-input" id="lub-type">
+          <option value="">Select type…</option>
+          <option>Engine Oil</option><option>Gear Oil</option><option>Transmission Fluid</option>
+          <option>Brake Fluid</option><option>Power Steering Fluid</option><option>Coolant</option>
+          <option>Grease</option><option>Other</option>
+        </select>
+      </div>
+      <div class="col-span-2">
+        <label class="form-label">Description *</label>
+        <input class="form-input" type="text" id="lub-description" placeholder="e.g. Toyota Genuine Motor Oil 5W-30"/>
+      </div>
+      <div>
+        <label class="form-label">Viscosity / Grade</label>
+        <input class="form-input" type="text" id="lub-viscosity" placeholder="e.g. 5W-30, 10W-40, ATF, DOT 4"/>
+      </div>
+      <div>
+        <label class="form-label">Volume / Pack Size</label>
+        <input class="form-input" type="text" id="lub-volume" placeholder="e.g. 1L, 4L, 5L, 20L"/>
+      </div>
+      <div>
+        <label class="form-label">Buying Price (TZS) *</label>
+        <input class="form-input" type="number" id="lub-buyPrice" placeholder="0" min="0" oninput="lubCalcMargin()"/>
+      </div>
+      <div>
+        <label class="form-label">Selling Price (TZS) *</label>
+        <input class="form-input" type="number" id="lub-sellPrice" placeholder="0" min="0" oninput="lubCalcMargin()"/>
+      </div>
+      <div>
+        <label class="form-label">Initial Stock (units)</label>
+        <input class="form-input" type="number" id="lub-stock" placeholder="0" min="0"/>
+      </div>
+      <div class="flex items-end pb-1">
+        <div class="hidden text-sm rounded-xl px-3 py-2 bg-green-50 border border-green-100 w-full" id="lub-marginPreview">
+          <span class="text-gray-500">Margin: </span><span class="font-bold text-green-700" id="lub-marginAmt"></span>
+          <span class="ml-2 font-bold text-green-600" id="lub-marginPct"></span>
+        </div>
+      </div>
+    </div>
+    <div class="flex gap-3 mt-2">
+      <button class="btn-secondary flex-1" onclick="closeModal('modal-lubricant')">Cancel</button>
+      <button class="btn-primary flex-1" onclick="submitLubricant()"><i class="fas fa-save mr-1"></i><span id="lubModal-submitLabel">Add Lubricant</span></button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: Restock Lubricant ═══ -->
+<div id="modal-lubRestock" class="modal-overlay hidden">
+  <div class="modal-box" style="--mw:400px">
+    <div class="flex items-center justify-between mb-5">
+      <div>
+        <h3 class="text-xl font-bold text-gray-900"><i class="fas fa-boxes text-green-600 mr-2"></i>Restock Lubricant</h3>
+        <p class="text-sm text-gray-500 mt-1" id="lubRestock-name"></p>
+      </div>
+      <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-lubRestock')"><i class="fas fa-times"></i></button>
+    </div>
+    <input type="hidden" id="lubRestock-id"/>
+    <div class="flex items-center justify-between mb-3 p-3 bg-gray-50 rounded-xl">
+      <span class="text-sm text-gray-500">Current stock:</span>
+      <span class="font-bold text-gray-800" id="lubRestock-current"></span>
+    </div>
+    <div>
+      <label class="form-label">Units to Add *</label>
+      <input class="form-input text-lg font-bold text-center" type="number" id="lubRestock-qty" min="1" placeholder="0" oninput="lubRestockPreview()"/>
+    </div>
+    <div class="flex items-center justify-between mt-3 rounded-xl p-3 bg-green-50 border border-green-100 text-sm hidden" id="lubRestock-preview">
+      <span class="text-gray-600">New stock level:</span>
+      <span class="font-bold text-green-700 text-lg" id="lubRestock-newTotal"></span>
+    </div>
+    <div class="flex gap-3 mt-6">
+      <button class="btn-secondary flex-1" onclick="closeModal('modal-lubRestock')">Cancel</button>
+      <button class="btn-primary flex-1" onclick="submitLubRestock()"><i class="fas fa-plus mr-1"></i>Add Stock</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ MODAL: Oil Tier (Add / Edit) ═══ -->
 <div id="modal-oilTier" class="modal-overlay hidden">
   <div class="modal-box" style="--mw:600px">
@@ -2394,7 +2521,7 @@ function showPage(page) {
   if (page === 'analytics') loadAnalytics();
   if (page === 'finance') loadFinance();
   if (page === 'users') loadUsers();
-  if (page === 'oil-services') loadOilServices();
+  if (page === 'oil-services') loadLubricants();
   if (page === 'parts-catalogue') loadPartsCatalogue();
   if (page === 'car-wash') loadCarWash();
   if (page === 'add-ons') loadAddOns();
@@ -5735,12 +5862,285 @@ function handleGlobalSearch(q) {
   }
 }
 
-// ═══ OIL SERVICES ═══
+// ═══ LUBRICANTS CATALOGUE ═══
+let allLubricants = [];
+let _lubBrandFilter = '';
+let _lubTypeFilter  = '';
+
+const LUB_BRAND_COLORS = {
+  Toyota:   { bg:'#eff6ff', text:'#2563eb' },
+  Total:    { bg:'#fff7ed', text:'#c2410c' },
+  Castrol:  { bg:'#f0fdf4', text:'#16a34a' },
+  Shell:    { bg:'#fffbeb', text:'#b45309' },
+  Mobil:    { bg:'#fef2f2', text:'#dc2626' },
+  Valvoline:{ bg:'#f5f3ff', text:'#7c3aed' },
+  Other:    { bg:'#f8fafc', text:'#64748b' },
+};
+const LUB_TYPE_COLORS = {
+  'Engine Oil':           '#2563eb',
+  'Gear Oil':             '#7c3aed',
+  'Transmission Fluid':   '#d97706',
+  'Brake Fluid':          '#dc2626',
+  'Power Steering Fluid': '#0891b2',
+  'Coolant':              '#16a34a',
+  'Grease':               '#64748b',
+  'Other':                '#94a3b8',
+};
+
+async function loadLubricants() {
+  const { data } = await axios.get('/api/catalogue/lubricants');
+  allLubricants = data;
+  renderLubricantsStats(data);
+  renderLubricantsTable(data);
+}
+
+function setLubBrandTab(brand, btn) {
+  _lubBrandFilter = brand;
+  document.querySelectorAll('#lubBrandTabs button').forEach(function(b) {
+    b.classList.toggle('active', b.getAttribute('data-brand') === brand);
+  });
+  applyLubFilters();
+}
+
+function setLubTypeTab(type, btn) {
+  _lubTypeFilter = type;
+  document.querySelectorAll('#lubTypeTabs button').forEach(function(b) {
+    b.classList.toggle('active', b.getAttribute('data-type') === type);
+  });
+  applyLubFilters();
+}
+
+function filterLubricants(search) {
+  applyLubFilters(search);
+}
+
+function applyLubFilters(search) {
+  const q = (search !== undefined ? search : (document.getElementById('lubSearch')?.value || '')).toLowerCase();
+  let list = allLubricants;
+  if (_lubBrandFilter) list = list.filter(function(l) { return l.brand === _lubBrandFilter; });
+  if (_lubTypeFilter)  list = list.filter(function(l) { return l.lubricantType === _lubTypeFilter; });
+  if (q) list = list.filter(function(l) {
+    return l.description.toLowerCase().includes(q) || l.viscosity.toLowerCase().includes(q) || l.brand.toLowerCase().includes(q) || l.lubricantType.toLowerCase().includes(q);
+  });
+  renderLubricantsStats(list);
+  renderLubricantsTable(list);
+}
+
+function renderLubricantsStats(list) {
+  const el = document.getElementById('lubStats');
+  if (!el) return;
+  if (!list.length) { el.innerHTML = ''; return; }
+  const types = [...new Set(list.map(function(l) { return l.lubricantType; }))];
+  const totalStock = list.reduce(function(s, l) { return s + (l.stockQuantity || 0); }, 0);
+  const outOfStock = list.filter(function(l) { return (l.stockQuantity || 0) === 0; }).length;
+  const avgMargin = list.reduce(function(s, l) { return s + l.margin; }, 0) / list.length;
+  const bestMargin = Math.max.apply(null, list.map(function(l) { return l.margin; }));
+  el.innerHTML = [
+    { label:'Total Products', value: list.length,          icon:'fa-tint',        color:'#2563eb' },
+    { label:'Types',          value: types.length,         icon:'fa-layer-group', color:'#7c3aed' },
+    { label:'Avg Margin',     value:'TZS '+fmt(Math.round(avgMargin)), icon:'fa-chart-line', color:'#16a34a' },
+    { label:'Best Margin',    value:'TZS '+fmt(bestMargin), icon:'fa-trophy',      color:'#d97706' },
+    { label:'In Stock',       value: totalStock+' units',  icon:'fa-boxes',       color:'#0891b2' },
+    { label:'Out of Stock',   value: outOfStock,           icon:'fa-exclamation-circle', color:'#dc2626' },
+  ].map(function(s) {
+    return '<div class="card p-4 border-l-4" style="border-color:'+s.color+'">' +
+      '<div class="flex items-center gap-3 mb-1">' +
+        '<i class="fas '+s.icon+' text-sm" style="color:'+s.color+'"></i>' +
+        '<p class="text-xs text-gray-500 font-semibold uppercase">'+s.label+'</p>' +
+      '</div>' +
+      '<p class="text-xl font-bold text-gray-900">'+s.value+'</p>' +
+    '</div>';
+  }).join('');
+}
+
+function renderLubricantsTable(list) {
+  const tbody = document.getElementById('lubTable');
+  if (!tbody) return;
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="11" class="text-center py-12 text-gray-400"><i class="fas fa-tint text-3xl mb-3 block"></i>No lubricants found</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(function(l) {
+    const bc = LUB_BRAND_COLORS[l.brand] || { bg:'#f8fafc', text:'#64748b' };
+    const tc = LUB_TYPE_COLORS[l.lubricantType] || '#64748b';
+    const marginPct = l.sellingPrice > 0 ? Math.round((l.margin / l.sellingPrice) * 100) : 0;
+    const marginColor = marginPct >= 40 ? '#16a34a' : marginPct >= 25 ? '#d97706' : '#dc2626';
+    const stockBadge = (l.stockQuantity || 0) === 0
+      ? '<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-600"><i class="fas fa-times-circle"></i>Out</span>'
+      : (l.stockQuantity || 0) <= 5
+        ? '<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700"><i class="fas fa-exclamation-triangle"></i>'+l.stockQuantity+'</span>'
+        : '<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700"><i class="fas fa-check"></i>'+l.stockQuantity+'</span>';
+    return '<tr class="table-row border-b border-gray-50" data-id="'+l.id+'">' +
+      '<td class="px-4 py-3"><span class="badge" style="background:'+bc.bg+';color:'+bc.text+'">'+l.brand+'</span></td>' +
+      '<td class="px-4 py-3 font-medium text-gray-800 text-sm max-w-[220px]">'+l.description+'</td>' +
+      '<td class="px-4 py-3"><span class="text-xs font-semibold px-2 py-0.5 rounded-full" style="background:'+tc+'20;color:'+tc+'">'+l.lubricantType+'</span></td>' +
+      '<td class="px-4 py-3 text-sm text-gray-600 font-mono">'+l.viscosity+'</td>' +
+      '<td class="px-4 py-3 text-sm text-gray-600">'+l.volume+'</td>' +
+      '<td class="px-4 py-3 text-right text-gray-600">'+fmt(l.buyingPrice)+'</td>' +
+      '<td class="px-4 py-3 text-right font-bold text-gray-900">'+fmt(l.sellingPrice)+'</td>' +
+      '<td class="px-4 py-3 text-right font-semibold text-green-600">'+fmt(l.margin)+'</td>' +
+      '<td class="px-4 py-3 text-right"><span class="font-bold text-sm" style="color:'+marginColor+'">'+marginPct+'%</span></td>' +
+      '<td class="px-4 py-3 text-right">'+stockBadge+'</td>' +
+      '<td class="px-4 py-3 text-center">' +
+        '<div class="flex items-center justify-center gap-1">' +
+          '<button class="lub-edit-btn w-7 h-7 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center transition-colors" data-id="'+l.id+'" title="Edit"><i class="fas fa-pen text-xs"></i></button>' +
+          '<button class="lub-restock-btn w-7 h-7 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 flex items-center justify-center transition-colors" data-id="'+l.id+'" title="Add Stock"><i class="fas fa-plus text-xs"></i></button>' +
+          '<button class="lub-del-btn w-7 h-7 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center transition-colors" data-id="'+l.id+'" title="Delete"><i class="fas fa-trash text-xs"></i></button>' +
+        '</div>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+  // Wire events via addEventListener
+  tbody.querySelectorAll('.lub-edit-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() { showEditLubricantModal(btn.getAttribute('data-id')); });
+  });
+  tbody.querySelectorAll('.lub-restock-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() { showLubRestockModal(btn.getAttribute('data-id')); });
+  });
+  tbody.querySelectorAll('.lub-del-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() { deleteLubricant(btn.getAttribute('data-id')); });
+  });
+}
+
+// ── Add/Edit Modal ────────────────────────────────────────────────────────────
+function showAddLubricantModal() {
+  document.getElementById('lub-id').value = '';
+  document.getElementById('lubModal-title').textContent = 'Add Lubricant';
+  document.getElementById('lubModal-submitLabel').textContent = 'Add Lubricant';
+  ['lub-brand','lub-type','lub-description','lub-viscosity','lub-volume','lub-buyPrice','lub-sellPrice'].forEach(function(id) {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('lub-stock').value = '0';
+  document.getElementById('lub-marginPreview').classList.add('hidden');
+  openModal('modal-lubricant');
+}
+
+function showEditLubricantModal(id) {
+  const l = allLubricants.find(function(x) { return x.id === id; });
+  if (!l) return;
+  document.getElementById('lub-id').value = l.id;
+  document.getElementById('lubModal-title').textContent = 'Edit Lubricant';
+  document.getElementById('lubModal-submitLabel').textContent = 'Save Changes';
+  document.getElementById('lub-brand').value       = l.brand || '';
+  document.getElementById('lub-type').value        = l.lubricantType || '';
+  document.getElementById('lub-description').value = l.description || '';
+  document.getElementById('lub-viscosity').value   = l.viscosity || '';
+  document.getElementById('lub-volume').value      = l.volume || '';
+  document.getElementById('lub-buyPrice').value    = l.buyingPrice || '';
+  document.getElementById('lub-sellPrice').value   = l.sellingPrice || '';
+  document.getElementById('lub-stock').value       = l.stockQuantity || 0;
+  lubCalcMargin();
+  openModal('modal-lubricant');
+}
+
+function lubCalcMargin() {
+  const buy  = parseFloat(document.getElementById('lub-buyPrice').value)  || 0;
+  const sell = parseFloat(document.getElementById('lub-sellPrice').value) || 0;
+  const margin = sell - buy;
+  const pct = sell > 0 ? Math.round((margin / sell) * 100) : 0;
+  const el = document.getElementById('lub-marginPreview');
+  if (buy > 0 || sell > 0) {
+    el.classList.remove('hidden');
+    document.getElementById('lub-marginAmt').textContent = 'TZS ' + fmt(margin);
+    document.getElementById('lub-marginPct').textContent = '(' + pct + '%)';
+  } else {
+    el.classList.add('hidden');
+  }
+}
+
+async function submitLubricant() {
+  const id      = document.getElementById('lub-id').value;
+  const brand   = document.getElementById('lub-brand').value;
+  const type    = document.getElementById('lub-type').value;
+  const desc    = document.getElementById('lub-description').value.trim();
+  const visc    = document.getElementById('lub-viscosity').value.trim();
+  const vol     = document.getElementById('lub-volume').value.trim();
+  const buyP    = parseFloat(document.getElementById('lub-buyPrice').value)  || 0;
+  const sellP   = parseFloat(document.getElementById('lub-sellPrice').value) || 0;
+  const stock   = parseInt(document.getElementById('lub-stock').value)       || 0;
+  if (!brand) { showToast('Please select a brand', 'error'); return; }
+  if (!type)  { showToast('Please select a type', 'error'); return; }
+  if (!desc)  { showToast('Description is required', 'error'); return; }
+  if (sellP <= 0) { showToast('Selling price must be greater than 0', 'error'); return; }
+  const payload = { brand, lubricantType: type, description: desc, viscosity: visc, volume: vol, buyingPrice: buyP, sellingPrice: sellP, stockQuantity: stock };
+  try {
+    if (id) {
+      await axios.put('/api/catalogue/lubricants/' + id, payload);
+      showToast('Lubricant updated');
+    } else {
+      await axios.post('/api/catalogue/lubricants', payload);
+      showToast('Lubricant added');
+    }
+    closeModal('modal-lubricant');
+    const { data } = await axios.get('/api/catalogue/lubricants');
+    allLubricants = data;
+    applyLubFilters();
+  } catch(err) {
+    showToast(err.response?.data?.error || 'Failed to save lubricant', 'error');
+  }
+}
+
+// ── Restock Modal ─────────────────────────────────────────────────────────────
+function showLubRestockModal(id) {
+  const l = allLubricants.find(function(x) { return x.id === id; });
+  if (!l) return;
+  document.getElementById('lubRestock-id').value = l.id;
+  document.getElementById('lubRestock-name').textContent = l.description;
+  document.getElementById('lubRestock-current').textContent = (l.stockQuantity || 0) + ' units';
+  document.getElementById('lubRestock-qty').value = '';
+  document.getElementById('lubRestock-preview').classList.add('hidden');
+  openModal('modal-lubRestock');
+}
+
+function lubRestockPreview() {
+  const id  = document.getElementById('lubRestock-id').value;
+  const qty = parseInt(document.getElementById('lubRestock-qty').value) || 0;
+  const l   = allLubricants.find(function(x) { return x.id === id; });
+  const preview = document.getElementById('lubRestock-preview');
+  if (qty > 0 && l) {
+    document.getElementById('lubRestock-newTotal').textContent = ((l.stockQuantity || 0) + qty) + ' units';
+    preview.classList.remove('hidden');
+  } else {
+    preview.classList.add('hidden');
+  }
+}
+
+async function submitLubRestock() {
+  const id  = document.getElementById('lubRestock-id').value;
+  const qty = parseInt(document.getElementById('lubRestock-qty').value) || 0;
+  if (qty <= 0) { showToast('Please enter a quantity greater than 0', 'error'); return; }
+  try {
+    await axios.patch('/api/catalogue/lubricants/' + id + '/restock', { quantity: qty });
+    showToast('Stock updated');
+    closeModal('modal-lubRestock');
+    const { data } = await axios.get('/api/catalogue/lubricants');
+    allLubricants = data;
+    applyLubFilters();
+  } catch(err) {
+    showToast('Failed to restock', 'error');
+  }
+}
+
+async function deleteLubricant(id) {
+  const l = allLubricants.find(function(x) { return x.id === id; });
+  if (!l) return;
+  if (!confirm('Delete "' + l.description + '"? This cannot be undone.')) return;
+  try {
+    await axios.delete('/api/catalogue/lubricants/' + id);
+    showToast('"' + l.description + '" deleted');
+    const { data } = await axios.get('/api/catalogue/lubricants');
+    allLubricants = data;
+    applyLubFilters();
+  } catch(err) {
+    showToast('Failed to delete', 'error');
+  }
+}
+
+// ═══ OIL SERVICES (pricing tiers — kept for job card add-service modal) ═══
 let oilData = [];
 async function loadOilServices() {
   const { data } = await axios.get('/api/catalogue/oil');
   oilData = data;
-  showOilBrand('Toyota', document.querySelector('#oilBrandTabs button'));
 }
 
 let _currentOilBrand = 'Toyota';
