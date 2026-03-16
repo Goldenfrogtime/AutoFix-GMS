@@ -114,17 +114,18 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
   #apt-statChips{grid-template-columns:repeat(3,1fr) !important}
 }
 /* Customer / oil brand tabs horizontal scroll */
-#customerTypeTabs,#oilBrandTabs,#jobStatusStrips,#pfi-catTabs,#pfi-statusTabs,#partsCategoryTabs{
+#customerTypeTabs,#oilBrandTabs,#lubBrandTabs,#lubTypeTabs,#jobStatusStrips,#pfi-catTabs,#pfi-statusTabs,#partsCategoryTabs{
   overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;flex-wrap:nowrap !important}
-#customerTypeTabs::-webkit-scrollbar,#oilBrandTabs::-webkit-scrollbar,#jobStatusStrips::-webkit-scrollbar,
+#customerTypeTabs::-webkit-scrollbar,#oilBrandTabs::-webkit-scrollbar,#lubBrandTabs::-webkit-scrollbar,
+#lubTypeTabs::-webkit-scrollbar,#jobStatusStrips::-webkit-scrollbar,
 #pfi-catTabs::-webkit-scrollbar,#pfi-statusTabs::-webkit-scrollbar,#partsCategoryTabs::-webkit-scrollbar{display:none}
 /* Prevent filter tab buttons from shrinking */
-#customerTypeTabs button,#oilBrandTabs button,#jobStatusStrips button,
+#customerTypeTabs button,#oilBrandTabs button,#lubBrandTabs button,#lubTypeTabs button,#jobStatusStrips button,
 #pfi-catTabs button,#pfi-statusTabs button,#partsCategoryTabs button{flex-shrink:0}
 /* Job detail actions wrap */
 #jobDetailActions{flex-wrap:wrap;gap:6px}
-/* Parts stats 2 cols on xs */
-@media(max-width:639px){#partsStats{grid-template-columns:repeat(2,1fr)}}
+/* Parts / Lubricants stats 2 cols on xs */
+@media(max-width:639px){#partsStats,#lubStats{grid-template-columns:repeat(2,1fr)}}
 /* Status progress stepper: always scrollable */
 .status-stepper-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}
 .status-stepper-scroll::-webkit-scrollbar{height:3px}
@@ -924,7 +925,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
             <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
             <input class="search-input w-full" type="text" placeholder="Search lubricants…" id="lubSearch" oninput="filterLubricants(this.value)"/>
           </div>
-          <button onclick="showAddLubricantModal()" class="btn-primary flex items-center gap-2" data-perm="oil_services.view">
+          <button onclick="showAddLubricantModal()" class="btn-primary flex items-center gap-2" data-perm="packages.manage">
             <i class="fas fa-plus"></i> Add Lubricant
           </button>
         </div>
