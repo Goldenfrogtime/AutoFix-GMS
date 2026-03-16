@@ -559,7 +559,7 @@ api.get('/packages', (c) => c.json(servicePackages))
 
 api.post('/packages', async (c) => {
   const body = await c.req.json<Omit<ServicePackage, 'id'>>()
-  const newPkg: ServicePackage = { ...body, id: 'sp' + genId() }
+  const newPkg: ServicePackage = { sellingPrice: 0, ...body, id: 'sp' + genId() }
   servicePackages.push(newPkg)
   return c.json(newPkg, 201)
 })
@@ -568,7 +568,7 @@ api.put('/packages/:id', async (c) => {
   const idx = servicePackages.findIndex(p => p.id === c.req.param('id'))
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
   const body = await c.req.json<Partial<ServicePackage>>()
-  servicePackages[idx] = { ...servicePackages[idx], ...body }
+  servicePackages[idx] = { sellingPrice: 0, ...servicePackages[idx], ...body }
   return c.json(servicePackages[idx])
 })
 

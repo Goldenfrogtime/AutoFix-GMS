@@ -284,6 +284,7 @@ export interface ServicePackage {
   description: string
   labourCost: number
   estimatedHours: number
+  sellingPrice: number   // 0 = auto (labourCost + parts total)
   parts: { name: string; quantity: number; unitCost: number }[]
 }
 
@@ -431,6 +432,7 @@ export const servicePackages: ServicePackage[] = [
     description: 'Oil change, filter replacement and basic inspection. Ideal for regular maintenance intervals.',
     labourCost: 50000,
     estimatedHours: 2,
+    sellingPrice: 0,
     parts: [
       { name: 'Engine Oil 5L', quantity: 1, unitCost: 35000 },
       { name: 'Oil Filter',    quantity: 1, unitCost: 15000 },
@@ -442,6 +444,7 @@ export const servicePackages: ServicePackage[] = [
     description: 'Full service including spark plugs, belts, all filters and fluids top-up. Comprehensive vehicle health check.',
     labourCost: 150000,
     estimatedHours: 6,
+    sellingPrice: 0,
     parts: [
       { name: 'Engine Oil 5L',     quantity: 2, unitCost: 35000 },
       { name: 'Oil Filter',        quantity: 1, unitCost: 15000 },
@@ -455,6 +458,7 @@ export const servicePackages: ServicePackage[] = [
     description: 'Brake pad replacement, brake fluid flush and full disc/drum inspection. Restore stopping power and safety.',
     labourCost: 80000,
     estimatedHours: 3,
+    sellingPrice: 0,
     parts: [
       { name: 'Brake Pads (Set)', quantity: 1, unitCost: 45000 },
       { name: 'Brake Fluid',      quantity: 1, unitCost: 12000 },
@@ -466,6 +470,7 @@ export const servicePackages: ServicePackage[] = [
     description: 'Quick oil and filter change. In-and-out service with multi-point visual check.',
     labourCost: 25000,
     estimatedHours: 1,
+    sellingPrice: 0,
     parts: [
       { name: 'Engine Oil 5L', quantity: 1, unitCost: 35000 },
       { name: 'Oil Filter',    quantity: 1, unitCost: 15000 },
@@ -477,6 +482,7 @@ export const servicePackages: ServicePackage[] = [
     description: 'Air conditioning regas, system pressure test, condenser clean and cabin filter replacement.',
     labourCost: 60000,
     estimatedHours: 2,
+    sellingPrice: 0,
     parts: [
       { name: 'AC Refrigerant Gas', quantity: 1, unitCost: 35000 },
       { name: 'Cabin Air Filter',   quantity: 1, unitCost: 18000 },
@@ -488,6 +494,7 @@ export const servicePackages: ServicePackage[] = [
     description: 'Full suspension inspection, shock absorber assessment, ball joint and tie rod check. Report with recommendations.',
     labourCost: 70000,
     estimatedHours: 3,
+    sellingPrice: 0,
     parts: []
   },
   {
@@ -496,6 +503,7 @@ export const servicePackages: ServicePackage[] = [
     description: 'Full electronic scan, fault code reading and clearing, battery and alternator load test.',
     labourCost: 45000,
     estimatedHours: 2,
+    sellingPrice: 0,
     parts: []
   },
   {
@@ -504,6 +512,7 @@ export const servicePackages: ServicePackage[] = [
     description: 'Rotate all four tyres, wheel balancing, tyre pressure adjustment and tread depth check.',
     labourCost: 30000,
     estimatedHours: 1,
+    sellingPrice: 0,
     parts: []
   },
 ]

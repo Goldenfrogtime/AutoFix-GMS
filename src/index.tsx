@@ -1588,8 +1588,8 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 
 <!-- New / Edit Package Modal -->
 <div id="modal-newPackage" class="modal-overlay hidden">
-  <div class="modal-box" style="--mw:600px">
-    <div class="flex items-center justify-between mb-6">
+  <div class="modal-box" style="--mw:660px">
+    <div class="flex items-center justify-between mb-5">
       <div>
         <h3 class="text-xl font-bold text-gray-900" id="pkg-modal-title">New Service Package</h3>
         <p class="text-sm text-gray-500 mt-1" id="pkg-modal-sub">Create a new service bundle</p>
@@ -1598,25 +1598,59 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
     </div>
     <input type="hidden" id="pkg-edit-id"/>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-      <div><label class="form-label">Package Name *</label><input class="form-input" id="pkg-name" required placeholder="e.g. Major Service"/></div>
-      <div><label class="form-label">Labour Cost (TZS) *</label><input class="form-input" type="number" id="pkg-labour" required min="0"/></div>
+      <div><label class="form-label">Package Name *</label><input class="form-input" id="pkg-name" required placeholder="e.g. Major Service" oninput="pkgRecalc()"/></div>
+      <div><label class="form-label">Labour Cost (TZS) *</label><input class="form-input" type="number" id="pkg-labour" required min="0" oninput="pkgRecalc()"/></div>
     </div>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
       <div><label class="form-label">Estimated Hours *</label><input class="form-input" type="number" id="pkg-hours" required min="0.5" step="0.5"/></div>
-      <div></div>
+      <div><label class="form-label">Selling Price (TZS) <span class="text-gray-400 font-normal text-xs">optional override</span></label><input class="form-input" type="number" id="pkg-sellPrice" min="0" placeholder="Auto = Labour + Parts" oninput="pkgRecalc()"/></div>
     </div>
-    <div class="mb-5"><label class="form-label">Description</label><textarea class="form-input" id="pkg-desc" rows="2" placeholder="Brief description of this service package…"></textarea></div>
-    <!-- Parts Section -->
-    <div class="mb-5">
-      <div class="flex items-center justify-between mb-3">
-        <label class="form-label mb-0">Included Parts</label>
-        <button type="button" onclick="pkgAddPartRow()" class="text-xs text-blue-600 font-semibold hover:underline"><i class="fas fa-plus mr-1"></i>Add Part</button>
+    <div class="mb-4"><label class="form-label">Description</label><textarea class="form-input" id="pkg-desc" rows="2" placeholder="Brief description of this service package…"></textarea></div>
+
+    <!-- Included Items Section -->
+    <div class="mb-4">
+      <div class="flex items-center justify-between mb-2">
+        <label class="form-label mb-0">Included Parts &amp; Services</label>
+        <button type="button" onclick="pkgAddItemRow()" class="flex items-center gap-1 text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 font-semibold px-3 py-1.5 rounded-lg transition-colors"><i class="fas fa-plus"></i> Add Item</button>
+      </div>
+      <!-- Item picker search (shown when adding) -->
+      <div id="pkg-item-picker" class="hidden mb-3">
+        <div class="relative">
+          <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+          <input class="form-input pl-9 text-sm" type="text" id="pkg-item-search" placeholder="Search lubricants, parts, car wash, add-on services…" oninput="pkgSearchItems(this.value)" autocomplete="off"/>
+        </div>
+        <div id="pkg-item-results" class="mt-1 border border-gray-200 rounded-xl overflow-hidden shadow-sm max-h-52 overflow-y-auto hidden"></div>
+        <button type="button" onclick="pkgCloseItemPicker()" class="mt-1 text-xs text-gray-400 hover:text-gray-600">✕ Cancel search</button>
       </div>
       <div id="pkg-parts-list" class="space-y-2"></div>
+      <p id="pkg-no-items" class="text-xs text-gray-400 italic mt-1 hidden">No items added yet — click "Add Item" to pick from catalogue</p>
     </div>
+
+    <!-- Margin Summary Bar -->
+    <div id="pkg-margin-bar" class="hidden mb-4 p-3 rounded-xl border border-gray-100 bg-gray-50">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center text-xs">
+        <div>
+          <p class="text-gray-500 font-semibold uppercase mb-0.5">Labour</p>
+          <p class="font-bold text-gray-800" id="pkg-mb-labour">—</p>
+        </div>
+        <div>
+          <p class="text-gray-500 font-semibold uppercase mb-0.5">Parts Cost</p>
+          <p class="font-bold text-gray-800" id="pkg-mb-parts">—</p>
+        </div>
+        <div>
+          <p class="text-gray-500 font-semibold uppercase mb-0.5">Sell Price</p>
+          <p class="font-bold text-blue-700" id="pkg-mb-sell">—</p>
+        </div>
+        <div>
+          <p class="text-gray-500 font-semibold uppercase mb-0.5">Margin</p>
+          <p class="font-bold" id="pkg-mb-margin">—</p>
+        </div>
+      </div>
+    </div>
+
     <div class="flex gap-3 justify-end">
       <button type="button" class="btn-secondary" onclick="closeModal('modal-newPackage')">Cancel</button>
-      <button type="button" class="btn-primary" id="pkg-save-btn" onclick="submitPackageModal()"><i class="fas fa-save"></i> <span id="pkg-save-label">Save Package</span></button>
+      <button type="button" class="btn-primary" id="pkg-save-btn" onclick="submitPackageModal()"><i class="fas fa-save mr-1"></i><span id="pkg-save-label">Save Package</span></button>
     </div>
   </div>
 </div>
@@ -5411,57 +5445,321 @@ async function loadInvoices() {
 async function loadPackages() {
   const { data } = await axios.get('/api/packages');
   allPackages = data;
-  document.getElementById('packagesGrid').innerHTML = data.map(pkg => \`
-    <div class="card p-5 flex flex-col">
-      <div class="flex items-start gap-3 mb-4">
-        <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center flex-shrink-0">
-          <i class="fas fa-box-open text-white"></i>
-        </div>
-        <div class="flex-1 min-w-0">
-          <h3 class="font-bold text-gray-900">\${pkg.packageName}</h3>
-          <p class="text-xs text-gray-400">\${pkg.estimatedHours}h estimated</p>
-        </div>
-        <div class="flex gap-1 flex-shrink-0">
-          <button onclick="showEditPackageModal('\${pkg.id}')" title="Edit" class="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center transition-colors"><i class="fas fa-pen text-xs"></i></button>
-          <button onclick="deletePackage('\${pkg.id}',this.dataset.name)" data-name="\${pkg.packageName}" title="Delete" class="w-7 h-7 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center transition-colors"><i class="fas fa-trash text-xs"></i></button>
-        </div>
-      </div>
-      <p class="text-sm text-gray-600 mb-4">\${pkg.description||'—'}</p>
-      \${pkg.parts?.length ? \`
-        <div class="bg-gray-50 rounded-xl p-3 mb-4">
-          <p class="text-xs font-semibold text-gray-500 uppercase mb-2">Included Parts</p>
-          \${pkg.parts.map(p => \`<div class="flex justify-between text-xs py-1"><span>\${p.name} x\${p.quantity}</span><span class="text-gray-500">\${fmt(p.unitCost)}</span></div>\`).join('')}
-        </div>
-      \` : ''}
-      <div class="flex items-center justify-between border-t pt-3 mt-auto">
-        <span class="text-xs text-gray-500">Labour Cost</span>
-        <span class="font-bold text-blue-600">\${fmt(pkg.labourCost)}</span>
-      </div>
-    </div>
-  \`).join('');
+  const grid = document.getElementById('packagesGrid');
+  grid.innerHTML = data.map(function(pkg) {
+    const partsCost = (pkg.parts || []).reduce(function(s, p) { return s + (p.quantity * p.unitCost); }, 0);
+    const sellPrice = pkg.sellingPrice > 0 ? pkg.sellingPrice : (pkg.labourCost + partsCost);
+    const totalCost = pkg.labourCost + partsCost;
+    const margin    = sellPrice - totalCost;
+    const marginPct = sellPrice > 0 ? Math.round((margin / sellPrice) * 100) : 0;
+    const marginColor = marginPct >= 30 ? '#16a34a' : marginPct >= 15 ? '#d97706' : '#dc2626';
+    return '<div class="card p-5 flex flex-col">' +
+      '<div class="flex items-start gap-3 mb-3">' +
+        '<div class="w-11 h-11 rounded-xl bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center flex-shrink-0"><i class="fas fa-box-open text-white"></i></div>' +
+        '<div class="flex-1 min-w-0">' +
+          '<h3 class="font-bold text-gray-900">' + pkg.packageName + '</h3>' +
+          '<p class="text-xs text-gray-400">' + pkg.estimatedHours + 'h estimated</p>' +
+        '</div>' +
+        '<div class="flex gap-1 flex-shrink-0">' +
+          '<button class="pkg-edit-btn w-7 h-7 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center transition-colors" data-id="' + pkg.id + '" title="Edit"><i class="fas fa-pen text-xs"></i></button>' +
+          '<button class="pkg-del-btn w-7 h-7 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center transition-colors" data-id="' + pkg.id + '" title="Delete"><i class="fas fa-trash text-xs"></i></button>' +
+        '</div>' +
+      '</div>' +
+      (pkg.description ? '<p class="text-xs text-gray-500 mb-3">' + pkg.description + '</p>' : '') +
+      (pkg.parts && pkg.parts.length ? (
+        '<div class="bg-gray-50 rounded-xl p-3 mb-3">' +
+          '<p class="text-xs font-semibold text-gray-400 uppercase mb-1.5">Included Items</p>' +
+          pkg.parts.map(function(p) {
+            return '<div class="flex justify-between items-center text-xs py-0.5">' +
+              '<span class="text-gray-700 truncate mr-2">' + p.name + (p.quantity > 1 ? ' &times; ' + p.quantity : '') + '</span>' +
+              '<span class="text-gray-500 flex-shrink-0">' + fmt(p.unitCost) + '</span>' +
+            '</div>';
+          }).join('') +
+        '</div>'
+      ) : '') +
+      '<div class="border-t pt-3 mt-auto grid grid-cols-2 gap-2">' +
+        '<div class="text-center">' +
+          '<p class="text-xs text-gray-400 mb-0.5">Labour</p>' +
+          '<p class="text-sm font-bold text-gray-700">' + fmt(pkg.labourCost) + '</p>' +
+        '</div>' +
+        '<div class="text-center">' +
+          '<p class="text-xs text-gray-400 mb-0.5">Parts Cost</p>' +
+          '<p class="text-sm font-bold text-gray-700">' + fmt(partsCost) + '</p>' +
+        '</div>' +
+        '<div class="text-center col-span-2 mt-1 pt-1 border-t border-dashed border-gray-100">' +
+          '<p class="text-xs text-gray-400 mb-0.5">Sell Price &rarr; Margin</p>' +
+          '<p class="text-sm font-bold text-blue-600">' + fmt(sellPrice) + '</p>' +
+          '<p class="text-xs font-bold mt-0.5" style="color:' + marginColor + '">' + fmt(margin) + ' (' + marginPct + '%)</p>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+  // Wire action buttons via event listeners (avoids onclick quote-escaping issues)
+  grid.querySelectorAll('.pkg-edit-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() { showEditPackageModal(btn.getAttribute('data-id')); });
+  });
+  grid.querySelectorAll('.pkg-del-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      const pkg = allPackages.find(function(p) { return p.id === btn.getAttribute('data-id'); });
+      if (pkg) deletePackage(pkg.id, pkg.packageName);
+    });
+  });
+}
+
+// ─── Package Catalogue Cache ──────────────────────────────────────────────────
+let _pkgCatalogueCache = null;
+
+async function _loadPkgCatalogue() {
+  if (_pkgCatalogueCache) return _pkgCatalogueCache;
+  const [lubs, parts, wash, addons] = await Promise.all([
+    axios.get('/api/catalogue/lubricants'),
+    axios.get('/api/catalogue/parts'),
+    axios.get('/api/catalogue/carwash'),
+    axios.get('/api/catalogue/addons'),
+  ]);
+  const items = [];
+  (lubs.data || []).forEach(function(l) {
+    items.push({
+      source: 'Lubricant', sourceColor: '#2563eb',
+      id: l.id, name: l.description,
+      unitCost: l.sellingPrice, buyingCost: l.buyingPrice,
+      stock: l.stockQuantity, stockLabel: l.stockQuantity + ' units',
+      meta: l.brand + ' · ' + l.lubricantType + (l.viscosity && l.viscosity !== 'N/A' ? ' · ' + l.viscosity : '') + ' · ' + l.volume,
+    });
+  });
+  (parts.data || []).forEach(function(p) {
+    items.push({
+      source: 'Part', sourceColor: '#7c3aed',
+      id: p.id, name: p.description,
+      unitCost: p.sellingPrice, buyingCost: p.buyingPrice,
+      stock: p.stockQuantity, stockLabel: p.stockQuantity + ' units',
+      meta: p.category + (p.compatibleModels ? ' · ' + p.compatibleModels.split(',').slice(0,2).join(', ') : ''),
+    });
+  });
+  (wash.data || []).forEach(function(w) {
+    items.push({
+      source: 'Car Wash', sourceColor: '#0891b2',
+      id: w.id, name: w.name,
+      unitCost: w.price || 0, buyingCost: 0,
+      stock: null, stockLabel: 'Service',
+      meta: w.type + (w.description ? ' · ' + w.description.substring(0, 50) : ''),
+    });
+  });
+  (addons.data || []).forEach(function(a) {
+    items.push({
+      source: 'Add-on', sourceColor: '#d97706',
+      id: a.id, name: a.name,
+      unitCost: a.price, buyingCost: 0,
+      stock: null, stockLabel: a.unit || 'Per Job',
+      meta: a.category + (a.description ? ' · ' + a.description.substring(0, 50) : ''),
+    });
+  });
+  _pkgCatalogueCache = items;
+  return items;
 }
 
 // ─── Package Modal helpers ────────────────────────────────────────────────────
-let _pkgParts = [];
+let _pkgItems = []; // each: { id, name, source, quantity, unitCost, buyingCost, stock }
+let _pkgItemSearchTimer = null;
 
-function pkgAddPartRow(name='', qty=1, cost=0) {
-  const idx = _pkgParts.length;
-  _pkgParts.push({ name, quantity: qty, unitCost: cost });
-  const list = document.getElementById('pkg-parts-list');
-  const row = document.createElement('div');
-  row.className = 'flex gap-2 items-center pkg-part-row';
-  row.dataset.idx = idx;
-  row.innerHTML = \`
-    <input class="form-input flex-1 text-sm" placeholder="Part name" value="\${name}" oninput="pkgUpdatePart(\${idx},'name',this.value)"/>
-    <input class="form-input w-16 text-sm text-center" type="number" min="1" placeholder="Qty" value="\${qty}" oninput="pkgUpdatePart(\${idx},'quantity',+this.value)"/>
-    <input class="form-input w-28 text-sm" type="number" min="0" placeholder="Unit cost" value="\${cost||''}" oninput="pkgUpdatePart(\${idx},'unitCost',+this.value)"/>
-    <button type="button" onclick="pkgRemovePart(\${idx},this)" class="w-7 h-7 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center flex-shrink-0"><i class="fas fa-times text-xs"></i></button>
-  \`;
-  list.appendChild(row);
+function pkgRecalc() {
+  const labour   = parseFloat(document.getElementById('pkg-labour').value) || 0;
+  const override = parseFloat(document.getElementById('pkg-sellPrice').value) || 0;
+  const partsCost = _pkgItems.reduce(function(s, it) {
+    return s + (it ? it.quantity * it.unitCost : 0);
+  }, 0);
+  const sellPrice = override > 0 ? override : (labour + partsCost);
+  const totalCost = labour + partsCost;
+  const margin    = sellPrice - totalCost;
+  const marginPct = sellPrice > 0 ? Math.round((margin / sellPrice) * 100) : 0;
+  const bar = document.getElementById('pkg-margin-bar');
+  if (labour > 0 || partsCost > 0) {
+    bar.classList.remove('hidden');
+    document.getElementById('pkg-mb-labour').textContent = 'TZS ' + fmt(labour);
+    document.getElementById('pkg-mb-parts').textContent  = 'TZS ' + fmt(partsCost);
+    document.getElementById('pkg-mb-sell').textContent   = 'TZS ' + fmt(sellPrice);
+    const mEl = document.getElementById('pkg-mb-margin');
+    const mColor = marginPct >= 30 ? '#16a34a' : marginPct >= 15 ? '#d97706' : '#dc2626';
+    mEl.textContent = 'TZS ' + fmt(margin) + ' (' + marginPct + '%)';
+    mEl.style.color = mColor;
+  } else {
+    bar.classList.add('hidden');
+  }
 }
 
-function pkgUpdatePart(idx, field, val) { if (_pkgParts[idx]) _pkgParts[idx][field] = val; }
-function pkgRemovePart(idx, btn) { btn.closest('.pkg-part-row').remove(); _pkgParts[idx] = null; }
+function pkgAddItemRow(item, qty, unitCost) {
+  // item = catalogue object or undefined (manual)
+  const idx = _pkgItems.length;
+  const it = item
+    ? { id: item.id, name: item.name, source: item.source, quantity: qty || 1, unitCost: unitCost !== undefined ? unitCost : item.unitCost, buyingCost: item.buyingCost, stock: item.stock }
+    : { id: '', name: '', source: 'Manual', quantity: qty || 1, unitCost: unitCost || 0, buyingCost: 0, stock: null };
+  _pkgItems.push(it);
+
+  const list = document.getElementById('pkg-parts-list');
+  document.getElementById('pkg-no-items').classList.add('hidden');
+  const row = document.createElement('div');
+  row.className = 'pkg-part-row flex gap-2 items-center bg-gray-50 rounded-xl px-3 py-2';
+  row.dataset.idx = String(idx);
+
+  // Source badge
+  const badge = document.createElement('span');
+  badge.className = 'text-xs font-bold px-1.5 py-0.5 rounded-md flex-shrink-0';
+  if (it.source !== 'Manual') {
+    badge.style.background = _pkgSrcBg(it.source);
+    badge.style.color = _pkgSrcColor(it.source);
+    badge.textContent = it.source;
+  } else {
+    badge.className += ' bg-gray-100 text-gray-500';
+    badge.textContent = 'Custom';
+  }
+
+  // Name label
+  const nameEl = document.createElement('span');
+  nameEl.className = 'text-sm font-medium text-gray-700 flex-1 truncate';
+  nameEl.title = it.name;
+  nameEl.textContent = it.name;
+
+  // Stock info
+  const stockEl = document.createElement('span');
+  stockEl.className = 'text-xs flex-shrink-0';
+  if (it.stock !== null) {
+    if (it.stock === 0) { stockEl.className += ' text-red-500 font-semibold'; stockEl.textContent = 'Out of stock'; }
+    else if (it.stock <= 5) { stockEl.className += ' text-amber-600'; stockEl.textContent = '⚠ ' + it.stock + ' left'; }
+    else { stockEl.className += ' text-green-600'; stockEl.textContent = '✓ ' + it.stock; }
+  }
+
+  // Qty input
+  const qtyWrap = document.createElement('div');
+  qtyWrap.className = 'flex items-center gap-1 flex-shrink-0';
+  const qtyLabel = document.createElement('label');
+  qtyLabel.className = 'text-xs text-gray-400'; qtyLabel.textContent = 'Qty';
+  const qtyInput = document.createElement('input');
+  qtyInput.className = 'form-input w-14 text-sm text-center py-1';
+  qtyInput.type = 'number'; qtyInput.min = '1'; qtyInput.value = String(it.quantity);
+  qtyInput.addEventListener('input', function() { pkgUpdateItem(idx, 'quantity', +this.value); });
+  qtyWrap.appendChild(qtyLabel); qtyWrap.appendChild(qtyInput);
+
+  // Price input
+  const priceWrap = document.createElement('div');
+  priceWrap.className = 'flex items-center gap-1 flex-shrink-0';
+  const priceLabel = document.createElement('label');
+  priceLabel.className = 'text-xs text-gray-400'; priceLabel.textContent = 'Price';
+  const priceInput = document.createElement('input');
+  priceInput.className = 'form-input w-24 text-sm text-right py-1';
+  priceInput.type = 'number'; priceInput.min = '0'; priceInput.value = String(it.unitCost);
+  priceInput.addEventListener('input', function() { pkgUpdateItem(idx, 'unitCost', +this.value); });
+  priceWrap.appendChild(priceLabel); priceWrap.appendChild(priceInput);
+
+  // Remove button
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.className = 'w-7 h-7 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center flex-shrink-0';
+  removeBtn.innerHTML = '<i class="fas fa-times text-xs"></i>';
+  removeBtn.addEventListener('click', function() { pkgRemoveItem(idx, removeBtn); });
+
+  row.appendChild(badge);
+  row.appendChild(nameEl);
+  if (it.stock !== null) row.appendChild(stockEl);
+  row.appendChild(qtyWrap);
+  row.appendChild(priceWrap);
+  row.appendChild(removeBtn);
+
+  list.appendChild(row);
+  pkgCloseItemPicker();
+  pkgRecalc();
+}
+
+function _pkgSrcColor(src) {
+  return { Lubricant:'#2563eb', Part:'#7c3aed', 'Car Wash':'#0891b2', 'Add-on':'#d97706' }[src] || '#64748b';
+}
+function _pkgSrcBg(src) {
+  return { Lubricant:'#eff6ff', Part:'#f5f3ff', 'Car Wash':'#ecfeff', 'Add-on':'#fffbeb' }[src] || '#f8fafc';
+}
+
+function pkgUpdateItem(idx, field, val) {
+  if (_pkgItems[idx]) { _pkgItems[idx][field] = val; pkgRecalc(); }
+}
+function pkgRemoveItem(idx, btn) {
+  btn.closest('.pkg-part-row').remove();
+  _pkgItems[idx] = null;
+  if (!document.querySelectorAll('.pkg-part-row').length) {
+    document.getElementById('pkg-no-items').classList.remove('hidden');
+  }
+  pkgRecalc();
+}
+
+// ── Item Picker ───────────────────────────────────────────────────────────────
+function pkgAddItemRow_open() { pkgAddItemRow(); }
+
+async function pkgAddItemRow() {
+  // Show the picker UI
+  pkgCloseItemPicker(); // reset first
+  const picker = document.getElementById('pkg-item-picker');
+  picker.classList.remove('hidden');
+  document.getElementById('pkg-item-search').value = '';
+  document.getElementById('pkg-item-results').classList.add('hidden');
+  document.getElementById('pkg-item-search').focus();
+  await _loadPkgCatalogue(); // pre-warm cache
+}
+
+function pkgCloseItemPicker() {
+  const picker = document.getElementById('pkg-item-picker');
+  if (picker) { picker.classList.add('hidden'); }
+  const results = document.getElementById('pkg-item-results');
+  if (results) { results.classList.add('hidden'); results.innerHTML = ''; }
+}
+
+function pkgSearchItems(q) {
+  clearTimeout(_pkgItemSearchTimer);
+  _pkgItemSearchTimer = setTimeout(async function() {
+    const items = await _loadPkgCatalogue();
+    const lq = q.toLowerCase().trim();
+    const filtered = lq
+      ? items.filter(function(it) {
+          return it.name.toLowerCase().includes(lq) || it.source.toLowerCase().includes(lq) || it.meta.toLowerCase().includes(lq);
+        })
+      : items.slice(0, 50); // show first 50 when empty
+    const results = document.getElementById('pkg-item-results');
+    if (!filtered.length) {
+      results.innerHTML = '<div class="px-4 py-3 text-sm text-gray-400">No results for "' + q + '"</div>';
+      results.classList.remove('hidden');
+      return;
+    }
+    results.innerHTML = filtered.map(function(it, i) {
+      const stockBadge = it.stock === null
+        ? '<span class="text-xs text-gray-400">' + it.stockLabel + '</span>'
+        : it.stock === 0
+          ? '<span class="text-xs font-semibold text-red-500">Out of stock</span>'
+          : it.stock <= 5
+            ? '<span class="text-xs font-semibold text-amber-600">⚠ ' + it.stock + ' left</span>'
+            : '<span class="text-xs text-green-600">✓ ' + it.stock + ' in stock</span>';
+      return '<div class="pkg-item-result flex items-center gap-3 px-3 py-2.5 hover:bg-blue-50 cursor-pointer border-b border-gray-50 last:border-0" data-idx="' + i + '">' +
+        '<span class="text-xs font-bold px-1.5 py-0.5 rounded flex-shrink-0 w-16 text-center" style="background:' + _pkgSrcBg(it.source) + ';color:' + _pkgSrcColor(it.source) + '">' + it.source + '</span>' +
+        '<div class="flex-1 min-w-0">' +
+          '<p class="text-sm font-medium text-gray-800 truncate">' + it.name + '</p>' +
+          '<p class="text-xs text-gray-400 truncate">' + it.meta + '</p>' +
+        '</div>' +
+        '<div class="text-right flex-shrink-0">' +
+          '<p class="text-sm font-bold text-gray-900">TZS ' + fmt(it.unitCost) + '</p>' +
+          stockBadge +
+        '</div>' +
+      '</div>';
+    }).join('');
+    results.classList.remove('hidden');
+    // Wire click events
+    const catalogueItems = filtered;
+    results.querySelectorAll('.pkg-item-result').forEach(function(el, i) {
+      el.addEventListener('click', function() {
+        pkgAddItemRow(catalogueItems[i]);
+      });
+    });
+  }, 200);
+}
+
+// ── Legacy compat: pkgAddPartRow used by showEditPackageModal ─────────────────
+function pkgAddPartRow(name, qty, cost) {
+  pkgAddItemRow({ id:'', name: name || '', source:'Manual', unitCost: cost || 0, buyingCost: 0, stock: null, meta:'' }, qty || 1, cost || 0);
+}
 
 function showNewPackageModal() {
   document.getElementById('pkg-modal-title').textContent = 'New Service Package';
@@ -5472,13 +5770,17 @@ function showNewPackageModal() {
   document.getElementById('pkg-labour').value = '';
   document.getElementById('pkg-hours').value = '';
   document.getElementById('pkg-desc').value = '';
+  document.getElementById('pkg-sellPrice').value = '';
   document.getElementById('pkg-parts-list').innerHTML = '';
-  _pkgParts = [];
+  document.getElementById('pkg-no-items').classList.remove('hidden');
+  document.getElementById('pkg-margin-bar').classList.add('hidden');
+  pkgCloseItemPicker();
+  _pkgItems = [];
   openModal('modal-newPackage');
 }
 
 function showEditPackageModal(id) {
-  const pkg = allPackages.find(p => p.id === id);
+  const pkg = allPackages.find(function(p) { return p.id === id; });
   if (!pkg) return;
   document.getElementById('pkg-modal-title').textContent = 'Edit Service Package';
   document.getElementById('pkg-modal-sub').textContent = 'Update package details';
@@ -5488,36 +5790,47 @@ function showEditPackageModal(id) {
   document.getElementById('pkg-labour').value = pkg.labourCost;
   document.getElementById('pkg-hours').value = pkg.estimatedHours;
   document.getElementById('pkg-desc').value = pkg.description || '';
+  document.getElementById('pkg-sellPrice').value = pkg.sellingPrice > 0 ? pkg.sellingPrice : '';
   document.getElementById('pkg-parts-list').innerHTML = '';
-  _pkgParts = [];
-  (pkg.parts || []).forEach(p => pkgAddPartRow(p.name, p.quantity, p.unitCost));
+  document.getElementById('pkg-no-items').classList.toggle('hidden', !!(pkg.parts && pkg.parts.length));
+  pkgCloseItemPicker();
+  _pkgItems = [];
+  (pkg.parts || []).forEach(function(p) { pkgAddPartRow(p.name, p.quantity, p.unitCost); });
+  pkgRecalc();
   openModal('modal-newPackage');
 }
 
 async function submitPackageModal() {
-  const name = document.getElementById('pkg-name').value.trim();
-  const labour = +document.getElementById('pkg-labour').value;
-  const hours = +document.getElementById('pkg-hours').value;
-  const desc = document.getElementById('pkg-desc').value.trim();
+  const name   = document.getElementById('pkg-name').value.trim();
+  const labour = parseFloat(document.getElementById('pkg-labour').value) || 0;
+  const hours  = parseFloat(document.getElementById('pkg-hours').value) || 1;
+  const desc   = document.getElementById('pkg-desc').value.trim();
+  const sellP  = parseFloat(document.getElementById('pkg-sellPrice').value) || 0;
   const editId = document.getElementById('pkg-edit-id').value;
-  if (!name) { showToast('Package name is required', 'error'); return; }
-  if (!labour || labour <= 0) { showToast('Please enter a labour cost', 'error'); return; }
-  const parts = _pkgParts.filter(p => p && p.name);
-  const payload = { packageName: name, description: desc, labourCost: labour, estimatedHours: hours || 1, parts };
-  if (editId) {
-    const { data } = await axios.put('/api/packages/' + editId, payload);
-    const idx = allPackages.findIndex(p => p.id === editId);
-    if (idx !== -1) allPackages[idx] = data;
-    showToast('Package updated successfully');
-  } else {
-    await axios.post('/api/packages', payload);
-    showToast('Service package created');
+  if (!name)   { showToast('Package name is required', 'error'); return; }
+  if (labour <= 0) { showToast('Please enter a labour cost', 'error'); return; }
+  const parts = _pkgItems.filter(function(p) { return p && p.name; }).map(function(p) {
+    return { name: p.name, quantity: p.quantity, unitCost: p.unitCost };
+  });
+  const payload = { packageName: name, description: desc, labourCost: labour, estimatedHours: hours, parts, sellingPrice: sellP };
+  try {
+    if (editId) {
+      const { data } = await axios.put('/api/packages/' + editId, payload);
+      const idx = allPackages.findIndex(function(p) { return p.id === editId; });
+      if (idx !== -1) allPackages[idx] = data;
+      showToast('Package updated successfully');
+    } else {
+      await axios.post('/api/packages', payload);
+      showToast('Service package created');
+    }
+    closeModal('modal-newPackage');
+    loadPackages();
+  } catch(err) {
+    showToast(err.response?.data?.error || 'Failed to save package', 'error');
   }
-  closeModal('modal-newPackage');
-  loadPackages();
 }
 
-// Keep old submitNewPackage for backward-compat (modal now uses submitPackageModal)
+// Keep old submitNewPackage for backward-compat
 async function submitNewPackage(e) { e && e.preventDefault(); await submitPackageModal(); }
 
 async function deletePackage(id, name) {
