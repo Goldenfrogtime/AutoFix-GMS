@@ -16,6 +16,166 @@ export type JobCardStatus =
 
 export type JobCategory = 'Insurance' | 'Private'
 export type UserRole = 'Owner' | 'Manager' | 'Front Desk' | 'Technician' | 'Accountant'
+
+// ─── RBAC: Permission Keys ─────────────────────────────────────────────────────
+// Each permission key maps to a feature/action in the system.
+// Roles are assigned a set of these keys.
+export type Permission =
+  // Dashboard
+  | 'dashboard.view'
+  // Job Cards
+  | 'jobcards.view'
+  | 'jobcards.create'
+  | 'jobcards.edit'
+  | 'jobcards.delete'
+  | 'jobcards.change_status'
+  | 'jobcards.assign_technician'
+  // Appointments
+  | 'appointments.view'
+  | 'appointments.create'
+  | 'appointments.edit'
+  | 'appointments.delete'
+  | 'appointments.convert'
+  // Customers
+  | 'customers.view'
+  | 'customers.create'
+  | 'customers.edit'
+  | 'customers.delete'
+  // Vehicles
+  | 'vehicles.view'
+  | 'vehicles.create'
+  | 'vehicles.edit'
+  // PFIs
+  | 'pfis.view'
+  | 'pfis.create'
+  | 'pfis.approve'
+  | 'pfis.send'
+  // Invoices
+  | 'invoices.view'
+  | 'invoices.create'
+  | 'invoices.mark_paid'
+  // Expenses
+  | 'expenses.view'
+  | 'expenses.create'
+  | 'expenses.approve'
+  | 'expenses.delete'
+  // Service Packages
+  | 'packages.view'
+  | 'packages.manage'
+  // Oil Services
+  | 'oil_services.view'
+  // Parts Catalogue
+  | 'parts.view'
+  | 'parts.manage'
+  | 'parts.restock'
+  // Car Wash
+  | 'carwash.view'
+  | 'carwash.manage'
+  // Add-on Services
+  | 'addons.view'
+  | 'addons.manage'
+  // Analytics
+  | 'analytics.view'
+  // Users & Roles
+  | 'users.view'
+  | 'users.create'
+  | 'users.edit'
+  | 'users.delete'
+  | 'users.manage_roles'
+  // Finance
+  | 'finance.view'
+  // Notifications
+  | 'notifications.view'
+  // Settings
+  | 'settings.view'
+  | 'settings.manage'
+
+// ─── RBAC: Role → Permissions Map ─────────────────────────────────────────────
+export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
+  Owner: [
+    // Full access to everything
+    'dashboard.view',
+    'jobcards.view','jobcards.create','jobcards.edit','jobcards.delete','jobcards.change_status','jobcards.assign_technician',
+    'appointments.view','appointments.create','appointments.edit','appointments.delete','appointments.convert',
+    'customers.view','customers.create','customers.edit','customers.delete',
+    'vehicles.view','vehicles.create','vehicles.edit',
+    'pfis.view','pfis.create','pfis.approve','pfis.send',
+    'invoices.view','invoices.create','invoices.mark_paid',
+    'expenses.view','expenses.create','expenses.approve','expenses.delete',
+    'packages.view','packages.manage',
+    'oil_services.view',
+    'parts.view','parts.manage','parts.restock',
+    'carwash.view','carwash.manage',
+    'addons.view','addons.manage',
+    'analytics.view',
+    'finance.view',
+    'users.view','users.create','users.edit','users.delete','users.manage_roles',
+    'notifications.view',
+    'settings.view','settings.manage',
+  ],
+  Manager: [
+    'dashboard.view',
+    'jobcards.view','jobcards.create','jobcards.edit','jobcards.change_status','jobcards.assign_technician',
+    'appointments.view','appointments.create','appointments.edit','appointments.delete','appointments.convert',
+    'customers.view','customers.create','customers.edit',
+    'vehicles.view','vehicles.create','vehicles.edit',
+    'pfis.view','pfis.create','pfis.approve','pfis.send',
+    'invoices.view','invoices.create','invoices.mark_paid',
+    'expenses.view','expenses.create','expenses.approve',
+    'packages.view','packages.manage',
+    'oil_services.view',
+    'parts.view','parts.manage','parts.restock',
+    'carwash.view','carwash.manage',
+    'addons.view','addons.manage',
+    'analytics.view',
+    'finance.view',
+    'users.view',
+    'notifications.view',
+  ],
+  'Front Desk': [
+    'dashboard.view',
+    'jobcards.view','jobcards.create','jobcards.edit','jobcards.change_status',
+    'appointments.view','appointments.create','appointments.edit','appointments.convert',
+    'customers.view','customers.create','customers.edit',
+    'vehicles.view','vehicles.create','vehicles.edit',
+    'pfis.view','pfis.create','pfis.send',
+    'invoices.view',
+    'expenses.view','expenses.create',
+    'packages.view',
+    'oil_services.view',
+    'parts.view',
+    'carwash.view',
+    'addons.view',
+    'notifications.view',
+  ],
+  Technician: [
+    'dashboard.view',
+    'jobcards.view','jobcards.change_status',
+    'appointments.view',
+    'customers.view',
+    'vehicles.view',
+    'pfis.view',
+    'parts.view',
+    'oil_services.view',
+    'packages.view',
+    'carwash.view',
+    'addons.view',
+    'notifications.view',
+  ],
+  Accountant: [
+    'dashboard.view',
+    'jobcards.view',
+    'customers.view',
+    'vehicles.view',
+    'pfis.view',
+    'invoices.view','invoices.create','invoices.mark_paid',
+    'expenses.view','expenses.create','expenses.approve','expenses.delete',
+    'analytics.view',
+    'finance.view',
+    'parts.view',
+    'notifications.view',
+  ],
+}
 export type PFIStatus = 'Draft' | 'Submitted' | 'Approved' | 'Rejected' | 'Revision Requested' | 'Sent'
 export type InvoiceStatus = 'Draft' | 'Issued' | 'Paid' | 'Overdue'
 export type CustomerType = 'Individual' | 'Corporate'
@@ -97,6 +257,8 @@ export interface Invoice {
   totalAmount: number
   status: InvoiceStatus
   issuedAt: string
+  dueDate?: string        // ISO date string — payment due date
+  paidAt?: string         // ISO timestamp when payment was received
   claimReference?: string
   pfiReference?: string
 }
@@ -133,6 +295,8 @@ export interface User {
   phone?: string
   active: boolean
   createdAt: string
+  password?: string   // hashed/plain for demo; omitted from API responses
+  lastLogin?: string
 }
 
 export interface ActivityLog {
@@ -245,7 +409,22 @@ export const invoices: Invoice[] = []
 
 export const servicePackages: ServicePackage[] = []
 
-export const users: User[] = []
+// Default admin user — always present so the Owner can first log in.
+// Change email/password after first login via Users & Roles page.
+export const users: User[] = [
+  {
+    id: 'u-default-admin',
+    name: 'System Admin',
+    email: 'admin@autofix.co.tz',
+    role: 'Owner',
+    active: true,
+    password: 'Admin2025!',
+    createdAt: '2026-01-01T00:00:00.000Z',
+  }
+]
+
+// ─── Active Sessions (token → userId) ────────────────────────────────────────
+export const sessions: Map<string, string> = new Map()
 
 export const activityLog: ActivityLog[] = []
 
@@ -426,6 +605,7 @@ export type NotificationType =
   | 'pfi_rejected'
   | 'invoice_created'
   | 'invoice_paid'
+  | 'invoice_overdue'
   | 'appointment_created'
   | 'appointment_reminder'
   | 'appointment_cancelled'

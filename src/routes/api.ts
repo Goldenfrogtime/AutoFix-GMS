@@ -1,13 +1,15 @@
 import { Hono } from 'hono'
 import {
   customers, vehicles, jobCards, pfis, partsConsumption,
-  invoices, servicePackages, users, activityLog,
+  invoices, servicePackages, users, activityLog, sessions,
   oilServiceProducts, catalogueParts, carWashPackages, addOnServices, appointments,
   jobServices, expenses, notifications,
+  ROLE_PERMISSIONS,
   type Customer, type Vehicle, type JobCard, type PFI,
   type PartConsumption, type ServicePackage, type User, type Invoice,
   type CataloguePart, type CarWashPackage, type AddOnService, type Appointment,
-  type JobService, type Expense, type Notification, type NotificationType, type NotificationPriority
+  type JobService, type Expense, type Notification, type NotificationType, type NotificationPriority,
+  type Permission
 } from '../data/store'
 
 const api = new Hono()
@@ -18,6 +20,28 @@ function genId() {
 }
 function now() {
   return new Date().toISOString()
+}
+
+// ─── Auth / RBAC Helpers ─────────────────────────────────────────────────────
+function getSessionUser(c: any): User | null {
+  const auth = c.req.header('Authorization') || ''
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : (c.req.query('_token') || '')
+  if (!token) return null
+  const userId = sessions.get(token)
+  if (!userId) return null
+  return users.find(u => u.id === userId && u.active) || null
+}
+
+function can(user: User | null, permission: Permission): boolean {
+  if (!user) return false
+  const perms = ROLE_PERMISSIONS[user.role] || []
+  return perms.includes(permission)
+}
+
+// Strip password from user before sending to client
+function safeUser(u: User) {
+  const { password, ...rest } = u as any
+  return rest
 }
 
 // ─── Notification Helper ─────────────────────────────────────────────────────
@@ -342,7 +366,11 @@ api.get('/invoices', (c) => {
 api.post('/jobcards/:id/invoice', async (c) => {
   const body = await c.req.json<Omit<Invoice, 'id' | 'jobCardId' | 'invoiceNumber' | 'issuedAt'>>()
   const invNum = 'INV-' + new Date().getFullYear() + '-' + String(invoices.length + 1).padStart(3, '0')
-  const newInv: Invoice = { ...body, id: 'i' + genId(), jobCardId: c.req.param('id'), invoiceNumber: invNum, issuedAt: now() }
+  // Default due date: 30 days from today
+  const dueDate = body.dueDate || (() => {
+    const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().slice(0, 10)
+  })()
+  const newInv: Invoice = { ...body, id: 'i' + genId(), jobCardId: c.req.param('id'), invoiceNumber: invNum, issuedAt: now(), dueDate }
   invoices.push(newInv)
   const jIdx = jobCards.findIndex(x => x.id === c.req.param('id'))
   if (jIdx !== -1) { jobCards[jIdx].status = 'INVOICED'; jobCards[jIdx].updatedAt = now() }
@@ -351,6 +379,179 @@ api.post('/jobcards/:id/invoice', async (c) => {
     `${invNum} issued for ${jc.jobCardNumber} — TZS ${newInv.totalAmount.toLocaleString()}`,
     { jobCardId: jc.id, jobCardNumber: jc.jobCardNumber, entityId: newInv.id, entityType: 'invoice' })
   return c.json(newInv, 201)
+})
+
+// ─── Invoice: Mark Paid ───────────────────────────────────────────────────────
+api.patch('/invoices/:id/status', async (c) => {
+  const idx = invoices.findIndex(x => x.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const { status, paidAt, dueDate } = await c.req.json<{ status: string; paidAt?: string; dueDate?: string }>()
+  const prev = invoices[idx].status
+  invoices[idx] = {
+    ...invoices[idx],
+    status: status as any,
+    ...(paidAt  ? { paidAt }  : {}),
+    ...(dueDate ? { dueDate } : {}),
+  }
+  const inv = invoices[idx]
+  const jc  = jobCards.find(j => j.id === inv.jobCardId)
+  if (status === 'Paid' && prev !== 'Paid') {
+    addNotification('invoice_paid', 'success', 'Invoice Paid',
+      `${inv.invoiceNumber} – TZS ${inv.totalAmount.toLocaleString()} received${jc ? ' for ' + jc.jobCardNumber : ''}`,
+      { jobCardId: jc?.id, jobCardNumber: jc?.jobCardNumber, entityId: inv.id, entityType: 'invoice' })
+  } else if (status === 'Overdue') {
+    addNotification('invoice_overdue', 'error', 'Invoice Overdue',
+      `${inv.invoiceNumber} – TZS ${inv.totalAmount.toLocaleString()} is now overdue${jc ? ' (' + jc.jobCardNumber + ')' : ''}`,
+      { jobCardId: jc?.id, jobCardNumber: jc?.jobCardNumber, entityId: inv.id, entityType: 'invoice' })
+  }
+  return c.json(invoices[idx])
+})
+
+// ─── Finance Summary ──────────────────────────────────────────────────────────
+api.get('/finance/summary', (c) => {
+  const now_str = new Date().toISOString().slice(0, 10)  // YYYY-MM-DD
+
+  // ── Invoice Metrics ────────────────────────────────────────────────────────
+  const allInv = invoices
+
+  // Mark any past-due unpaid invoices as Overdue automatically
+  allInv.forEach((inv, idx) => {
+    if (inv.dueDate && inv.dueDate < now_str && inv.status === 'Issued') {
+      invoices[idx] = { ...inv, status: 'Overdue' }
+    }
+  })
+
+  const totalInvoiced  = allInv.reduce((s, i) => s + i.totalAmount, 0)
+  const paidInvoices   = allInv.filter(i => i.status === 'Paid')
+  const totalPaid      = paidInvoices.reduce((s, i) => s + i.totalAmount, 0)
+  const outstanding    = allInv.filter(i => i.status === 'Issued' || i.status === 'Draft')
+                               .reduce((s, i) => s + i.totalAmount, 0)
+  const overdue        = allInv.filter(i => i.status === 'Overdue').reduce((s, i) => s + i.totalAmount, 0)
+  const paidCount      = paidInvoices.length
+  const overdueCount   = allInv.filter(i => i.status === 'Overdue').length
+  const outstandingCount = allInv.filter(i => i.status === 'Issued' || i.status === 'Draft').length
+
+  // ── Pipeline: from open Job Cards that don't yet have an invoice ──────────
+  const invoicedJobIds = new Set(allInv.map(i => i.jobCardId))
+  const pipelineJobs   = jobCards.filter(j =>
+    !invoicedJobIds.has(j.id) &&
+    !['RECEIVED','INSPECTION','PFI_PREPARATION'].includes(j.status)
+  )
+  // Estimate pipeline value from PFIs or job services
+  const pipelineValue = pipelineJobs.reduce((sum, j) => {
+    const pfi = pfis.find(p => p.jobCardId === j.id)
+    if (pfi) return sum + pfi.totalEstimate
+    // fall back to summing job services
+    const svcTotal = jobServices.filter(s => s.jobCardId === j.id).reduce((ss, s) => ss + s.totalCost, 0)
+    return sum + svcTotal
+  }, 0)
+
+  // ── Expected from Appointments (Scheduled / Confirmed) ────────────────────
+  const apptValue = appointments
+    .filter(a => ['Scheduled', 'Confirmed'].includes(a.status) && !a.jobCardId)
+    .reduce((sum, a) => {
+      // use estimatedCost if available, else 0
+      return sum + (Number((a as any).estimatedCost) || 0)
+    }, 0)
+  const apptCount = appointments.filter(a =>
+    ['Scheduled', 'Confirmed'].includes(a.status) && !a.jobCardId
+  ).length
+
+  // ── Monthly Revenue Trend (last 6 completed months + current) ─────────────
+  const monthlyRevenue: Record<string, number> = {}
+  paidInvoices.forEach(inv => {
+    const m = (inv.paidAt || inv.issuedAt).substring(0, 7)
+    monthlyRevenue[m] = (monthlyRevenue[m] || 0) + inv.totalAmount
+  })
+  const revenueMonths = Object.entries(monthlyRevenue)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .slice(-7)
+
+  // ── Expense Metrics ────────────────────────────────────────────────────────
+  const allExp        = expenses
+  const totalExpenses = allExp.reduce((s, e) => s + e.amount, 0)
+  const paidExpenses  = allExp.filter(e => e.status === 'Paid').reduce((s, e) => s + e.amount, 0)
+  const pendingExp    = allExp.filter(e => e.status === 'Pending' || e.status === 'Approved').reduce((s, e) => s + e.amount, 0)
+  const jobLinkedExp  = allExp.filter(e => e.jobCardId).reduce((s, e) => s + e.amount, 0)
+  const overheadExp   = allExp.filter(e => !e.jobCardId).reduce((s, e) => s + e.amount, 0)
+
+  // Expense by category
+  const expByCategory: Record<string, number> = {}
+  allExp.forEach(e => { expByCategory[e.category] = (expByCategory[e.category] || 0) + e.amount })
+
+  // Monthly expense trend
+  const monthlyExpenses: Record<string, number> = {}
+  allExp.forEach(e => {
+    const m = e.date.substring(0, 7)
+    monthlyExpenses[m] = (monthlyExpenses[m] || 0) + e.amount
+  })
+  const expenseMonths = Object.entries(monthlyExpenses)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .slice(-7)
+
+  // ── P&L ───────────────────────────────────────────────────────────────────
+  const grossIncome  = totalPaid
+  const netIncome    = grossIncome - paidExpenses
+  const grossMargin  = grossIncome > 0 ? ((netIncome / grossIncome) * 100) : 0
+  const avgJobValue  = paidCount > 0 ? totalPaid / paidCount : 0
+
+  // ── Monthly P&L trend ─────────────────────────────────────────────────────
+  const allMonths = new Set([
+    ...Object.keys(monthlyRevenue),
+    ...Object.keys(monthlyExpenses),
+  ])
+  const monthlyPL = Array.from(allMonths).sort().slice(-7).map(m => ({
+    month: m,
+    revenue:  monthlyRevenue[m]  || 0,
+    expenses: monthlyExpenses[m] || 0,
+    net:      (monthlyRevenue[m] || 0) - (monthlyExpenses[m] || 0),
+  }))
+
+  return c.json({
+    invoices: {
+      totalInvoiced, totalPaid, outstanding, overdue,
+      paidCount, overdueCount, outstandingCount,
+      totalCount: allInv.length,
+    },
+    pipeline: { value: pipelineValue, jobCount: pipelineJobs.length },
+    appointments: { expectedValue: apptValue, count: apptCount },
+    expenses: {
+      total: totalExpenses, paid: paidExpenses, pending: pendingExp,
+      jobLinked: jobLinkedExp, overhead: overheadExp, byCategory: expByCategory,
+    },
+    pl: { grossIncome, netIncome, grossMargin, avgJobValue },
+    trends: { revenue: revenueMonths, expenses: expenseMonths, pl: monthlyPL },
+  })
+})
+
+// ─── Finance: Per-job P&L ─────────────────────────────────────────────────────
+api.get('/finance/job/:id', (c) => {
+  const jId = c.req.param('id')
+  const jc  = jobCards.find(j => j.id === jId)
+  if (!jc) return c.json({ error: 'Not found' }, 404)
+
+  const inv  = invoices.find(i => i.jobCardId === jId)
+  const exps = expenses.filter(e => e.jobCardId === jId)
+  const svcs = jobServices.filter(s => s.jobCardId === jId)
+  const parts = partsConsumption.filter(p => p.jobCardId === jId)
+
+  const revenue       = inv?.status === 'Paid' ? inv.totalAmount : 0
+  const totalExpenses = exps.reduce((s, e) => s + e.amount, 0)
+  const paidExp       = exps.filter(e => e.status === 'Paid').reduce((s, e) => s + e.amount, 0)
+  const svcCost       = svcs.reduce((s, s2) => s + s2.totalCost, 0)
+  const partsCostAmt  = parts.reduce((s, p) => s + p.totalCost, 0)
+  const netProfit     = revenue - totalExpenses
+  const margin        = revenue > 0 ? ((netProfit / revenue) * 100) : 0
+
+  return c.json({
+    jobCard: jc,
+    invoice: inv || null,
+    revenue, totalExpenses, paidExp, svcCost, partsCostAmt,
+    netProfit, margin,
+    expenses: exps,
+    services: svcs,
+    parts,
+  })
 })
 
 // ─── Service Packages ────────────────────────────────────────────────────────
@@ -378,14 +579,57 @@ api.delete('/packages/:id', (c) => {
   return c.json({ success: true })
 })
 
+// ─── Auth ────────────────────────────────────────────────────────────────────
+
+// POST /auth/login  { email, password }
+api.post('/auth/login', async (c) => {
+  const { email, password } = await c.req.json<{ email: string; password: string }>()
+  if (!email || !password) return c.json({ error: 'Email and password required' }, 400)
+
+  const user = users.find(u => u.email.toLowerCase() === email.toLowerCase() && u.active)
+  if (!user) return c.json({ error: 'Invalid credentials' }, 401)
+  // Simple plain-text password check for demo (in production, use bcrypt)
+  if (user.password && user.password !== password) return c.json({ error: 'Invalid credentials' }, 401)
+  // If no password set, allow login (for users created without passwords in demo)
+
+  const token = genId() + genId()
+  sessions.set(token, user.id)
+  // Update last login
+  const idx = users.findIndex(u => u.id === user.id)
+  if (idx !== -1) users[idx].lastLogin = now()
+
+  return c.json({ token, user: safeUser(user) })
+})
+
+// POST /auth/logout
+api.post('/auth/logout', (c) => {
+  const auth = c.req.header('Authorization') || ''
+  const token = auth.startsWith('Bearer ') ? auth.slice(7) : ''
+  if (token) sessions.delete(token)
+  return c.json({ success: true })
+})
+
+// GET /auth/me – return current user + their permissions
+api.get('/auth/me', (c) => {
+  const user = getSessionUser(c)
+  if (!user) return c.json({ error: 'Unauthenticated' }, 401)
+  const permissions = ROLE_PERMISSIONS[user.role] || []
+  return c.json({ user: safeUser(user), permissions })
+})
+
+// GET /auth/permissions – get permissions for any role (public, for UI)
+api.get('/auth/permissions', (c) => {
+  return c.json(ROLE_PERMISSIONS)
+})
+
 // ─── Users ───────────────────────────────────────────────────────────────────
-api.get('/users', (c) => c.json(users))
+api.get('/users', (c) => c.json(users.map(safeUser)))
 
 api.post('/users', async (c) => {
   const body = await c.req.json<Omit<User, 'id' | 'createdAt'>>()
   const newUser: User = { ...body, id: 'u' + genId(), createdAt: now() }
   users.push(newUser)
-  return c.json(newUser, 201)
+  return c.json(safeUser(newUser), 201)
 })
 
 api.put('/users/:id', async (c) => {
@@ -393,7 +637,16 @@ api.put('/users/:id', async (c) => {
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
   const body = await c.req.json<Partial<User>>()
   users[idx] = { ...users[idx], ...body }
-  return c.json(users[idx])
+  return c.json(safeUser(users[idx]))
+})
+
+api.delete('/users/:id', (c) => {
+  const idx = users.findIndex(x => x.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const [removed] = users.splice(idx, 1)
+  // Revoke all sessions for this user
+  sessions.forEach((uid, token) => { if (uid === removed.id) sessions.delete(token) })
+  return c.json({ success: true })
 })
 
 // ─── Analytics ───────────────────────────────────────────────────────────────

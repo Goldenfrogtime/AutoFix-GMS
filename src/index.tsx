@@ -141,7 +141,51 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 </style>
 </head>
 <body>
-<div class="flex h-screen overflow-hidden">
+
+<!-- ═══ LOGIN SCREEN ═══ -->
+<div id="loginScreen" class="fixed inset-0 z-[999] flex items-center justify-center p-4" style="background:linear-gradient(135deg,#1e3a8a 0%,#1d4ed8 60%,#0891b2 100%)">
+  <div style="background:#fff;border-radius:24px;max-width:420px;width:100%;padding:40px 36px;box-shadow:0 32px 80px rgba(0,0,0,.35)">
+    <div class="flex flex-col items-center mb-8">
+      <div class="w-16 h-16 rounded-2xl bg-blue-600 flex items-center justify-center mb-4 shadow-lg">
+        <i class="fas fa-car-side text-white text-2xl"></i>
+      </div>
+      <h1 class="text-2xl font-bold text-gray-900">AutoFix GMS</h1>
+      <p class="text-gray-500 text-sm mt-1">Garage Management System</p>
+    </div>
+    <div id="loginError" class="hidden mb-4 px-4 py-3 rounded-xl text-sm font-medium text-red-700" style="background:#fee2e2;border:1px solid #fca5a5"></div>
+    <form id="loginForm" onsubmit="doLogin(event)">
+      <div class="mb-4">
+        <label class="form-label">Email Address</label>
+        <div class="relative">
+          <i class="fas fa-envelope absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+          <input id="loginEmail" type="email" class="form-input pl-9" placeholder="you@autofix.co.tz" required autocomplete="username"/>
+        </div>
+      </div>
+      <div class="mb-6">
+        <label class="form-label">Password</label>
+        <div class="relative">
+          <i class="fas fa-lock absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+          <input id="loginPassword" type="password" class="form-input pl-9" placeholder="Enter your password" required autocomplete="current-password"/>
+          <button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" onclick="togglePasswordVisibility()">
+            <i class="fas fa-eye" id="pwdEyeIcon"></i>
+          </button>
+        </div>
+      </div>
+      <button type="submit" id="loginBtn" class="btn-primary w-full justify-center py-3 text-base">
+        <i class="fas fa-sign-in-alt"></i> Sign In
+      </button>
+    </form>
+    <p class="text-center text-xs text-gray-400 mt-6">Secure access · Role-based permissions</p>
+    <div class="mt-4 p-3 rounded-xl text-center" style="background:#f8fafc;border:1px solid #e2e8f0">
+      <p class="text-xs text-gray-500 font-semibold mb-1"><i class="fas fa-info-circle mr-1 text-blue-400"></i>Default Admin Credentials</p>
+      <p class="text-xs text-gray-600">Email: <strong>admin@autofix.co.tz</strong></p>
+      <p class="text-xs text-gray-600">Password: <strong>Admin2025!</strong></p>
+      <p class="text-xs text-gray-400 mt-1">Change these in Users & Roles after first login</p>
+    </div>
+  </div>
+</div>
+
+<div class="flex h-screen overflow-hidden" id="appShell" style="display:none !important">
 
 <!-- Sidebar backdrop (mobile) -->
 <div id="sidebar-backdrop" onclick="closeSidebar()" class="fixed inset-0 bg-black/40 z-40 backdrop-blur-sm" style="display:none"></div>
@@ -161,62 +205,65 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
   </div>
   <nav class="flex-1 p-3 space-y-1">
     <p class="text-xs text-blue-300 font-semibold uppercase tracking-widest px-3 pt-2 pb-1">Main</p>
-    <a class="nav-item active flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-white" onclick="showPage('dashboard')">
+    <a class="nav-item active flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-white" onclick="showPage('dashboard')" data-perm="dashboard.view">
       <i class="fas fa-chart-pie w-5 text-center"></i> Dashboard
     </a>
-    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('jobcards')">
+    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('jobcards')" data-perm="jobcards.view">
       <i class="fas fa-clipboard-list w-5 text-center"></i> Job Cards
     </a>
-    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('appointments')">
+    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('appointments')" data-perm="appointments.view">
       <i class="fas fa-calendar-check w-5 text-center"></i> Appointments
     </a>
     <p class="text-xs text-blue-300 font-semibold uppercase tracking-widest px-3 pt-3 pb-1">Operations</p>
-    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('customers')">
+    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('customers')" data-perm="customers.view">
       <i class="fas fa-users w-5 text-center"></i> Customers
     </a>
-    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('vehicles')">
+    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('vehicles')" data-perm="vehicles.view">
       <i class="fas fa-car w-5 text-center"></i> Vehicles
     </a>
-    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('claims')">
+    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('claims')" data-perm="pfis.view">
       <i class="fas fa-file-invoice w-5 text-center"></i> PFIs
     </a>
-    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('invoices')">
+    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('invoices')" data-perm="invoices.view">
       <i class="fas fa-file-invoice-dollar w-5 text-center"></i> Invoices
     </a>
-    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('expenses')">
+    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('expenses')" data-perm="expenses.view">
       <i class="fas fa-receipt w-5 text-center"></i> Expenses
     </a>
     <p class="text-xs text-blue-300 font-semibold uppercase tracking-widest px-3 pt-3 pb-1">Management</p>
-    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('packages')">
+    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('packages')" data-perm="packages.view">
       <i class="fas fa-box-open w-5 text-center"></i> Service Packages
     </a>
-    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('oil-services')">
+    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('oil-services')" data-perm="oil_services.view">
       <i class="fas fa-oil-can w-5 text-center"></i> Oil Services
     </a>
-    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('parts-catalogue')">
+    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('parts-catalogue')" data-perm="parts.view">
       <i class="fas fa-cubes w-5 text-center"></i> Parts Catalogue
     </a>
-    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('car-wash')">
+    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('car-wash')" data-perm="carwash.view">
       <i class="fas fa-shower w-5 text-center"></i> Car Wash
     </a>
-    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('add-ons')">
+    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('add-ons')" data-perm="addons.view">
       <i class="fas fa-wrench w-5 text-center"></i> Add-on Services
     </a>
-    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('analytics')">
+    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('analytics')" data-perm="analytics.view">
       <i class="fas fa-chart-bar w-5 text-center"></i> Analytics
     </a>
-    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('users')">
+    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('finance')" data-perm="finance.view">
+      <i class="fas fa-coins w-5 text-center"></i> Finance
+    </a>
+    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('users')" data-perm="users.view">
       <i class="fas fa-user-cog w-5 text-center"></i> Users & Roles
     </a>
   </nav>
   <div class="p-3 border-t border-white/10">
-    <div class="flex items-center gap-3 px-3 py-2">
-      <div class="w-8 h-8 rounded-full bg-blue-400 flex items-center justify-center text-sm font-bold">MO</div>
+    <div class="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-white/10 rounded-xl transition-colors" onclick="showPage('users')">
+      <div class="w-8 h-8 rounded-full bg-blue-400 flex items-center justify-center text-sm font-bold" id="sidebarUserAvatar">?</div>
       <div class="flex-1 min-w-0">
-        <p class="text-sm font-semibold truncate">Michael Osei</p>
-        <p class="text-xs text-blue-200">Owner</p>
+        <p class="text-sm font-semibold truncate" id="sidebarUserName">Loading…</p>
+        <p class="text-xs text-blue-200" id="sidebarUserRole">—</p>
       </div>
-      <i class="fas fa-chevron-right text-blue-300 text-xs"></i>
+      <button class="text-blue-300 hover:text-red-300 text-xs" onclick="event.stopPropagation();doLogout()" title="Sign out"><i class="fas fa-sign-out-alt"></i></button>
     </div>
   </div>
 </aside>
@@ -284,7 +331,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <div class="flex flex-wrap items-start justify-between gap-3 mb-6">
         <div>
           <h2 class="text-xl sm:text-2xl font-bold text-gray-900">Dashboard</h2>
-          <p class="text-gray-500 text-sm mt-1">Welcome back, Michael! Here's what's happening today.</p>
+          <p class="text-gray-500 text-sm mt-1" id="dashWelcome">Welcome back! Here's what's happening today.</p>
         </div>
         <div class="text-right flex-shrink-0">
           <p class="text-xs text-gray-400">Today</p>
@@ -293,6 +340,40 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       </div>
       <!-- Stats Grid -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6" id="dashStats"></div>
+
+      <!-- Finance Snapshot Row -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6" id="dashFinanceCards" data-perm="finance.view">
+        <div class="card p-3 text-center hover:shadow-md transition-shadow cursor-pointer" onclick="showPage('finance')">
+          <div class="text-xs text-gray-500 mb-1">Collected</div>
+          <div class="text-base font-bold text-green-600" id="dfCollected">—</div>
+          <div class="text-xs text-green-400 mt-0.5"><i class="fas fa-arrow-up"></i> Paid</div>
+        </div>
+        <div class="card p-3 text-center hover:shadow-md transition-shadow cursor-pointer" onclick="showPage('finance')">
+          <div class="text-xs text-gray-500 mb-1">Outstanding</div>
+          <div class="text-base font-bold text-amber-600" id="dfOutstanding">—</div>
+          <div class="text-xs text-amber-400 mt-0.5"><i class="fas fa-clock"></i> Pending</div>
+        </div>
+        <div class="card p-3 text-center hover:shadow-md transition-shadow cursor-pointer" onclick="showPage('finance')">
+          <div class="text-xs text-gray-500 mb-1">Overdue</div>
+          <div class="text-base font-bold text-red-600" id="dfOverdue">—</div>
+          <div class="text-xs text-red-400 mt-0.5"><i class="fas fa-exclamation-circle"></i> Past due</div>
+        </div>
+        <div class="card p-3 text-center hover:shadow-md transition-shadow cursor-pointer" onclick="showPage('finance')">
+          <div class="text-xs text-gray-500 mb-1">Pipeline</div>
+          <div class="text-base font-bold text-purple-600" id="dfPipeline">—</div>
+          <div class="text-xs text-purple-400 mt-0.5"><i class="fas fa-funnel-dollar"></i> In progress</div>
+        </div>
+        <div class="card p-3 text-center hover:shadow-md transition-shadow cursor-pointer" onclick="showPage('finance')">
+          <div class="text-xs text-gray-500 mb-1">Expenses</div>
+          <div class="text-base font-bold text-red-700" id="dfExpenses">—</div>
+          <div class="text-xs text-red-400 mt-0.5"><i class="fas fa-receipt"></i> Total</div>
+        </div>
+        <div class="card p-3 text-center hover:shadow-md transition-shadow cursor-pointer" onclick="showPage('finance')">
+          <div class="text-xs text-gray-500 mb-1">Net Income</div>
+          <div class="text-base font-bold" id="dfNetIncome">—</div>
+          <div class="text-xs text-gray-400 mt-0.5" id="dfMarginPct">Margin: —</div>
+        </div>
+      </div>
       <!-- Content Grid -->
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div class="lg:col-span-2">
@@ -608,6 +689,8 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Parts</th>
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Tax</th>
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Total</th>
+            <th class="text-left px-4 py-3 font-semibold text-gray-600">Due Date</th>
+            <th class="text-left px-4 py-3 font-semibold text-gray-600">Paid At</th>
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Status</th>
           </tr></thead>
           <tbody id="invoicesTable"></tbody>
@@ -647,16 +730,186 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       </div>
     </div>
 
+    <!-- ═══ FINANCE ═══ -->
+    <div id="page-finance" class="page">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-900">Finance Overview</h2>
+          <p class="text-gray-500 text-sm mt-1">Revenue, expenses and profit & loss — live metrics</p>
+        </div>
+        <div class="flex gap-2">
+          <select id="finPeriod" class="input text-sm py-1.5" onchange="loadFinance()">
+            <option value="all">All Time</option>
+            <option value="month">This Month</option>
+            <option value="quarter">This Quarter</option>
+            <option value="year">This Year</option>
+          </select>
+          <button class="btn-primary text-sm py-1.5" onclick="loadFinance()"><i class="fas fa-sync-alt mr-1"></i>Refresh</button>
+        </div>
+      </div>
+
+      <!-- KPI Cards Row 1: Invoice metrics -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-5" id="finInvCards">
+        <div class="card p-4 text-center fin-kpi-card">
+          <div class="text-xs text-gray-500 mb-1 font-medium">Total Invoiced</div>
+          <div class="text-lg font-bold text-gray-900" id="finTotalInvoiced">—</div>
+          <div class="text-xs text-gray-400 mt-0.5" id="finTotalInvoicedCount"></div>
+        </div>
+        <div class="card p-4 text-center fin-kpi-card border-l-4 border-green-400">
+          <div class="text-xs text-gray-500 mb-1 font-medium">Collected</div>
+          <div class="text-lg font-bold text-green-600" id="finCollected">—</div>
+          <div class="text-xs text-gray-400 mt-0.5" id="finCollectedCount"></div>
+        </div>
+        <div class="card p-4 text-center fin-kpi-card border-l-4 border-amber-400">
+          <div class="text-xs text-gray-500 mb-1 font-medium">Outstanding</div>
+          <div class="text-lg font-bold text-amber-600" id="finOutstanding">—</div>
+          <div class="text-xs text-gray-400 mt-0.5" id="finOutstandingCount"></div>
+        </div>
+        <div class="card p-4 text-center fin-kpi-card border-l-4 border-red-400">
+          <div class="text-xs text-gray-500 mb-1 font-medium">Overdue</div>
+          <div class="text-lg font-bold text-red-600" id="finOverdue">—</div>
+          <div class="text-xs text-gray-400 mt-0.5" id="finOverdueCount"></div>
+        </div>
+        <div class="card p-4 text-center fin-kpi-card border-l-4 border-purple-400">
+          <div class="text-xs text-gray-500 mb-1 font-medium">Pipeline</div>
+          <div class="text-lg font-bold text-purple-600" id="finPipeline">—</div>
+          <div class="text-xs text-gray-400 mt-0.5" id="finPipelineCount"></div>
+        </div>
+        <div class="card p-4 text-center fin-kpi-card border-l-4 border-blue-400">
+          <div class="text-xs text-gray-500 mb-1 font-medium">Bookings</div>
+          <div class="text-lg font-bold text-blue-600" id="finBookings">—</div>
+          <div class="text-xs text-gray-400 mt-0.5" id="finBookingsCount"></div>
+        </div>
+      </div>
+
+      <!-- P&L Summary row -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+        <div class="card p-4">
+          <div class="flex items-center gap-2 mb-2">
+            <div class="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center"><i class="fas fa-arrow-up text-green-600 text-xs"></i></div>
+            <span class="text-sm text-gray-500 font-medium">Gross Income</span>
+          </div>
+          <div class="text-xl font-bold text-gray-900" id="finGrossIncome">—</div>
+          <div class="text-xs text-gray-400 mt-1">From paid invoices</div>
+        </div>
+        <div class="card p-4">
+          <div class="flex items-center gap-2 mb-2">
+            <div class="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center"><i class="fas fa-arrow-down text-red-600 text-xs"></i></div>
+            <span class="text-sm text-gray-500 font-medium">Total Expenses</span>
+          </div>
+          <div class="text-xl font-bold text-gray-900" id="finTotalExpenses">—</div>
+          <div class="text-xs text-gray-400 mt-1" id="finExpBreakdown">Job + overhead</div>
+        </div>
+        <div class="card p-4">
+          <div class="flex items-center gap-2 mb-2">
+            <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center"><i class="fas fa-wallet text-blue-600 text-xs"></i></div>
+            <span class="text-sm text-gray-500 font-medium">Net Income</span>
+          </div>
+          <div class="text-xl font-bold" id="finNetIncome">—</div>
+          <div class="text-xs text-gray-400 mt-1">After all paid expenses</div>
+        </div>
+        <div class="card p-4">
+          <div class="flex items-center gap-2 mb-2">
+            <div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center"><i class="fas fa-percentage text-indigo-600 text-xs"></i></div>
+            <span class="text-sm text-gray-500 font-medium">Gross Margin</span>
+          </div>
+          <div class="text-xl font-bold" id="finMarginPct">—</div>
+          <div class="text-xs text-gray-400 mt-1" id="finAvgJob">Avg job value: —</div>
+        </div>
+      </div>
+
+      <!-- Charts row -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
+        <div class="card p-5">
+          <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2"><i class="fas fa-chart-area text-blue-500"></i> Revenue vs Expenses Trend</h3>
+          <div style="height:240px"><canvas id="finPLChart"></canvas></div>
+        </div>
+        <div class="card p-5">
+          <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2"><i class="fas fa-chart-pie text-purple-500"></i> Expense Breakdown by Category</h3>
+          <div style="height:240px"><canvas id="finExpPieChart"></canvas></div>
+        </div>
+      </div>
+
+      <!-- Invoice status breakdown + pipeline funnel -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
+        <div class="card p-5 lg:col-span-2">
+          <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2"><i class="fas fa-file-invoice-dollar text-green-500"></i> Invoice Status Breakdown</h3>
+          <div id="finInvStatusBars"></div>
+        </div>
+        <div class="card p-5">
+          <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2"><i class="fas fa-funnel-dollar text-purple-500"></i> Revenue Pipeline</h3>
+          <div id="finPipelineFunnel" class="space-y-3"></div>
+        </div>
+      </div>
+
+      <!-- Recent Invoices with inline Mark-Paid -->
+      <div class="card p-5">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="font-bold text-gray-800 flex items-center gap-2"><i class="fas fa-list-alt text-gray-500"></i> Recent Invoices</h3>
+          <div class="flex gap-2 items-center">
+            <select id="finInvStatusFilter" class="input text-sm py-1" onchange="renderFinanceInvoices()">
+              <option value="">All Status</option>
+              <option value="Draft">Draft</option>
+              <option value="Issued">Issued</option>
+              <option value="Paid">Paid</option>
+              <option value="Overdue">Overdue</option>
+            </select>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead><tr class="text-left text-xs text-gray-500 border-b">
+              <th class="pb-2 pr-3">Invoice #</th>
+              <th class="pb-2 pr-3">Job Card</th>
+              <th class="pb-2 pr-3">Customer</th>
+              <th class="pb-2 pr-3 text-right">Amount</th>
+              <th class="pb-2 pr-3">Due Date</th>
+              <th class="pb-2 pr-3">Paid At</th>
+              <th class="pb-2 pr-3">Status</th>
+              <th class="pb-2">Actions</th>
+            </tr></thead>
+            <tbody id="finInvTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
     <!-- ═══ USERS ═══ -->
     <div id="page-users" class="page">
       <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
         <div>
           <h2 class="text-2xl font-bold text-gray-900">Users & Roles</h2>
-          <p class="text-gray-500 text-sm mt-1">Manage team access and permissions</p>
+          <p class="text-gray-500 text-sm mt-1">Manage team members, roles and access permissions</p>
         </div>
-        <button class="btn-primary" onclick="showNewUserModal()"><i class="fas fa-user-plus"></i> Add User</button>
+        <button class="btn-primary" id="addUserBtn" onclick="showNewUserModal()"><i class="fas fa-user-plus"></i> Add User</button>
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" id="usersGrid"></div>
+
+      <!-- Role Summary Cards -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6" id="roleStatsRow"></div>
+
+      <!-- View Toggle -->
+      <div class="flex gap-2 mb-4">
+        <button id="usersViewTeam" class="px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white" onclick="setUsersView('team')"><i class="fas fa-users mr-1"></i>Team</button>
+        <button id="usersViewPerms" class="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200" onclick="setUsersView('permissions')"><i class="fas fa-shield-alt mr-1"></i>Permissions Matrix</button>
+      </div>
+
+      <!-- Team View -->
+      <div id="usersTeamView">
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" id="usersGrid"></div>
+      </div>
+
+      <!-- Permissions Matrix View -->
+      <div id="usersPermsView" class="hidden">
+        <div class="card overflow-hidden">
+          <div class="p-4 border-b border-gray-100 bg-gray-50">
+            <h3 class="font-bold text-gray-800">Role Permissions Matrix</h3>
+            <p class="text-xs text-gray-500 mt-0.5">Overview of what each role can access and do</p>
+          </div>
+          <div class="table-scroll">
+            <table class="w-full text-xs" style="min-width:700px" id="permMatrix"></table>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- ═══ OIL SERVICES ═══ -->
@@ -937,9 +1190,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 
   </div>
 </main>
-</div>
-
-<!-- ═══════════════════ MODALS ═══════════════════ -->
+</div><!-- end appShell -->
 
 <!-- New Job Card Modal -->
 <div id="modal-newJob" class="modal-overlay hidden">
@@ -1372,29 +1623,91 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 
 <!-- New User Modal -->
 <div id="modal-newUser" class="modal-overlay hidden">
-  <div class="modal-box">
+  <div class="modal-box" style="--mw:560px">
     <div class="flex items-center justify-between mb-6">
-      <div><h3 class="text-xl font-bold text-gray-900">Add Team Member</h3></div>
+      <div><h3 class="text-xl font-bold text-gray-900">Add Team Member</h3><p class="text-sm text-gray-500 mt-0.5">Create a new user account with role-based access</p></div>
       <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-newUser')"><i class="fas fa-times"></i></button>
     </div>
     <form id="newUserForm" onsubmit="submitNewUser(event)">
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-        <div><label class="form-label">Full Name</label><input class="form-input" id="usr-name" required/></div>
-        <div><label class="form-label">Email</label><input class="form-input" type="email" id="usr-email" required/></div>
+        <div><label class="form-label">Full Name *</label><input class="form-input" id="usr-name" placeholder="e.g. John Mwangi" required/></div>
+        <div><label class="form-label">Email Address *</label><input class="form-input" type="email" id="usr-email" placeholder="john@autofix.co.tz" required/></div>
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-        <div><label class="form-label">Phone</label><input class="form-input" id="usr-phone"/></div>
-        <div><label class="form-label">Role</label>
-          <select class="form-input" id="usr-role" required>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+        <div><label class="form-label">Phone Number</label><input class="form-input" id="usr-phone" placeholder="+255 7xx xxx xxx"/></div>
+        <div><label class="form-label">Role *</label>
+          <select class="form-input" id="usr-role" required onchange="updateRolePreview(this.value)">
+            <option value="">Select role…</option>
             <option>Owner</option><option>Manager</option><option>Front Desk</option><option>Technician</option><option>Accountant</option>
           </select>
         </div>
       </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+        <div>
+          <label class="form-label">Password *</label>
+          <div class="relative">
+            <input class="form-input pr-10" type="password" id="usr-password" placeholder="Set a login password" required/>
+            <button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" onclick="toggleFieldPassword('usr-password','usr-pwdIcon')"><i class="fas fa-eye" id="usr-pwdIcon"></i></button>
+          </div>
+        </div>
+        <div>
+          <label class="form-label">Confirm Password *</label>
+          <input class="form-input" type="password" id="usr-password2" placeholder="Repeat password" required/>
+        </div>
+      </div>
+      <!-- Role preview -->
+      <div id="rolePreview" class="hidden mb-4 p-3 rounded-xl border border-blue-100" style="background:#eff6ff">
+        <p class="text-xs font-bold text-blue-700 mb-1"><i class="fas fa-shield-alt mr-1"></i>Access level for selected role:</p>
+        <p id="rolePreviewText" class="text-xs text-blue-600"></p>
+      </div>
       <div class="flex gap-3 justify-end">
         <button type="button" class="btn-secondary" onclick="closeModal('modal-newUser')">Cancel</button>
-        <button type="submit" class="btn-primary"><i class="fas fa-save"></i> Add User</button>
+        <button type="submit" class="btn-primary"><i class="fas fa-user-plus"></i> Add User</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- Edit User Modal -->
+<div id="modal-editUser" class="modal-overlay hidden">
+  <div class="modal-box" style="--mw:560px">
+    <div class="flex items-center justify-between mb-6">
+      <div><h3 class="text-xl font-bold text-gray-900">Edit Team Member</h3><p class="text-sm text-gray-500 mt-0.5">Update user details, role and access</p></div>
+      <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-editUser')"><i class="fas fa-times"></i></button>
+    </div>
+    <input type="hidden" id="edit-usr-id"/>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+      <div><label class="form-label">Full Name *</label><input class="form-input" id="edit-usr-name" required/></div>
+      <div><label class="form-label">Email Address *</label><input class="form-input" type="email" id="edit-usr-email" required/></div>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+      <div><label class="form-label">Phone Number</label><input class="form-input" id="edit-usr-phone"/></div>
+      <div><label class="form-label">Role *</label>
+        <select class="form-input" id="edit-usr-role" required>
+          <option>Owner</option><option>Manager</option><option>Front Desk</option><option>Technician</option><option>Accountant</option>
+        </select>
+      </div>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+      <div>
+        <label class="form-label">New Password <span class="text-gray-400 font-normal">(leave blank to keep current)</span></label>
+        <div class="relative">
+          <input class="form-input pr-10" type="password" id="edit-usr-password" placeholder="Enter new password"/>
+          <button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" onclick="toggleFieldPassword('edit-usr-password','edit-pwdIcon')"><i class="fas fa-eye" id="edit-pwdIcon"></i></button>
+        </div>
+      </div>
+      <div><label class="form-label">Status</label>
+        <select class="form-input" id="edit-usr-active">
+          <option value="true">Active</option>
+          <option value="false">Inactive</option>
+        </select>
+      </div>
+    </div>
+    <div class="flex gap-3 justify-end">
+      <button type="button" class="btn-danger" id="edit-usr-deleteBtn" onclick="deleteUser()"><i class="fas fa-trash-alt"></i> Remove</button>
+      <button type="button" class="btn-secondary ml-auto" onclick="closeModal('modal-editUser')">Cancel</button>
+      <button type="button" class="btn-primary" onclick="submitEditUser()"><i class="fas fa-save"></i> Save Changes</button>
+    </div>
   </div>
 </div>
 
@@ -1671,6 +1984,137 @@ let _expenseEditId = null;
 let _expenseTrendChart = null, _expenseCatChart = null;
 let statusChart = null, revenueChart = null, insurerChart = null;
 
+// ─── Auth / RBAC State ───────────────────────────────────────────────────────
+var currentUser = null;
+var currentPermissions = [];
+var authToken = localStorage.getItem('gms_token') || '';
+
+function can(perm) {
+  return currentPermissions.includes(perm);
+}
+
+function applyNavPermissions() {
+  document.querySelectorAll('[data-perm]').forEach(function(el) {
+    var perm = el.getAttribute('data-perm');
+    el.style.display = can(perm) ? '' : 'none';
+  });
+  // New Job Card button
+  var newJobBtn = document.querySelector('button[onclick="showNewJobModal()"]');
+  if (newJobBtn) newJobBtn.style.display = can('jobcards.create') ? '' : 'none';
+}
+
+function updateSidebarUser() {
+  if (!currentUser) return;
+  var initials = currentUser.name.split(' ').map(function(n){ return n[0]; }).join('').substring(0,2).toUpperCase();
+  var av = document.getElementById('sidebarUserAvatar');
+  var nm = document.getElementById('sidebarUserName');
+  var rl = document.getElementById('sidebarUserRole');
+  if (av) av.textContent = initials;
+  if (nm) nm.textContent = currentUser.name;
+  if (rl) rl.textContent = currentUser.role;
+  var dw = document.getElementById('dashWelcome');
+  if (dw) dw.textContent = 'Welcome back, ' + currentUser.name.split(' ')[0] + '! Here' + String.fromCharCode(39) + 's what' + String.fromCharCode(39) + 's happening today.';
+}
+
+// ─── Login / Logout ──────────────────────────────────────────────────────────
+function togglePasswordVisibility() {
+  var inp = document.getElementById('loginPassword');
+  var icon = document.getElementById('pwdEyeIcon');
+  if (inp.type === 'password') { inp.type = 'text'; icon.className = 'fas fa-eye-slash'; }
+  else { inp.type = 'password'; icon.className = 'fas fa-eye'; }
+}
+
+async function doLogin(e) {
+  e.preventDefault();
+  var email = document.getElementById('loginEmail').value;
+  var password = document.getElementById('loginPassword').value;
+  var errEl = document.getElementById('loginError');
+  var btn = document.getElementById('loginBtn');
+  errEl.classList.add('hidden');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing in…';
+  try {
+    var res = await axios.post('/api/auth/login', { email, password });
+    authToken = res.data.token;
+    currentUser = res.data.user;
+    localStorage.setItem('gms_token', authToken);
+    axios.defaults.headers.common['Authorization'] = 'Bearer ' + authToken;
+    // Fetch full permissions
+    var meRes = await axios.get('/api/auth/me');
+    currentPermissions = meRes.data.permissions;
+    // Show app
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('appShell').style.removeProperty('display');
+    updateSidebarUser();
+    applyNavPermissions();
+    loadDashboard();
+    loadNotifDropdown();
+    // Start notification polling
+    startNotifPolling();
+  } catch(err) {
+    var msg = err.response?.data?.error || 'Login failed. Please try again.';
+    errEl.textContent = msg;
+    errEl.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Sign In';
+  }
+}
+
+async function doLogout() {
+  if (!confirm('Sign out of GMS?')) return;
+  try { await axios.post('/api/auth/logout'); } catch(e) {}
+  localStorage.removeItem('gms_token');
+  authToken = '';
+  currentUser = null;
+  currentPermissions = [];
+  delete axios.defaults.headers.common['Authorization'];
+  document.getElementById('appShell').style.setProperty('display', 'none', 'important');
+  document.getElementById('loginScreen').style.display = '';
+  document.getElementById('loginForm').reset();
+  if (_notifInterval) { clearInterval(_notifInterval); _notifInterval = null; }
+}
+
+async function tryAutoLogin() {
+  if (!authToken) return false;
+  try {
+    axios.defaults.headers.common['Authorization'] = 'Bearer ' + authToken;
+    var meRes = await axios.get('/api/auth/me');
+    currentUser = meRes.data.user;
+    currentPermissions = meRes.data.permissions;
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('appShell').style.removeProperty('display');
+    updateSidebarUser();
+    applyNavPermissions();
+    return true;
+  } catch(e) {
+    localStorage.removeItem('gms_token');
+    authToken = '';
+    delete axios.defaults.headers.common['Authorization'];
+    return false;
+  }
+}
+
+var _notifInterval = null;
+function startNotifPolling() {
+  if (_notifInterval) clearInterval(_notifInterval);
+  _notifInterval = setInterval(function() {
+    axios.get('/api/notifications/summary').then(function(r) {
+      var unread = r.data.unreadCount;
+      var badge   = document.getElementById('notifBadge');
+      var dropBadge = document.getElementById('notifDropBadge');
+      if (unread > 0) {
+        var label = unread > 99 ? '99+' : String(unread);
+        badge.textContent = label; badge.classList.remove('hidden'); badge.classList.add('flex');
+        dropBadge.textContent = label + ' new'; dropBadge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden'); badge.classList.remove('flex');
+        dropBadge.classList.add('hidden');
+      }
+    }).catch(function(){});
+  }, 30000);
+}
+
 const STATUS_CONFIG = {
   RECEIVED: { label:'Received', color:'#6366f1', bg:'#eef2ff', text:'#4f46e5' },
   INSPECTION: { label:'Inspection', color:'#f59e0b', bg:'#fffbeb', text:'#d97706' },
@@ -1747,7 +2191,7 @@ function toggleMobileSearch() {
 
 function statusBadge(s) {
   const c = STATUS_CONFIG[s] || { bg:'#f1f5f9', text:'#64748b', label:s };
-  return \`<span class="status-pill" style="background:\${c.bg};color:\${c.text}">\${c.label}</span>\`;
+  return '<span class="status-pill" style="background:' + c.bg + ';color:' + c.text + '">' + c.label + '</span>';
 }
 
 function showPage(page) {
@@ -1771,6 +2215,7 @@ function showPage(page) {
   if (page === 'invoices') loadInvoices();
   if (page === 'packages') loadPackages();
   if (page === 'analytics') loadAnalytics();
+  if (page === 'finance') loadFinance();
   if (page === 'users') loadUsers();
   if (page === 'oil-services') loadOilServices();
   if (page === 'parts-catalogue') loadPartsCatalogue();
@@ -1850,6 +2295,8 @@ async function loadDashboard() {
   loadDashTodayApts();
   // Load expense snapshot
   _loadDashExpenseSnapshot();
+  // Load finance summary cards (async, non-blocking)
+  loadFinanceSummaryCards();
 }
 
 async function _loadDashExpenseSnapshot() {
@@ -2182,7 +2629,17 @@ async function viewJobDetail(id) {
               <div class="flex justify-between"><span class="text-gray-400">Tax (18%)</span><span>\${fmt(j.invoice.tax)}</span></div>
               <div class="flex justify-between border-t pt-2 font-bold text-green-600"><span>Total</span><span>\${fmt(j.invoice.totalAmount)}</span></div>
             </div>
-            <div class="mt-2"><span class="badge \${j.invoice.status==='Paid'?'bg-green-100 text-green-700':'bg-amber-100 text-amber-700'}">\${j.invoice.status}</span></div>
+            \${j.invoice.dueDate ? \`<p class="text-xs text-gray-400 mt-2">Due: \${j.invoice.dueDate}</p>\` : ''}
+            \${j.invoice.paidAt ? \`<p class="text-xs text-green-600 mt-1"><i class="fas fa-check-circle mr-1"></i>Paid: \${fmtDate(j.invoice.paidAt)}</p>\` : ''}
+            <div class="mt-2 flex items-center justify-between gap-2">
+              <span class="badge \${j.invoice.status==='Paid'?'bg-green-100 text-green-700':j.invoice.status==='Overdue'?'bg-red-100 text-red-700':'bg-amber-100 text-amber-700'}">\${j.invoice.status}</span>
+              \${j.invoice.status !== 'Paid' ? \`<button class="btn-primary text-xs py-1 px-3" onclick="markInvoicePaid('\${j.invoice.id}','\${j.id}')"><i class="fas fa-check mr-1"></i>Mark Paid</button>\` : ''}
+            </div>
+          </div>
+          <!-- Job P&L Panel -->
+          <div class="card p-5 border-2 border-indigo-100" id="jobPLPanel-\${j.id}">
+            <h4 class="font-bold text-gray-800 mb-3"><i class="fas fa-chart-line text-indigo-500 mr-2"></i>Job P&L</h4>
+            <p class="text-xs text-gray-400 text-center py-2"><i class="fas fa-spinner fa-spin mr-1"></i>Loading…</p>
           </div>
         \` : ''}
         <!-- Expenses Panel (loaded async below) -->
@@ -2194,6 +2651,10 @@ async function viewJobDetail(id) {
   \`;
   // Load job expenses asynchronously into the sidebar panel
   loadJobExpenses(j.id);
+  // Load per-job P&L if invoice exists
+  if (j.invoice) {
+    loadJobPL(j.id);
+  }
 }
 
 // Parts Modal
@@ -4629,9 +5090,16 @@ async function loadInvoices() {
       <td class="px-4 py-3 text-sm">\${fmt(inv.partsCost)}</td>
       <td class="px-4 py-3 text-sm">\${fmt(inv.tax)}</td>
       <td class="px-4 py-3 font-bold text-green-600">\${fmt(inv.totalAmount)}</td>
-      <td class="px-4 py-3"><span class="badge \${inv.status==='Paid'?'bg-green-100 text-green-700':inv.status==='Overdue'?'bg-red-100 text-red-700':'bg-amber-100 text-amber-700'}">\${inv.status}</span></td>
+      <td class="px-4 py-3 text-xs text-gray-400">\${inv.dueDate||'—'}</td>
+      <td class="px-4 py-3 text-xs text-gray-400">\${inv.paidAt ? fmtDate(inv.paidAt) : '—'}</td>
+      <td class="px-4 py-3">
+        <span class="badge \${inv.status==='Paid'?'bg-green-100 text-green-700':inv.status==='Overdue'?'bg-red-100 text-red-700':'bg-amber-100 text-amber-700'}">\${inv.status}</span>
+        \${inv.status !== 'Paid' ? \`<button class="ml-2 text-xs text-green-600 hover:underline font-semibold" onclick="markInvoicePaidFromFinance('\${inv.id}')">Mark Paid</button>\` : ''}
+      </td>
     </tr>
-  \`).join('') || '<tr><td colspan="8" class="text-center py-12 text-gray-400"><i class="fas fa-file-invoice text-3xl mb-3 block"></i>No invoices yet</td></tr>';
+  \`).join('') || '<tr><td colspan="10" class="text-center py-12 text-gray-400"><i class="fas fa-file-invoice text-3xl mb-3 block"></i>No invoices yet</td></tr>';
+  // Auto-refresh finance summary cards
+  loadFinanceSummaryCards();
 }
 
 // ═══ PACKAGES ═══
@@ -4857,41 +5325,227 @@ async function loadAnalytics() {
   });
 }
 
-// ═══ USERS ═══
+// ═══ USERS & RBAC ═══
+
+// Role descriptions for preview
+var ROLE_DESCRIPTIONS = {
+  Owner: 'Full access to all modules, settings and user management',
+  Manager: 'All operations + analytics; cannot delete users or manage settings',
+  'Front Desk': 'Job cards, appointments, customers, vehicles, PFIs, invoices view',
+  Technician: 'View job cards, update job status, view parts and services',
+  Accountant: 'Invoices, expenses, analytics; cannot create job cards or modify customers',
+};
+
+var PERMISSION_GROUPS = [
+  { label: 'Dashboard',     perms: ['dashboard.view'] },
+  { label: 'Job Cards',     perms: ['jobcards.view','jobcards.create','jobcards.edit','jobcards.delete','jobcards.change_status','jobcards.assign_technician'] },
+  { label: 'Appointments',  perms: ['appointments.view','appointments.create','appointments.edit','appointments.delete','appointments.convert'] },
+  { label: 'Customers',     perms: ['customers.view','customers.create','customers.edit','customers.delete'] },
+  { label: 'Vehicles',      perms: ['vehicles.view','vehicles.create','vehicles.edit'] },
+  { label: 'PFIs',          perms: ['pfis.view','pfis.create','pfis.approve','pfis.send'] },
+  { label: 'Invoices',      perms: ['invoices.view','invoices.create','invoices.mark_paid'] },
+  { label: 'Expenses',      perms: ['expenses.view','expenses.create','expenses.approve','expenses.delete'] },
+  { label: 'Catalogue',     perms: ['packages.view','packages.manage','oil_services.view','parts.view','parts.manage','parts.restock','carwash.view','carwash.manage','addons.view','addons.manage'] },
+  { label: 'Analytics',     perms: ['analytics.view'] },
+  { label: 'Users & Roles', perms: ['users.view','users.create','users.edit','users.delete','users.manage_roles'] },
+  { label: 'Settings',      perms: ['settings.view','settings.manage'] },
+];
+
+var _allPermissions = null;  // fetched from /api/auth/permissions
+
+function setUsersView(v) {
+  document.getElementById('usersTeamView').classList.toggle('hidden', v !== 'team');
+  document.getElementById('usersPermsView').classList.toggle('hidden', v !== 'permissions');
+  document.getElementById('usersViewTeam').className = 'px-4 py-2 rounded-lg text-sm font-semibold ' + (v==='team' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200');
+  document.getElementById('usersViewPerms').className = 'px-4 py-2 rounded-lg text-sm font-semibold ' + (v==='permissions' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200');
+  if (v === 'permissions' && _allPermissions) renderPermissionsMatrix(_allPermissions);
+}
+
 async function loadUsers() {
   const { data } = await axios.get('/api/users');
   allUsers = data;
-  document.getElementById('usersGrid').innerHTML = data.map(u => {
-    const rc = ROLE_CONFIG[u.role] || { bg:'#f1f5f9', text:'#64748b', icon:'fa-user' };
-    return \`
-      <div class="card p-5">
-        <div class="flex items-start gap-3 mb-4">
-          <div class="w-12 h-12 rounded-2xl flex items-center justify-center text-white text-lg font-bold" style="background:linear-gradient(135deg,\${rc.text},\${rc.text}aa)">\${u.name.charAt(0)}</div>
-          <div class="flex-1">
-            <h3 class="font-bold text-gray-900">\${u.name}</h3>
-            <p class="text-sm text-gray-500">\${u.email}</p>
-          </div>
-          <span class="w-2 h-2 rounded-full mt-2 \${u.active ? 'bg-green-400' : 'bg-gray-300'}" title="\${u.active?'Active':'Inactive'}"></span>
-        </div>
-        <div class="flex items-center justify-between">
-          <span class="badge" style="background:\${rc.bg};color:\${rc.text}"><i class="fas \${rc.icon} mr-1"></i>\${u.role}</span>
-          <p class="text-xs text-gray-400">\${u.phone||''}</p>
-        </div>
-      </div>
-    \`;
+
+  // Role stats
+  var roles = ['Owner','Manager','Front Desk','Technician','Accountant'];
+  var roleCounts = {};
+  roles.forEach(function(r){ roleCounts[r] = data.filter(function(u){ return u.role===r; }).length; });
+  document.getElementById('roleStatsRow').innerHTML = roles.map(function(r) {
+    var rc = ROLE_CONFIG[r] || { bg:'#f1f5f9', text:'#64748b', icon:'fa-user' };
+    return '<div class="card p-3 flex flex-col items-center text-center">' +
+      '<div class="w-9 h-9 rounded-xl flex items-center justify-center mb-2" style="background:'+rc.bg+'">' +
+        '<i class="fas '+rc.icon+' text-sm" style="color:'+rc.text+'"></i>' +
+      '</div>' +
+      '<p class="text-xl font-bold text-gray-900">'+roleCounts[r]+'</p>' +
+      '<p class="text-xs font-semibold mt-0.5" style="color:'+rc.text+'">'+r+'</p>' +
+    '</div>';
   }).join('');
+
+  // Guard: only users.manage_roles can see add button
+  var addBtn = document.getElementById('addUserBtn');
+  if (addBtn) addBtn.style.display = can('users.create') ? '' : 'none';
+
+  // User cards
+  document.getElementById('usersGrid').innerHTML = data.map(function(u) {
+    var rc = ROLE_CONFIG[u.role] || { bg:'#f1f5f9', text:'#64748b', icon:'fa-user' };
+    var initials = u.name.split(' ').map(function(n){ return n[0]; }).join('').substring(0,2).toUpperCase();
+    var isSelf = currentUser && u.id === currentUser.id;
+    var canEdit = can('users.edit');
+    return '<div class="card p-5 hover:shadow-md transition-shadow">' +
+      '<div class="flex items-start gap-3 mb-4">' +
+        '<div class="w-12 h-12 rounded-2xl flex items-center justify-center text-white text-lg font-bold flex-shrink-0" style="background:linear-gradient(135deg,'+rc.text+','+rc.text+'aa)">'+initials+'</div>' +
+        '<div class="flex-1 min-w-0">' +
+          '<div class="flex items-center gap-2 flex-wrap">' +
+            '<h3 class="font-bold text-gray-900 truncate">'+escHtml(u.name)+'</h3>' +
+            (isSelf ? '<span class="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-semibold">You</span>' : '') +
+          '</div>' +
+          '<p class="text-sm text-gray-500 truncate">'+escHtml(u.email)+'</p>' +
+          (u.phone ? '<p class="text-xs text-gray-400 mt-0.5">'+escHtml(u.phone)+'</p>' : '') +
+        '</div>' +
+        '<span class="w-2.5 h-2.5 rounded-full mt-1 flex-shrink-0 '+(u.active ? 'bg-green-400' : 'bg-gray-300')+'" title="'+(u.active?'Active':'Inactive')+'"></span>' +
+      '</div>' +
+      '<div class="flex items-center justify-between gap-2">' +
+        '<span class="badge" style="background:'+rc.bg+';color:'+rc.text+'"><i class="fas '+rc.icon+' mr-1"></i>'+escHtml(u.role)+'</span>' +
+        (canEdit ? '<button class="btn-secondary text-xs py-1 px-2" onclick="openEditUser(&quot;'+u.id+'&quot;)"><i class="fas fa-edit mr-1"></i>Edit</button>' : '') +
+      '</div>' +
+      (u.lastLogin ? '<p class="text-xs text-gray-400 mt-2"><i class="fas fa-clock mr-1"></i>Last login: '+fmtDate(u.lastLogin)+'</p>' : '') +
+    '</div>';
+  }).join('') || '<div class="col-span-3 text-center py-12 text-gray-400"><i class="fas fa-users text-4xl mb-3 block"></i><p class="font-semibold">No team members yet</p><p class="text-sm mt-1">Add your first team member to get started</p></div>';
+
+  // Fetch permission map for matrix
+  if (!_allPermissions) {
+    try {
+      var pmRes = await axios.get('/api/auth/permissions');
+      _allPermissions = pmRes.data;
+    } catch(e) {}
+  }
 }
 
-function showNewUserModal() { openModal('modal-newUser'); }
+function updateRolePreview(role) {
+  var preview = document.getElementById('rolePreview');
+  var text = document.getElementById('rolePreviewText');
+  if (!role || !ROLE_DESCRIPTIONS[role]) { preview.classList.add('hidden'); return; }
+  text.textContent = ROLE_DESCRIPTIONS[role];
+  preview.classList.remove('hidden');
+}
+
+function toggleFieldPassword(inputId, iconId) {
+  var inp = document.getElementById(inputId);
+  var icon = document.getElementById(iconId);
+  if (!inp || !icon) return;
+  if (inp.type === 'password') { inp.type = 'text'; icon.className = 'fas fa-eye-slash'; }
+  else { inp.type = 'password'; icon.className = 'fas fa-eye'; }
+}
+
+function showNewUserModal() {
+  if (!can('users.create')) { showToast('Permission denied','error'); return; }
+  openModal('modal-newUser');
+}
 
 async function submitNewUser(e) {
   e.preventDefault();
-  const payload = { name:document.getElementById('usr-name').value, email:document.getElementById('usr-email').value, phone:document.getElementById('usr-phone').value, role:document.getElementById('usr-role').value, active:true };
-  await axios.post('/api/users', payload);
-  closeModal('modal-newUser');
-  document.getElementById('newUserForm').reset();
-  showToast('Team member added');
-  loadUsers();
+  var pwd = document.getElementById('usr-password').value;
+  var pwd2 = document.getElementById('usr-password2').value;
+  if (pwd !== pwd2) { showToast('Passwords do not match','error'); return; }
+  const payload = {
+    name: document.getElementById('usr-name').value,
+    email: document.getElementById('usr-email').value,
+    phone: document.getElementById('usr-phone').value,
+    role: document.getElementById('usr-role').value,
+    password: pwd,
+    active: true
+  };
+  try {
+    await axios.post('/api/users', payload);
+    closeModal('modal-newUser');
+    document.getElementById('newUserForm').reset();
+    document.getElementById('rolePreview').classList.add('hidden');
+    showToast('Team member added successfully');
+    loadUsers();
+  } catch(err) {
+    showToast(err.response?.data?.error || 'Failed to add user', 'error');
+  }
+}
+
+function openEditUser(id) {
+  if (!can('users.edit')) { showToast('Permission denied','error'); return; }
+  var u = allUsers.find(function(x){ return x.id === id; });
+  if (!u) return;
+  document.getElementById('edit-usr-id').value = u.id;
+  document.getElementById('edit-usr-name').value = u.name;
+  document.getElementById('edit-usr-email').value = u.email;
+  document.getElementById('edit-usr-phone').value = u.phone || '';
+  document.getElementById('edit-usr-role').value = u.role;
+  document.getElementById('edit-usr-active').value = String(u.active);
+  document.getElementById('edit-usr-password').value = '';
+  // Hide delete button for self or if no delete permission
+  var delBtn = document.getElementById('edit-usr-deleteBtn');
+  var isSelf = currentUser && u.id === currentUser.id;
+  delBtn.style.display = (can('users.delete') && !isSelf) ? '' : 'none';
+  openModal('modal-editUser');
+}
+
+async function submitEditUser() {
+  var id = document.getElementById('edit-usr-id').value;
+  var payload = {
+    name: document.getElementById('edit-usr-name').value,
+    email: document.getElementById('edit-usr-email').value,
+    phone: document.getElementById('edit-usr-phone').value,
+    role: document.getElementById('edit-usr-role').value,
+    active: document.getElementById('edit-usr-active').value === 'true',
+  };
+  var newPwd = document.getElementById('edit-usr-password').value;
+  if (newPwd) payload.password = newPwd;
+  try {
+    var res = await axios.put('/api/users/' + id, payload);
+    // If editing self, update currentUser info
+    if (currentUser && id === currentUser.id) {
+      currentUser = res.data;
+      updateSidebarUser();
+    }
+    closeModal('modal-editUser');
+    showToast('User updated');
+    loadUsers();
+  } catch(err) {
+    showToast(err.response?.data?.error || 'Failed to update user', 'error');
+  }
+}
+
+async function deleteUser() {
+  var id = document.getElementById('edit-usr-id').value;
+  var name = document.getElementById('edit-usr-name').value;
+  if (!confirm('Remove ' + name + ' from the system? This cannot be undone.')) return;
+  try {
+    await axios.delete('/api/users/' + id);
+    closeModal('modal-editUser');
+    showToast(name + ' has been removed');
+    loadUsers();
+  } catch(err) {
+    showToast('Failed to delete user','error');
+  }
+}
+
+function renderPermissionsMatrix(permsMap) {
+  var roles = ['Owner','Manager','Front Desk','Technician','Accountant'];
+  var html = '<thead><tr><th class="text-left px-4 py-3 font-bold text-gray-700 bg-gray-50 sticky left-0 z-10">Permission</th>' +
+    roles.map(function(r) {
+      var rc = ROLE_CONFIG[r] || { bg:'#f1f5f9', text:'#64748b' };
+      return '<th class="px-4 py-3 text-center font-bold" style="background:'+rc.bg+';color:'+rc.text+'">'+r+'</th>';
+    }).join('') + '</tr></thead><tbody>';
+  PERMISSION_GROUPS.forEach(function(grp) {
+    html += '<tr><td colspan="6" class="px-4 py-2 bg-gray-100 text-xs font-bold text-gray-600 uppercase tracking-wide">'+grp.label+'</td></tr>';
+    grp.perms.forEach(function(perm) {
+      var label = perm.split('.')[1].replace(/_/g,' ');
+      html += '<tr class="border-b hover:bg-gray-50"><td class="px-4 py-2 text-xs text-gray-700 sticky left-0 bg-white">'+label+'</td>' +
+        roles.map(function(r) {
+          var has = permsMap[r] && permsMap[r].includes(perm);
+          return '<td class="px-4 py-2 text-center">' +
+            (has ? '<i class="fas fa-check-circle text-green-500"></i>' : '<i class="fas fa-times-circle text-gray-200"></i>') +
+          '</td>';
+        }).join('') + '</tr>';
+    });
+  });
+  html += '</tbody>';
+  document.getElementById('permMatrix').innerHTML = html;
 }
 
 // ═══ GLOBAL SEARCH ═══
@@ -5520,6 +6174,8 @@ async function submitExpense(e) {
     }
     closeModal('modal-expense');
     loadExpenses();
+    // Auto-refresh finance summary
+    loadFinanceSummaryCards();
   } catch(err) { showToast('Failed to save expense', 'error'); }
 }
 
@@ -5529,6 +6185,7 @@ async function deleteExpense(expId) {
     await axios.delete('/api/expenses/' + expId);
     showToast('Expense deleted');
     loadExpenses();
+    loadFinanceSummaryCards();
   } catch(err) { showToast('Failed to delete', 'error'); }
 }
 
@@ -5585,6 +6242,7 @@ function viewExpenseDetail(expId) {
       showToast('Status updated to ' + st);
       closeModal('modal-expenseDetail');
       loadExpenses();
+      loadFinanceSummaryCards();
     });
     statusContainer.appendChild(btn);
   });
@@ -5624,6 +6282,304 @@ async function loadJobExpenses(jobId) {
   });
 }
 
+// ─── Mark Invoice Paid ───────────────────────────────────────────────────────
+async function markInvoicePaid(invId, jobId) {
+  if (!confirm('Mark this invoice as Paid?')) return;
+  try {
+    await axios.patch('/api/invoices/' + invId + '/status', {
+      status: 'Paid',
+      paidAt: new Date().toISOString(),
+    });
+    showToast('Invoice marked as Paid!', 'success');
+    loadJobDetail(jobId);          // refresh job detail
+    loadInvoices();                // refresh invoices page
+    // refresh finance snapshot on dashboard if visible
+    loadFinanceSummaryCards();
+  } catch(e) {
+    showToast('Could not update invoice status', 'error');
+  }
+}
+
+// ─── Job P&L Panel ────────────────────────────────────────────────────────────
+async function loadJobPL(jobId) {
+  var panel = document.getElementById('jobPLPanel-' + jobId);
+  if (!panel) return;
+  try {
+    var { data } = await axios.get('/api/finance/job/' + jobId);
+    var netColor = data.netProfit >= 0 ? 'text-green-600' : 'text-red-600';
+    var marginColor = data.margin >= 30 ? 'text-green-600' : data.margin >= 0 ? 'text-amber-600' : 'text-red-600';
+    panel.innerHTML =
+      '<h4 class="font-bold text-gray-800 mb-3"><i class="fas fa-chart-line text-indigo-500 mr-2"></i>Job P&L</h4>' +
+      '<div class="space-y-2 text-sm">' +
+        '<div class="flex justify-between"><span class="text-gray-400">Revenue</span><span class="font-semibold text-green-600">' + fmt(data.revenue) + '</span></div>' +
+        '<div class="flex justify-between"><span class="text-gray-400">Job Expenses</span><span class="font-semibold text-red-600">' + fmt(data.totalExpenses) + '</span></div>' +
+        '<div class="flex justify-between border-t pt-2"><span class="font-semibold">Net Profit</span><span class="font-bold ' + netColor + '">' + fmt(data.netProfit) + '</span></div>' +
+        '<div class="flex justify-between"><span class="text-gray-400">Margin</span><span class="font-semibold ' + marginColor + '">' + data.margin.toFixed(1) + '%</span></div>' +
+      '</div>' +
+      (data.revenue === 0 ? '<p class="text-xs text-gray-400 mt-2 italic">Revenue shows after invoice is paid</p>' : '');
+  } catch(e) {
+    panel.innerHTML = '<p class="text-xs text-gray-400 text-center py-2">P&L unavailable</p>';
+  }
+}
+
+// ─── Finance Summary Cards (Dashboard) ───────────────────────────────────────
+var _finSummaryCache = null;
+
+async function loadFinanceSummaryCards() {
+  try {
+    var { data } = await axios.get('/api/finance/summary');
+    _finSummaryCache = data;
+    // Update dashboard finance snapshot
+    var el = function(id){ return document.getElementById(id); };
+    if (el('dfCollected'))   el('dfCollected').textContent   = fmt(data.invoices.totalPaid);
+    if (el('dfOutstanding')) el('dfOutstanding').textContent = fmt(data.invoices.outstanding);
+    if (el('dfOverdue'))     el('dfOverdue').textContent     = fmt(data.invoices.overdue);
+    if (el('dfPipeline'))    el('dfPipeline').textContent    = fmt(data.pipeline.value);
+    if (el('dfExpenses'))    el('dfExpenses').textContent    = fmt(data.expenses.total);
+    if (el('dfNetIncome')) {
+      el('dfNetIncome').textContent = fmt(data.pl.netIncome);
+      el('dfNetIncome').className = 'text-base font-bold ' + (data.pl.netIncome >= 0 ? 'text-green-700' : 'text-red-600');
+    }
+    if (el('dfMarginPct'))   el('dfMarginPct').textContent   = 'Margin: ' + data.pl.grossMargin.toFixed(1) + '%';
+    // Show/hide the finance cards row based on permission
+    var row = el('dashFinanceCards');
+    if (row) {
+      row.classList.toggle('hidden', !can('finance.view'));
+    }
+  } catch(e) {
+    // Silently fail – finance cards just won't update
+  }
+}
+
+// ─── Finance Page ─────────────────────────────────────────────────────────────
+var _finData = null;
+var _finPLChart = null;
+var _finExpPieChart = null;
+var _finAllInvoices = [];
+
+async function loadFinance() {
+  try {
+    var [finRes, invRes] = await Promise.all([
+      axios.get('/api/finance/summary'),
+      axios.get('/api/invoices'),
+    ]);
+    _finData = finRes.data;
+    _finAllInvoices = invRes.data;
+    renderFinanceKPIs(_finData);
+    renderFinancePLChart(_finData);
+    renderFinanceExpPie(_finData);
+    renderFinanceInvStatus(_finData);
+    renderFinancePipeline(_finData);
+    renderFinanceInvoices();
+  } catch(e) {
+    showToast('Failed to load Finance data', 'error');
+  }
+}
+
+function renderFinanceKPIs(d) {
+  var set = function(id, val) { var el = document.getElementById(id); if(el) el.textContent = val; };
+  var setHtml = function(id, val) { var el = document.getElementById(id); if(el) el.innerHTML = val; };
+  // Invoice row
+  set('finTotalInvoiced',    fmt(d.invoices.totalInvoiced));
+  set('finTotalInvoicedCount', d.invoices.totalCount + ' invoice' + (d.invoices.totalCount !== 1 ? 's' : ''));
+  set('finCollected',        fmt(d.invoices.totalPaid));
+  set('finCollectedCount',   d.invoices.paidCount + ' paid');
+  set('finOutstanding',      fmt(d.invoices.outstanding));
+  set('finOutstandingCount', d.invoices.outstandingCount + ' pending');
+  set('finOverdue',          fmt(d.invoices.overdue));
+  set('finOverdueCount',     d.invoices.overdueCount + ' overdue');
+  set('finPipeline',         fmt(d.pipeline.value));
+  set('finPipelineCount',    d.pipeline.jobCount + ' job' + (d.pipeline.jobCount !== 1 ? 's' : ''));
+  set('finBookings',         d.appointments.count + ' booking' + (d.appointments.count !== 1 ? 's' : ''));
+  set('finBookingsCount',    fmt(d.appointments.expectedValue) + ' est.');
+  // P&L row
+  set('finGrossIncome',   fmt(d.pl.grossIncome));
+  set('finTotalExpenses', fmt(d.expenses.total));
+  setHtml('finExpBreakdown', 'Job: ' + fmt(d.expenses.jobLinked) + ' + Overhead: ' + fmt(d.expenses.overhead));
+  var netEl = document.getElementById('finNetIncome');
+  if (netEl) {
+    netEl.textContent = fmt(d.pl.netIncome);
+    netEl.className = 'text-xl font-bold ' + (d.pl.netIncome >= 0 ? 'text-green-600' : 'text-red-600');
+  }
+  var marginEl = document.getElementById('finMarginPct');
+  if (marginEl) {
+    marginEl.textContent = d.pl.grossMargin.toFixed(1) + '%';
+    marginEl.className = 'text-xl font-bold ' + (d.pl.grossMargin >= 30 ? 'text-green-600' : d.pl.grossMargin >= 10 ? 'text-amber-600' : 'text-red-600');
+  }
+  set('finAvgJob', 'Avg job value: ' + fmt(d.pl.avgJobValue));
+}
+
+function renderFinancePLChart(d) {
+  var ctx = document.getElementById('finPLChart');
+  if (!ctx) return;
+  if (_finPLChart) { _finPLChart.destroy(); _finPLChart = null; }
+  var months = d.trends.pl;
+  if (!months || !months.length) {
+    ctx.closest('.card').querySelector('h3').insertAdjacentHTML('afterend','<p class="text-gray-400 text-sm text-center py-8">No data yet</p>');
+    return;
+  }
+  var labels = months.map(function(m) {
+    var parts = m.month.split('-');
+    return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][parseInt(parts[1])-1] + ' ' + parts[0].slice(2);
+  });
+  _finPLChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        { label: 'Revenue', data: months.map(function(m){ return m.revenue; }), backgroundColor: 'rgba(34,197,94,0.7)', borderRadius: 4 },
+        { label: 'Expenses', data: months.map(function(m){ return m.expenses; }), backgroundColor: 'rgba(239,68,68,0.6)', borderRadius: 4 },
+        { label: 'Net', data: months.map(function(m){ return m.net; }), type: 'line', borderColor: '#6366f1', backgroundColor: 'rgba(99,102,241,0.1)', tension: 0.4, fill: true, pointRadius: 4, pointBackgroundColor: '#6366f1' },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 10 } } },
+      scales: {
+        y: { ticks: { callback: function(v){ return 'TZS ' + (v/1000).toFixed(0) + 'K'; } }, grid: { color: 'rgba(0,0,0,0.04)' } },
+        x: { grid: { display: false } }
+      }
+    }
+  });
+}
+
+function renderFinanceExpPie(d) {
+  var ctx = document.getElementById('finExpPieChart');
+  if (!ctx) return;
+  if (_finExpPieChart) { _finExpPieChart.destroy(); _finExpPieChart = null; }
+  var cats = Object.entries(d.expenses.byCategory || {}).sort(function(a,b){ return b[1]-a[1]; });
+  if (!cats.length) {
+    ctx.parentElement.innerHTML = '<p class="text-gray-400 text-sm text-center py-8">No expense data yet</p>';
+    return;
+  }
+  var palette = ['#f87171','#fb923c','#facc15','#4ade80','#34d399','#60a5fa','#a78bfa','#f472b6','#94a3b8'];
+  _finExpPieChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: cats.map(function(c){ return c[0]; }),
+      datasets: [{ data: cats.map(function(c){ return c[1]; }), backgroundColor: palette.slice(0, cats.length), borderWidth: 2 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 10, padding: 8, font: { size: 11 } } },
+        tooltip: { callbacks: { label: function(ctx){ return ctx.label + ': TZS ' + ctx.raw.toLocaleString(); } } }
+      }
+    }
+  });
+}
+
+function renderFinanceInvStatus(d) {
+  var container = document.getElementById('finInvStatusBars');
+  if (!container) return;
+  var total = d.invoices.totalInvoiced || 1;
+  var rows = [
+    { label: 'Paid',        amount: d.invoices.totalPaid,    color: 'bg-green-400', count: d.invoices.paidCount },
+    { label: 'Outstanding', amount: d.invoices.outstanding,  color: 'bg-amber-400', count: d.invoices.outstandingCount },
+    { label: 'Overdue',     amount: d.invoices.overdue,      color: 'bg-red-400',   count: d.invoices.overdueCount },
+  ];
+  container.innerHTML = rows.map(function(r) {
+    var pct = total > 0 ? ((r.amount / total) * 100).toFixed(1) : '0.0';
+    return '<div class="mb-4">' +
+      '<div class="flex justify-between text-sm mb-1">' +
+        '<span class="font-medium text-gray-700">' + r.label + ' <span class="text-gray-400 text-xs">(' + r.count + ')</span></span>' +
+        '<span class="font-semibold text-gray-800">' + fmt(r.amount) + ' <span class="text-gray-400 text-xs">(' + pct + '%)</span></span>' +
+      '</div>' +
+      '<div class="h-3 bg-gray-100 rounded-full overflow-hidden">' +
+        '<div class="h-full ' + r.color + ' rounded-full transition-all duration-500" style="width:' + pct + '%"></div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function renderFinancePipeline(d) {
+  var container = document.getElementById('finPipelineFunnel');
+  if (!container) return;
+  var stages = [
+    { label: 'Open Jobs (no invoice)', value: d.pipeline.value,             count: d.pipeline.jobCount,         color: 'bg-purple-400', icon: 'fa-tools' },
+    { label: 'Upcoming Bookings',      value: d.appointments.expectedValue, count: d.appointments.count,         color: 'bg-blue-400',   icon: 'fa-calendar' },
+    { label: 'Outstanding Invoices',   value: d.invoices.outstanding,       count: d.invoices.outstandingCount,  color: 'bg-amber-400',  icon: 'fa-file-invoice' },
+    { label: 'Overdue Invoices',       value: d.invoices.overdue,           count: d.invoices.overdueCount,      color: 'bg-red-400',    icon: 'fa-exclamation-circle' },
+  ];
+  container.innerHTML = stages.map(function(s, i) {
+    var width = 100 - (i * 12);
+    return '<div style="width:' + width + '%;margin:0 auto">' +
+      '<div class="' + s.color + ' rounded-lg px-3 py-2 text-white text-center">' +
+        '<div class="text-xs font-semibold"><i class="fas ' + s.icon + ' mr-1"></i>' + s.label + '</div>' +
+        '<div class="text-sm font-bold mt-0.5">' + fmt(s.value) + '</div>' +
+        '<div class="text-xs opacity-80">' + s.count + ' item' + (s.count !== 1 ? 's' : '') + '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function renderFinanceInvoices() {
+  if (!_finAllInvoices) return;
+  var statusFilter = (document.getElementById('finInvStatusFilter') || {}).value || '';
+  var list = _finAllInvoices;
+  if (statusFilter) list = list.filter(function(i){ return i.status === statusFilter; });
+  // Sort: overdue first, then by issuedAt desc
+  list = list.slice().sort(function(a, b) {
+    var rank = { Overdue: 0, Issued: 1, Draft: 2, Paid: 3 };
+    var ra = rank[a.status] !== undefined ? rank[a.status] : 4;
+    var rb = rank[b.status] !== undefined ? rank[b.status] : 4;
+    if (ra !== rb) return ra - rb;
+    return b.issuedAt.localeCompare(a.issuedAt);
+  });
+  var tbody = document.getElementById('finInvTable');
+  if (!tbody) return;
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="py-8 text-center text-gray-400">No invoices found</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.slice(0, 50).map(function(inv) {
+    var statusClass = inv.status === 'Paid' ? 'bg-green-100 text-green-700'
+      : inv.status === 'Overdue' ? 'bg-red-100 text-red-700'
+      : 'bg-amber-100 text-amber-700';
+    var markPaidBtn = (inv.status !== 'Paid') ?
+      '<button class="text-xs text-green-600 hover:underline font-semibold" onclick="markInvoicePaidFromFinance(&#39;' + inv.id + '&#39;)">Mark Paid</button>' : '';
+    var overdueBtn = (inv.status === 'Issued' && inv.dueDate && inv.dueDate < new Date().toISOString().slice(0,10)) ?
+      '<button class="text-xs text-red-600 hover:underline font-semibold ml-1" onclick="markInvoiceOverdue(&#39;' + inv.id + '&#39;)">Overdue</button>' : '';
+    return '<tr class="border-b border-gray-50 hover:bg-gray-50">' +
+      '<td class="py-2 pr-3 font-mono text-xs font-semibold text-gray-700">' + inv.invoiceNumber + '</td>' +
+      '<td class="py-2 pr-3 text-xs">' + (inv.jobCardNumber || '—') + '</td>' +
+      '<td class="py-2 pr-3 text-xs truncate max-w-28">' + (inv.customerName || '—') + '</td>' +
+      '<td class="py-2 pr-3 text-xs text-right font-semibold">' + fmt(inv.totalAmount) + '</td>' +
+      '<td class="py-2 pr-3 text-xs text-gray-400">' + (inv.dueDate || '—') + '</td>' +
+      '<td class="py-2 pr-3 text-xs text-gray-400">' + (inv.paidAt ? fmtDate(inv.paidAt) : '—') + '</td>' +
+      '<td class="py-2 pr-3"><span class="badge text-xs ' + statusClass + '">' + inv.status + '</span></td>' +
+      '<td class="py-2 text-xs whitespace-nowrap">' + markPaidBtn + overdueBtn + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+async function markInvoicePaidFromFinance(invId) {
+  if (!confirm('Mark this invoice as Paid?')) return;
+  try {
+    await axios.patch('/api/invoices/' + invId + '/status', {
+      status: 'Paid',
+      paidAt: new Date().toISOString(),
+    });
+    showToast('Invoice marked as Paid!', 'success');
+    loadFinance();
+    loadFinanceSummaryCards();
+    loadInvoices();
+  } catch(e) {
+    showToast('Could not update invoice status', 'error');
+  }
+}
+
+async function markInvoiceOverdue(invId) {
+  try {
+    await axios.patch('/api/invoices/' + invId + '/status', { status: 'Overdue' });
+    showToast('Invoice marked as Overdue', 'warning');
+    loadFinance();
+    loadFinanceSummaryCards();
+  } catch(e) {
+    showToast('Could not update invoice status', 'error');
+  }
+}
+
 // ═══ NOTIFICATIONS ═══
 
 // Priority meta — colours and icons
@@ -5636,7 +6592,7 @@ var NOTIF_META = {
 var NOTIF_TYPE_LABEL = {
   job_created:'Job Created', job_status:'Status Update', job_completed:'Job Completed',
   pfi_created:'PFI Created', pfi_sent:'PFI Sent', pfi_approved:'PFI Approved', pfi_rejected:'PFI Rejected',
-  invoice_created:'Invoice', invoice_paid:'Invoice Paid',
+  invoice_created:'Invoice', invoice_paid:'Invoice Paid', invoice_overdue:'Invoice Overdue',
   appointment_created:'Appointment', appointment_reminder:'Reminder', appointment_cancelled:'Cancelled',
   expense_created:'Expense', expense_approved:'Expense Status',
   low_stock:'Low Stock', parts_added:'Parts Added', service_added:'Service Added',
@@ -5858,25 +6814,17 @@ function escHtml(s) {
 
 // ═══ INIT ═══
 document.getElementById('todayDate').textContent = new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-loadDashboard();
-// Initial notification badge load
-loadNotifDropdown();
-// Poll every 30 seconds for new notifications
-setInterval(function() {
-  axios.get('/api/notifications/summary').then(function(r) {
-    var unread = r.data.unreadCount;
-    var badge   = document.getElementById('notifBadge');
-    var dropBadge = document.getElementById('notifDropBadge');
-    if (unread > 0) {
-      var label = unread > 99 ? '99+' : String(unread);
-      badge.textContent = label; badge.classList.remove('hidden'); badge.classList.add('flex');
-      dropBadge.textContent = label + ' new'; dropBadge.classList.remove('hidden');
-    } else {
-      badge.classList.add('hidden'); badge.classList.remove('flex');
-      dropBadge.classList.add('hidden');
-    }
-  }).catch(function(){});
-}, 30000);
+
+// Try to restore session from localStorage, otherwise show login screen
+(async function() {
+  var loggedIn = await tryAutoLogin();
+  if (loggedIn) {
+    loadDashboard();
+    loadNotifDropdown();
+    startNotifPolling();
+  }
+  // If not logged in, the login screen is already visible (default state)
+})();
 </script>
 </body>
 </html>`;
