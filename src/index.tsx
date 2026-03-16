@@ -5774,8 +5774,8 @@ function showOilBrand(brand, btn) {
   const rows = product.tiers.map((t, i) => {
     const actions = canManage
       ? '<td class="px-4 py-3.5 text-center"><div class="flex items-center justify-center gap-1">' +
-          '<button onclick="showOilTierModal(\'' + brand + '\',' + i + ')" title="Edit" class="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center transition-colors"><i class="fas fa-pen text-xs"></i></button>' +
-          '<button onclick="deleteOilTier(\'' + brand + '\',' + i + ')" title="Delete" class="w-7 h-7 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center transition-colors"><i class="fas fa-trash text-xs"></i></button>' +
+          '<button class="oil-edit-btn w-7 h-7 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center transition-colors" data-idx="' + i + '" title="Edit"><i class="fas fa-pen text-xs"></i></button>' +
+          '<button class="oil-del-btn w-7 h-7 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center transition-colors" data-idx="' + i + '" title="Delete"><i class="fas fa-trash text-xs"></i></button>' +
         '</div></td>'
       : '';
     return '<tr class="border-b hover:bg-gray-50 transition-colors ' + (i % 2 === 0 ? '' : 'bg-gray-50/50') + '">' +
@@ -5792,7 +5792,8 @@ function showOilBrand(brand, btn) {
   const fleetNote = (product.fleetDiscount3to5 > 0 || product.fleetDiscount5plus > 0)
     ? '<div class="p-4 bg-amber-50 border-t border-amber-100"><p class="text-xs text-amber-700 font-semibold"><i class="fas fa-info-circle mr-1"></i>Fleet Discount: TZS ' + fmt(product.fleetDiscount3to5) + '/car for 3\u20135 vehicles | TZS ' + fmt(product.fleetDiscount5plus) + '/car for 5+ vehicles (per service)</p></div>'
     : '';
-  document.getElementById('oilPricingTable').innerHTML =
+  const tableEl = document.getElementById('oilPricingTable');
+  tableEl.innerHTML =
     '<div class="overflow-x-auto"><table class="w-full text-sm">' +
     '<thead><tr class="bg-gray-50 border-b">' +
     '<th class="text-left px-5 py-4 font-bold text-gray-700">Engine Size</th>' +
@@ -5807,6 +5808,13 @@ function showOilBrand(brand, btn) {
     '<tbody>' + rows + '</tbody>' +
     '</table></div>' +
     fleetNote;
+  // Wire up action buttons via event listeners (avoids inline onclick string-escaping)
+  tableEl.querySelectorAll('.oil-edit-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() { showOilTierModal(brand, parseInt(btn.getAttribute('data-idx'), 10)); });
+  });
+  tableEl.querySelectorAll('.oil-del-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() { deleteOilTier(brand, parseInt(btn.getAttribute('data-idx'), 10)); });
+  });
 }
 
 // ═══ OIL TIER MODAL ═══
@@ -6273,8 +6281,9 @@ function renderAddOns(list) {
     Other:       { icon:'fa-wrench',         color:'#64748b', bg:'#f1f5f9' },
   };
   const canManage = can('addons.manage');
+  const grid = document.getElementById('addOnsGrid');
   if (!list.length) {
-    document.getElementById('addOnsGrid').innerHTML =
+    grid.innerHTML =
       '<div class="col-span-3 text-center py-16 text-gray-400">' +
       '<i class="fas fa-tools text-4xl mb-4 block"></i>' +
       '<p class="text-lg font-semibold mb-2">No add-on services yet</p>' +
@@ -6282,14 +6291,14 @@ function renderAddOns(list) {
       '</div>';
     return;
   }
-  document.getElementById('addOnsGrid').innerHTML = list.map(s => {
+  grid.innerHTML = list.map(s => {
     const cfg = catConfig[s.category] || catConfig['Other'];
     const actions = canManage
       ? '<div class="flex items-center gap-2 mt-4 pt-4 border-t">' +
-          '<button class="flex-1 btn-secondary text-sm py-2" onclick="showEditAddonModal(\'' + s.id + '\')"><i class="fas fa-pen mr-1"></i>Edit</button>' +
-          '<button class="flex-1 btn-danger text-sm py-2" onclick="deleteAddon(\'' + s.id + '\',\'' + s.name.replace(/'/g, "\\'") + '\')"><i class="fas fa-trash mr-1"></i>Delete</button>' +
+          '<button class="flex-1 btn-secondary text-sm py-2 addon-edit-btn" data-id="' + s.id + '"><i class="fas fa-pen mr-1"></i>Edit</button>' +
+          '<button class="flex-1 btn-danger text-sm py-2 addon-del-btn" data-id="' + s.id + '"><i class="fas fa-trash mr-1"></i>Delete</button>' +
         '</div>'
-      : '<div class="mt-4 pt-4 border-t"><button class="w-full btn-primary text-sm" onclick="addServiceToJob(\'' + s.name.replace(/'/g, "\\'") + '\', ' + s.price + ', \'' + s.unit + '\')"><i class="fas fa-plus mr-1"></i>Add to Job</button></div>';
+      : '<div class="mt-4 pt-4 border-t"><button class="w-full btn-primary text-sm addon-add-btn" data-id="' + s.id + '"><i class="fas fa-plus mr-1"></i>Add to Job</button></div>';
     return '<div class="card p-6 hover:shadow-lg transition-shadow">' +
       '<div class="flex items-start gap-4 mb-4">' +
         '<div class="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0" style="background:' + cfg.bg + '">' +
@@ -6306,11 +6315,26 @@ function renderAddOns(list) {
           '<p class="text-2xl font-bold text-gray-900">' + fmt(s.price) + '</p>' +
           '<p class="text-xs text-gray-400 mt-0.5">' + s.unit + '</p>' +
         '</div>' +
-        (canManage ? '' : '') +
       '</div>' +
       actions +
     '</div>';
   }).join('');
+  // Attach event listeners using data-id (avoids inline string escaping issues)
+  grid.querySelectorAll('.addon-edit-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() { showEditAddonModal(btn.getAttribute('data-id')); });
+  });
+  grid.querySelectorAll('.addon-del-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      const s = allAddOns.find(function(a) { return a.id === btn.getAttribute('data-id'); });
+      if (s) deleteAddon(s.id, s.name);
+    });
+  });
+  grid.querySelectorAll('.addon-add-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      const s = allAddOns.find(function(a) { return a.id === btn.getAttribute('data-id'); });
+      if (s) addServiceToJob(s.name, s.price, s.unit);
+    });
+  });
 }
 
 // ─── Add-on Modal ─────────────────────────────────────────────────────────────
