@@ -186,10 +186,6 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
     <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('expenses')">
       <i class="fas fa-receipt w-5 text-center"></i> Expenses
     </a>
-    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('notifications')">
-      <i class="fas fa-bell w-5 text-center"></i> Notifications
-      <span id="navNotifBadge" class="ml-auto text-xs bg-red-500 text-white font-bold px-1.5 py-0.5 rounded-full hidden">0</span>
-    </a>
     <p class="text-xs text-blue-300 font-semibold uppercase tracking-widest px-3 pt-3 pb-1">Management</p>
     <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('packages')">
       <i class="fas fa-box-open w-5 text-center"></i> Service Packages
@@ -5666,16 +5662,13 @@ async function loadNotifDropdown() {
   // Update badge
   var badge = document.getElementById('notifBadge');
   var dropBadge = document.getElementById('notifDropBadge');
-  var navBadge = document.getElementById('navNotifBadge');
   if (unread > 0) {
     var label = unread > 99 ? '99+' : String(unread);
     badge.textContent = label; badge.classList.remove('hidden'); badge.classList.add('flex');
     dropBadge.textContent = label + ' new'; dropBadge.classList.remove('hidden');
-    navBadge.textContent = label; navBadge.classList.remove('hidden');
   } else {
     badge.classList.add('hidden'); badge.classList.remove('flex');
     dropBadge.classList.add('hidden');
-    navBadge.classList.add('hidden');
   }
   var el = document.getElementById('notifList');
   if (!list.length) {
@@ -5873,16 +5866,13 @@ setInterval(function() {
   axios.get('/api/notifications/summary').then(function(r) {
     var unread = r.data.unreadCount;
     var badge   = document.getElementById('notifBadge');
-    var navBadge= document.getElementById('navNotifBadge');
     var dropBadge = document.getElementById('notifDropBadge');
     if (unread > 0) {
       var label = unread > 99 ? '99+' : String(unread);
       badge.textContent = label; badge.classList.remove('hidden'); badge.classList.add('flex');
-      navBadge.textContent = label; navBadge.classList.remove('hidden');
       dropBadge.textContent = label + ' new'; dropBadge.classList.remove('hidden');
     } else {
       badge.classList.add('hidden'); badge.classList.remove('flex');
-      navBadge.classList.add('hidden');
       dropBadge.classList.add('hidden');
     }
   }).catch(function(){});
