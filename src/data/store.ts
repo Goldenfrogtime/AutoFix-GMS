@@ -413,17 +413,81 @@ export interface Expense {
 
 
 
-export const customers: Customer[] = []
+export const customers: Customer[] = [
+  { id: 'cust001', name: 'KRISANTA TARIMO',    phone: '0754 321 001', email: 'krisanta@gmail.com',     address: 'Mikocheni, Dar es Salaam',    idNumber: 'TZ-0001234', customerType: 'Individual', createdAt: '2025-10-01T08:00:00Z' },
+  { id: 'cust002', name: 'SHAKILA MSONDE',      phone: '0768 432 112', email: 'shakila@yahoo.com',       address: 'Sinza, Dar es Salaam',        idNumber: 'TZ-0005678', customerType: 'Individual', createdAt: '2025-10-05T09:30:00Z' },
+  { id: 'cust003', name: 'JAMES OCHIENG',       phone: '0712 500 300', email: 'james.o@gmail.com',       address: 'Kariakoo, Dar es Salaam',     idNumber: 'TZ-0009012', customerType: 'Individual', createdAt: '2025-10-10T10:00:00Z' },
+  { id: 'cust004', name: 'FATUMA ALLY',         phone: '0745 678 990', email: 'fatuma.ally@hotmail.com', address: 'Kinondoni, Dar es Salaam',    idNumber: 'TZ-0003456', customerType: 'Individual', createdAt: '2025-10-12T11:00:00Z' },
+  { id: 'cust005', name: 'PETER KAMAU',         phone: '0722 111 222', email: 'pkamau@mail.com',         address: 'Oyster Bay, Dar es Salaam',   idNumber: 'TZ-0007890', customerType: 'Individual', createdAt: '2025-10-15T08:45:00Z' },
+  { id: 'cust006', name: 'AMINA HASSAN',        phone: '0698 333 444', email: 'amina.h@gmail.com',       address: 'Temeke, Dar es Salaam',       idNumber: 'TZ-0002345', customerType: 'Individual', createdAt: '2025-10-18T09:00:00Z' },
+  { id: 'cust007', name: 'SAFARI LOGISTICS LTD', phone: '0222 865 001', email: 'fleet@safarilogistics.co.tz', address: 'Pugu Road, Dar es Salaam', customerType: 'Corporate', companyName: 'Safari Logistics Ltd', contactPerson: 'David Mwenda', taxPin: '123-456-789', createdAt: '2025-09-15T08:00:00Z' },
+  { id: 'cust008', name: 'GRACE MWANGI',        phone: '0756 888 777', email: 'grace.m@gmail.com',       address: 'Msasani, Dar es Salaam',      idNumber: 'TZ-0008888', customerType: 'Individual', createdAt: '2025-11-01T10:00:00Z' },
+  { id: 'cust009', name: 'ALI MOHAMMED',        phone: '0713 999 111', email: 'ali.m@yahoo.com',         address: 'Ilala, Dar es Salaam',        idNumber: 'TZ-0006666', customerType: 'Individual', createdAt: '2025-11-10T08:00:00Z' },
+  { id: 'cust010', name: 'TANZANITE TOURS CO.', phone: '0222 760 200', email: 'admin@tanzanitetours.co.tz', address: 'Upanga, Dar es Salaam',    customerType: 'Corporate', companyName: 'Tanzanite Tours Co.', contactPerson: 'Mary Kimaro', taxPin: '987-654-321', createdAt: '2025-09-20T08:00:00Z' },
+]
 
-export const vehicles: Vehicle[] = []
+export const vehicles: Vehicle[] = [
+  { id: 'veh001', customerId: 'cust001', registrationNumber: 'T550 DQC', make: 'TOYOTA', model: 'RACTIS',      year: 2019, vin: '1HGBH41JXMN109186', engineNumber: 'NCP120-001234', insurer: 'MUA INSURANCE',       createdAt: '2025-10-01T08:10:00Z' },
+  { id: 'veh002', customerId: 'cust002', registrationNumber: 'T383 EGE', make: 'TOYOTA', model: 'VANGUARD',    year: 2012, vin: '9FTEW1CM3AKA12345', engineNumber: '1GR-0023456',   insurer: 'KANGAROO INSURANCE',  createdAt: '2025-10-05T09:40:00Z' },
+  { id: 'veh003', customerId: 'cust003', registrationNumber: 'T111 ABC', make: 'NISSAN', model: 'X-TRAIL',     year: 2017, vin: 'JN1BBNT32U0012345', engineNumber: 'QR25-007654',   insurer: 'JUBILEE INSURANCE',   createdAt: '2025-10-10T10:05:00Z' },
+  { id: 'veh004', customerId: 'cust004', registrationNumber: 'T888 ZZZ', make: 'HONDA',  model: 'FIT',          year: 2016, vin: 'JHMGE88209S018345', engineNumber: 'L13A-091234',   insurer: 'AAR INSURANCE',       createdAt: '2025-10-12T11:10:00Z' },
+  { id: 'veh005', customerId: 'cust005', registrationNumber: 'T200 PQR', make: 'TOYOTA', model: 'LAND CRUISER', year: 2020, vin: 'JTMHX02J304059234', engineNumber: '1VD-0056789',   insurer: 'ZEP-RE INSURANCE',    createdAt: '2025-10-15T08:50:00Z' },
+  { id: 'veh006', customerId: 'cust006', registrationNumber: 'T455 KLM', make: 'SUZUKI', model: 'VITARA',       year: 2018, vin: 'JSAFJB43V00109876', engineNumber: 'K15B-054321',   insurer: 'STRATEGIS INSURANCE', createdAt: '2025-10-18T09:05:00Z' },
+  { id: 'veh007', customerId: 'cust007', registrationNumber: 'T700 FLT', make: 'TOYOTA', model: 'HIACE',        year: 2021, vin: 'JTFSX22P900123456', engineNumber: '2TR-023456',    insurer: 'MUA INSURANCE',       createdAt: '2025-09-15T08:15:00Z' },
+  { id: 'veh008', customerId: 'cust007', registrationNumber: 'T701 FLT', make: 'TOYOTA', model: 'HIACE',        year: 2021, vin: 'JTFSX22P900123457', engineNumber: '2TR-023457',    insurer: 'MUA INSURANCE',       createdAt: '2025-09-15T08:20:00Z' },
+  { id: 'veh009', customerId: 'cust008', registrationNumber: 'T322 GHI', make: 'MAZDA',  model: 'CX-5',         year: 2019, vin: 'JM3KFBBM5K0123456', engineNumber: 'PY-0012345',    insurer: 'JUBILEE INSURANCE',   createdAt: '2025-11-01T10:10:00Z' },
+  { id: 'veh010', customerId: 'cust009', registrationNumber: 'T619 STU', make: 'MITSUBISHI', model: 'OUTLANDER', year: 2015, vin: 'JA4AZ3A39FZ012345', engineNumber: '4J12-034567', insurer: 'ALLIANCE INSURANCE',  createdAt: '2025-11-10T08:05:00Z' },
+  { id: 'veh011', customerId: 'cust010', registrationNumber: 'T900 TZT', make: 'TOYOTA', model: 'PRADO',        year: 2022, vin: 'JTEBX9FJ204012345', engineNumber: '1GR-0098765',   insurer: 'ZANZIBAR INSURANCE',  createdAt: '2025-09-20T08:25:00Z' },
+]
 
-export const jobCards: JobCard[] = []
+export const jobCards: JobCard[] = [
+  { id: 'jc001', jobCardNumber: 'JC-2025-001', vehicleId: 'veh001', customerId: 'cust001', assignedTechnician: 'John Banda',   category: 'Insurance',  claimReference: 'MUA-2025-001', insurer: 'MUA INSURANCE',       assessor: 'Robert Ngowi',   damageDescription: 'Front bumper damage and bonnet dent from collision', inspectionNotes: 'Paintwork needed on bumper and bonnet', status: 'Completed',      createdAt: '2025-11-05T08:00:00Z', updatedAt: '2025-11-15T16:00:00Z' },
+  { id: 'jc002', jobCardNumber: 'JC-2025-002', vehicleId: 'veh002', customerId: 'cust002', assignedTechnician: 'Mike Osei',    category: 'Private',                                                                                                  damageDescription: 'Full major service — oil change, filters, spark plugs, brake fluid', status: 'Completed',      createdAt: '2025-11-08T09:00:00Z', updatedAt: '2025-11-08T17:00:00Z' },
+  { id: 'jc003', jobCardNumber: 'JC-2025-003', vehicleId: 'veh003', customerId: 'cust003', assignedTechnician: 'John Banda',   category: 'Insurance',  claimReference: 'JUB-2025-034', insurer: 'JUBILEE INSURANCE',   assessor: 'Grace Kimani',   damageDescription: 'Rear-end collision — tailgate, rear bumper, lights', inspectionNotes: 'Waiting for spare parts delivery', status: 'Waiting Parts',  createdAt: '2025-11-20T10:00:00Z', updatedAt: '2025-11-21T11:00:00Z' },
+  { id: 'jc004', jobCardNumber: 'JC-2025-004', vehicleId: 'veh004', customerId: 'cust004', assignedTechnician: 'Sam Mbeki',    category: 'Private',                                                                                                  damageDescription: 'Engine oil change, air filter replacement', status: 'Completed',      createdAt: '2025-11-22T08:30:00Z', updatedAt: '2025-11-22T12:00:00Z' },
+  { id: 'jc005', jobCardNumber: 'JC-2025-005', vehicleId: 'veh005', customerId: 'cust005', assignedTechnician: 'Mike Osei',    category: 'Private',                                                                                                  damageDescription: 'Brake pads replacement front and rear, disc inspection', status: 'In Progress',    createdAt: '2025-12-01T09:00:00Z', updatedAt: '2025-12-01T13:00:00Z' },
+  { id: 'jc006', jobCardNumber: 'JC-2025-006', vehicleId: 'veh006', customerId: 'cust006', assignedTechnician: 'Sam Mbeki',    category: 'Insurance',  claimReference: 'STR-2025-012', insurer: 'STRATEGIS INSURANCE', assessor: 'David Mwangi',   damageDescription: 'Side door scrape and mirror damage on passenger side', status: 'Pending Approval', createdAt: '2025-12-02T10:00:00Z', updatedAt: '2025-12-02T10:30:00Z' },
+  { id: 'jc007', jobCardNumber: 'JC-2025-007', vehicleId: 'veh007', customerId: 'cust007', assignedTechnician: 'John Banda',   category: 'Private',                                                                                                  damageDescription: '60,000 km major service — full fluid change, all filters, belts', status: 'Completed',      createdAt: '2025-12-03T07:30:00Z', updatedAt: '2025-12-03T16:30:00Z' },
+  { id: 'jc008', jobCardNumber: 'JC-2025-008', vehicleId: 'veh008', customerId: 'cust007', assignedTechnician: 'Mike Osei',    category: 'Private',                                                                                                  damageDescription: 'Minor service — oil change and basic inspection', status: 'Completed',      createdAt: '2025-12-03T08:00:00Z', updatedAt: '2025-12-03T12:30:00Z' },
+  { id: 'jc009', jobCardNumber: 'JC-2025-009', vehicleId: 'veh009', customerId: 'cust008', assignedTechnician: 'Sam Mbeki',    category: 'Private',                                                                                                  damageDescription: 'AC regas and cabin filter replacement', status: 'Open',           createdAt: '2025-12-04T11:00:00Z', updatedAt: '2025-12-04T11:00:00Z' },
+  { id: 'jc010', jobCardNumber: 'JC-2025-010', vehicleId: 'veh010', customerId: 'cust009', assignedTechnician: 'John Banda',   category: 'Insurance',  claimReference: 'ALL-2025-099', insurer: 'ALLIANCE INSURANCE',  assessor: 'Lina Chebet',    damageDescription: 'Windscreen crack and roof panel damage', status: 'Open',           createdAt: '2025-12-05T09:00:00Z', updatedAt: '2025-12-05T09:00:00Z' },
+  { id: 'jc011', jobCardNumber: 'JC-2025-011', vehicleId: 'veh011', customerId: 'cust010', assignedTechnician: 'Mike Osei',    category: 'Private',                                                                                                  damageDescription: 'Suspension inspection and front shock absorber replacement', status: 'In Progress',    createdAt: '2025-12-05T10:00:00Z', updatedAt: '2025-12-05T14:00:00Z' },
+  { id: 'jc012', jobCardNumber: 'JC-2025-012', vehicleId: 'veh001', customerId: 'cust001', assignedTechnician: 'Sam Mbeki',    category: 'Private',                                                                                                  damageDescription: 'Tyre rotation and balancing, wheel alignment', status: 'Completed',      createdAt: '2025-12-06T08:00:00Z', updatedAt: '2025-12-06T11:00:00Z' },
+]
 
-export const pfis: PFI[] = []
+export const pfis: PFI[] = [
+  { id: 'pfi001', jobCardId: 'jc001', labourCost: 180000, partsCost: 320000, totalEstimate: 500000, status: 'Approved',  notes: 'Bumper replacement + bonnet respray',            createdAt: '2025-11-06T10:00:00Z' },
+  { id: 'pfi003', jobCardId: 'jc003', labourCost: 120000, partsCost: 280000, totalEstimate: 400000, status: 'Submitted', notes: 'Tailgate, rear bumper, rear lights replacement',  createdAt: '2025-11-21T12:00:00Z' },
+  { id: 'pfi006', jobCardId: 'jc006', labourCost:  80000, partsCost: 150000, totalEstimate: 230000, status: 'Draft',     notes: 'Door panel repaint and mirror replacement',       createdAt: '2025-12-02T14:00:00Z' },
+  { id: 'pfi010', jobCardId: 'jc010', labourCost: 200000, partsCost: 350000, totalEstimate: 550000, status: 'Draft',     notes: 'Windscreen replacement and roof panel repair',    createdAt: '2025-12-05T11:00:00Z' },
+]
 
-export const partsConsumption: PartConsumption[] = []
+export const partsConsumption: PartConsumption[] = [
+  { id: 'pc001', jobCardId: 'jc001', partName: 'Front Bumper Assembly',   quantity: 1, unitCost: 180000, totalCost: 180000 },
+  { id: 'pc002', jobCardId: 'jc001', partName: 'Bonnet Panel',            quantity: 1, unitCost: 140000, totalCost: 140000 },
+  { id: 'pc003', jobCardId: 'jc002', partName: 'Engine Oil 5W-30 (4L)',   quantity: 2, unitCost:  85000, totalCost: 170000 },
+  { id: 'pc004', jobCardId: 'jc002', partName: 'Oil Filter',              quantity: 1, unitCost:  22000, totalCost:  22000 },
+  { id: 'pc005', jobCardId: 'jc002', partName: 'Air Filter',              quantity: 1, unitCost:  35000, totalCost:  35000 },
+  { id: 'pc006', jobCardId: 'jc004', partName: 'Engine Oil 10W-30 (4L)',  quantity: 1, unitCost:  80000, totalCost:  80000 },
+  { id: 'pc007', jobCardId: 'jc004', partName: 'Air Filter',              quantity: 1, unitCost:  35000, totalCost:  35000 },
+  { id: 'pc008', jobCardId: 'jc005', partName: 'Brake Pads (Set)',        quantity: 2, unitCost:  75000, totalCost: 150000 },
+  { id: 'pc009', jobCardId: 'jc007', partName: 'Engine Oil 5W-30 (4L)',   quantity: 2, unitCost:  85000, totalCost: 170000 },
+  { id: 'pc010', jobCardId: 'jc007', partName: 'Oil Filter',              quantity: 1, unitCost:  22000, totalCost:  22000 },
+  { id: 'pc011', jobCardId: 'jc007', partName: 'Air Filter',              quantity: 1, unitCost:  35000, totalCost:  35000 },
+  { id: 'pc012', jobCardId: 'jc007', partName: 'Spark Plugs (Set)',       quantity: 1, unitCost:  60000, totalCost:  60000 },
+  { id: 'pc013', jobCardId: 'jc008', partName: 'Engine Oil 5W-30 (4L)',   quantity: 1, unitCost:  85000, totalCost:  85000 },
+  { id: 'pc014', jobCardId: 'jc008', partName: 'Oil Filter',              quantity: 1, unitCost:  22000, totalCost:  22000 },
+  { id: 'pc015', jobCardId: 'jc012', partName: 'Wheel Balance Weights',   quantity: 4, unitCost:   5000, totalCost:  20000 },
+]
 
-export const invoices: Invoice[] = []
+export const invoices: Invoice[] = [
+  { id: 'inv001', jobCardId: 'jc001', invoiceNumber: 'INV-2025-001', labourCost: 180000, partsCost: 320000, tax: 0, totalAmount: 500000, status: 'Paid',    issuedAt: '2025-11-15T16:30:00Z', dueDate: '2025-11-30', paidAt: '2025-11-20T10:00:00Z', claimReference: 'MUA-2025-001', pfiReference: 'pfi001' },
+  { id: 'inv002', jobCardId: 'jc002', invoiceNumber: 'INV-2025-002', labourCost: 150000, partsCost: 227000, tax: 0, totalAmount: 377000, status: 'Paid',    issuedAt: '2025-11-08T17:30:00Z', dueDate: '2025-11-22', paidAt: '2025-11-09T09:00:00Z' },
+  { id: 'inv003', jobCardId: 'jc004', invoiceNumber: 'INV-2025-003', labourCost:  50000, partsCost: 115000, tax: 0, totalAmount: 165000, status: 'Paid',    issuedAt: '2025-11-22T12:30:00Z', dueDate: '2025-12-06', paidAt: '2025-11-22T14:00:00Z' },
+  { id: 'inv004', jobCardId: 'jc007', invoiceNumber: 'INV-2025-004', labourCost: 150000, partsCost: 287000, tax: 0, totalAmount: 437000, status: 'Issued',  issuedAt: '2025-12-03T17:00:00Z', dueDate: '2025-12-17' },
+  { id: 'inv005', jobCardId: 'jc008', invoiceNumber: 'INV-2025-005', labourCost:  50000, partsCost: 107000, tax: 0, totalAmount: 157000, status: 'Paid',    issuedAt: '2025-12-03T13:00:00Z', dueDate: '2025-12-17', paidAt: '2025-12-03T15:00:00Z' },
+  { id: 'inv006', jobCardId: 'jc012', invoiceNumber: 'INV-2025-006', labourCost:  30000, partsCost:  20000, tax: 0, totalAmount:  50000, status: 'Paid',    issuedAt: '2025-12-06T11:30:00Z', dueDate: '2025-12-20', paidAt: '2025-12-06T12:00:00Z' },
+]
 
 export const servicePackages: ServicePackage[] = [
   {
@@ -719,13 +783,39 @@ export interface Appointment {
   updatedAt: string
 }
 
-export const appointments: Appointment[] = []
+export const appointments: Appointment[] = [
+  { id: 'apt001', customerId: 'cust001', vehicleId: 'veh001', serviceType: 'Minor Service',   status: 'Completed',  date: '2025-12-06', time: '09:00', estimatedDuration: 120, assignedTechnician: 'Sam Mbeki',  notes: 'Customer requests Toyota oil only', createdAt: '2025-12-04T10:00:00Z', updatedAt: '2025-12-06T11:00:00Z' },
+  { id: 'apt002', customerId: 'cust003', vehicleId: 'veh003', serviceType: 'Major Service',   status: 'Confirmed',  date: '2025-12-08', time: '08:00', estimatedDuration: 360, assignedTechnician: 'John Banda', notes: 'Full 60k service',                createdAt: '2025-12-04T11:00:00Z', updatedAt: '2025-12-04T11:00:00Z' },
+  { id: 'apt003', customerId: 'cust005', vehicleId: 'veh005', serviceType: 'Brake Service',   status: 'In Progress', date: '2025-12-05', time: '09:00', estimatedDuration: 180, assignedTechnician: 'Mike Osei', notes: 'Rear and front pads',             createdAt: '2025-12-03T09:00:00Z', updatedAt: '2025-12-05T09:00:00Z', jobCardId: 'jc005' },
+  { id: 'apt004', customerId: 'cust008', vehicleId: 'veh009', serviceType: 'Other',           status: 'Scheduled',  date: '2025-12-09', time: '10:00', estimatedDuration: 120, assignedTechnician: 'Sam Mbeki',  notes: 'AC regas followup',               createdAt: '2025-12-04T14:00:00Z', updatedAt: '2025-12-04T14:00:00Z' },
+  { id: 'apt005', customerId: 'cust010', vehicleId: 'veh011', serviceType: 'Major Service',   status: 'Scheduled',  date: '2025-12-10', time: '07:30', estimatedDuration: 300, assignedTechnician: 'Mike Osei', notes: 'Suspension + full check',         createdAt: '2025-12-05T10:00:00Z', updatedAt: '2025-12-05T10:00:00Z' },
+  { id: 'apt006', customerId: 'cust002', vehicleId: 'veh002', serviceType: 'Oil Change',      status: 'Scheduled',  date: '2025-12-11', time: '08:30', estimatedDuration:  60, assignedTechnician: 'John Banda', notes: '10W-30 preferred',                createdAt: '2025-12-05T12:00:00Z', updatedAt: '2025-12-05T12:00:00Z' },
+  { id: 'apt007', customerId: 'cust006', vehicleId: 'veh006', serviceType: 'Diagnosis',       status: 'Cancelled',  date: '2025-12-03', time: '11:00', estimatedDuration: 120, assignedTechnician: 'Sam Mbeki',  notes: 'Customer cancelled day before',   createdAt: '2025-12-01T09:00:00Z', updatedAt: '2025-12-02T16:00:00Z' },
+]
 
 // ─── Job Services (packages / oil / car wash / add-ons added to a job) ────────
-export const jobServices: JobService[] = []
+export const jobServices: JobService[] = [
+  { id: 'js001', jobCardId: 'jc002', category: 'Service Package', serviceId: 'sp2', serviceName: 'Major Service',   quantity: 1, unitCost: 395000, totalCost: 395000, notes: 'Full service with all fluids' },
+  { id: 'js002', jobCardId: 'jc004', category: 'Service Package', serviceId: 'sp1', serviceName: 'Minor Service',   quantity: 1, unitCost: 165000, totalCost: 165000, notes: 'Oil change and basic inspection' },
+  { id: 'js003', jobCardId: 'jc005', category: 'Service Package', serviceId: 'sp3', serviceName: 'Brake Service',   quantity: 1, unitCost: 225000, totalCost: 225000, notes: 'Front and rear brake pads' },
+  { id: 'js004', jobCardId: 'jc007', category: 'Service Package', serviceId: 'sp2', serviceName: 'Major Service',   quantity: 1, unitCost: 395000, totalCost: 395000, notes: '60k km major service' },
+  { id: 'js005', jobCardId: 'jc008', category: 'Service Package', serviceId: 'sp1', serviceName: 'Minor Service',   quantity: 1, unitCost: 165000, totalCost: 165000, notes: 'Quick oil change' },
+  { id: 'js006', jobCardId: 'jc009', category: 'Service Package', serviceId: 'sp5', serviceName: 'AC Service',      quantity: 1, unitCost: 153000, totalCost: 153000, notes: 'AC regas + cabin filter' },
+  { id: 'js007', jobCardId: 'jc011', category: 'Service Package', serviceId: 'sp6', serviceName: 'Suspension Check & Repair', quantity: 1, unitCost: 70000, totalCost: 70000, notes: 'Front shocks inspection' },
+  { id: 'js008', jobCardId: 'jc012', category: 'Service Package', serviceId: 'sp8', serviceName: 'Tyre Rotation & Balancing', quantity: 1, unitCost: 50000, totalCost: 50000, notes: '4-wheel rotation' },
+]
 
 // ─── Expenses ───────────────────────────────────────────────────────────────
-export const expenses: Expense[] = []
+export const expenses: Expense[] = [
+  { id: 'exp001', category: 'Parts & Materials',    description: 'Bulk oil filters stock replenishment',   amount:  280000, vendor: 'Toyota TZ Parts',   receiptRef: 'RCP-001', status: 'Paid',    paidBy: 'John Banda',   date: '2025-11-01', createdAt: '2025-11-01T09:00:00Z', updatedAt: '2025-11-01T09:00:00Z' },
+  { id: 'exp002', category: 'Utilities',             description: 'Electricity bill — November 2025',       amount:  450000, vendor: 'TANESCO',            receiptRef: 'ELC-NOV', status: 'Paid',    paidBy: 'Sam Mbeki',    date: '2025-11-05', createdAt: '2025-11-05T10:00:00Z', updatedAt: '2025-11-05T10:00:00Z' },
+  { id: 'exp003', category: 'Transport & Delivery',  description: 'Courier for spare parts from Nairobi',   amount:   85000, vendor: 'DHL Tanzania',       receiptRef: 'DHL-002', status: 'Paid',    paidBy: 'John Banda',   date: '2025-11-18', createdAt: '2025-11-18T08:00:00Z', updatedAt: '2025-11-18T08:00:00Z' },
+  { id: 'exp004', category: 'Equipment & Tools',     description: 'Hydraulic jack replacement',             amount:  650000, vendor: 'Toolcraft TZ',       receiptRef: 'TCF-045', status: 'Approved', paidBy: 'Mike Osei',    date: '2025-11-25', createdAt: '2025-11-25T11:00:00Z', updatedAt: '2025-11-25T11:00:00Z' },
+  { id: 'exp005', category: 'Rent & Facilities',     description: 'Workshop rent — December 2025',          amount: 1200000, vendor: 'Jamhuri Properties', receiptRef: 'RNT-DEC', status: 'Paid',    paidBy: 'Sam Mbeki',    date: '2025-12-01', createdAt: '2025-12-01T08:00:00Z', updatedAt: '2025-12-01T08:00:00Z' },
+  { id: 'exp006', category: 'Parts & Materials',     description: 'Brake pads and discs bulk order',        amount:  920000, vendor: 'Auto Parts Hub',     receiptRef: 'APH-112', status: 'Paid',    paidBy: 'John Banda',   date: '2025-12-02', createdAt: '2025-12-02T09:00:00Z', updatedAt: '2025-12-02T09:00:00Z' },
+  { id: 'exp007', category: 'Marketing & Admin',     description: 'Business cards and brochure printing',   amount:   95000, vendor: 'Quick Print DSM',    receiptRef: 'QP-089',  status: 'Pending',  date: '2025-12-04', createdAt: '2025-12-04T12:00:00Z', updatedAt: '2025-12-04T12:00:00Z' },
+  { id: 'exp008', category: 'Subcontractor',         description: 'Windscreen fitting specialist — jc010',  amount:  200000, vendor: 'Glass Pro DSM',      receiptRef: 'GP-034',  status: 'Pending', jobCardId: 'jc010', date: '2025-12-05', createdAt: '2025-12-05T10:00:00Z', updatedAt: '2025-12-05T10:00:00Z' },
+]
 
 // ─── Notifications ───────────────────────────────────────────────────────────
 
