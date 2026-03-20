@@ -3700,6 +3700,7 @@ async function showInvoiceModal(jobId, labourCost, partsCost) {
     closeModal('modal-statusUpdate');
     viewJobDetail(jobId);
     showToast('Invoice generated successfully');
+    syncFinance();
   };
 }
 
@@ -5988,13 +5989,9 @@ async function submitPayInvoice() {
     closeModal('modal-payInvoice');
     showToast(isFullyPaid ? 'Invoice fully paid via ' + method + '!' : 'Partial payment of ' + fmt(amount) + ' recorded', 'success');
 
-    // Refresh all relevant views
-    loadInvoices();
-    loadFinanceSummaryCards();
+    // Sync all finance-related views
+    syncFinance();
     if (_piJobId) loadJobDetail(_piJobId);
-    if (typeof loadFinance === 'function' && document.getElementById('page-finance')?.classList.contains('active')) {
-      loadFinance();
-    }
   } catch(e) {
     showToast('Could not record payment', 'error');
   } finally {
@@ -7974,8 +7971,7 @@ async function submitExpense(e) {
     }
     closeModal('modal-expense');
     loadExpenses();
-    // Auto-refresh finance summary
-    loadFinanceSummaryCards();
+    syncFinance();
   } catch(err) { showToast('Failed to save expense', 'error'); }
 }
 
@@ -7985,7 +7981,7 @@ async function deleteExpense(expId) {
     await axios.delete('/api/expenses/' + expId);
     showToast('Expense deleted');
     loadExpenses();
-    loadFinanceSummaryCards();
+    syncFinance();
   } catch(err) { showToast('Failed to delete', 'error'); }
 }
 
@@ -8042,7 +8038,7 @@ function viewExpenseDetail(expId) {
       showToast('Status updated to ' + st);
       closeModal('modal-expenseDetail');
       loadExpenses();
-      loadFinanceSummaryCards();
+      syncFinance();
     });
     statusContainer.appendChild(btn);
   });
@@ -8136,6 +8132,35 @@ async function loadFinanceSummaryCards() {
     }
   } catch(e) {
     // Silently fail – finance cards just won't update
+  }
+}
+
+// ─── Finance Sync Helper ─────────────────────────────────────────────────────
+// Call after ANY invoice or expense mutation. Updates:
+//   1. Dashboard finance summary cards (always)
+//   2. Invoices page table (if currently active)
+//   3. Expenses page (if currently active)
+//   4. Finance page full reload (if currently active)
+async function syncFinance() {
+  // 1. Always refresh dashboard summary cards
+  await loadFinanceSummaryCards();
+
+  // 2. Re-render Invoices page if it's visible
+  var invPage = document.getElementById('page-invoices');
+  if (invPage && invPage.classList.contains('active')) {
+    loadInvoices();
+  }
+
+  // 3. Re-render Expenses page if it's visible
+  var expPage = document.getElementById('page-expenses');
+  if (expPage && expPage.classList.contains('active')) {
+    loadExpenses();
+  }
+
+  // 4. Full Finance page reload if it's visible
+  var finPage = document.getElementById('page-finance');
+  if (finPage && finPage.classList.contains('active')) {
+    loadFinance();
   }
 }
 
@@ -8355,8 +8380,7 @@ async function markInvoiceOverdue(invId) {
   try {
     await axios.patch('/api/invoices/' + invId + '/status', { status: 'Overdue' });
     showToast('Invoice marked as Overdue', 'warning');
-    loadFinance();
-    loadFinanceSummaryCards();
+    syncFinance();
   } catch(e) {
     showToast('Could not update invoice status', 'error');
   }
