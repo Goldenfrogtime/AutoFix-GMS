@@ -177,7 +177,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   ],
 }
 export type PFIStatus = 'Draft' | 'Submitted' | 'Approved' | 'Rejected' | 'Revision Requested' | 'Sent'
-export type InvoiceStatus = 'Draft' | 'Issued' | 'Paid' | 'Overdue'
+export type InvoiceStatus = 'Draft' | 'Issued' | 'Paid' | 'Partially Paid' | 'Overdue'
+export type PaymentMethod = 'Mobile Money' | 'Bank' | 'Lipa Number'
 export type CustomerType = 'Individual' | 'Corporate'
 
 export interface Customer {
@@ -261,6 +262,15 @@ export interface Invoice {
   paidAt?: string         // ISO timestamp when payment was received
   claimReference?: string
   pfiReference?: string
+  paymentMethod?: PaymentMethod        // how the invoice was paid
+  paymentReference?: string            // e.g. M-Pesa code, bank ref, etc.
+  amountPaid?: number                  // total amount received so far (sum of all payments)
+  payments?: {                         // ledger of individual payment transactions
+    amount: number
+    method: PaymentMethod
+    reference?: string
+    paidAt: string
+  }[]
 }
 
 // A service (package / oil service / car wash / add-on) added to a job card

@@ -692,6 +692,8 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Total</th>
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Due Date</th>
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Paid At</th>
+            <th class="text-left px-4 py-3 font-semibold text-gray-600">Payment Method</th>
+            <th class="text-left px-4 py-3 font-semibold text-gray-600">Amount Paid</th>
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Status</th>
           </tr></thead>
           <tbody id="invoicesTable"></tbody>
@@ -866,6 +868,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
               <th class="pb-2 pr-3 text-right">Amount</th>
               <th class="pb-2 pr-3">Due Date</th>
               <th class="pb-2 pr-3">Paid At</th>
+              <th class="pb-2 pr-3">Method</th>
               <th class="pb-2 pr-3">Status</th>
               <th class="pb-2">Actions</th>
             </tr></thead>
@@ -1449,6 +1452,93 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       </button>
       <button onclick="vdViewAllJobs()" class="btn-secondary text-sm flex items-center gap-1.5">
         <i class="fas fa-clipboard-list text-xs"></i> View All Jobs
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Pay Invoice Modal -->
+<div id="modal-payInvoice" class="modal-overlay hidden">
+  <div class="modal-box" style="--mw:520px">
+    <div class="flex items-start justify-between mb-5">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center flex-shrink-0">
+          <i class="fas fa-money-bill-wave text-white"></i>
+        </div>
+        <div>
+          <h3 class="text-xl font-bold text-gray-900">Record Payment</h3>
+          <p class="text-sm text-gray-500 mt-0.5" id="pi-subtitle">Invoice payment</p>
+        </div>
+      </div>
+      <button onclick="closeModal('modal-payInvoice')" class="text-gray-400 hover:text-gray-600 text-xl"><i class="fas fa-times"></i></button>
+    </div>
+
+    <input type="hidden" id="pi-inv-id"/>
+
+    <!-- Invoice summary strip -->
+    <div class="bg-gray-50 rounded-xl p-4 mb-5 grid grid-cols-3 gap-3 text-center" id="pi-summary">
+      <div><p class="text-xs text-gray-400 mb-0.5">Invoice Total</p><p class="text-base font-bold text-gray-800" id="pi-total">—</p></div>
+      <div><p class="text-xs text-gray-400 mb-0.5">Already Paid</p><p class="text-base font-bold text-amber-600" id="pi-already-paid">—</p></div>
+      <div><p class="text-xs text-gray-400 mb-0.5">Balance Due</p><p class="text-base font-bold text-red-600" id="pi-balance">—</p></div>
+    </div>
+
+    <!-- Payment method -->
+    <div class="mb-4">
+      <label class="form-label">Payment Method <span class="text-red-500">*</span></label>
+      <div class="grid grid-cols-3 gap-2" id="pi-method-btns">
+        <button type="button" onclick="piSelectMethod('Mobile Money')"
+          class="pi-method-btn flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 border-gray-200 hover:border-green-400 transition-all text-sm font-semibold text-gray-600"
+          data-method="Mobile Money">
+          <i class="fas fa-mobile-alt text-xl text-gray-400"></i>Mobile Money
+        </button>
+        <button type="button" onclick="piSelectMethod('Bank')"
+          class="pi-method-btn flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 border-gray-200 hover:border-blue-400 transition-all text-sm font-semibold text-gray-600"
+          data-method="Bank">
+          <i class="fas fa-university text-xl text-gray-400"></i>Bank
+        </button>
+        <button type="button" onclick="piSelectMethod('Lipa Number')"
+          class="pi-method-btn flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 border-gray-200 hover:border-purple-400 transition-all text-sm font-semibold text-gray-600"
+          data-method="Lipa Number">
+          <i class="fas fa-hashtag text-xl text-gray-400"></i>Lipa Number
+        </button>
+      </div>
+      <input type="hidden" id="pi-method"/>
+    </div>
+
+    <!-- Amount -->
+    <div class="mb-4">
+      <label class="form-label">Amount Received (TZS) <span class="text-red-500">*</span></label>
+      <input class="form-input font-bold text-lg" type="number" id="pi-amount" placeholder="0" oninput="piUpdateBalance()"/>
+      <div class="flex gap-2 mt-2">
+        <button type="button" onclick="piSetFull()" class="text-xs px-3 py-1 rounded-lg bg-green-50 text-green-700 font-semibold hover:bg-green-100 transition-colors">Full amount</button>
+        <button type="button" onclick="piSetHalf()" class="text-xs px-3 py-1 rounded-lg bg-amber-50 text-amber-700 font-semibold hover:bg-amber-100 transition-colors">50%</button>
+      </div>
+    </div>
+
+    <!-- Reference -->
+    <div class="mb-5">
+      <label class="form-label">Payment Reference <span class="text-gray-400 font-normal text-xs">(optional — M-Pesa code, bank ref, etc.)</span></label>
+      <input class="form-input" type="text" id="pi-reference" placeholder="e.g. QK7XH2A3BZ"/>
+    </div>
+
+    <!-- Balance preview after this payment -->
+    <div class="rounded-xl p-3 mb-5 text-sm hidden" id="pi-remaining-box">
+      <div class="flex justify-between items-center">
+        <span id="pi-remaining-label" class="font-semibold"></span>
+        <span id="pi-remaining-val" class="font-bold text-lg"></span>
+      </div>
+    </div>
+
+    <!-- Payments history (if any previous partial payments) -->
+    <div id="pi-history-box" class="hidden mb-4">
+      <p class="form-label mb-2">Previous Payments</p>
+      <div id="pi-history-list" class="space-y-1 text-xs max-h-32 overflow-y-auto"></div>
+    </div>
+
+    <div class="flex gap-3">
+      <button class="btn-secondary flex-1" onclick="closeModal('modal-payInvoice')">Cancel</button>
+      <button class="btn-primary flex-1" id="pi-submit" onclick="submitPayInvoice()">
+        <i class="fas fa-check mr-1.5"></i> Record Payment
       </button>
     </div>
   </div>
@@ -3070,9 +3160,10 @@ async function viewJobDetail(id) {
             </div>
             \${j.invoice.dueDate ? \`<p class="text-xs text-gray-400 mt-2">Due: \${j.invoice.dueDate}</p>\` : ''}
             \${j.invoice.paidAt ? \`<p class="text-xs text-green-600 mt-1"><i class="fas fa-check-circle mr-1"></i>Paid: \${fmtDate(j.invoice.paidAt)}</p>\` : ''}
+            \${j.invoice.paymentMethod ? \`<p class="text-xs text-gray-500 mt-0.5"><i class="fas fa-credit-card mr-1"></i>\${j.invoice.paymentMethod}\${j.invoice.paymentReference ? ' · ' + j.invoice.paymentReference : ''}</p>\` : ''}
             <div class="mt-2 flex items-center justify-between gap-2">
-              <span class="badge \${j.invoice.status==='Paid'?'bg-green-100 text-green-700':j.invoice.status==='Overdue'?'bg-red-100 text-red-700':'bg-amber-100 text-amber-700'}">\${j.invoice.status}</span>
-              \${j.invoice.status !== 'Paid' ? \`<button class="btn-primary text-xs py-1 px-3" onclick="markInvoicePaid('\${j.invoice.id}','\${j.id}')"><i class="fas fa-check mr-1"></i>Mark Paid</button>\` : ''}
+              <span class="badge \${j.invoice.status==='Paid'?'bg-green-100 text-green-700':j.invoice.status==='Partially Paid'?'bg-amber-100 text-amber-700':j.invoice.status==='Overdue'?'bg-red-100 text-red-700':'bg-gray-100 text-gray-600'}">\${j.invoice.status}</span>
+              \${j.invoice.status !== 'Paid' ? \`<button class="btn-primary text-xs py-1 px-3" onclick="markInvoicePaid('\${j.invoice.id}','\${j.id}')"><i class="fas fa-money-bill-wave mr-1"></i>\${j.invoice.status === 'Partially Paid' ? 'Pay Balance' : 'Record Payment'}</button>\` : ''}
             </div>
           </div>
           <!-- Job P&L Panel -->
@@ -5670,11 +5761,14 @@ function renderClaims(pfis) {
               <button class="btn-danger text-xs flex-1" onclick="updatePFIStatus('\${pfi.id}','Rejected')"><i class="fas fa-times mr-1"></i>Reject</button>
             \` : ''}
             \${pfi.status === 'Draft' ? \`<button class="btn-primary text-xs w-full" onclick="updatePFIStatus('\${pfi.id}','Submitted')"><i class="fas fa-paper-plane mr-1"></i>Submit to Insurer</button>\` : ''}
+            \${pfi.status === 'Approved' && !_pfiHasInvoice(pfi.jobCardId) ? \`<button class="btn-primary text-xs w-full" style="background:#16a34a" onclick="generateInvoiceFromPFI('\${pfi.id}')"><i class="fas fa-receipt mr-1"></i>Generate Invoice</button>\` : ''}
+            \${_pfiHasInvoice(pfi.jobCardId) ? \`<span class="text-xs text-green-600 font-semibold w-full text-center"><i class="fas fa-check-circle mr-1"></i>Invoice Generated</span>\` : ''}
           </div>
           \` : \`
           <div class="flex gap-2">
             \${pfi.status === 'Draft' ? \`<button class="btn-primary text-xs flex-1" onclick="updatePFIStatus('\${pfi.id}','Sent')"><i class="fas fa-paper-plane mr-1"></i>Mark as Sent</button>\` : ''}
-            \${pfi.status === 'Sent' ? \`<span class="text-xs text-green-600 font-semibold"><i class="fas fa-check-circle mr-1"></i>Sent to Customer</span>\` : ''}
+            \${(pfi.status === 'Sent') && !_pfiHasInvoice(pfi.jobCardId) ? \`<button class="btn-primary text-xs flex-1" style="background:#16a34a" onclick="generateInvoiceFromPFI('\${pfi.id}')"><i class="fas fa-receipt mr-1"></i>Generate Invoice</button>\` : ''}
+            \${pfi.status === 'Sent' && _pfiHasInvoice(pfi.jobCardId) ? \`<span class="text-xs text-green-600 font-semibold"><i class="fas fa-check-circle mr-1"></i>Invoice Generated</span>\` : ''}
           </div>
           \`}
           <div class="flex gap-2">
@@ -5728,13 +5822,212 @@ async function updatePFIStatus(pfiId, status) {
   loadClaims();
 }
 
+// ─── PFI → Invoice helpers ────────────────────────────────────────────────────
+function _pfiHasInvoice(jobCardId) {
+  return allInvoices.some(function(i) { return i.jobCardId === jobCardId; });
+}
+
+async function generateInvoiceFromPFI(pfiId) {
+  const pfi = allPFIs.find(function(p) { return p.id === pfiId; });
+  if (!pfi) return;
+  if (_pfiHasInvoice(pfi.jobCardId)) { showToast('Invoice already exists for this job', 'info'); return; }
+  // Open the existing invoice modal pre-filled with PFI values
+  await showInvoiceModal(pfi.jobCardId, pfi.labourCost, pfi.partsCost);
+}
+
+// ─── Pay Invoice Modal ────────────────────────────────────────────────────────
+var _piJobId = null;   // optional job id to refresh after payment
+
+async function showPayInvoiceModal(invId, jobId) {
+  _piJobId = jobId || null;
+  // Fetch fresh invoice data
+  const { data: invList } = await axios.get('/api/invoices');
+  allInvoices = invList;
+  const inv = invList.find(function(i) { return i.id === invId; });
+  if (!inv) return;
+
+  // Populate hidden field
+  document.getElementById('pi-inv-id').value = invId;
+
+  // Subtitle
+  document.getElementById('pi-subtitle').textContent = inv.invoiceNumber + ' · ' + (inv.customerName || '');
+
+  // Summary strip
+  const alreadyPaid = inv.amountPaid || 0;
+  const balance = inv.totalAmount - alreadyPaid;
+  document.getElementById('pi-total').textContent = fmt(inv.totalAmount);
+  document.getElementById('pi-already-paid').textContent = alreadyPaid > 0 ? fmt(alreadyPaid) : 'TZS 0';
+  document.getElementById('pi-balance').textContent = fmt(balance);
+
+  // Reset method selection
+  document.getElementById('pi-method').value = '';
+  document.querySelectorAll('.pi-method-btn').forEach(function(b) {
+    b.className = 'pi-method-btn flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 border-gray-200 hover:border-green-400 transition-all text-sm font-semibold text-gray-600';
+    var icon = b.querySelector('i');
+    if (icon) icon.className = icon.className.replace(/text-\w+-500/, 'text-gray-400');
+  });
+
+  // Pre-fill amount = outstanding balance
+  document.getElementById('pi-amount').value = balance > 0 ? balance : inv.totalAmount;
+  document.getElementById('pi-reference').value = '';
+
+  // Remaining box
+  piUpdateBalance();
+
+  // Payment history
+  const historyBox = document.getElementById('pi-history-box');
+  const historyList = document.getElementById('pi-history-list');
+  if (inv.payments && inv.payments.length) {
+    historyBox.classList.remove('hidden');
+    const methodIcon = function(m) { return m === 'Mobile Money' ? 'fa-mobile-alt' : m === 'Bank' ? 'fa-university' : 'fa-hashtag'; };
+    historyList.innerHTML = inv.payments.map(function(p) {
+      return '<div class="flex items-center justify-between py-1 border-b border-gray-50">' +
+        '<span class="text-gray-500"><i class="fas ' + methodIcon(p.method) + ' mr-1"></i>' + p.method + (p.reference ? ' · ' + p.reference : '') + '</span>' +
+        '<span class="font-semibold text-gray-700">' + fmt(p.amount) + '</span>' +
+        '<span class="text-gray-400">' + (p.paidAt ? new Date(p.paidAt).toLocaleDateString('en-GB',{day:'numeric',month:'short'}) : '') + '</span>' +
+      '</div>';
+    }).join('');
+  } else {
+    historyBox.classList.add('hidden');
+  }
+
+  openModal('modal-payInvoice');
+}
+
+function piSelectMethod(method) {
+  document.getElementById('pi-method').value = method;
+  var colors = { 'Mobile Money': 'green', 'Bank': 'blue', 'Lipa Number': 'purple' };
+  var iconColors = { 'Mobile Money': 'text-green-600', 'Bank': 'text-blue-600', 'Lipa Number': 'text-purple-600' };
+  document.querySelectorAll('.pi-method-btn').forEach(function(b) {
+    var m = b.getAttribute('data-method');
+    var c = colors[m] || 'gray';
+    if (m === method) {
+      b.className = 'pi-method-btn flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 border-' + c + '-500 bg-' + c + '-50 text-' + c + '-700 transition-all text-sm font-semibold';
+      var icon = b.querySelector('i');
+      if (icon) { icon.className = icon.className.replace(/text-\w+-\d+/, ''); icon.classList.add(iconColors[m] || 'text-gray-600'); }
+    } else {
+      b.className = 'pi-method-btn flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 border-gray-200 hover:border-' + c + '-400 transition-all text-sm font-semibold text-gray-600';
+      var icon = b.querySelector('i');
+      if (icon) { icon.className = icon.className.replace(/text-\w+-\d+/, 'text-gray-400'); }
+    }
+  });
+}
+
+function piUpdateBalance() {
+  const invId = document.getElementById('pi-inv-id').value;
+  const inv = allInvoices.find(function(i) { return i.id === invId; });
+  if (!inv) return;
+  const entered = parseFloat(document.getElementById('pi-amount').value) || 0;
+  const alreadyPaid = inv.amountPaid || 0;
+  const totalAfter = alreadyPaid + entered;
+  const remaining = inv.totalAmount - totalAfter;
+  const box = document.getElementById('pi-remaining-box');
+  const lbl = document.getElementById('pi-remaining-label');
+  const val = document.getElementById('pi-remaining-val');
+  if (entered > 0) {
+    box.classList.remove('hidden');
+    if (remaining <= 0) {
+      box.className = 'rounded-xl p-3 mb-5 text-sm bg-green-50 border border-green-200';
+      lbl.textContent = '✓ Fully paid — invoice will be marked Paid';
+      lbl.className = 'font-semibold text-green-700';
+      val.textContent = '';
+    } else {
+      box.className = 'rounded-xl p-3 mb-5 text-sm bg-amber-50 border border-amber-200';
+      lbl.textContent = 'Balance remaining:';
+      lbl.className = 'font-semibold text-amber-700';
+      val.className = 'font-bold text-lg text-amber-700';
+      val.textContent = fmt(remaining);
+    }
+  } else {
+    box.classList.add('hidden');
+  }
+}
+
+function piSetFull() {
+  const invId = document.getElementById('pi-inv-id').value;
+  const inv = allInvoices.find(function(i) { return i.id === invId; });
+  if (!inv) return;
+  document.getElementById('pi-amount').value = inv.totalAmount - (inv.amountPaid || 0);
+  piUpdateBalance();
+}
+
+function piSetHalf() {
+  const invId = document.getElementById('pi-inv-id').value;
+  const inv = allInvoices.find(function(i) { return i.id === invId; });
+  if (!inv) return;
+  document.getElementById('pi-amount').value = Math.round(inv.totalAmount / 2);
+  piUpdateBalance();
+}
+
+async function submitPayInvoice() {
+  const invId = document.getElementById('pi-inv-id').value;
+  const method = document.getElementById('pi-method').value;
+  const amount = parseFloat(document.getElementById('pi-amount').value) || 0;
+  const reference = document.getElementById('pi-reference').value.trim();
+
+  if (!method) { showToast('Please select a payment method', 'error'); return; }
+  if (!amount || amount <= 0) { showToast('Please enter the amount received', 'error'); return; }
+
+  const btn = document.getElementById('pi-submit');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i>Processing…';
+
+  try {
+    await axios.patch('/api/invoices/' + invId + '/status', {
+      paymentMethod: method,
+      paymentReference: reference || undefined,
+      amountPaid: amount,
+      paidAt: new Date().toISOString(),
+    });
+
+    const inv = allInvoices.find(function(i) { return i.id === invId; });
+    const total = inv ? inv.totalAmount : 0;
+    const alreadyPaid = inv ? (inv.amountPaid || 0) : 0;
+    const isFullyPaid = (alreadyPaid + amount) >= total;
+
+    closeModal('modal-payInvoice');
+    showToast(isFullyPaid ? 'Invoice fully paid via ' + method + '!' : 'Partial payment of ' + fmt(amount) + ' recorded', 'success');
+
+    // Refresh all relevant views
+    loadInvoices();
+    loadFinanceSummaryCards();
+    if (_piJobId) loadJobDetail(_piJobId);
+    if (typeof loadFinance === 'function' && document.getElementById('page-finance')?.classList.contains('active')) {
+      loadFinance();
+    }
+  } catch(e) {
+    showToast('Could not record payment', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check mr-1.5"></i> Record Payment';
+  }
+}
+
 // ═══ INVOICES ═══
 async function loadInvoices() {
   const { data } = await axios.get('/api/invoices');
   allInvoices = data;
-  const total = data.filter(i => i.status === 'Paid').reduce((s, i) => s + i.totalAmount, 0);
+  const total = data.filter(i => i.status === 'Paid').reduce((s, i) => s + i.totalAmount, 0)
+              + data.filter(i => i.status === 'Partially Paid').reduce((s, i) => s + (i.amountPaid || 0), 0);
   document.getElementById('totalRevDisplay').textContent = fmt(total);
-  document.getElementById('invoicesTable').innerHTML = data.map(inv => \`
+
+  const methodIcon = (m) => m === 'Mobile Money' ? 'fa-mobile-alt' : m === 'Bank' ? 'fa-university' : m === 'Lipa Number' ? 'fa-hashtag' : '';
+  const methodColor = (m) => m === 'Mobile Money' ? 'text-green-600' : m === 'Bank' ? 'text-blue-600' : m === 'Lipa Number' ? 'text-purple-600' : 'text-gray-500';
+
+  document.getElementById('invoicesTable').innerHTML = data.map(inv => {
+    const statusClass = inv.status === 'Paid' ? 'bg-green-100 text-green-700'
+      : inv.status === 'Partially Paid' ? 'bg-amber-100 text-amber-700'
+      : inv.status === 'Overdue' ? 'bg-red-100 text-red-700'
+      : 'bg-gray-100 text-gray-600';
+    const canPay = inv.status !== 'Paid';
+    const balance = inv.totalAmount - (inv.amountPaid || 0);
+    const methodHtml = inv.paymentMethod
+      ? \`<span class="inline-flex items-center gap-1 text-xs font-semibold \${methodColor(inv.paymentMethod)}"><i class="fas \${methodIcon(inv.paymentMethod)}"></i>\${inv.paymentMethod}</span>\`
+      : '<span class="text-gray-300 text-xs">—</span>';
+    const amountPaidHtml = inv.amountPaid
+      ? \`<span class="font-semibold \${inv.status === 'Paid' ? 'text-green-600' : 'text-amber-600'}">\${fmt(inv.amountPaid)}</span>\`
+      : '<span class="text-gray-300 text-xs">—</span>';
+    return \`
     <tr class="table-row border-b border-gray-50">
       <td class="px-4 py-3 font-bold text-blue-600 text-sm">\${inv.invoiceNumber}</td>
       <td class="px-4 py-3 text-sm font-medium text-gray-700">\${inv.jobCardNumber||'—'}</td>
@@ -5745,12 +6038,16 @@ async function loadInvoices() {
       <td class="px-4 py-3 font-bold text-green-600">\${fmt(inv.totalAmount)}</td>
       <td class="px-4 py-3 text-xs text-gray-400">\${inv.dueDate||'—'}</td>
       <td class="px-4 py-3 text-xs text-gray-400">\${inv.paidAt ? fmtDate(inv.paidAt) : '—'}</td>
+      <td class="px-4 py-3">\${methodHtml}</td>
+      <td class="px-4 py-3">\${amountPaidHtml}</td>
       <td class="px-4 py-3">
-        <span class="badge \${inv.status==='Paid'?'bg-green-100 text-green-700':inv.status==='Overdue'?'bg-red-100 text-red-700':'bg-amber-100 text-amber-700'}">\${inv.status}</span>
-        \${inv.status !== 'Paid' ? \`<button class="ml-2 text-xs text-green-600 hover:underline font-semibold" onclick="markInvoicePaidFromFinance('\${inv.id}')">Mark Paid</button>\` : ''}
+        <div class="flex items-center gap-2 flex-wrap">
+          <span class="badge \${statusClass}">\${inv.status}</span>
+          \${canPay ? \`<button class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition-colors" onclick="showPayInvoiceModal('\${inv.id}')"><i class="fas fa-money-bill-wave mr-1"></i>\${inv.status === 'Partially Paid' ? 'Pay Balance' : 'Record Payment'}</button>\` : ''}
+        </div>
       </td>
-    </tr>
-  \`).join('') || '<tr><td colspan="10" class="text-center py-12 text-gray-400"><i class="fas fa-file-invoice text-3xl mb-3 block"></i>No invoices yet</td></tr>';
+    </tr>\`;
+  }).join('') || '<tr><td colspan="12" class="text-center py-12 text-gray-400"><i class="fas fa-file-invoice text-3xl mb-3 block"></i>No invoices yet</td></tr>';
   // Auto-refresh finance summary cards
   loadFinanceSummaryCards();
 }
@@ -7786,21 +8083,9 @@ async function loadJobExpenses(jobId) {
 }
 
 // ─── Mark Invoice Paid ───────────────────────────────────────────────────────
-async function markInvoicePaid(invId, jobId) {
-  if (!confirm('Mark this invoice as Paid?')) return;
-  try {
-    await axios.patch('/api/invoices/' + invId + '/status', {
-      status: 'Paid',
-      paidAt: new Date().toISOString(),
-    });
-    showToast('Invoice marked as Paid!', 'success');
-    loadJobDetail(jobId);          // refresh job detail
-    loadInvoices();                // refresh invoices page
-    // refresh finance snapshot on dashboard if visible
-    loadFinanceSummaryCards();
-  } catch(e) {
-    showToast('Could not update invoice status', 'error');
-  }
+// Delegates to the pay modal; jobId used to refresh after payment
+function markInvoicePaid(invId, jobId) {
+  showPayInvoiceModal(invId, jobId);
 }
 
 // ─── Job P&L Panel ────────────────────────────────────────────────────────────
@@ -8023,7 +8308,7 @@ function renderFinanceInvoices() {
   if (statusFilter) list = list.filter(function(i){ return i.status === statusFilter; });
   // Sort: overdue first, then by issuedAt desc
   list = list.slice().sort(function(a, b) {
-    var rank = { Overdue: 0, Issued: 1, Draft: 2, Paid: 3 };
+    var rank = { Overdue: 0, Issued: 1, 'Partially Paid': 2, Draft: 3, Paid: 4 };
     var ra = rank[a.status] !== undefined ? rank[a.status] : 4;
     var rb = rank[b.status] !== undefined ? rank[b.status] : 4;
     if (ra !== rb) return ra - rb;
@@ -8037,10 +8322,14 @@ function renderFinanceInvoices() {
   }
   tbody.innerHTML = list.slice(0, 50).map(function(inv) {
     var statusClass = inv.status === 'Paid' ? 'bg-green-100 text-green-700'
+      : inv.status === 'Partially Paid' ? 'bg-amber-100 text-amber-700'
       : inv.status === 'Overdue' ? 'bg-red-100 text-red-700'
-      : 'bg-amber-100 text-amber-700';
-    var markPaidBtn = (inv.status !== 'Paid') ?
-      '<button class="text-xs text-green-600 hover:underline font-semibold" onclick="markInvoicePaidFromFinance(&#39;' + inv.id + '&#39;)">Mark Paid</button>' : '';
+      : 'bg-gray-100 text-gray-600';
+    var methodIcon = inv.paymentMethod === 'Mobile Money' ? 'fa-mobile-alt' : inv.paymentMethod === 'Bank' ? 'fa-university' : inv.paymentMethod === 'Lipa Number' ? 'fa-hashtag' : '';
+    var methodHtml = inv.paymentMethod ? '<span class="text-xs text-gray-500"><i class="fas ' + methodIcon + ' mr-0.5"></i>' + inv.paymentMethod + '</span>' : '';
+    var payBtn = (inv.status !== 'Paid') ?
+      '<button class="text-xs font-semibold px-2 py-0.5 rounded bg-green-50 text-green-700 hover:bg-green-100" onclick="showPayInvoiceModal(&#39;' + inv.id + '&#39;)">' +
+        (inv.status === 'Partially Paid' ? 'Pay Balance' : 'Record Payment') + '</button>' : '';
     var overdueBtn = (inv.status === 'Issued' && inv.dueDate && inv.dueDate < new Date().toISOString().slice(0,10)) ?
       '<button class="text-xs text-red-600 hover:underline font-semibold ml-1" onclick="markInvoiceOverdue(&#39;' + inv.id + '&#39;)">Overdue</button>' : '';
     return '<tr class="border-b border-gray-50 hover:bg-gray-50">' +
@@ -8050,26 +8339,16 @@ function renderFinanceInvoices() {
       '<td class="py-2 pr-3 text-xs text-right font-semibold">' + fmt(inv.totalAmount) + '</td>' +
       '<td class="py-2 pr-3 text-xs text-gray-400">' + (inv.dueDate || '—') + '</td>' +
       '<td class="py-2 pr-3 text-xs text-gray-400">' + (inv.paidAt ? fmtDate(inv.paidAt) : '—') + '</td>' +
+      '<td class="py-2 pr-3 text-xs">' + methodHtml + '</td>' +
       '<td class="py-2 pr-3"><span class="badge text-xs ' + statusClass + '">' + inv.status + '</span></td>' +
-      '<td class="py-2 text-xs whitespace-nowrap">' + markPaidBtn + overdueBtn + '</td>' +
+      '<td class="py-2 text-xs whitespace-nowrap">' + payBtn + overdueBtn + '</td>' +
     '</tr>';
   }).join('');
 }
 
-async function markInvoicePaidFromFinance(invId) {
-  if (!confirm('Mark this invoice as Paid?')) return;
-  try {
-    await axios.patch('/api/invoices/' + invId + '/status', {
-      status: 'Paid',
-      paidAt: new Date().toISOString(),
-    });
-    showToast('Invoice marked as Paid!', 'success');
-    loadFinance();
-    loadFinanceSummaryCards();
-    loadInvoices();
-  } catch(e) {
-    showToast('Could not update invoice status', 'error');
-  }
+// Kept for any legacy call sites — now delegates to the pay modal
+function markInvoicePaidFromFinance(invId) {
+  showPayInvoiceModal(invId);
 }
 
 async function markInvoiceOverdue(invId) {

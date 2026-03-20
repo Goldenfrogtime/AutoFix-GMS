@@ -388,25 +388,74 @@ api.post('/jobcards/:id/invoice', async (c) => {
   return c.json(newInv, 201)
 })
 
-// ─── Invoice: Mark Paid ───────────────────────────────────────────────────────
+// ─── Invoice: Record Payment (full or partial) ────────────────────────────────
 api.patch('/invoices/:id/status', async (c) => {
   const idx = invoices.findIndex(x => x.id === c.req.param('id'))
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
-  const { status, paidAt, dueDate } = await c.req.json<{ status: string; paidAt?: string; dueDate?: string }>()
-  const prev = invoices[idx].status
-  invoices[idx] = {
-    ...invoices[idx],
-    status: status as any,
-    ...(paidAt  ? { paidAt }  : {}),
-    ...(dueDate ? { dueDate } : {}),
+
+  const body = await c.req.json<{
+    status?: string
+    paidAt?: string
+    dueDate?: string
+    // payment fields
+    paymentMethod?: string
+    paymentReference?: string
+    amountPaid?: number       // amount being recorded in this transaction
+  }>()
+
+  const prev = invoices[idx]
+  const prevAmountPaid = prev.amountPaid || 0
+  const newPaymentAmount = body.amountPaid ?? 0
+
+  // Build updated payment ledger entry (if a payment method was provided)
+  const newPayments = prev.payments ? [...prev.payments] : []
+  if (body.paymentMethod && newPaymentAmount > 0) {
+    newPayments.push({
+      amount: newPaymentAmount,
+      method: body.paymentMethod as any,
+      reference: body.paymentReference,
+      paidAt: body.paidAt || now(),
+    })
   }
+
+  const totalAmountPaid = newPayments.reduce((s, p) => s + p.amount, 0)
+
+  // Auto-determine status if not explicitly set
+  let newStatus = (body.status as any) || prev.status
+  if (body.paymentMethod && newPaymentAmount > 0) {
+    if (totalAmountPaid >= prev.totalAmount) {
+      newStatus = 'Paid'
+    } else if (totalAmountPaid > 0) {
+      newStatus = 'Partially Paid'
+    }
+  }
+
+  invoices[idx] = {
+    ...prev,
+    status: newStatus,
+    ...(body.dueDate ? { dueDate: body.dueDate } : {}),
+    ...(body.paymentMethod ? {
+      paymentMethod: body.paymentMethod as any,
+      paymentReference: body.paymentReference,
+    } : {}),
+    amountPaid: totalAmountPaid,
+    payments: newPayments,
+    // paidAt = timestamp of first full payment or latest payment
+    paidAt: newStatus === 'Paid' ? (body.paidAt || now()) : (prev.paidAt || undefined),
+  }
+
   const inv = invoices[idx]
   const jc  = jobCards.find(j => j.id === inv.jobCardId)
-  if (status === 'Paid' && prev !== 'Paid') {
+
+  if (newStatus === 'Paid' && prev.status !== 'Paid') {
     addNotification('invoice_paid', 'success', 'Invoice Paid',
-      `${inv.invoiceNumber} – TZS ${inv.totalAmount.toLocaleString()} received${jc ? ' for ' + jc.jobCardNumber : ''}`,
+      `${inv.invoiceNumber} – TZS ${inv.totalAmount.toLocaleString()} received via ${inv.paymentMethod || 'payment'}${jc ? ' for ' + jc.jobCardNumber : ''}`,
       { jobCardId: jc?.id, jobCardNumber: jc?.jobCardNumber, entityId: inv.id, entityType: 'invoice' })
-  } else if (status === 'Overdue') {
+  } else if (newStatus === 'Partially Paid') {
+    addNotification('invoice_paid', 'info', 'Partial Payment Received',
+      `${inv.invoiceNumber} – TZS ${totalAmountPaid.toLocaleString()} of TZS ${inv.totalAmount.toLocaleString()} received${jc ? ' for ' + jc.jobCardNumber : ''}`,
+      { jobCardId: jc?.id, jobCardNumber: jc?.jobCardNumber, entityId: inv.id, entityType: 'invoice' })
+  } else if (newStatus === 'Overdue') {
     addNotification('invoice_overdue', 'error', 'Invoice Overdue',
       `${inv.invoiceNumber} – TZS ${inv.totalAmount.toLocaleString()} is now overdue${jc ? ' (' + jc.jobCardNumber + ')' : ''}`,
       { jobCardId: jc?.id, jobCardNumber: jc?.jobCardNumber, entityId: inv.id, entityType: 'invoice' })
@@ -430,13 +479,15 @@ api.get('/finance/summary', (c) => {
 
   const totalInvoiced  = allInv.reduce((s, i) => s + i.totalAmount, 0)
   const paidInvoices   = allInv.filter(i => i.status === 'Paid')
+  const partialInvoices = allInv.filter(i => i.status === 'Partially Paid')
   const totalPaid      = paidInvoices.reduce((s, i) => s + i.totalAmount, 0)
-  const outstanding    = allInv.filter(i => i.status === 'Issued' || i.status === 'Draft')
-                               .reduce((s, i) => s + i.totalAmount, 0)
+                       + partialInvoices.reduce((s, i) => s + (i.amountPaid || 0), 0)
+  const outstanding    = allInv.filter(i => i.status === 'Issued' || i.status === 'Draft' || i.status === 'Partially Paid')
+                               .reduce((s, i) => s + (i.totalAmount - (i.amountPaid || 0)), 0)
   const overdue        = allInv.filter(i => i.status === 'Overdue').reduce((s, i) => s + i.totalAmount, 0)
   const paidCount      = paidInvoices.length
   const overdueCount   = allInv.filter(i => i.status === 'Overdue').length
-  const outstandingCount = allInv.filter(i => i.status === 'Issued' || i.status === 'Draft').length
+  const outstandingCount = allInv.filter(i => i.status === 'Issued' || i.status === 'Draft' || i.status === 'Partially Paid').length
 
   // ── Pipeline: from open Job Cards that don't yet have an invoice ──────────
   const invoicedJobIds = new Set(allInv.map(i => i.jobCardId))
@@ -658,8 +709,8 @@ api.delete('/users/:id', (c) => {
 
 // ─── Analytics ───────────────────────────────────────────────────────────────
 api.get('/analytics', (c) => {
-  const paid = invoices.filter(i => i.status === 'Paid')
-  const totalRevenue = paid.reduce((s, i) => s + i.totalAmount, 0)
+  const paid = invoices.filter(i => i.status === 'Paid' || i.status === 'Partially Paid')
+  const totalRevenue = paid.reduce((s, i) => s + (i.amountPaid || i.totalAmount), 0)
   const totalLabour = paid.reduce((s, i) => s + i.labourCost, 0)
   const totalParts = paid.reduce((s, i) => s + i.partsCost, 0)
   const totalCost = totalLabour + totalParts
