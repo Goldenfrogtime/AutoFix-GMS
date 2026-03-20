@@ -184,6 +184,13 @@ api.put('/vehicles/:id', async (c) => {
   return c.json(vehicles[idx])
 })
 
+api.delete('/vehicles/:id', (c) => {
+  const idx = vehicles.findIndex(x => x.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  vehicles.splice(idx, 1)
+  return c.json({ success: true })
+})
+
 // ─── Job Cards ───────────────────────────────────────────────────────────────
 api.get('/jobcards', (c) => {
   const status = c.req.query('status')

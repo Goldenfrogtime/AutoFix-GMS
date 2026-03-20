@@ -1354,6 +1354,106 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
   </div>
 </div>
 
+<!-- ═══ MODAL: Vehicle Detail / Edit ═══ -->
+<div id="modal-vehicleDetail" class="modal-overlay hidden">
+  <div class="modal-box" style="--mw:700px">
+    <!-- Header -->
+    <div class="flex items-start justify-between mb-5">
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center flex-shrink-0">
+          <i class="fas fa-car text-white text-lg"></i>
+        </div>
+        <div>
+          <h3 class="text-xl font-bold text-gray-900" id="vd-reg-title">—</h3>
+          <p class="text-sm text-gray-500 mt-0.5" id="vd-make-model-title">—</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <!-- View / Edit toggle -->
+        <button id="vd-edit-btn" onclick="vdEnableEdit()" class="btn-secondary text-sm flex items-center gap-1.5"><i class="fas fa-pen text-xs"></i> Edit</button>
+        <button id="vd-save-btn" onclick="vdSave()" class="btn-primary text-sm hidden flex items-center gap-1.5"><i class="fas fa-save text-xs"></i> Save</button>
+        <button id="vd-cancel-btn" onclick="vdCancelEdit()" class="btn-secondary text-sm hidden">Cancel</button>
+        <button onclick="closeModal('modal-vehicleDetail')" class="text-gray-400 hover:text-gray-600 text-xl ml-1"><i class="fas fa-times"></i></button>
+      </div>
+    </div>
+
+    <input type="hidden" id="vd-id"/>
+
+    <!-- Fields grid — view mode shows text, edit mode shows inputs -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5" id="vd-fields">
+      <!-- Owner -->
+      <div>
+        <label class="form-label">Owner</label>
+        <p class="vd-view-text form-input bg-gray-50 cursor-default" id="vd-view-owner">—</p>
+        <select class="form-input vd-edit-field hidden" id="vd-edit-owner"></select>
+      </div>
+      <!-- Reg Number -->
+      <div>
+        <label class="form-label">Registration Number</label>
+        <p class="vd-view-text form-input bg-gray-50 cursor-default font-bold text-blue-700" id="vd-view-reg">—</p>
+        <input class="form-input vd-edit-field hidden" id="vd-edit-reg" placeholder="T123 ABC"/>
+      </div>
+      <!-- Make -->
+      <div>
+        <label class="form-label">Make</label>
+        <p class="vd-view-text form-input bg-gray-50 cursor-default" id="vd-view-make">—</p>
+        <input class="form-input vd-edit-field hidden" id="vd-edit-make" placeholder="Toyota"/>
+      </div>
+      <!-- Model -->
+      <div>
+        <label class="form-label">Model</label>
+        <p class="vd-view-text form-input bg-gray-50 cursor-default" id="vd-view-model">—</p>
+        <input class="form-input vd-edit-field hidden" id="vd-edit-model" placeholder="Corolla"/>
+      </div>
+      <!-- Year -->
+      <div>
+        <label class="form-label">Year</label>
+        <p class="vd-view-text form-input bg-gray-50 cursor-default" id="vd-view-year">—</p>
+        <input class="form-input vd-edit-field hidden" type="number" id="vd-edit-year" min="1980" max="2030"/>
+      </div>
+      <!-- Insurer -->
+      <div>
+        <label class="form-label">Insurance Company</label>
+        <p class="vd-view-text form-input bg-gray-50 cursor-default" id="vd-view-insurer">—</p>
+        <input class="form-input vd-edit-field hidden" id="vd-edit-insurer" placeholder="e.g. Jubilee Insurance"/>
+      </div>
+      <!-- VIN -->
+      <div>
+        <label class="form-label">VIN / Chassis Number</label>
+        <p class="vd-view-text form-input bg-gray-50 cursor-default font-mono text-xs" id="vd-view-vin">—</p>
+        <input class="form-input vd-edit-field hidden font-mono" id="vd-edit-vin" placeholder="17-character VIN"/>
+      </div>
+      <!-- Engine -->
+      <div>
+        <label class="form-label">Engine Number</label>
+        <p class="vd-view-text form-input bg-gray-50 cursor-default font-mono text-xs" id="vd-view-engine">—</p>
+        <input class="form-input vd-edit-field hidden font-mono" id="vd-edit-engine" placeholder="Engine number"/>
+      </div>
+    </div>
+
+    <!-- Job History -->
+    <div class="border-t pt-4">
+      <div class="flex items-center justify-between mb-3">
+        <h4 class="text-sm font-bold text-gray-700 flex items-center gap-2"><i class="fas fa-clipboard-list text-blue-500"></i> Service History</h4>
+        <span class="text-xs text-gray-400" id="vd-job-count">—</span>
+      </div>
+      <div id="vd-job-list" class="space-y-2 max-h-52 overflow-y-auto">
+        <p class="text-sm text-gray-400 text-center py-4">Loading…</p>
+      </div>
+    </div>
+
+    <!-- Footer actions -->
+    <div class="flex items-center justify-between border-t pt-4 mt-4">
+      <button onclick="vdDeleteVehicle()" class="flex items-center gap-1.5 text-sm text-red-500 hover:text-red-700 font-semibold transition-colors" id="vd-delete-btn">
+        <i class="fas fa-trash text-xs"></i> Delete Vehicle
+      </button>
+      <button onclick="vdViewAllJobs()" class="btn-secondary text-sm flex items-center gap-1.5">
+        <i class="fas fa-clipboard-list text-xs"></i> View All Jobs
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- Send PFI Modal -->
 <div id="modal-sendPFI" class="modal-overlay hidden">
   <div class="modal-box" style="--mw:640px">
@@ -4237,29 +4337,243 @@ async function loadVehicles() {
 }
 
 function renderVehicles(list) {
-  document.getElementById('vehiclesTable').innerHTML = list.map(v => \`
-    <tr class="table-row border-b border-gray-50">
-      <td class="px-4 py-3"><span class="font-bold text-blue-600 text-sm">\${v.registrationNumber}</span></td>
-      <td class="px-4 py-3"><span class="font-semibold text-gray-800">\${v.make}</span><span class="text-gray-500"> \${v.model}</span></td>
-      <td class="px-4 py-3 text-gray-600">\${v.year}</td>
-      <td class="px-4 py-3 text-sm text-gray-700">\${v.customerName||'—'}</td>
-      <td class="px-4 py-3 text-sm text-gray-600">\${v.insurer||'—'}</td>
-      <td class="px-4 py-3 font-mono text-xs text-gray-400">\${v.vin||'—'}</td>
-      <td class="px-4 py-3">
-        <button class="text-blue-500 hover:text-blue-700 text-sm mr-2" title="View jobs" onclick="showPage('jobcards')"><i class="fas fa-clipboard-list"></i></button>
-      </td>
-    </tr>
-  \`).join('');
+  const tbody = document.getElementById('vehiclesTable');
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-12 text-gray-400"><i class="fas fa-car text-3xl mb-3 block"></i>No vehicles found</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(function(v) {
+    return '<tr class="table-row border-b border-gray-50 hover:bg-blue-50/30 cursor-pointer transition-colors veh-row" data-id="' + v.id + '">' +
+      '<td class="px-4 py-3"><span class="font-bold text-blue-600 text-sm hover:underline">' + v.registrationNumber + '</span></td>' +
+      '<td class="px-4 py-3"><span class="font-semibold text-gray-800">' + v.make + '</span><span class="text-gray-500"> ' + v.model + '</span></td>' +
+      '<td class="px-4 py-3 text-gray-600">' + v.year + '</td>' +
+      '<td class="px-4 py-3 text-sm text-gray-700">' + (v.customerName || '—') + '</td>' +
+      '<td class="px-4 py-3 text-sm text-gray-600">' + (v.insurer ? v.insurer.trim() : '—') + '</td>' +
+      '<td class="px-4 py-3 font-mono text-xs text-gray-400">' + (v.vin || '—') + '</td>' +
+      '<td class="px-4 py-3 veh-actions" onclick="event.stopPropagation()">' +
+        '<div class="flex items-center gap-1">' +
+          '<button class="veh-detail-btn w-7 h-7 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center transition-colors" data-id="' + v.id + '" title="View / Edit"><i class="fas fa-eye text-xs"></i></button>' +
+          '<button class="veh-edit-btn w-7 h-7 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 flex items-center justify-center transition-colors" data-id="' + v.id + '" title="Edit"><i class="fas fa-pen text-xs"></i></button>' +
+          '<button class="veh-del-btn w-7 h-7 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center transition-colors" data-id="' + v.id + '" title="Delete"><i class="fas fa-trash text-xs"></i></button>' +
+        '</div>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+
+  // Row click → open detail
+  tbody.querySelectorAll('.veh-row').forEach(function(row) {
+    row.addEventListener('click', function() { openVehicleDetail(row.getAttribute('data-id')); });
+  });
+  // View button
+  tbody.querySelectorAll('.veh-detail-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() { openVehicleDetail(btn.getAttribute('data-id')); });
+  });
+  // Edit button → open detail in edit mode immediately
+  tbody.querySelectorAll('.veh-edit-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() { openVehicleDetail(btn.getAttribute('data-id'), true); });
+  });
+  // Delete button
+  tbody.querySelectorAll('.veh-del-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() { deleteVehicleById(btn.getAttribute('data-id')); });
+  });
 }
 
 function filterVehicles(q) {
   const lq = q.toLowerCase();
-  renderVehicles(allVehicles.filter(v => v.registrationNumber.toLowerCase().includes(lq) || v.make.toLowerCase().includes(lq) || v.model.toLowerCase().includes(lq) || (v.customerName||'').toLowerCase().includes(lq)));
+  renderVehicles(allVehicles.filter(function(v) {
+    return v.registrationNumber.toLowerCase().includes(lq) ||
+      v.make.toLowerCase().includes(lq) ||
+      v.model.toLowerCase().includes(lq) ||
+      (v.customerName || '').toLowerCase().includes(lq);
+  }));
+}
+
+// ── Vehicle Detail Modal ──────────────────────────────────────────────────────
+let _vdVehicle = null;
+
+async function openVehicleDetail(id, editMode) {
+  const v = allVehicles.find(function(x) { return x.id === id; });
+  if (!v) return;
+  _vdVehicle = v;
+
+  // Ensure customers loaded
+  if (!allCustomers.length) { const { data } = await axios.get('/api/customers'); allCustomers = data; }
+
+  // Populate header
+  document.getElementById('vd-reg-title').textContent = v.registrationNumber;
+  document.getElementById('vd-make-model-title').textContent = v.make + ' ' + v.model + ' · ' + v.year;
+  document.getElementById('vd-id').value = v.id;
+
+  // Populate view fields
+  document.getElementById('vd-view-owner').textContent   = v.customerName || '—';
+  document.getElementById('vd-view-reg').textContent     = v.registrationNumber;
+  document.getElementById('vd-view-make').textContent    = v.make;
+  document.getElementById('vd-view-model').textContent   = v.model;
+  document.getElementById('vd-view-year').textContent    = v.year;
+  document.getElementById('vd-view-insurer').textContent = v.insurer ? v.insurer.trim() : '—';
+  document.getElementById('vd-view-vin').textContent     = v.vin || '—';
+  document.getElementById('vd-view-engine').textContent  = v.engineNumber || '—';
+
+  // Populate edit fields
+  document.getElementById('vd-edit-owner').innerHTML = allCustomers.map(function(c) {
+    return '<option value="' + c.id + '"' + (c.id === v.customerId ? ' selected' : '') + '>' + c.name + '</option>';
+  }).join('');
+  document.getElementById('vd-edit-reg').value     = v.registrationNumber;
+  document.getElementById('vd-edit-make').value    = v.make;
+  document.getElementById('vd-edit-model').value   = v.model;
+  document.getElementById('vd-edit-year').value    = v.year;
+  document.getElementById('vd-edit-insurer').value = v.insurer ? v.insurer.trim() : '';
+  document.getElementById('vd-edit-vin').value     = v.vin || '';
+  document.getElementById('vd-edit-engine').value  = v.engineNumber || '';
+
+  // Set view vs edit mode
+  vdSetEditMode(!!editMode);
+
+  // Load job history
+  vdLoadJobHistory(v.id);
+
+  openModal('modal-vehicleDetail');
+}
+
+function vdSetEditMode(edit) {
+  document.querySelectorAll('.vd-view-text').forEach(function(el) { el.classList.toggle('hidden', edit); });
+  document.querySelectorAll('.vd-edit-field').forEach(function(el) { el.classList.toggle('hidden', !edit); });
+  document.getElementById('vd-edit-btn').classList.toggle('hidden', edit);
+  document.getElementById('vd-save-btn').classList.toggle('hidden', !edit);
+  document.getElementById('vd-cancel-btn').classList.toggle('hidden', !edit);
+}
+
+function vdEnableEdit() { vdSetEditMode(true); }
+
+function vdCancelEdit() { vdSetEditMode(false); }
+
+async function vdSave() {
+  const id = document.getElementById('vd-id').value;
+  const customerId = document.getElementById('vd-edit-owner').value;
+  const reg  = document.getElementById('vd-edit-reg').value.trim().toUpperCase();
+  const make = document.getElementById('vd-edit-make').value.trim().toUpperCase();
+  const model= document.getElementById('vd-edit-model').value.trim().toUpperCase();
+  const year = parseInt(document.getElementById('vd-edit-year').value) || 0;
+  const insurer = document.getElementById('vd-edit-insurer').value.trim();
+  const vin  = document.getElementById('vd-edit-vin').value.trim();
+  const engineNumber = document.getElementById('vd-edit-engine').value.trim();
+
+  if (!reg)  { showToast('Registration number is required', 'error'); return; }
+  if (!make) { showToast('Make is required', 'error'); return; }
+  if (!model){ showToast('Model is required', 'error'); return; }
+  if (!year) { showToast('Year is required', 'error'); return; }
+
+  try {
+    const { data } = await axios.put('/api/vehicles/' + id, { customerId, registrationNumber: reg, make, model, year, insurer, vin, engineNumber });
+    showToast('Vehicle updated successfully');
+    // Update local cache
+    const idx = allVehicles.findIndex(function(x) { return x.id === id; });
+    if (idx !== -1) {
+      const owner = allCustomers.find(function(c) { return c.id === customerId; });
+      allVehicles[idx] = { ...allVehicles[idx], ...data, customerName: owner ? owner.name : allVehicles[idx].customerName };
+    }
+    _vdVehicle = allVehicles[idx];
+    // Update header + view fields
+    document.getElementById('vd-reg-title').textContent = reg;
+    document.getElementById('vd-make-model-title').textContent = make + ' ' + model + ' · ' + year;
+    document.getElementById('vd-view-owner').textContent   = allCustomers.find(function(c){ return c.id===customerId; })?.name || '—';
+    document.getElementById('vd-view-reg').textContent     = reg;
+    document.getElementById('vd-view-make').textContent    = make;
+    document.getElementById('vd-view-model').textContent   = model;
+    document.getElementById('vd-view-year').textContent    = year;
+    document.getElementById('vd-view-insurer').textContent = insurer || '—';
+    document.getElementById('vd-view-vin').textContent     = vin || '—';
+    document.getElementById('vd-view-engine').textContent  = engineNumber || '—';
+    vdSetEditMode(false);
+    renderVehicles(allVehicles);
+  } catch(err) {
+    showToast(err.response?.data?.error || 'Failed to update vehicle', 'error');
+  }
+}
+
+async function vdLoadJobHistory(vehicleId) {
+  const listEl = document.getElementById('vd-job-list');
+  const countEl = document.getElementById('vd-job-count');
+  listEl.innerHTML = '<p class="text-sm text-gray-400 text-center py-3"><i class="fas fa-spinner fa-spin mr-1"></i>Loading…</p>';
+  try {
+    const { data: jobs } = await axios.get('/api/jobcards');
+    const vJobs = jobs.filter(function(j) { return j.vehicleId === vehicleId; });
+    countEl.textContent = vJobs.length + ' job' + (vJobs.length !== 1 ? 's' : '');
+    if (!vJobs.length) {
+      listEl.innerHTML = '<p class="text-sm text-gray-400 text-center py-4 italic">No service history yet</p>';
+      return;
+    }
+    const STATUS_COLORS = {
+      'Open': '#2563eb', 'In Progress': '#d97706', 'Completed': '#16a34a',
+      'Waiting Parts': '#7c3aed', 'Pending Approval': '#0891b2', 'Closed': '#64748b'
+    };
+    listEl.innerHTML = vJobs.sort(function(a, b) { return b.createdAt.localeCompare(a.createdAt); }).map(function(j) {
+      const sc = STATUS_COLORS[j.status] || '#64748b';
+      return '<div class="flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors vd-job-item" data-jid="' + j.id + '">' +
+        '<div class="w-2 h-2 rounded-full flex-shrink-0" style="background:' + sc + '"></div>' +
+        '<div class="flex-1 min-w-0">' +
+          '<p class="text-sm font-semibold text-blue-600">' + j.jobCardNumber + '</p>' +
+          '<p class="text-xs text-gray-500 truncate">' + (j.serviceType || '—') + ' · ' + (j.createdAt ? j.createdAt.substring(0,10) : '') + '</p>' +
+        '</div>' +
+        '<span class="text-xs font-semibold px-2 py-0.5 rounded-full flex-shrink-0" style="background:' + sc + '20;color:' + sc + '">' + j.status + '</span>' +
+      '</div>';
+    }).join('');
+    // Wire job item clicks → open job card detail
+    listEl.querySelectorAll('.vd-job-item').forEach(function(el) {
+      el.addEventListener('click', function() {
+        closeModal('modal-vehicleDetail');
+        showPage('jobcards');
+        setTimeout(function() { viewJobDetail(el.getAttribute('data-jid')); }, 300);
+      });
+    });
+  } catch(e) {
+    listEl.innerHTML = '<p class="text-sm text-red-400 text-center py-3">Could not load job history</p>';
+  }
+}
+
+function vdViewAllJobs() {
+  if (!_vdVehicle) return;
+  closeModal('modal-vehicleDetail');
+  showPage('jobcards');
+  // Filter job cards by this vehicle's reg number after navigation
+  setTimeout(function() {
+    const searchEl = document.getElementById('jobSearch');
+    if (searchEl) { searchEl.value = _vdVehicle.registrationNumber; filterJobCards(_vdVehicle.registrationNumber); }
+  }, 300);
+}
+
+async function vdDeleteVehicle() {
+  if (!_vdVehicle) return;
+  if (!confirm('Delete vehicle ' + _vdVehicle.registrationNumber + '? This cannot be undone.')) return;
+  try {
+    await axios.delete('/api/vehicles/' + _vdVehicle.id);
+    showToast(_vdVehicle.registrationNumber + ' deleted');
+    closeModal('modal-vehicleDetail');
+    allVehicles = allVehicles.filter(function(x) { return x.id !== _vdVehicle.id; });
+    renderVehicles(allVehicles);
+    _vdVehicle = null;
+  } catch(err) {
+    showToast('Failed to delete vehicle', 'error');
+  }
+}
+
+async function deleteVehicleById(id) {
+  const v = allVehicles.find(function(x) { return x.id === id; });
+  if (!v) return;
+  if (!confirm('Delete vehicle ' + v.registrationNumber + '? This cannot be undone.')) return;
+  try {
+    await axios.delete('/api/vehicles/' + id);
+    showToast(v.registrationNumber + ' deleted');
+    allVehicles = allVehicles.filter(function(x) { return x.id !== id; });
+    renderVehicles(allVehicles);
+  } catch(err) {
+    showToast('Failed to delete vehicle', 'error');
+  }
 }
 
 async function showNewVehicleModal() {
   if (!allCustomers.length) { const { data } = await axios.get('/api/customers'); allCustomers = data; }
-  document.getElementById('veh-customerId').innerHTML = '<option value="">Select customer…</option>' + allCustomers.map(c => \`<option value="\${c.id}">\${c.name}</option>\`).join('');
+  document.getElementById('veh-customerId').innerHTML = '<option value="">Select customer…</option>' + allCustomers.map(function(c) { return '<option value="' + c.id + '">' + c.name + '</option>'; }).join('');
   openModal('modal-newVehicle');
 }
 
