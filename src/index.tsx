@@ -822,32 +822,33 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 
       <!-- KPI Cards Row 1: Invoice metrics -->
       <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-5" id="finInvCards">
-        <div class="card p-4 text-center fin-kpi-card">
+        <div class="card p-4 text-center fin-kpi-card cursor-pointer hover:shadow-md hover:ring-2 hover:ring-gray-200 transition-all" onclick="navToInvoices('all')" title="View all invoices">
           <div class="text-xs text-gray-500 mb-1 font-medium">Total Invoiced</div>
           <div class="text-lg font-bold text-gray-900" id="finTotalInvoiced">—</div>
           <div class="text-xs text-gray-400 mt-0.5" id="finTotalInvoicedCount"></div>
+          <div class="text-xs text-indigo-500 mt-1 font-semibold opacity-0 group-hover:opacity-100"><i class="fas fa-arrow-right text-[10px] mr-0.5"></i>View</div>
         </div>
-        <div class="card p-4 text-center fin-kpi-card border-l-4 border-green-400">
+        <div class="card p-4 text-center fin-kpi-card border-l-4 border-green-400 cursor-pointer hover:shadow-md hover:ring-2 hover:ring-green-100 transition-all" onclick="navToInvoices('Paid')" title="View paid invoices">
           <div class="text-xs text-gray-500 mb-1 font-medium">Collected</div>
           <div class="text-lg font-bold text-green-600" id="finCollected">—</div>
           <div class="text-xs text-gray-400 mt-0.5" id="finCollectedCount"></div>
         </div>
-        <div class="card p-4 text-center fin-kpi-card border-l-4 border-amber-400">
+        <div class="card p-4 text-center fin-kpi-card border-l-4 border-amber-400 cursor-pointer hover:shadow-md hover:ring-2 hover:ring-amber-100 transition-all" onclick="navToInvoices('outstanding')" title="View outstanding invoices">
           <div class="text-xs text-gray-500 mb-1 font-medium">Outstanding</div>
           <div class="text-lg font-bold text-amber-600" id="finOutstanding">—</div>
           <div class="text-xs text-gray-400 mt-0.5" id="finOutstandingCount"></div>
         </div>
-        <div class="card p-4 text-center fin-kpi-card border-l-4 border-red-400">
+        <div class="card p-4 text-center fin-kpi-card border-l-4 border-red-400 cursor-pointer hover:shadow-md hover:ring-2 hover:ring-red-100 transition-all" onclick="navToInvoices('Overdue')" title="View overdue invoices">
           <div class="text-xs text-gray-500 mb-1 font-medium">Overdue</div>
           <div class="text-lg font-bold text-red-600" id="finOverdue">—</div>
           <div class="text-xs text-gray-400 mt-0.5" id="finOverdueCount"></div>
         </div>
-        <div class="card p-4 text-center fin-kpi-card border-l-4 border-purple-400">
+        <div class="card p-4 text-center fin-kpi-card border-l-4 border-purple-400 cursor-pointer hover:shadow-md hover:ring-2 hover:ring-purple-100 transition-all" onclick="showPage('jobs')" title="View pipeline job cards">
           <div class="text-xs text-gray-500 mb-1 font-medium">Pipeline</div>
           <div class="text-lg font-bold text-purple-600" id="finPipeline">—</div>
           <div class="text-xs text-gray-400 mt-0.5" id="finPipelineCount"></div>
         </div>
-        <div class="card p-4 text-center fin-kpi-card border-l-4 border-blue-400">
+        <div class="card p-4 text-center fin-kpi-card border-l-4 border-blue-400 cursor-pointer hover:shadow-md hover:ring-2 hover:ring-blue-100 transition-all" onclick="showPage('appointments')" title="View bookings">
           <div class="text-xs text-gray-500 mb-1 font-medium">Bookings</div>
           <div class="text-lg font-bold text-blue-600" id="finBookings">—</div>
           <div class="text-xs text-gray-400 mt-0.5" id="finBookingsCount"></div>
@@ -864,7 +865,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
           <div class="text-xl font-bold text-gray-900" id="finGrossIncome">—</div>
           <div class="text-xs text-gray-400 mt-1">From paid invoices</div>
         </div>
-        <div class="card p-4">
+        <div class="card p-4 cursor-pointer hover:shadow-md hover:ring-2 hover:ring-red-100 transition-all" onclick="showPage('expenses')" title="View all expenses">
           <div class="flex items-center gap-2 mb-2">
             <div class="w-8 h-8 rounded-full bg-red-100 flex items-center justify-center"><i class="fas fa-arrow-down text-red-600 text-xs"></i></div>
             <span class="text-sm text-gray-500 font-medium">Total Expenses</span>
@@ -6268,6 +6269,12 @@ async function submitPayInvoice() {
 // ═══ INVOICES ═══
 var _invCurrentFilter = 'all';
 
+// Navigate to Invoices page and immediately apply a status filter
+function navToInvoices(filter) {
+  _invCurrentFilter = filter;   // set filter BEFORE showPage triggers loadInvoices
+  showPage('invoices');
+}
+
 async function loadInvoices() {
   const { data } = await axios.get('/api/invoices');
   allInvoices = data;
@@ -6287,8 +6294,8 @@ async function loadInvoices() {
   el('invStatOverdue',     overdueCount);
   el('invStatOutstanding', outstandingCount);
 
-  // Render with current filter
-  _renderInvoicesTable(data, _invCurrentFilter);
+  // Render with current filter AND sync tab button styles
+  invFilterBy(_invCurrentFilter);
 
   // Auto-refresh finance summary cards
   loadFinanceSummaryCards();
