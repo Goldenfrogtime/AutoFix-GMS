@@ -193,7 +193,10 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <p class="text-xs text-gray-500 font-semibold mb-1"><i class="fas fa-info-circle mr-1 text-blue-400"></i>Default Admin Credentials</p>
       <p class="text-xs text-gray-600">Email: <strong>admin@autofix.co.tz</strong></p>
       <p class="text-xs text-gray-600">Password: <strong>Admin2025!</strong></p>
-      <p class="text-xs text-gray-400 mt-1">Change these in Users & Roles after first login</p>
+      <button type="button" onclick="fillDefaultCredentials()" class="mt-2 text-xs px-3 py-1 rounded-lg text-blue-600 font-medium hover:bg-blue-50 border border-blue-200 transition-colors">
+        <i class="fas fa-magic mr-1"></i>Auto-fill credentials
+      </button>
+      <p class="text-xs text-gray-400 mt-1">Change these in Users &amp; Roles after first login</p>
     </div>
   </div>
 </div>
@@ -3100,10 +3103,41 @@ let statusChart = null, revenueChart = null, insurerChart = null;
 var currentUser = null;
 var currentPermissions = [];
 var authToken = localStorage.getItem('gms_token') || '';
+var _sessionExpiredShown = false;
+var _notifInterval = null;
 
 function can(perm) {
   return currentPermissions.includes(perm);
 }
+
+// Global axios interceptor: catch 401 responses anywhere in the app
+// and force the user back to the login screen with a clear message
+axios.interceptors.response.use(
+  function(response) { return response; },
+  function(error) {
+    if (error.response && error.response.status === 401 &&
+        error.config && !error.config.url.includes('/api/auth/login') &&
+        !error.config.url.includes('/api/auth/me') &&
+        currentUser !== null && !_sessionExpiredShown) {
+      _sessionExpiredShown = true;
+      // Clear session state
+      localStorage.removeItem('gms_token');
+      authToken = '';
+      currentUser = null;
+      currentPermissions = [];
+      delete axios.defaults.headers.common['Authorization'];
+      if (_notifInterval) { clearInterval(_notifInterval); _notifInterval = null; }
+      // Hide app, show login with message
+      document.getElementById('appShell').style.display = 'none';
+      document.getElementById('loginScreen').style.display = '';
+      var errEl = document.getElementById('loginError');
+      errEl.textContent = 'Your session has expired. Please sign in again.';
+      errEl.classList.remove('hidden');
+      setTimeout(function() { _sessionExpiredShown = false; }, 3000);
+    }
+    return Promise.reject(error);
+  }
+);
 
 function applyNavPermissions() {
   document.querySelectorAll('[data-perm]').forEach(function(el) {
@@ -3136,6 +3170,13 @@ function togglePasswordVisibility() {
   else { inp.type = 'password'; icon.className = 'fas fa-eye'; }
 }
 
+function fillDefaultCredentials() {
+  document.getElementById('loginEmail').value = 'admin@autofix.co.tz';
+  document.getElementById('loginPassword').value = 'Admin2025!';
+  document.getElementById('loginError').classList.add('hidden');
+  document.getElementById('loginEmail').focus();
+}
+
 async function doLogin(e) {
   e.preventDefault();
   var email = document.getElementById('loginEmail').value;
@@ -3164,7 +3205,14 @@ async function doLogin(e) {
     // Start notification polling
     startNotifPolling();
   } catch(err) {
-    var msg = err.response?.data?.error || 'Login failed. Please try again.';
+    var msg;
+    if (!err.response) {
+      msg = 'Cannot reach the server. Please check your connection and try again.';
+    } else if (err.response.status === 401) {
+      msg = err.response.data?.error || 'Invalid email or password.';
+    } else {
+      msg = err.response.data?.error || 'Login failed. Please try again.';
+    }
     errEl.textContent = msg;
     errEl.classList.remove('hidden');
   } finally {
@@ -3189,6 +3237,9 @@ async function doLogout() {
 
 async function tryAutoLogin() {
   if (!authToken) return false;
+  // Show a subtle "Restoring session..." hint on the login button while we check
+  var btn = document.getElementById('loginBtn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Restoring session…'; }
   try {
     axios.defaults.headers.common['Authorization'] = 'Bearer ' + authToken;
     var meRes = await axios.get('/api/auth/me');
@@ -3203,11 +3254,20 @@ async function tryAutoLogin() {
     localStorage.removeItem('gms_token');
     authToken = '';
     delete axios.defaults.headers.common['Authorization'];
+    // Only show "session expired" if we actually had a token (not first-ever visit)
+    var errEl = document.getElementById('loginError');
+    if (errEl) {
+      errEl.textContent = 'Previous session expired. Please sign in again.';
+      errEl.classList.remove('hidden');
+      // Auto-hide after 5 seconds
+      setTimeout(function() { errEl.classList.add('hidden'); }, 5000);
+    }
     return false;
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Sign In'; }
   }
 }
 
-var _notifInterval = null;
 function startNotifPolling() {
   if (_notifInterval) clearInterval(_notifInterval);
   _notifInterval = setInterval(function() {
@@ -5328,19 +5388,27 @@ function custPickerFilter(ns) {
   if (!matches.length) {
     list.innerHTML = '<li class="cust-picker-empty">No customers found</li>';
   } else {
+    // Use data-cid attribute — avoids any quote-escaping inside HTML attributes
     list.innerHTML = matches.map(function(c) {
       var isCorp = c.customerType === 'Corporate';
       var badge  = isCorp
         ? '<span class="cust-picker-badge cust-picker-badge--corp"><i class="fas fa-building"></i> Corp</span>'
         : '<span class="cust-picker-badge cust-picker-badge--indiv"><i class="fas fa-user"></i> Indiv</span>';
       var sub = isCorp && c.companyName ? c.companyName : (c.phone || '');
-      return '<li class="cust-picker-item" onmousedown="custPickerSelect(\'' + ns + '\',\'' + c.id + '\')">' +
+      return '<li class="cust-picker-item" data-cid="' + c.id + '">' +
         '<div class="cust-picker-item-main">' +
           '<span class="cust-picker-item-name">' + c.name + '</span>' + badge +
         '</div>' +
         (sub ? '<div class="cust-picker-item-sub">' + sub + '</div>' : '') +
       '</li>';
     }).join('');
+    // Attach mousedown via JS — no inline handler strings needed
+    list.querySelectorAll('.cust-picker-item').forEach(function(li) {
+      li.addEventListener('mousedown', function(e) {
+        e.preventDefault();
+        custPickerSelect(ns, li.getAttribute('data-cid'));
+      });
+    });
   }
   list.classList.remove('hidden');
 }
