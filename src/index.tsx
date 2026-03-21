@@ -1030,7 +1030,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <!-- Table -->
       <div class="card overflow-hidden">
         <div class="table-scroll">
-          <table class="w-full text-sm" style="min-width:900px">
+          <table class="w-full text-sm" style="min-width:980px">
             <thead><tr class="border-b border-gray-100 bg-gray-50">
               <th class="text-left px-4 py-3 font-semibold text-gray-600">Brand</th>
               <th class="text-left px-4 py-3 font-semibold text-gray-600">Description</th>
@@ -1041,6 +1041,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
               <th class="text-right px-4 py-3 font-semibold text-gray-600">Sell Price</th>
               <th class="text-right px-4 py-3 font-semibold text-gray-600">Margin</th>
               <th class="text-right px-4 py-3 font-semibold text-gray-600">Margin %</th>
+              <th class="text-center px-4 py-3 font-semibold text-gray-600">Service Interval</th>
               <th class="text-right px-4 py-3 font-semibold text-gray-600">In Stock</th>
               <th class="text-center px-4 py-3 font-semibold text-gray-600">Actions</th>
             </tr></thead>
@@ -1340,6 +1341,37 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         <div class="mb-4"><label class="form-label">Assessor Name</label><input class="form-input" id="job-assessor" placeholder="e.g. Thomas Mlay"/></div>
       </div>
       <div class="mb-4"><label class="form-label">Damage / Service Description</label><textarea class="form-input" id="job-damage" rows="3" required placeholder="Describe the damage or service required…"></textarea></div>
+
+      <!-- Vehicle Intake Readings -->
+      <div class="mb-4 p-4 bg-blue-50 rounded-xl border border-blue-100">
+        <p class="text-xs font-bold text-blue-700 uppercase tracking-wide mb-3"><i class="fas fa-tachometer-alt mr-1.5"></i>Vehicle Intake Readings</p>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="form-label">Current Mileage (km)</label>
+            <div class="relative">
+              <input class="form-input pr-10" type="number" id="job-mileage" placeholder="e.g. 75000" min="0"/>
+              <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-medium">km</span>
+            </div>
+          </div>
+          <div>
+            <label class="form-label">Fuel Level</label>
+            <div class="grid grid-cols-5 gap-1.5 mt-1" id="fuelLevelBtns">
+              <button type="button" data-fuel="Empty" onclick="selectFuelLevel('Empty')"
+                class="fuel-btn py-1.5 rounded-lg border-2 border-gray-200 text-xs font-bold text-gray-500 hover:border-red-400 hover:bg-red-50 transition-all">E</button>
+              <button type="button" data-fuel="1/4" onclick="selectFuelLevel('1/4')"
+                class="fuel-btn py-1.5 rounded-lg border-2 border-gray-200 text-xs font-bold text-gray-500 hover:border-orange-400 hover:bg-orange-50 transition-all">¼</button>
+              <button type="button" data-fuel="1/2" onclick="selectFuelLevel('1/2')"
+                class="fuel-btn py-1.5 rounded-lg border-2 border-gray-200 text-xs font-bold text-gray-500 hover:border-amber-400 hover:bg-amber-50 transition-all">½</button>
+              <button type="button" data-fuel="3/4" onclick="selectFuelLevel('3/4')"
+                class="fuel-btn py-1.5 rounded-lg border-2 border-gray-200 text-xs font-bold text-gray-500 hover:border-green-400 hover:bg-green-50 transition-all">¾</button>
+              <button type="button" data-fuel="Full" onclick="selectFuelLevel('Full')"
+                class="fuel-btn py-1.5 rounded-lg border-2 border-gray-200 text-xs font-bold text-gray-500 hover:border-green-600 hover:bg-green-50 transition-all">F</button>
+            </div>
+            <input type="hidden" id="job-fuelLevel"/>
+          </div>
+        </div>
+      </div>
+
       <div class="mb-6"><label class="form-label">Initial Inspection Notes</label><textarea class="form-input" id="job-notes" rows="2" placeholder="Technician inspection notes…"></textarea></div>
       <div class="flex gap-3 justify-end">
         <button type="button" class="btn-secondary" onclick="closeModal('modal-newJob')">Cancel</button>
@@ -2392,7 +2424,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       </div>
       <div>
         <label class="form-label">Type *</label>
-        <select class="form-input" id="lub-type">
+        <select class="form-input" id="lub-type" onchange="lubTypeChanged()">
           <option value="">Select type…</option>
           <option>Engine Oil</option><option>Gear Oil</option><option>Transmission Fluid</option>
           <option>Brake Fluid</option><option>Power Steering Fluid</option><option>Coolant</option>
@@ -2423,7 +2455,11 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         <label class="form-label">Initial Stock (units)</label>
         <input class="form-input" type="number" id="lub-stock" placeholder="0" min="0"/>
       </div>
-      <div class="flex items-end pb-1">
+      <div id="lub-intervalRow" class="hidden">
+        <label class="form-label">Service Interval (km) <span class="text-gray-400 font-normal">— Engine & Transmission oils</span></label>
+        <input class="form-input" type="number" id="lub-interval" placeholder="e.g. 5000, 7500, 10000" min="0"/>
+      </div>
+      <div class="flex items-end pb-1" id="lub-marginBox">
         <div class="hidden text-sm rounded-xl px-3 py-2 bg-green-50 border border-green-100 w-full" id="lub-marginPreview">
           <span class="text-gray-500">Margin: </span><span class="font-bold text-green-700" id="lub-marginAmt"></span>
           <span class="ml-2 font-bold text-green-600" id="lub-marginPct"></span>
@@ -3374,6 +3410,34 @@ async function viewJobDetail(id) {
             \${j.vehicle?.insurer ? \`<div class="flex justify-between"><span class="text-gray-400">Insurer</span><span class="font-semibold text-xs text-right max-w-28">\${j.vehicle.insurer}</span></div>\` : ''}
           </div>
         </div>
+        <!-- Intake Readings & Next Service -->
+        \${(j.mileageIn || j.fuelLevel || j.nextServiceMileage) ? \`
+        <div class="card p-5 border-l-4 border-blue-400">
+          <h4 class="font-bold text-gray-800 mb-3"><i class="fas fa-tachometer-alt text-blue-500 mr-2"></i>Intake Readings</h4>
+          <div class="space-y-2.5 text-sm">
+            \${j.mileageIn ? \`
+            <div class="flex justify-between items-center">
+              <span class="text-gray-500"><i class="fas fa-road mr-1.5 text-blue-400"></i>Mileage In</span>
+              <span class="font-bold text-gray-800">\${j.mileageIn.toLocaleString()} km</span>
+            </div>\` : ''}
+            \${j.fuelLevel ? \`
+            <div class="flex justify-between items-center">
+              <span class="text-gray-500"><i class="fas fa-gas-pump mr-1.5 text-amber-400"></i>Fuel Level</span>
+              <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold \${ {'Empty':'bg-red-100 text-red-700','1/4':'bg-orange-100 text-orange-700','1/2':'bg-amber-100 text-amber-700','3/4':'bg-green-100 text-green-700','Full':'bg-emerald-100 text-emerald-700'}[j.fuelLevel] || 'bg-gray-100 text-gray-600'}">\${j.fuelLevel}</span>
+            </div>\` : ''}
+            \${j.nextServiceMileage ? \`
+            <div class="mt-2 pt-2 border-t border-blue-100">
+              <div class="flex justify-between items-start">
+                <span class="text-gray-500"><i class="fas fa-calendar-check mr-1.5 text-green-500"></i>Next Service</span>
+                <div class="text-right">
+                  <p class="font-bold text-green-700">\${j.nextServiceMileage.toLocaleString()} km</p>
+                  \${j.nextServiceLubricant ? \`<p class="text-xs text-gray-400 mt-0.5">\${j.nextServiceLubricant}</p>\` : ''}
+                </div>
+              </div>
+            </div>\` : ''}
+          </div>
+        </div>\` : ''}
+
         <!-- PFI -->
         \${j.pfi ? \`
           <div class="card p-5">
@@ -3980,6 +4044,7 @@ let _allServicePackagesCache = [];
 let _allOilProductsCache = [];
 let _allCarWashCache = [];
 let _allAddOnsCache = [];
+let _allLubricantsForSvc = [];
 
 async function showAddServiceModal(jobId) {
   _svcJobId = jobId;
@@ -3988,16 +4053,18 @@ async function showAddServiceModal(jobId) {
   setModalWidth('#modal-statusUpdate', 680);
   // Load all catalogues in parallel (cache after first load)
   if (!_allServicePackagesCache.length) {
-    const [pkgs, oil, cw, ao] = await Promise.all([
+    const [pkgs, oil, cw, ao, lub] = await Promise.all([
       axios.get('/api/packages'),
       axios.get('/api/catalogue/oil'),
       axios.get('/api/catalogue/carwash'),
       axios.get('/api/catalogue/addons'),
+      axios.get('/api/catalogue/lubricants'),
     ]);
     _allServicePackagesCache = pkgs.data;
     _allOilProductsCache     = oil.data;
     _allCarWashCache         = cw.data;
     _allAddOnsCache          = ao.data;
+    _allLubricantsForSvc     = lub.data;
   }
   _renderAddServiceModal();
 }
@@ -4100,74 +4167,91 @@ async function _selectPackage(pkgId) {
   showToast('\u2714 ' + pkg.packageName + ' added to job');
 }
 
-// ── Tab: Oil Service ───────────────────────────────────────────────
+// ── Tab: Oil Service (Lubricants Catalogue) ───────────────────────
+let _oilSvcTypeFilter = 'Engine Oil';
+
 function _renderOilTab(el) {
-  const brands = _allOilProductsCache;
-  // Build brand tabs
-  const brandBtns = brands.map((b, i) =>
-    '<button onclick="_switchOilBrand(' + i + ')" id="oil-brand-' + i + '" class="px-3 py-1.5 rounded-lg text-xs font-semibold ' +
-    (i === 0 ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200') + '">' + b.brand + '</button>'
+  const lubTypes = ['Engine Oil', 'Transmission Fluid', 'Gear Oil', 'Brake Fluid', 'Power Steering Fluid', 'Coolant'];
+  const typeBtns = lubTypes.map(t =>
+    '<button data-oil-type="' + t + '" class="px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap ' +
+    (t === _oilSvcTypeFilter ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200') + '">' + t + '</button>'
   ).join('');
 
-  el.innerHTML =
-    '<div class="flex gap-2 mb-3">' + brandBtns + '</div>' +
-    '<div id="oil-tiers-content"></div>';
-  _renderOilTiers(0);
-}
+  const filtered = _allLubricantsForSvc.filter(l => l.lubricantType === _oilSvcTypeFilter && l.stockQuantity > 0);
+  const allFiltered = _allLubricantsForSvc.filter(l => l.lubricantType === _oilSvcTypeFilter);
+  const outOfStock  = _allLubricantsForSvc.filter(l => l.lubricantType === _oilSvcTypeFilter && l.stockQuantity === 0);
 
-function _switchOilBrand(idx) {
-  document.querySelectorAll('#svc-tab-content button[id^="oil-brand-"]').forEach((btn, i) => {
-    btn.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold ' +
-      (i === idx ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200');
-  });
-  _renderOilTiers(idx);
-}
-
-function _renderOilTiers(brandIdx) {
-  const brand = _allOilProductsCache[brandIdx];
-  if (!brand) return;
-  const el = document.getElementById('oil-tiers-content');
-  if (!el) return;
-  let html = '<div class="space-y-2 max-h-56 overflow-y-auto pr-1">';
-  brand.tiers.forEach(tier => {
-    html += '<div class="border border-gray-200 rounded-xl p-3">' +
-      '<div class="flex items-center justify-between mb-2">' +
-        '<p class="text-sm font-semibold text-gray-700">' + tier.engineSize + '</p>' +
-      '</div>' +
-      '<div class="oil-tier-grid">' +
-        ['Standard','Prestige','Premier'].map(tname => {
-          const price = tier[tname.toLowerCase() + 'Price'];
-          return '<button data-oil-brand="' + brand.brand + '" data-oil-size="' + tier.engineSize + '" data-oil-tier="' + tname + '" data-oil-price="' + price + '" ' +
-            'class="flex flex-col items-center py-2 px-1 rounded-lg border border-gray-200 hover:border-amber-400 hover:bg-amber-50 transition-colors cursor-pointer">' +
-            '<span class="text-xs font-semibold text-gray-600">' + tname + '</span>' +
-            '<span class="text-sm font-bold text-gray-900 mt-0.5">' + fmt(price) + '</span>' +
-            '</button>';
-        }).join('') +
+  let rows = '';
+  filtered.forEach(l => {
+    const hasInterval = l.mileageInterval && l.lubricantType !== 'Brake Fluid' && l.lubricantType !== 'Power Steering Fluid' && l.lubricantType !== 'Coolant';
+    rows += '<div data-lub-id="' + l.id + '" class="lub-svc-row border border-gray-200 rounded-xl p-3 hover:border-amber-400 hover:bg-amber-50 transition-colors cursor-pointer">' +
+      '<div class="flex items-start justify-between gap-2">' +
+        '<div class="flex-1 min-w-0">' +
+          '<div class="flex items-center gap-2 mb-1">' +
+            '<span class="text-xs font-bold px-2 py-0.5 rounded-full" style="background:#fef3c7;color:#92400e">' + l.brand + '</span>' +
+            '<p class="text-sm font-semibold text-gray-800 truncate">' + l.description + '</p>' +
+          '</div>' +
+          '<div class="flex items-center gap-3 text-xs text-gray-500">' +
+            '<span><i class="fas fa-vials mr-1"></i>' + (l.viscosity || '—') + '</span>' +
+            '<span><i class="fas fa-box mr-1"></i>' + (l.volume || '—') + '</span>' +
+            (hasInterval ? '<span class="text-blue-600 font-semibold"><i class="fas fa-tachometer-alt mr-1"></i>Every ' + l.mileageInterval.toLocaleString() + ' km</span>' : '') +
+          '</div>' +
+        '</div>' +
+        '<div class="text-right flex-shrink-0">' +
+          '<p class="font-bold text-gray-900 text-sm">' + fmt(l.sellingPrice) + '</p>' +
+          '<p class="text-xs text-green-600">In Stock: ' + l.stockQuantity + '</p>' +
+        '</div>' +
       '</div>' +
     '</div>';
   });
-  html += '</div>';
-  el.innerHTML = html;
-  // Wire up oil tier buttons via data attributes
-  el.querySelectorAll('[data-oil-brand]').forEach(btn => {
-    btn.addEventListener('click', () => _addOilService(
-      btn.dataset.oilBrand, btn.dataset.oilSize, btn.dataset.oilTier, +btn.dataset.oilPrice
-    ));
+
+  if (outOfStock.length && !filtered.length) {
+    rows = '<p class="text-center text-gray-400 text-sm py-6"><i class="fas fa-exclamation-triangle text-amber-400 text-xl mb-2 block"></i>All ' + _oilSvcTypeFilter + ' items are out of stock</p>';
+  } else if (!allFiltered.length) {
+    rows = '<p class="text-center text-gray-400 text-sm py-6"><i class="fas fa-box-open text-2xl mb-2 block"></i>No ' + _oilSvcTypeFilter + ' items in catalogue</p>';
+  }
+
+  el.innerHTML =
+    '<div class="flex gap-1.5 flex-wrap mb-3">' + typeBtns + '</div>' +
+    '<div class="space-y-2 max-h-64 overflow-y-auto pr-1">' + rows + '</div>';
+
+  // Wire type filter buttons
+  el.querySelectorAll('[data-oil-type]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _oilSvcTypeFilter = btn.dataset.oilType;
+      _renderOilTab(document.getElementById('svc-tab-content'));
+    });
+  });
+
+  // Wire lubricant row clicks
+  el.querySelectorAll('.lub-svc-row').forEach(row => {
+    row.addEventListener('click', () => _addLubricantService(row.dataset.lubId));
   });
 }
 
-async function _addOilService(brand, engineSize, tier, price) {
+async function _addLubricantService(lubId) {
+  const lub = _allLubricantsForSvc.find(l => l.id === lubId);
+  if (!lub) return;
+  const hasInterval = !!(lub.mileageInterval);
   await axios.post('/api/jobcards/' + _svcJobId + '/services', {
     category: 'Oil Service',
-    serviceId: 'oil-' + brand.toLowerCase(),
-    serviceName: brand + ' Oil Service – ' + tier,
-    description: engineSize + ' engine',
-    quantity: 1, unitCost: price, totalCost: price,
-    notes: brand + ' · ' + tier + ' · ' + engineSize
+    serviceId: lub.id,
+    lubricantId: lub.id,
+    serviceName: lub.description,
+    description: lub.lubricantType + (lub.viscosity ? ' · ' + lub.viscosity : '') + (lub.volume ? ' · ' + lub.volume : ''),
+    quantity: 1,
+    unitCost: lub.sellingPrice,
+    totalCost: lub.sellingPrice,
+    notes: lub.brand + (lub.viscosity ? ' · ' + lub.viscosity : '') + (hasInterval ? ' · ' + lub.mileageInterval.toLocaleString() + ' km interval' : '')
   });
+  // Also deduct stock
+  try { await axios.patch('/api/catalogue/lubricants/' + lub.id + '/deduct', { quantity: 1 }); } catch(e) {}
+  // Invalidate cache so next open reflects updated stock
+  _allLubricantsForSvc = [];
+  _allServicePackagesCache = [];
   closeModal('modal-statusUpdate');
   viewJobDetail(_svcJobId);
-  showToast('\u2714 ' + brand + ' Oil Service (' + tier + ') added');
+  showToast('\u2714 ' + lub.description + ' added' + (hasInterval ? ' — next service in ' + lub.mileageInterval.toLocaleString() + ' km' : ''));
 }
 
 // ── Tab: Car Wash ──────────────────────────────────────────────────
@@ -4456,6 +4540,14 @@ async function showNewJobModal() {
   allCustomers = custs.data; allVehicles = (await axios.get('/api/vehicles')).data;
   document.getElementById('job-customerId').innerHTML = '<option value="">Select customer…</option>' + custs.data.map(c => \`<option value="\${c.id}">\${c.name}</option>\`).join('');
   document.getElementById('job-technician').innerHTML = '<option value="">Select…</option>' + techs.data.filter(u => u.role === 'Technician').map(u => \`<option value="\${u.id}">\${u.name}</option>\`).join('');
+  // Reset fuel level buttons to unselected state
+  document.getElementById('job-fuelLevel').value = '';
+  const _fuelCols = { 'Empty': 'red', '1/4': 'orange', '1/2': 'amber', '3/4': 'green', 'Full': 'emerald' };
+  document.querySelectorAll('#fuelLevelBtns .fuel-btn').forEach(function(btn) {
+    const f = btn.getAttribute('data-fuel');
+    const col = _fuelCols[f] || 'gray';
+    btn.className = 'fuel-btn py-1.5 rounded-lg border-2 border-gray-200 text-gray-500 hover:border-' + col + '-400 hover:bg-' + col + '-50 text-xs font-bold transition-all';
+  });
   openModal('modal-newJob');
 }
 
@@ -4470,9 +4562,25 @@ function toggleInsuranceFields() {
   document.getElementById('insuranceFields').style.display = cat === 'Insurance' ? 'block' : 'none';
 }
 
+function selectFuelLevel(level) {
+  document.getElementById('job-fuelLevel').value = level;
+  const fuelColors = { 'Empty': 'red', '1/4': 'orange', '1/2': 'amber', '3/4': 'green', 'Full': 'emerald' };
+  document.querySelectorAll('#fuelLevelBtns .fuel-btn').forEach(function(btn) {
+    const f = btn.getAttribute('data-fuel');
+    const col = fuelColors[f] || 'gray';
+    if (f === level) {
+      btn.className = 'fuel-btn py-1.5 rounded-lg border-2 border-' + col + '-500 bg-' + col + '-50 text-' + col + '-700 text-xs font-bold transition-all';
+    } else {
+      btn.className = 'fuel-btn py-1.5 rounded-lg border-2 border-gray-200 text-gray-500 hover:border-' + col + '-400 hover:bg-' + col + '-50 text-xs font-bold transition-all';
+    }
+  });
+}
+
 async function submitNewJob(e) {
   e.preventDefault();
   const cat = document.getElementById('job-category').value;
+  const mileageVal = document.getElementById('job-mileage').value;
+  const fuelVal    = document.getElementById('job-fuelLevel').value;
   const payload = {
     customerId: document.getElementById('job-customerId').value,
     vehicleId: document.getElementById('job-vehicleId').value,
@@ -4480,6 +4588,8 @@ async function submitNewJob(e) {
     category: cat,
     damageDescription: document.getElementById('job-damage').value,
     inspectionNotes: document.getElementById('job-notes').value,
+    ...(mileageVal ? { mileageIn: parseInt(mileageVal) } : {}),
+    ...(fuelVal    ? { fuelLevel: fuelVal }             : {}),
     ...(cat === 'Insurance' ? {
       claimReference: document.getElementById('job-claimRef').value,
       insurer: document.getElementById('job-insurer').value,
@@ -4489,6 +4599,13 @@ async function submitNewJob(e) {
   const { data } = await axios.post('/api/jobcards', payload);
   closeModal('modal-newJob');
   document.getElementById('newJobForm').reset();
+  // Reset fuel level buttons
+  const _fuelCols2 = { 'Empty': 'red', '1/4': 'orange', '1/2': 'amber', '3/4': 'green', 'Full': 'emerald' };
+  document.querySelectorAll('#fuelLevelBtns .fuel-btn').forEach(function(btn) {
+    const f = btn.getAttribute('data-fuel');
+    const col = _fuelCols2[f] || 'gray';
+    btn.className = 'fuel-btn py-1.5 rounded-lg border-2 border-gray-200 text-gray-500 hover:border-' + col + '-400 hover:bg-' + col + '-50 text-xs font-bold transition-all';
+  });
   showToast('Job card ' + data.jobCardNumber + ' created!');
   loadJobCards();
   showPage('jobcards');
@@ -7453,7 +7570,7 @@ function renderLubricantsTable(list) {
   const tbody = document.getElementById('lubTable');
   if (!tbody) return;
   if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="11" class="text-center py-12 text-gray-400"><i class="fas fa-tint text-3xl mb-3 block"></i>No lubricants found</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" class="text-center py-12 text-gray-400"><i class="fas fa-tint text-3xl mb-3 block"></i>No lubricants found</td></tr>';
     return;
   }
   tbody.innerHTML = list.map(function(l) {
@@ -7476,6 +7593,12 @@ function renderLubricantsTable(list) {
       '<td class="px-4 py-3 text-right font-bold text-gray-900">'+fmt(l.sellingPrice)+'</td>' +
       '<td class="px-4 py-3 text-right font-semibold text-green-600">'+fmt(l.margin)+'</td>' +
       '<td class="px-4 py-3 text-right"><span class="font-bold text-sm" style="color:'+marginColor+'">'+marginPct+'%</span></td>' +
+      (function(){
+        const needsInterval = l.lubricantType === 'Engine Oil' || l.lubricantType === 'Transmission Fluid';
+        if (!needsInterval) return '<td class="px-4 py-3 text-center text-gray-300 text-xs">—</td>';
+        if (l.mileageInterval) return '<td class="px-4 py-3 text-center"><span class="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700"><i class="fas fa-tachometer-alt text-[10px]"></i>'+l.mileageInterval.toLocaleString()+' km</span></td>';
+        return '<td class="px-4 py-3 text-center"><span class="text-xs text-amber-500 font-medium"><i class="fas fa-exclamation-circle mr-0.5"></i>Not set</span></td>';
+      })() +
       '<td class="px-4 py-3 text-right">'+stockBadge+'</td>' +
       '<td class="px-4 py-3 text-center">' +
         '<div class="flex items-center justify-center gap-1">' +
@@ -7499,6 +7622,14 @@ function renderLubricantsTable(list) {
 }
 
 // ── Add/Edit Modal ────────────────────────────────────────────────────────────
+function lubTypeChanged() {
+  const type = document.getElementById('lub-type').value;
+  const row  = document.getElementById('lub-intervalRow');
+  const needsInterval = type === 'Engine Oil' || type === 'Transmission Fluid';
+  if (needsInterval) { row.classList.remove('hidden'); }
+  else { row.classList.add('hidden'); document.getElementById('lub-interval').value = ''; }
+}
+
 function showAddLubricantModal() {
   document.getElementById('lub-id').value = '';
   document.getElementById('lubModal-title').textContent = 'Add Lubricant';
@@ -7506,7 +7637,9 @@ function showAddLubricantModal() {
   ['lub-brand','lub-type','lub-description','lub-viscosity','lub-volume','lub-buyPrice','lub-sellPrice'].forEach(function(id) {
     document.getElementById(id).value = '';
   });
-  document.getElementById('lub-stock').value = '0';
+  document.getElementById('lub-stock').value    = '0';
+  document.getElementById('lub-interval').value = '';
+  document.getElementById('lub-intervalRow').classList.add('hidden');
   document.getElementById('lub-marginPreview').classList.add('hidden');
   openModal('modal-lubricant');
 }
@@ -7525,6 +7658,8 @@ function showEditLubricantModal(id) {
   document.getElementById('lub-buyPrice').value    = l.buyingPrice || '';
   document.getElementById('lub-sellPrice').value   = l.sellingPrice || '';
   document.getElementById('lub-stock').value       = l.stockQuantity || 0;
+  document.getElementById('lub-interval').value   = l.mileageInterval || '';
+  lubTypeChanged(); // show/hide interval row based on type
   lubCalcMargin();
   openModal('modal-lubricant');
 }
@@ -7558,7 +7693,8 @@ async function submitLubricant() {
   if (!type)  { showToast('Please select a type', 'error'); return; }
   if (!desc)  { showToast('Description is required', 'error'); return; }
   if (sellP <= 0) { showToast('Selling price must be greater than 0', 'error'); return; }
-  const payload = { brand, lubricantType: type, description: desc, viscosity: visc, volume: vol, buyingPrice: buyP, sellingPrice: sellP, stockQuantity: stock };
+  const payload = { brand, lubricantType: type, description: desc, viscosity: visc, volume: vol, buyingPrice: buyP, sellingPrice: sellP, stockQuantity: stock,
+    mileageInterval: (type === 'Engine Oil' || type === 'Transmission Fluid') ? (parseInt(document.getElementById('lub-interval').value) || undefined) : undefined };
   try {
     if (id) {
       await axios.put('/api/catalogue/lubricants/' + id, payload);

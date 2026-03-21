@@ -222,6 +222,10 @@ export interface JobCard {
   damageDescription: string
   inspectionNotes?: string
   status: JobCardStatus
+  mileageIn?: number           // odometer reading at intake (km)
+  fuelLevel?: string           // fuel level at intake: 'Empty'|'1/4'|'1/2'|'3/4'|'Full'
+  nextServiceMileage?: number  // calculated: mileageIn + lubricant mileageInterval
+  nextServiceLubricant?: string // name of lubricant that triggered the next service calc
   createdAt: string
   updatedAt: string
 }
@@ -287,6 +291,7 @@ export interface JobService {
   unitCost: number
   totalCost: number
   notes?: string           // e.g. oil brand/tier for oil services
+  lubricantId?: string     // id of the LubricantProduct used (for oil services)
 }
 
 export interface ServicePackage {
@@ -389,6 +394,7 @@ export interface LubricantProduct {
   sellingPrice: number
   margin: number
   stockQuantity: number        // litres / bottles in stock
+  mileageInterval?: number     // km between services (Engine Oil & Transmission Oil only)
 }
 
 // ─── Expenses ───────────────────────────────────────────────────────────────
@@ -614,29 +620,29 @@ export const activityLog: ActivityLog[] = []
 // ─── Lubricants Catalogue Inventory ──────────────────────────────────────────
 export const lubricantProducts: LubricantProduct[] = [
   // ── Toyota Engine Oils ──────────────────────────────────────────────────────
-  { id: 'lub-001', brand: 'Toyota', description: 'Toyota Genuine Motor Oil 5W-30',   viscosity: '5W-30',  volume: '4L',  lubricantType: 'Engine Oil', buyingPrice: 55000,  sellingPrice: 85000,  margin: 30000, stockQuantity: 40 },
-  { id: 'lub-002', brand: 'Toyota', description: 'Toyota Genuine Motor Oil 10W-30',  viscosity: '10W-30', volume: '4L',  lubricantType: 'Engine Oil', buyingPrice: 52000,  sellingPrice: 80000,  margin: 28000, stockQuantity: 30 },
-  { id: 'lub-003', brand: 'Toyota', description: 'Toyota Genuine Motor Oil 10W-40',  viscosity: '10W-40', volume: '4L',  lubricantType: 'Engine Oil', buyingPrice: 54000,  sellingPrice: 82000,  margin: 28000, stockQuantity: 25 },
-  { id: 'lub-004', brand: 'Toyota', description: 'Toyota ATF Type T-IV (Auto Trans)', viscosity: 'ATF',    volume: '1L',  lubricantType: 'Transmission Fluid', buyingPrice: 12000, sellingPrice: 20000, margin: 8000, stockQuantity: 48 },
+  { id: 'lub-001', brand: 'Toyota', description: 'Toyota Genuine Motor Oil 5W-30',   viscosity: '5W-30',  volume: '4L',  lubricantType: 'Engine Oil', buyingPrice: 55000,  sellingPrice: 85000,  margin: 30000, stockQuantity: 40, mileageInterval: 10000 },
+  { id: 'lub-002', brand: 'Toyota', description: 'Toyota Genuine Motor Oil 10W-30',  viscosity: '10W-30', volume: '4L',  lubricantType: 'Engine Oil', buyingPrice: 52000,  sellingPrice: 80000,  margin: 28000, stockQuantity: 30, mileageInterval: 10000 },
+  { id: 'lub-003', brand: 'Toyota', description: 'Toyota Genuine Motor Oil 10W-40',  viscosity: '10W-40', volume: '4L',  lubricantType: 'Engine Oil', buyingPrice: 54000,  sellingPrice: 82000,  margin: 28000, stockQuantity: 25, mileageInterval: 10000 },
+  { id: 'lub-004', brand: 'Toyota', description: 'Toyota ATF Type T-IV (Auto Trans)', viscosity: 'ATF',    volume: '1L',  lubricantType: 'Transmission Fluid', buyingPrice: 12000, sellingPrice: 20000, margin: 8000, stockQuantity: 48, mileageInterval: 40000 },
   { id: 'lub-005', brand: 'Toyota', description: 'Toyota Long Life Coolant',          viscosity: 'N/A',    volume: '2L',  lubricantType: 'Coolant',    buyingPrice: 18000,  sellingPrice: 28000,  margin: 10000, stockQuantity: 20 },
   // ── Total Engine Oils ───────────────────────────────────────────────────────
-  { id: 'lub-006', brand: 'Total',  description: 'Total Quartz 9000 5W-40',           viscosity: '5W-40',  volume: '5L',  lubricantType: 'Engine Oil', buyingPrice: 68000,  sellingPrice: 98000,  margin: 30000, stockQuantity: 35 },
-  { id: 'lub-007', brand: 'Total',  description: 'Total Quartz 7000 10W-40',          viscosity: '10W-40', volume: '5L',  lubricantType: 'Engine Oil', buyingPrice: 58000,  sellingPrice: 88000,  margin: 30000, stockQuantity: 28 },
-  { id: 'lub-008', brand: 'Total',  description: 'Total Quartz 5000 15W-40',          viscosity: '15W-40', volume: '5L',  lubricantType: 'Engine Oil', buyingPrice: 48000,  sellingPrice: 72000,  margin: 24000, stockQuantity: 32 },
-  { id: 'lub-009', brand: 'Total',  description: 'Total Transmission ATF Dexron III', viscosity: 'ATF',    volume: '1L',  lubricantType: 'Transmission Fluid', buyingPrice: 10000, sellingPrice: 17000, margin: 7000, stockQuantity: 36 },
+  { id: 'lub-006', brand: 'Total',  description: 'Total Quartz 9000 5W-40',           viscosity: '5W-40',  volume: '5L',  lubricantType: 'Engine Oil', buyingPrice: 68000,  sellingPrice: 98000,  margin: 30000, stockQuantity: 35, mileageInterval: 15000 },
+  { id: 'lub-007', brand: 'Total',  description: 'Total Quartz 7000 10W-40',          viscosity: '10W-40', volume: '5L',  lubricantType: 'Engine Oil', buyingPrice: 58000,  sellingPrice: 88000,  margin: 30000, stockQuantity: 28, mileageInterval: 10000 },
+  { id: 'lub-008', brand: 'Total',  description: 'Total Quartz 5000 15W-40',          viscosity: '15W-40', volume: '5L',  lubricantType: 'Engine Oil', buyingPrice: 48000,  sellingPrice: 72000,  margin: 24000, stockQuantity: 32, mileageInterval: 7500  },
+  { id: 'lub-009', brand: 'Total',  description: 'Total Transmission ATF Dexron III', viscosity: 'ATF',    volume: '1L',  lubricantType: 'Transmission Fluid', buyingPrice: 10000, sellingPrice: 17000, margin: 7000, stockQuantity: 36, mileageInterval: 40000 },
   { id: 'lub-010', brand: 'Total',  description: 'Total Brake Fluid DOT 4',           viscosity: 'DOT 4',  volume: '500ml', lubricantType: 'Brake Fluid', buyingPrice: 8000,  sellingPrice: 14000,  margin: 6000,  stockQuantity: 24 },
   // ── Castrol Engine Oils ─────────────────────────────────────────────────────
-  { id: 'lub-011', brand: 'Castrol', description: 'Castrol EDGE 5W-30',               viscosity: '5W-30',  volume: '4L',  lubricantType: 'Engine Oil', buyingPrice: 72000,  sellingPrice: 105000, margin: 33000, stockQuantity: 22 },
-  { id: 'lub-012', brand: 'Castrol', description: 'Castrol GTX 10W-40',               viscosity: '10W-40', volume: '4L',  lubricantType: 'Engine Oil', buyingPrice: 60000,  sellingPrice: 90000,  margin: 30000, stockQuantity: 18 },
-  { id: 'lub-013', brand: 'Castrol', description: 'Castrol GTX 15W-40',               viscosity: '15W-40', volume: '5L',  lubricantType: 'Engine Oil', buyingPrice: 55000,  sellingPrice: 80000,  margin: 25000, stockQuantity: 20 },
+  { id: 'lub-011', brand: 'Castrol', description: 'Castrol EDGE 5W-30',               viscosity: '5W-30',  volume: '4L',  lubricantType: 'Engine Oil', buyingPrice: 72000,  sellingPrice: 105000, margin: 33000, stockQuantity: 22, mileageInterval: 15000 },
+  { id: 'lub-012', brand: 'Castrol', description: 'Castrol GTX 10W-40',               viscosity: '10W-40', volume: '4L',  lubricantType: 'Engine Oil', buyingPrice: 60000,  sellingPrice: 90000,  margin: 30000, stockQuantity: 18, mileageInterval: 10000 },
+  { id: 'lub-013', brand: 'Castrol', description: 'Castrol GTX 15W-40',               viscosity: '15W-40', volume: '5L',  lubricantType: 'Engine Oil', buyingPrice: 55000,  sellingPrice: 80000,  margin: 25000, stockQuantity: 20, mileageInterval: 7500  },
   { id: 'lub-014', brand: 'Castrol', description: 'Castrol Power Steering Fluid',     viscosity: 'N/A',    volume: '1L',  lubricantType: 'Power Steering Fluid', buyingPrice: 9000, sellingPrice: 15000, margin: 6000, stockQuantity: 16 },
   // ── Shell ───────────────────────────────────────────────────────────────────
-  { id: 'lub-015', brand: 'Shell',  description: 'Shell Helix Ultra 5W-40',           viscosity: '5W-40',  volume: '4L',  lubricantType: 'Engine Oil', buyingPrice: 74000,  sellingPrice: 108000, margin: 34000, stockQuantity: 15 },
-  { id: 'lub-016', brand: 'Shell',  description: 'Shell Helix HX7 10W-40',            viscosity: '10W-40', volume: '4L',  lubricantType: 'Engine Oil', buyingPrice: 62000,  sellingPrice: 92000,  margin: 30000, stockQuantity: 12 },
+  { id: 'lub-015', brand: 'Shell',  description: 'Shell Helix Ultra 5W-40',           viscosity: '5W-40',  volume: '4L',  lubricantType: 'Engine Oil', buyingPrice: 74000,  sellingPrice: 108000, margin: 34000, stockQuantity: 15, mileageInterval: 15000 },
+  { id: 'lub-016', brand: 'Shell',  description: 'Shell Helix HX7 10W-40',            viscosity: '10W-40', volume: '4L',  lubricantType: 'Engine Oil', buyingPrice: 62000,  sellingPrice: 92000,  margin: 30000, stockQuantity: 12, mileageInterval: 10000 },
   { id: 'lub-017', brand: 'Shell',  description: 'Shell Spirax Gear Oil 80W-90',      viscosity: '80W-90', volume: '1L',  lubricantType: 'Gear Oil',   buyingPrice: 11000,  sellingPrice: 18000,  margin: 7000,  stockQuantity: 20 },
   // ── Mobil ───────────────────────────────────────────────────────────────────
-  { id: 'lub-018', brand: 'Mobil',  description: 'Mobil 1 5W-30 Full Synthetic',      viscosity: '5W-30',  volume: '4L',  lubricantType: 'Engine Oil', buyingPrice: 78000,  sellingPrice: 115000, margin: 37000, stockQuantity: 10 },
-  { id: 'lub-019', brand: 'Mobil',  description: 'Mobil Super 10W-40',                viscosity: '10W-40', volume: '4L',  lubricantType: 'Engine Oil', buyingPrice: 60000,  sellingPrice: 90000,  margin: 30000, stockQuantity: 14 },
+  { id: 'lub-018', brand: 'Mobil',  description: 'Mobil 1 5W-30 Full Synthetic',      viscosity: '5W-30',  volume: '4L',  lubricantType: 'Engine Oil', buyingPrice: 78000,  sellingPrice: 115000, margin: 37000, stockQuantity: 10, mileageInterval: 15000 },
+  { id: 'lub-019', brand: 'Mobil',  description: 'Mobil Super 10W-40',                viscosity: '10W-40', volume: '4L',  lubricantType: 'Engine Oil', buyingPrice: 60000,  sellingPrice: 90000,  margin: 30000, stockQuantity: 14, mileageInterval: 10000 },
 ]
 
 export const oilServiceProducts: OilServiceProduct[] = [

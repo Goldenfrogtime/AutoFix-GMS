@@ -351,6 +351,23 @@ api.post('/jobcards/:id/services', async (c) => {
   const body = await c.req.json<Omit<JobService, 'id' | 'jobCardId'>>()
   const newSvc: JobService = { ...body, id: 'svc' + genId(), jobCardId: c.req.param('id') }
   jobServices.push(newSvc)
+
+  // Auto-calculate nextServiceMileage when a lubricant with a mileageInterval is added
+  if (body.lubricantId) {
+    const lub = lubricantProducts.find(l => l.id === body.lubricantId)
+    if (lub?.mileageInterval) {
+      const jcIdx = jobCards.findIndex(j => j.id === c.req.param('id'))
+      if (jcIdx !== -1 && jobCards[jcIdx].mileageIn) {
+        jobCards[jcIdx] = {
+          ...jobCards[jcIdx],
+          nextServiceMileage: (jobCards[jcIdx].mileageIn!) + lub.mileageInterval,
+          nextServiceLubricant: lub.description,
+          updatedAt: now(),
+        }
+      }
+    }
+  }
+
   return c.json(newSvc, 201)
 })
 
@@ -1042,6 +1059,7 @@ api.post('/catalogue/lubricants', async (c) => {
     sellingPrice: Number(body.sellingPrice) || 0,
     margin: Number(body.sellingPrice || 0) - Number(body.buyingPrice || 0),
     stockQuantity: Number(body.stockQuantity) || 0,
+    ...(body.mileageInterval ? { mileageInterval: Number(body.mileageInterval) } : {}),
   }
   lubricantProducts.push(newItem)
   return c.json(newItem, 201)
@@ -1053,6 +1071,12 @@ api.put('/catalogue/lubricants/:id', async (c) => {
   const body = await c.req.json<Partial<LubricantProduct>>()
   const updated = { ...lubricantProducts[idx], ...body }
   updated.margin = updated.sellingPrice - updated.buyingPrice
+  // Clear mileageInterval if type no longer supports it
+  if (!['Engine Oil','Transmission Fluid'].includes(updated.lubricantType)) {
+    delete updated.mileageInterval
+  } else if (body.mileageInterval !== undefined) {
+    updated.mileageInterval = body.mileageInterval ? Number(body.mileageInterval) : undefined
+  }
   lubricantProducts[idx] = updated
   return c.json(lubricantProducts[idx])
 })
