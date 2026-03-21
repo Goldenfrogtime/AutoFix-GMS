@@ -667,7 +667,8 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 
     <!-- ═══ INVOICES ═══ -->
     <div id="page-invoices" class="page">
-      <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+      <!-- Header -->
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
         <div>
           <h2 class="text-2xl font-bold text-gray-900">Invoices</h2>
           <p class="text-gray-500 text-sm mt-1">Billing and payment tracking</p>
@@ -679,6 +680,76 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
           </div>
         </div>
       </div>
+
+      <!-- Summary stat pills -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+        <div class="card p-3 flex items-center gap-3 cursor-pointer hover:shadow-md transition-shadow" onclick="invFilterBy('all')">
+          <div class="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
+            <i class="fas fa-file-invoice text-gray-500 text-sm"></i>
+          </div>
+          <div>
+            <p class="text-xs text-gray-400">All Invoices</p>
+            <p class="text-lg font-bold text-gray-700" id="invStatAll">—</p>
+          </div>
+        </div>
+        <div class="card p-3 flex items-center gap-3 cursor-pointer hover:shadow-md transition-shadow" onclick="invFilterBy('Paid')">
+          <div class="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+            <i class="fas fa-check-circle text-green-600 text-sm"></i>
+          </div>
+          <div>
+            <p class="text-xs text-gray-400">Paid</p>
+            <p class="text-lg font-bold text-green-600" id="invStatPaid">—</p>
+          </div>
+        </div>
+        <div class="card p-3 flex items-center gap-3 cursor-pointer hover:shadow-md transition-shadow" onclick="invFilterBy('outstanding')">
+          <div class="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+            <i class="fas fa-clock text-amber-600 text-sm"></i>
+          </div>
+          <div>
+            <p class="text-xs text-gray-400">Outstanding</p>
+            <p class="text-lg font-bold text-amber-600" id="invStatOutstanding">—</p>
+          </div>
+        </div>
+        <div class="card p-3 flex items-center gap-3 cursor-pointer hover:shadow-md transition-shadow" onclick="invFilterBy('Overdue')">
+          <div class="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+            <i class="fas fa-exclamation-circle text-red-600 text-sm"></i>
+          </div>
+          <div>
+            <p class="text-xs text-gray-400">Overdue</p>
+            <p class="text-lg font-bold text-red-600" id="invStatOverdue">—</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filter tabs -->
+      <div class="flex flex-wrap gap-2 mb-4">
+        <button id="invTab-all" onclick="invFilterBy('all')"
+          class="inv-tab-btn px-4 py-1.5 rounded-full text-sm font-semibold border-2 border-indigo-500 bg-indigo-500 text-white transition-all">
+          All
+        </button>
+        <button id="invTab-Paid" onclick="invFilterBy('Paid')"
+          class="inv-tab-btn px-4 py-1.5 rounded-full text-sm font-semibold border-2 border-gray-200 text-gray-600 hover:border-green-400 transition-all">
+          Paid
+        </button>
+        <button id="invTab-outstanding" onclick="invFilterBy('outstanding')"
+          class="inv-tab-btn px-4 py-1.5 rounded-full text-sm font-semibold border-2 border-gray-200 text-gray-600 hover:border-amber-400 transition-all">
+          Outstanding
+        </button>
+        <button id="invTab-Overdue" onclick="invFilterBy('Overdue')"
+          class="inv-tab-btn px-4 py-1.5 rounded-full text-sm font-semibold border-2 border-gray-200 text-gray-600 hover:border-red-400 transition-all">
+          Overdue
+        </button>
+        <button id="invTab-Partially Paid" onclick="invFilterBy('Partially Paid')"
+          class="inv-tab-btn px-4 py-1.5 rounded-full text-sm font-semibold border-2 border-gray-200 text-gray-600 hover:border-orange-400 transition-all">
+          Partially Paid
+        </button>
+        <button id="invTab-Draft" onclick="invFilterBy('Draft')"
+          class="inv-tab-btn px-4 py-1.5 rounded-full text-sm font-semibold border-2 border-gray-200 text-gray-600 hover:border-gray-400 transition-all">
+          Draft
+        </button>
+      </div>
+
+      <!-- Table -->
       <div class="card overflow-hidden">
         <div class="table-scroll">
         <table class="w-full text-sm" style="min-width:700px">
@@ -1485,7 +1556,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
     <!-- Payment method -->
     <div class="mb-4">
       <label class="form-label">Payment Method <span class="text-red-500">*</span></label>
-      <div class="grid grid-cols-3 gap-2" id="pi-method-btns">
+      <div class="grid grid-cols-4 gap-2" id="pi-method-btns">
         <button type="button" onclick="piSelectMethod('Mobile Money')"
           class="pi-method-btn flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 border-gray-200 hover:border-green-400 transition-all text-sm font-semibold text-gray-600"
           data-method="Mobile Money">
@@ -1500,6 +1571,11 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
           class="pi-method-btn flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 border-gray-200 hover:border-purple-400 transition-all text-sm font-semibold text-gray-600"
           data-method="Lipa Number">
           <i class="fas fa-hashtag text-xl text-gray-400"></i>Lipa Number
+        </button>
+        <button type="button" onclick="piSelectMethod('Cash')"
+          class="pi-method-btn flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 border-gray-200 hover:border-orange-400 transition-all text-sm font-semibold text-gray-600"
+          data-method="Cash">
+          <i class="fas fa-money-bill-wave text-xl text-gray-400"></i>Cash
         </button>
       </div>
       <input type="hidden" id="pi-method"/>
@@ -5880,7 +5956,7 @@ async function showPayInvoiceModal(invId, jobId) {
   const historyList = document.getElementById('pi-history-list');
   if (inv.payments && inv.payments.length) {
     historyBox.classList.remove('hidden');
-    const methodIcon = function(m) { return m === 'Mobile Money' ? 'fa-mobile-alt' : m === 'Bank' ? 'fa-university' : 'fa-hashtag'; };
+    const methodIcon = function(m) { return m === 'Mobile Money' ? 'fa-mobile-alt' : m === 'Bank' ? 'fa-university' : m === 'Cash' ? 'fa-money-bill-wave' : 'fa-hashtag'; };
     historyList.innerHTML = inv.payments.map(function(p) {
       return '<div class="flex items-center justify-between py-1 border-b border-gray-50">' +
         '<span class="text-gray-500"><i class="fas ' + methodIcon(p.method) + ' mr-1"></i>' + p.method + (p.reference ? ' · ' + p.reference : '') + '</span>' +
@@ -5897,8 +5973,8 @@ async function showPayInvoiceModal(invId, jobId) {
 
 function piSelectMethod(method) {
   document.getElementById('pi-method').value = method;
-  var colors = { 'Mobile Money': 'green', 'Bank': 'blue', 'Lipa Number': 'purple' };
-  var iconColors = { 'Mobile Money': 'text-green-600', 'Bank': 'text-blue-600', 'Lipa Number': 'text-purple-600' };
+  var colors = { 'Mobile Money': 'green', 'Bank': 'blue', 'Lipa Number': 'purple', 'Cash': 'orange' };
+  var iconColors = { 'Mobile Money': 'text-green-600', 'Bank': 'text-blue-600', 'Lipa Number': 'text-purple-600', 'Cash': 'text-orange-600' };
   document.querySelectorAll('.pi-method-btn').forEach(function(b) {
     var m = b.getAttribute('data-method');
     var c = colors[m] || 'gray';
@@ -6001,6 +6077,8 @@ async function submitPayInvoice() {
 }
 
 // ═══ INVOICES ═══
+var _invCurrentFilter = 'all';
+
 async function loadInvoices() {
   const { data } = await axios.get('/api/invoices');
   allInvoices = data;
@@ -6008,24 +6086,82 @@ async function loadInvoices() {
               + data.filter(i => i.status === 'Partially Paid').reduce((s, i) => s + (i.amountPaid || 0), 0);
   document.getElementById('totalRevDisplay').textContent = fmt(total);
 
-  const methodIcon = (m) => m === 'Mobile Money' ? 'fa-mobile-alt' : m === 'Bank' ? 'fa-university' : m === 'Lipa Number' ? 'fa-hashtag' : '';
-  const methodColor = (m) => m === 'Mobile Money' ? 'text-green-600' : m === 'Bank' ? 'text-blue-600' : m === 'Lipa Number' ? 'text-purple-600' : 'text-gray-500';
+  // Populate stat pills
+  const allCount     = data.length;
+  const paidCount    = data.filter(i => i.status === 'Paid').length;
+  const overdueCount = data.filter(i => i.status === 'Overdue').length;
+  const outstandingCount = data.filter(i => i.status === 'Issued' || i.status === 'Draft' || i.status === 'Partially Paid').length;
 
-  document.getElementById('invoicesTable').innerHTML = data.map(inv => {
+  const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
+  el('invStatAll',         allCount);
+  el('invStatPaid',        paidCount);
+  el('invStatOverdue',     overdueCount);
+  el('invStatOutstanding', outstandingCount);
+
+  // Render with current filter
+  _renderInvoicesTable(data, _invCurrentFilter);
+
+  // Auto-refresh finance summary cards
+  loadFinanceSummaryCards();
+}
+
+function invFilterBy(filter) {
+  _invCurrentFilter = filter;
+  // Update tab button styles
+  document.querySelectorAll('.inv-tab-btn').forEach(function(b) {
+    const tabId = b.id.replace('invTab-', '');
+    const isActive = tabId === filter;
+    const colorMap = {
+      'all': 'indigo', 'Paid': 'green', 'outstanding': 'amber',
+      'Overdue': 'red', 'Partially Paid': 'orange', 'Draft': 'gray'
+    };
+    const c = colorMap[tabId] || 'indigo';
+    if (isActive) {
+      b.className = \`inv-tab-btn px-4 py-1.5 rounded-full text-sm font-semibold border-2 border-\${c}-500 bg-\${c}-500 text-white transition-all\`;
+    } else {
+      b.className = \`inv-tab-btn px-4 py-1.5 rounded-full text-sm font-semibold border-2 border-gray-200 text-gray-600 hover:border-\${c}-400 transition-all\`;
+    }
+  });
+  _renderInvoicesTable(allInvoices, filter);
+}
+
+function _renderInvoicesTable(data, filter) {
+  const methodIcon = (m) => m === 'Mobile Money' ? 'fa-mobile-alt' : m === 'Bank' ? 'fa-university' : m === 'Lipa Number' ? 'fa-hashtag' : m === 'Cash' ? 'fa-money-bill-wave' : '';
+  const methodColor = (m) => m === 'Mobile Money' ? 'text-green-600' : m === 'Bank' ? 'text-blue-600' : m === 'Lipa Number' ? 'text-purple-600' : m === 'Cash' ? 'text-orange-600' : 'text-gray-500';
+
+  // Filter rows
+  let filtered = data;
+  if (filter === 'outstanding') {
+    filtered = data.filter(i => i.status === 'Issued' || i.status === 'Draft' || i.status === 'Partially Paid');
+  } else if (filter !== 'all') {
+    filtered = data.filter(i => i.status === filter);
+  }
+
+  // Sort: Overdue first, then by issuedAt desc
+  filtered = [...filtered].sort((a, b) => {
+    const ov = (s) => s === 'Overdue' ? 0 : s === 'Issued' || s === 'Partially Paid' ? 1 : 2;
+    if (ov(a.status) !== ov(b.status)) return ov(a.status) - ov(b.status);
+    return new Date(b.issuedAt).getTime() - new Date(a.issuedAt).getTime();
+  });
+
+  const tbody = document.getElementById('invoicesTable');
+  if (!tbody) return;
+
+  tbody.innerHTML = filtered.map(inv => {
     const statusClass = inv.status === 'Paid' ? 'bg-green-100 text-green-700'
       : inv.status === 'Partially Paid' ? 'bg-amber-100 text-amber-700'
       : inv.status === 'Overdue' ? 'bg-red-100 text-red-700'
       : 'bg-gray-100 text-gray-600';
     const canPay = inv.status !== 'Paid';
-    const balance = inv.totalAmount - (inv.amountPaid || 0);
     const methodHtml = inv.paymentMethod
       ? \`<span class="inline-flex items-center gap-1 text-xs font-semibold \${methodColor(inv.paymentMethod)}"><i class="fas \${methodIcon(inv.paymentMethod)}"></i>\${inv.paymentMethod}</span>\`
       : '<span class="text-gray-300 text-xs">—</span>';
     const amountPaidHtml = inv.amountPaid
       ? \`<span class="font-semibold \${inv.status === 'Paid' ? 'text-green-600' : 'text-amber-600'}">\${fmt(inv.amountPaid)}</span>\`
       : '<span class="text-gray-300 text-xs">—</span>';
+    const rowHighlight = inv.status === 'Overdue' ? 'bg-red-50/40' : inv.status === 'Partially Paid' ? 'bg-amber-50/30' : '';
     return \`
-    <tr class="table-row border-b border-gray-50">
+    <tr class="table-row border-b border-gray-50 \${rowHighlight}">
       <td class="px-4 py-3 font-bold text-blue-600 text-sm">\${inv.invoiceNumber}</td>
       <td class="px-4 py-3 text-sm font-medium text-gray-700">\${inv.jobCardNumber||'—'}</td>
       <td class="px-4 py-3 text-sm text-gray-600">\${inv.customerName||'—'}</td>
@@ -6044,9 +6180,7 @@ async function loadInvoices() {
         </div>
       </td>
     </tr>\`;
-  }).join('') || '<tr><td colspan="12" class="text-center py-12 text-gray-400"><i class="fas fa-file-invoice text-3xl mb-3 block"></i>No invoices yet</td></tr>';
-  // Auto-refresh finance summary cards
-  loadFinanceSummaryCards();
+  }).join('') || \`<tr><td colspan="12" class="text-center py-12 text-gray-400"><i class="fas fa-file-invoice text-3xl mb-3 block"></i>No \${filter === 'all' ? '' : filter + ' '}invoices</td></tr>\`;
 }
 
 // ═══ PACKAGES ═══
@@ -8350,7 +8484,7 @@ function renderFinanceInvoices() {
       : inv.status === 'Partially Paid' ? 'bg-amber-100 text-amber-700'
       : inv.status === 'Overdue' ? 'bg-red-100 text-red-700'
       : 'bg-gray-100 text-gray-600';
-    var methodIcon = inv.paymentMethod === 'Mobile Money' ? 'fa-mobile-alt' : inv.paymentMethod === 'Bank' ? 'fa-university' : inv.paymentMethod === 'Lipa Number' ? 'fa-hashtag' : '';
+    var methodIcon = inv.paymentMethod === 'Mobile Money' ? 'fa-mobile-alt' : inv.paymentMethod === 'Bank' ? 'fa-university' : inv.paymentMethod === 'Lipa Number' ? 'fa-hashtag' : inv.paymentMethod === 'Cash' ? 'fa-money-bill-wave' : '';
     var methodHtml = inv.paymentMethod ? '<span class="text-xs text-gray-500"><i class="fas ' + methodIcon + ' mr-0.5"></i>' + inv.paymentMethod + '</span>' : '';
     var payBtn = (inv.status !== 'Paid') ?
       '<button class="text-xs font-semibold px-2 py-0.5 rounded bg-green-50 text-green-700 hover:bg-green-100" onclick="showPayInvoiceModal(&#39;' + inv.id + '&#39;)">' +
