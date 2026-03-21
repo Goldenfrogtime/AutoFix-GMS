@@ -2624,10 +2624,11 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 </div>
 
 <!-- Toast Notification -->
-<div id="toast" class="fixed bottom-6 right-6 z-50 hidden">
-  <div class="bg-gray-900 text-white px-5 py-3 rounded-xl shadow-lg flex items-center gap-3 text-sm font-medium">
-    <i id="toastIcon" class="fas fa-check-circle text-green-400"></i>
-    <span id="toastMsg"></span>
+<div id="toast" class="fixed bottom-6 right-6 z-[9999] pointer-events-none" style="display:none">
+  <div id="toastInner" class="flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl text-sm font-semibold text-white min-w-[220px] max-w-xs"
+    style="backdrop-filter:none; background:#1e293b; border:1.5px solid rgba(255,255,255,0.10); opacity:0; transform:translateY(12px); transition:opacity 0.22s ease, transform 0.22s ease">
+    <i id="toastIcon" class="fas fa-check-circle text-green-400 flex-shrink-0 text-base"></i>
+    <span id="toastMsg" class="leading-snug"></span>
   </div>
 </div>
 
@@ -2908,11 +2909,46 @@ const ROLE_CONFIG = {
 // ═══ UTILS ═══
 function fmt(n) { return 'TZS ' + Number(n).toLocaleString('en-TZ'); }
 function fmtDate(d) { return d ? new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '—'; }
+var _toastTimer = null;
 function showToast(msg, type='success') {
-  const t = document.getElementById('toast'), i = document.getElementById('toastIcon'), m = document.getElementById('toastMsg');
-  i.className = 'fas ' + (type==='success' ? 'fa-check-circle text-green-400' : type==='error' ? 'fa-times-circle text-red-400' : 'fa-info-circle text-blue-400');
-  m.textContent = msg; t.classList.remove('hidden');
-  setTimeout(() => t.classList.add('hidden'), 3000);
+  const t    = document.getElementById('toast');
+  const inn  = document.getElementById('toastInner');
+  const icon = document.getElementById('toastIcon');
+  const m    = document.getElementById('toastMsg');
+
+  // Icon + colour per type
+  const cfg = {
+    success: { icon: 'fa-check-circle',    color: '#22c55e', bg: '#1e293b' },
+    error:   { icon: 'fa-times-circle',    color: '#ef4444', bg: '#1e293b' },
+    warning: { icon: 'fa-exclamation-circle', color: '#f59e0b', bg: '#1e293b' },
+    info:    { icon: 'fa-info-circle',     color: '#60a5fa', bg: '#1e293b' },
+  };
+  const c = cfg[type] || cfg.success;
+
+  icon.className = 'fas ' + c.icon + ' flex-shrink-0 text-base';
+  icon.style.color = c.color;
+  inn.style.background = c.bg;
+  m.textContent = msg;
+
+  // Reset any running timer
+  if (_toastTimer) { clearTimeout(_toastTimer); _toastTimer = null; }
+
+  // Show with animation
+  t.style.display = 'block';
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      inn.style.opacity   = '1';
+      inn.style.transform = 'translateY(0)';
+    });
+  });
+
+  // Auto-hide after 3.5 s
+  _toastTimer = setTimeout(() => {
+    inn.style.opacity   = '0';
+    inn.style.transform = 'translateY(12px)';
+    setTimeout(() => { t.style.display = 'none'; }, 240);
+    _toastTimer = null;
+  }, 3500);
 }
 function closeModal(id) {
   document.getElementById(id).classList.add('hidden');
