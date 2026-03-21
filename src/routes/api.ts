@@ -21,6 +21,13 @@ function genId() {
 function now() {
   return new Date().toISOString()
 }
+// Generate a sequential batch number: BAT-YYYY-NNNN
+let _batchCounter = 1
+function genBatchNumber() {
+  const year = new Date().getFullYear()
+  const seq  = String(_batchCounter++).padStart(4, '0')
+  return `BAT-${year}-${seq}`
+}
 
 // ─── Auth / RBAC Helpers ─────────────────────────────────────────────────────
 function getSessionUser(c: any): User | null {
@@ -917,7 +924,7 @@ api.get('/catalogue/parts/categories', (c) => {
 
 // Add a new part to the catalogue
 api.post('/catalogue/parts', async (c) => {
-  const body = await c.req.json<Omit<CataloguePart, 'id'>>()
+  const body = await c.req.json<Omit<CataloguePart, 'id' | 'margin' | 'batchNumber'>>()
   const newPart: CataloguePart = {
     id: 'cp' + genId(),
     category: body.category,
@@ -927,16 +934,61 @@ api.post('/catalogue/parts', async (c) => {
     sellingPrice: Number(body.sellingPrice) || 0,
     margin: Number(body.sellingPrice || 0) - Number(body.buyingPrice || 0),
     stockQuantity: Number(body.stockQuantity) || 0,
+    batchNumber: genBatchNumber(),
+    ...(body.partSerialNumber ? { partSerialNumber: String(body.partSerialNumber) } : {}),
   }
   catalogueParts.push(newPart)
   return c.json(newPart, 201)
+})
+
+// Bulk insert parts — must be registered BEFORE the /:id routes
+api.post('/catalogue/parts/bulk', async (c) => {
+  const rows = await c.req.json<Omit<CataloguePart, 'id' | 'margin' | 'batchNumber'>[]>()
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return c.json({ error: 'Payload must be a non-empty array' }, 400)
+  }
+  const MAX_ROWS = 1000
+  const toProcess = rows.slice(0, MAX_ROWS)
+  let added   = 0
+  let skipped = 0
+  const inserted: CataloguePart[] = []
+
+  for (const body of toProcess) {
+    // Basic validation
+    if (!body.description || !body.category) { skipped++; continue }
+    if (!body.sellingPrice || Number(body.sellingPrice) <= 0) { skipped++; continue }
+
+    const newPart: CataloguePart = {
+      id: 'cp' + genId(),
+      category: String(body.category) as CataloguePart['category'],
+      description: String(body.description),
+      compatibleModels: body.compatibleModels ? String(body.compatibleModels) : '',
+      buyingPrice:  Number(body.buyingPrice)  || 0,
+      sellingPrice: Number(body.sellingPrice) || 0,
+      margin: Number(body.sellingPrice || 0) - Number(body.buyingPrice || 0),
+      stockQuantity: Number(body.stockQuantity) || 0,
+      batchNumber: genBatchNumber(),
+      ...(body.partSerialNumber ? { partSerialNumber: String(body.partSerialNumber) } : {}),
+    }
+    catalogueParts.push(newPart)
+    inserted.push(newPart)
+    added++
+  }
+
+  return c.json({ added, skipped, items: inserted }, 201)
 })
 
 api.put('/catalogue/parts/:id', async (c) => {
   const idx = catalogueParts.findIndex(p => p.id === c.req.param('id'))
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
   const body = await c.req.json<Partial<CataloguePart>>()
-  catalogueParts[idx] = { ...catalogueParts[idx], ...body }
+  // Never overwrite batchNumber via PUT
+  const { batchNumber: _b, ...safeBody } = body as any
+  catalogueParts[idx] = {
+    ...catalogueParts[idx],
+    ...safeBody,
+    margin: (safeBody.sellingPrice ?? catalogueParts[idx].sellingPrice) - (safeBody.buyingPrice ?? catalogueParts[idx].buyingPrice),
+  }
   return c.json(catalogueParts[idx])
 })
 
@@ -1047,7 +1099,7 @@ api.get('/catalogue/lubricants/types', (c) => {
 })
 
 api.post('/catalogue/lubricants', async (c) => {
-  const body = await c.req.json<Omit<LubricantProduct, 'id' | 'margin'>>()
+  const body = await c.req.json<Omit<LubricantProduct, 'id' | 'margin' | 'batchNumber'>>()
   const newItem: LubricantProduct = {
     id: 'lub' + genId(),
     brand: body.brand,
@@ -1059,7 +1111,9 @@ api.post('/catalogue/lubricants', async (c) => {
     sellingPrice: Number(body.sellingPrice) || 0,
     margin: Number(body.sellingPrice || 0) - Number(body.buyingPrice || 0),
     stockQuantity: Number(body.stockQuantity) || 0,
+    batchNumber: genBatchNumber(),
     ...(body.mileageInterval ? { mileageInterval: Number(body.mileageInterval) } : {}),
+    ...(body.partSerialNumber ? { partSerialNumber: String(body.partSerialNumber) } : {}),
   }
   lubricantProducts.push(newItem)
   return c.json(newItem, 201)
@@ -1093,7 +1147,9 @@ api.post('/catalogue/lubricants/bulk', async (c) => {
       sellingPrice: Number(body.sellingPrice) || 0,
       margin: Number(body.sellingPrice || 0) - Number(body.buyingPrice || 0),
       stockQuantity: Number(body.stockQuantity) || 0,
+      batchNumber: genBatchNumber(),
       ...(body.mileageInterval ? { mileageInterval: Number(body.mileageInterval) } : {}),
+      ...(body.partSerialNumber ? { partSerialNumber: String(body.partSerialNumber) } : {}),
     }
     lubricantProducts.push(newItem)
     inserted.push(newItem)
@@ -1107,13 +1163,19 @@ api.put('/catalogue/lubricants/:id', async (c) => {
   const idx = lubricantProducts.findIndex(l => l.id === c.req.param('id'))
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
   const body = await c.req.json<Partial<LubricantProduct>>()
-  const updated = { ...lubricantProducts[idx], ...body }
+  // Never overwrite batchNumber via PUT
+  const { batchNumber: _b, ...safeBody } = body as any
+  const updated = { ...lubricantProducts[idx], ...safeBody }
   updated.margin = updated.sellingPrice - updated.buyingPrice
+  // Update partSerialNumber (allow clearing with empty string)
+  if (safeBody.partSerialNumber !== undefined) {
+    updated.partSerialNumber = safeBody.partSerialNumber ? String(safeBody.partSerialNumber) : undefined
+  }
   // Clear mileageInterval if type no longer supports it
   if (!['Engine Oil','Transmission Fluid'].includes(updated.lubricantType)) {
     delete updated.mileageInterval
-  } else if (body.mileageInterval !== undefined) {
-    updated.mileageInterval = body.mileageInterval ? Number(body.mileageInterval) : undefined
+  } else if (safeBody.mileageInterval !== undefined) {
+    updated.mileageInterval = safeBody.mileageInterval ? Number(safeBody.mileageInterval) : undefined
   }
   lubricantProducts[idx] = updated
   return c.json(lubricantProducts[idx])

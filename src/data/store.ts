@@ -358,6 +358,8 @@ export interface CataloguePart {
   sellingPrice: number
   margin: number
   stockQuantity: number      // units in stock
+  batchNumber?: string       // system-generated on create (e.g. BAT-2026-0042)
+  partSerialNumber?: string  // supplier-assigned serial / part number
 }
 
 export interface CarWashPackage {
@@ -395,6 +397,8 @@ export interface LubricantProduct {
   margin: number
   stockQuantity: number        // litres / bottles in stock
   mileageInterval?: number     // km between services (Engine Oil & Transmission Oil only)
+  batchNumber?: string         // system-generated on create (e.g. BAT-2026-0042)
+  partSerialNumber?: string    // supplier-assigned serial / part number
 }
 
 // ─── Expenses ───────────────────────────────────────────────────────────────

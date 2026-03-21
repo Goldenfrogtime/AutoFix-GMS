@@ -1036,10 +1036,12 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <!-- Table -->
       <div class="card overflow-hidden">
         <div class="table-scroll">
-          <table class="w-full text-sm" style="min-width:980px">
+          <table class="w-full text-sm" style="min-width:1200px">
             <thead><tr class="border-b border-gray-100 bg-gray-50">
               <th class="text-left px-4 py-3 font-semibold text-gray-600">Brand</th>
               <th class="text-left px-4 py-3 font-semibold text-gray-600">Description</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Batch #</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Serial / Part #</th>
               <th class="text-left px-4 py-3 font-semibold text-gray-600">Type</th>
               <th class="text-left px-4 py-3 font-semibold text-gray-600">Viscosity</th>
               <th class="text-left px-4 py-3 font-semibold text-gray-600">Volume</th>
@@ -1069,6 +1071,12 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
             <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
             <input class="search-input w-full" type="text" placeholder="Search parts or models…" id="partsSearch" oninput="filterParts(this.value)"/>
           </div>
+          <button onclick="downloadPartTemplate()" class="btn-secondary flex items-center gap-2">
+            <i class="fas fa-file-download"></i> Template
+          </button>
+          <button onclick="openModal('modal-partBulk')" class="btn-secondary flex items-center gap-2">
+            <i class="fas fa-file-upload"></i> Bulk Upload
+          </button>
           <button onclick="showAddCataloguePartModal()" class="btn-primary flex items-center gap-2">
             <i class="fas fa-plus"></i> Add Part
           </button>
@@ -1089,11 +1097,13 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <!-- Table -->
       <div class="card overflow-hidden">
         <div class="table-scroll">
-        <table class="w-full text-sm" style="min-width:780px">
+        <table class="w-full text-sm" style="min-width:1000px">
           <thead><tr class="border-b border-gray-100 bg-gray-50">
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Category</th>
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Description</th>
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Compatible Models</th>
+            <th class="text-left px-4 py-3 font-semibold text-gray-600">Batch #</th>
+            <th class="text-left px-4 py-3 font-semibold text-gray-600">Serial / Part #</th>
             <th class="text-right px-4 py-3 font-semibold text-gray-600">Buy Price</th>
             <th class="text-right px-4 py-3 font-semibold text-gray-600">Sell Price</th>
             <th class="text-right px-4 py-3 font-semibold text-gray-600">Margin</th>
@@ -2296,6 +2306,10 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         <label class="form-label">Compatible Models <span class="text-gray-400 font-normal">(comma-separated)</span></label>
         <input class="form-input" type="text" id="acp-models" placeholder="e.g. HILUX, PRADO, FORTUNER"/>
       </div>
+      <div>
+        <label class="form-label">Serial / Part # <span class="text-gray-400 font-normal">(from supplier)</span></label>
+        <input class="form-input" type="text" id="acp-serial" placeholder="e.g. AF-HILUX-2.7-001"/>
+      </div>
       <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
         <div>
           <label class="form-label">Buying Price (TZS) *</label>
@@ -2333,6 +2347,14 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-editCatPart')"><i class="fas fa-times"></i></button>
     </div>
     <input type="hidden" id="ecp-id"/>
+    <!-- System-generated batch number (read-only) -->
+    <div id="ecp-batchRow" class="hidden mb-3 flex items-center gap-3 p-2.5 bg-gray-50 rounded-xl border border-gray-100">
+      <i class="fas fa-barcode text-gray-400 text-sm"></i>
+      <div class="flex-1">
+        <p class="text-xs text-gray-400 font-semibold uppercase tracking-wide">Batch Number (system)</p>
+        <p class="text-sm font-bold text-gray-700" id="ecp-batchDisplay">—</p>
+      </div>
+    </div>
     <div class="grid grid-cols-1 gap-4">
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
@@ -2354,6 +2376,10 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <div>
         <label class="form-label">Compatible Models <span class="text-gray-400 font-normal">(comma-separated)</span></label>
         <input class="form-input" type="text" id="ecp-models"/>
+      </div>
+      <div>
+        <label class="form-label">Serial / Part # <span class="text-gray-400 font-normal">(from supplier)</span></label>
+        <input class="form-input" type="text" id="ecp-serial" placeholder="e.g. AF-HILUX-2.7-001"/>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
@@ -2419,6 +2445,14 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-lubricant')"><i class="fas fa-times"></i></button>
     </div>
     <input type="hidden" id="lub-id"/>
+    <!-- System-generated batch number (read-only, shown in edit mode) -->
+    <div id="lub-batchRow" class="hidden mb-3 flex items-center gap-3 p-2.5 bg-gray-50 rounded-xl border border-gray-100">
+      <i class="fas fa-barcode text-gray-400 text-sm"></i>
+      <div class="flex-1">
+        <p class="text-xs text-gray-400 font-semibold uppercase tracking-wide">Batch Number (system)</p>
+        <p class="text-sm font-bold text-gray-700" id="lub-batchDisplay">—</p>
+      </div>
+    </div>
     <div class="grid grid-cols-2 gap-4 mb-4">
       <div>
         <label class="form-label">Brand *</label>
@@ -2460,6 +2494,10 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <div>
         <label class="form-label">Initial Stock (units)</label>
         <input class="form-input" type="number" id="lub-stock" placeholder="0" min="0"/>
+      </div>
+      <div>
+        <label class="form-label">Serial / Part # <span class="text-gray-400 font-normal">(from supplier)</span></label>
+        <input class="form-input" type="text" id="lub-serial" placeholder="e.g. TOY-5W30-4L-001"/>
       </div>
       <div id="lub-intervalRow" class="hidden">
         <label class="form-label">Service Interval (km) <span class="text-gray-400 font-normal">— Engine & Transmission oils</span></label>
@@ -2525,8 +2563,8 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <i class="fas fa-info-circle text-blue-500 mt-0.5 flex-shrink-0"></i>
       <div>
         <p class="text-blue-800 font-semibold mb-1">Required columns (CSV / Excel first row must be headers):</p>
-        <p class="text-blue-700 font-mono text-xs">brand, description, type, viscosity, volume, buyingPrice, sellingPrice, stock, mileageInterval</p>
-        <p class="text-blue-600 text-xs mt-1"><em>mileageInterval</em> is optional — only for Engine Oil &amp; Transmission Fluid. All other columns are required.</p>
+        <p class="text-blue-700 font-mono text-xs">brand, description, type, viscosity, volume, buyingPrice, sellingPrice, stock, mileageInterval, partSerialNumber</p>
+        <p class="text-blue-600 text-xs mt-1"><em>mileageInterval</em> is optional — only for Engine Oil &amp; Transmission Fluid. <em>partSerialNumber</em> is optional (supplier part number). Batch # is auto-generated.</p>
         <button onclick="downloadLubricantTemplate()" class="mt-2 text-xs text-blue-600 hover:underline font-semibold"><i class="fas fa-download mr-1"></i>Download CSV template</button>
       </div>
     </div>
@@ -2555,7 +2593,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       </div>
       <div class="border border-gray-200 rounded-xl overflow-hidden mb-1">
         <div class="overflow-auto max-h-64">
-          <table class="w-full text-xs" style="min-width:700px" id="lubBulk-previewTable">
+          <table class="w-full text-xs" style="min-width:800px" id="lubBulk-previewTable">
             <thead class="bg-gray-50 sticky top-0">
               <tr>
                 <th class="px-3 py-2 text-left font-semibold text-gray-600">#</th>
@@ -2568,6 +2606,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
                 <th class="px-3 py-2 text-right font-semibold text-gray-600">Sell Price</th>
                 <th class="px-3 py-2 text-right font-semibold text-gray-600">Stock</th>
                 <th class="px-3 py-2 text-right font-semibold text-gray-600">Interval (km)</th>
+                <th class="px-3 py-2 text-left font-semibold text-gray-600">Serial / Part #</th>
                 <th class="px-3 py-2 text-center font-semibold text-gray-600">Status</th>
               </tr>
             </thead>
@@ -2582,6 +2621,83 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <button class="btn-secondary flex-1" onclick="closeModal('modal-lubBulkUpload')">Cancel</button>
       <button class="btn-primary flex-1 hidden" id="lubBulk-importBtn" onclick="lubBulkImport()">
         <i class="fas fa-database mr-1.5"></i><span id="lubBulk-importLabel">Import</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: Bulk Upload Parts ═══ -->
+<div id="modal-partBulk" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:860px">
+    <div class="flex items-center justify-between mb-5">
+      <div>
+        <h3 class="text-xl font-bold text-gray-900"><i class="fas fa-file-upload text-green-500 mr-2"></i>Bulk Upload Parts</h3>
+        <p class="text-sm text-gray-500 mt-1">Upload a CSV or Excel file to add multiple parts at once</p>
+      </div>
+      <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-partBulk')"><i class="fas fa-times"></i></button>
+    </div>
+
+    <!-- Template hint -->
+    <div class="flex items-start gap-3 p-3 bg-green-50 border border-green-100 rounded-xl mb-4 text-sm">
+      <i class="fas fa-info-circle text-green-500 mt-0.5 flex-shrink-0"></i>
+      <div>
+        <p class="text-green-800 font-semibold mb-1">Required columns (CSV / Excel first row must be headers):</p>
+        <p class="text-green-700 font-mono text-xs">category, description, compatibleModels, buyingPrice, sellingPrice, stock, partSerialNumber</p>
+        <p class="text-green-600 text-xs mt-1"><em>compatibleModels</em> and <em>partSerialNumber</em> are optional. Batch # is auto-generated by the system.</p>
+        <p class="text-green-600 text-xs mt-0.5">Valid categories: Air Filter, AC Filter, Oil Filter, Diesel Filter, Spark Plugs, Accessory</p>
+        <button onclick="downloadPartTemplate()" class="mt-2 text-xs text-green-600 hover:underline font-semibold"><i class="fas fa-download mr-1"></i>Download CSV template</button>
+      </div>
+    </div>
+
+    <!-- Drop zone -->
+    <div id="partBulk-dropzone"
+      class="relative border-2 border-dashed border-gray-300 rounded-2xl p-10 text-center cursor-pointer hover:border-green-400 hover:bg-green-50 transition-all mb-4"
+      onclick="document.getElementById('partBulk-fileInput').click()"
+      ondragover="event.preventDefault();this.classList.add('border-green-500','bg-green-50')"
+      ondragleave="this.classList.remove('border-green-500','bg-green-50')"
+      ondrop="partBulkHandleDrop(event)">
+      <input type="file" id="partBulk-fileInput" accept=".csv,.xlsx,.xls" class="hidden" onchange="partBulkParseFile(this.files[0])"/>
+      <i class="fas fa-cloud-upload-alt text-4xl text-gray-300 mb-3 block"></i>
+      <p class="font-semibold text-gray-600">Drag &amp; drop your file here, or <span class="text-green-600">click to browse</span></p>
+      <p class="text-xs text-gray-400 mt-1">Supports .csv, .xlsx, .xls — max 5 MB</p>
+    </div>
+
+    <!-- Parse status -->
+    <div id="partBulk-status" class="hidden mb-3"></div>
+
+    <!-- Preview table -->
+    <div id="partBulk-previewWrap" class="hidden">
+      <div class="flex items-center justify-between mb-2">
+        <p class="text-sm font-semibold text-gray-700" id="partBulk-previewLabel"></p>
+        <button onclick="partBulkClearFile()" class="text-xs text-red-500 hover:text-red-700 font-semibold"><i class="fas fa-times mr-1"></i>Clear</button>
+      </div>
+      <div class="border border-gray-200 rounded-xl overflow-hidden mb-1">
+        <div class="overflow-auto max-h-64">
+          <table class="w-full text-xs" style="min-width:750px" id="partBulk-previewTable">
+            <thead class="bg-gray-50 sticky top-0">
+              <tr>
+                <th class="px-3 py-2 text-left font-semibold text-gray-600">#</th>
+                <th class="px-3 py-2 text-left font-semibold text-gray-600">Category</th>
+                <th class="px-3 py-2 text-left font-semibold text-gray-600">Description</th>
+                <th class="px-3 py-2 text-left font-semibold text-gray-600">Compatible Models</th>
+                <th class="px-3 py-2 text-left font-semibold text-gray-600">Serial / Part #</th>
+                <th class="px-3 py-2 text-right font-semibold text-gray-600">Buy Price</th>
+                <th class="px-3 py-2 text-right font-semibold text-gray-600">Sell Price</th>
+                <th class="px-3 py-2 text-right font-semibold text-gray-600">Stock</th>
+                <th class="px-3 py-2 text-center font-semibold text-gray-600">Status</th>
+              </tr>
+            </thead>
+            <tbody id="partBulk-previewBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="partBulk-errorList" class="hidden mt-2 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 max-h-28 overflow-y-auto"></div>
+    </div>
+
+    <div class="flex gap-3 mt-5">
+      <button class="btn-secondary flex-1" onclick="closeModal('modal-partBulk')">Cancel</button>
+      <button class="btn-primary flex-1 hidden" id="partBulk-importBtn" onclick="partBulkImport()">
+        <i class="fas fa-database mr-1.5"></i><span id="partBulk-importLabel">Import</span>
       </button>
     </div>
   </div>
@@ -7654,7 +7770,7 @@ function renderLubricantsTable(list) {
   const tbody = document.getElementById('lubTable');
   if (!tbody) return;
   if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="12" class="text-center py-12 text-gray-400"><i class="fas fa-tint text-3xl mb-3 block"></i>No lubricants found</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="14" class="text-center py-12 text-gray-400"><i class="fas fa-tint text-3xl mb-3 block"></i>No lubricants found</td></tr>';
     return;
   }
   tbody.innerHTML = list.map(function(l) {
@@ -7667,9 +7783,17 @@ function renderLubricantsTable(list) {
       : (l.stockQuantity || 0) <= 5
         ? '<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700"><i class="fas fa-exclamation-triangle"></i>'+l.stockQuantity+'</span>'
         : '<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700"><i class="fas fa-check"></i>'+l.stockQuantity+'</span>';
+    const batchCell = l.batchNumber
+      ? '<span class="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-indigo-50 text-indigo-700">'+l.batchNumber+'</span>'
+      : '<span class="text-xs text-gray-300">—</span>';
+    const serialCell = l.partSerialNumber
+      ? '<span class="text-xs font-mono text-gray-700">'+l.partSerialNumber+'</span>'
+      : '<span class="text-xs text-gray-300">—</span>';
     return '<tr class="table-row border-b border-gray-50" data-id="'+l.id+'">' +
       '<td class="px-4 py-3"><span class="badge" style="background:'+bc.bg+';color:'+bc.text+'">'+l.brand+'</span></td>' +
       '<td class="px-4 py-3 font-medium text-gray-800 text-sm max-w-[220px]">'+l.description+'</td>' +
+      '<td class="px-4 py-3">'+batchCell+'</td>' +
+      '<td class="px-4 py-3">'+serialCell+'</td>' +
       '<td class="px-4 py-3"><span class="text-xs font-semibold px-2 py-0.5 rounded-full" style="background:'+tc+'20;color:'+tc+'">'+l.lubricantType+'</span></td>' +
       '<td class="px-4 py-3 text-sm text-gray-600 font-mono">'+l.viscosity+'</td>' +
       '<td class="px-4 py-3 text-sm text-gray-600">'+l.volume+'</td>' +
@@ -7718,13 +7842,14 @@ function showAddLubricantModal() {
   document.getElementById('lub-id').value = '';
   document.getElementById('lubModal-title').textContent = 'Add Lubricant';
   document.getElementById('lubModal-submitLabel').textContent = 'Add Lubricant';
-  ['lub-brand','lub-type','lub-description','lub-viscosity','lub-volume','lub-buyPrice','lub-sellPrice'].forEach(function(id) {
+  ['lub-brand','lub-type','lub-description','lub-viscosity','lub-volume','lub-buyPrice','lub-sellPrice','lub-serial'].forEach(function(id) {
     document.getElementById(id).value = '';
   });
   document.getElementById('lub-stock').value    = '0';
   document.getElementById('lub-interval').value = '';
   document.getElementById('lub-intervalRow').classList.add('hidden');
   document.getElementById('lub-marginPreview').classList.add('hidden');
+  document.getElementById('lub-batchRow').classList.add('hidden');
   openModal('modal-lubricant');
 }
 
@@ -7743,6 +7868,14 @@ function showEditLubricantModal(id) {
   document.getElementById('lub-sellPrice').value   = l.sellingPrice || '';
   document.getElementById('lub-stock').value       = l.stockQuantity || 0;
   document.getElementById('lub-interval').value   = l.mileageInterval || '';
+  document.getElementById('lub-serial').value      = l.partSerialNumber || '';
+  // Show batch number (read-only)
+  if (l.batchNumber) {
+    document.getElementById('lub-batchDisplay').textContent = l.batchNumber;
+    document.getElementById('lub-batchRow').classList.remove('hidden');
+  } else {
+    document.getElementById('lub-batchRow').classList.add('hidden');
+  }
   lubTypeChanged(); // show/hide interval row based on type
   lubCalcMargin();
   openModal('modal-lubricant');
@@ -7778,6 +7911,7 @@ async function submitLubricant() {
   if (!desc)  { showToast('Description is required', 'error'); return; }
   if (sellP <= 0) { showToast('Selling price must be greater than 0', 'error'); return; }
   const payload = { brand, lubricantType: type, description: desc, viscosity: visc, volume: vol, buyingPrice: buyP, sellingPrice: sellP, stockQuantity: stock,
+    partSerialNumber: document.getElementById('lub-serial').value.trim() || undefined,
     mileageInterval: (type === 'Engine Oil' || type === 'Transmission Fluid') ? (parseInt(document.getElementById('lub-interval').value) || undefined) : undefined };
   try {
     if (id) {
@@ -7935,6 +8069,7 @@ function lubBulkNormaliseHeader(h) {
     sellingprice:'sellingPrice', sellprice:'sellingPrice', saleprice:'sellingPrice', price:'sellingPrice',
     stock:'stock', stockquantity:'stock', qty:'stock', quantity:'stock', initialstock:'stock',
     mileageinterval:'mileageInterval', interval:'mileageInterval', serviceinterval:'mileageInterval', kminterval:'mileageInterval',
+    partserial:'partSerialNumber', partnumber:'partSerialNumber', serialnumber:'partSerialNumber', partno:'partSerialNumber', serialno:'partSerialNumber',
   };
   return map[h] || h;
 }
@@ -7968,12 +8103,9 @@ function lubBulkValidateAndPreview(rawRows, fileName) {
     const sellRaw     = get('sellingPrice').replace(/,/g,'');
     const stockRaw    = get('stock').replace(/,/g,'');
     const intervalRaw = get('mileageInterval').replace(/,/g,'');
+    const serial       = get('partSerialNumber');
 
     const rowErrors = [];
-
-    if (!description) rowErrors.push('description is empty');
-    if (!brand)       rowErrors.push('brand is missing');
-    if (!type)        rowErrors.push('type is missing');
 
     // Normalise brand
     const normBrand = LUB_VALID_BRANDS.find(function(b) { return b.toLowerCase() === brand.toLowerCase(); }) || brand;
@@ -8004,6 +8136,7 @@ function lubBulkValidateAndPreview(rawRows, fileName) {
       sellingPrice: isNaN(sellingPrice) ? 0 : sellingPrice,
       stock: isNaN(stockQty) ? 0 : stockQty,
       mileageInterval: (!intervalRaw || isNaN(interval)) ? undefined : interval,
+      partSerialNumber: serial || undefined,
       errors: rowErrors,
       valid: rowErrors.length === 0,
     };
@@ -8102,6 +8235,7 @@ async function lubBulkImport() {
         sellingPrice: r.sellingPrice,
         stockQuantity: r.stock,
         ...(r.mileageInterval ? { mileageInterval: r.mileageInterval } : {}),
+        ...(r.partSerialNumber ? { partSerialNumber: r.partSerialNumber } : {}),
       };
     });
 
@@ -8126,13 +8260,13 @@ async function lubBulkImport() {
 }
 
 function downloadLubricantTemplate() {
-  const headers = ['brand','description','type','viscosity','volume','buyingPrice','sellingPrice','stock','mileageInterval'];
+  const headers = ['brand','description','type','viscosity','volume','buyingPrice','sellingPrice','stock','mileageInterval','partSerialNumber'];
   const examples = [
-    ['Toyota','Toyota Genuine Motor Oil 5W-30','Engine Oil','5W-30','4L',55000,85000,20,10000],
-    ['Total','Total Quartz 9000 5W-40','Engine Oil','5W-40','5L',68000,98000,15,15000],
-    ['Castrol','Castrol ATF Dexron III','Transmission Fluid','ATF','1L',10000,18000,30,40000],
-    ['Shell','Shell Brake Fluid DOT 4','Brake Fluid','DOT 4','500ml',8000,14000,25,''],
-    ['Mobil','Mobil Gear Oil 80W-90','Gear Oil','80W-90','1L',12000,20000,18,''],
+    ['Toyota','Toyota Genuine Motor Oil 5W-30','Engine Oil','5W-30','4L',55000,85000,20,10000,'TOY-5W30-4L'],
+    ['Total','Total Quartz 9000 5W-40','Engine Oil','5W-40','5L',68000,98000,15,15000,'TTL-Q9000-5W40'],
+    ['Castrol','Castrol ATF Dexron III','Transmission Fluid','ATF','1L',10000,18000,30,40000,'CST-ATF-D3'],
+    ['Shell','Shell Brake Fluid DOT 4','Brake Fluid','DOT 4','500ml',8000,14000,25,'','SHL-BF-DOT4'],
+    ['Mobil','Mobil Gear Oil 80W-90','Gear Oil','80W-90','1L',12000,20000,18,'','MOB-GO-80W90'],
   ];
 
   const ws_data = [headers].concat(examples);
@@ -8140,10 +8274,261 @@ function downloadLubricantTemplate() {
   const ws = XLSX.utils.aoa_to_sheet(ws_data);
 
   // Column widths
-  ws['!cols'] = [12,40,22,12,10,14,14,8,16].map(function(w) { return { wch: w }; });
+  ws['!cols'] = [12,40,22,12,10,14,14,8,16,20].map(function(w) { return { wch: w }; });
 
   XLSX.utils.book_append_sheet(wb, ws, 'Lubricants');
   XLSX.writeFile(wb, 'lubricants_upload_template.xlsx');
+  showToast('Template downloaded — fill in your data and re-upload', 'info');
+}
+
+// ═══ PARTS BULK UPLOAD ═══
+const PART_VALID_CATEGORIES = ['Air Filter','AC Filter','Oil Filter','Diesel Filter','Spark Plugs','Accessory'];
+let _partBulkRows = [];
+
+function partBulkHandleDrop(event) {
+  event.preventDefault();
+  const dz = document.getElementById('partBulk-dropzone');
+  dz.classList.remove('border-green-500','bg-green-50');
+  const file = event.dataTransfer.files[0];
+  if (file) partBulkParseFile(file);
+}
+
+function partBulkClearFile() {
+  _partBulkRows = [];
+  document.getElementById('partBulk-fileInput').value = '';
+  document.getElementById('partBulk-status').className = 'hidden mb-3';
+  document.getElementById('partBulk-status').innerHTML = '';
+  document.getElementById('partBulk-previewWrap').classList.add('hidden');
+  document.getElementById('partBulk-previewBody').innerHTML = '';
+  document.getElementById('partBulk-errorList').classList.add('hidden');
+  document.getElementById('partBulk-errorList').innerHTML = '';
+  document.getElementById('partBulk-importBtn').classList.add('hidden');
+}
+
+function partBulkParseFile(file) {
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) {
+    partBulkShowStatus('error', 'File too large — maximum 5 MB');
+    return;
+  }
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (!['csv','xlsx','xls'].includes(ext)) {
+    partBulkShowStatus('error', 'Unsupported file type. Please use .csv, .xlsx or .xls');
+    return;
+  }
+  partBulkShowStatus('info', '<i class="fas fa-spinner fa-spin mr-2"></i>Parsing file…');
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'binary' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      if (!rows.length) { partBulkShowStatus('error', 'File is empty or has no data rows'); return; }
+      partBulkValidateAndPreview(rows, file.name);
+    } catch(err) {
+      partBulkShowStatus('error', 'Failed to parse file: ' + err.message);
+    }
+  };
+  reader.readAsBinaryString(file);
+}
+
+function partBulkNormaliseHeader(h) {
+  h = String(h).trim().toLowerCase().replace(/[\s_-]+/g,'');
+  const map = {
+    category:'category', cat:'category', type:'category',
+    description:'description', desc:'description', name:'description', partname:'description',
+    compatiblemodels:'compatibleModels', models:'compatibleModels', compatible:'compatibleModels', fitment:'compatibleModels',
+    buyingprice:'buyingPrice', buyprice:'buyingPrice', costprice:'buyingPrice', cost:'buyingPrice',
+    sellingprice:'sellingPrice', sellprice:'sellingPrice', saleprice:'sellingPrice', price:'sellingPrice',
+    stock:'stock', stockquantity:'stock', qty:'stock', quantity:'stock', initialstock:'stock',
+    partserial:'partSerialNumber', partnumber:'partSerialNumber', serialnumber:'partSerialNumber',
+    partno:'partSerialNumber', serialno:'partSerialNumber', partserialnumber:'partSerialNumber',
+  };
+  return map[h] || h;
+}
+
+function partBulkValidateAndPreview(rawRows, fileName) {
+  const firstRow = rawRows[0];
+  const headerMap = {};
+  Object.keys(firstRow).forEach(function(h) { headerMap[partBulkNormaliseHeader(h)] = h; });
+
+  const required = ['category','description','sellingPrice'];
+  const missing  = required.filter(function(k) { return !headerMap[k]; });
+  if (missing.length) {
+    partBulkShowStatus('error', 'Missing required columns: <strong>' + missing.join(', ') + '</strong>. Please check your file headers.');
+    return;
+  }
+
+  const validated = [];
+  const errors    = [];
+
+  rawRows.forEach(function(raw, i) {
+    const rowNum = i + 2;
+    function get(key) { return headerMap[key] ? String(raw[headerMap[key]] || '').trim() : ''; }
+
+    const category    = get('category');
+    const description = get('description');
+    const models      = get('compatibleModels');
+    const serial      = get('partSerialNumber');
+    const buyRaw      = get('buyingPrice').replace(/,/g,'');
+    const sellRaw     = get('sellingPrice').replace(/,/g,'');
+    const stockRaw    = get('stock').replace(/,/g,'');
+
+    const rowErrors = [];
+    if (!description) rowErrors.push('description is empty');
+    if (!category)    rowErrors.push('category is missing');
+
+    const normCat = PART_VALID_CATEGORIES.find(function(c) { return c.toLowerCase() === category.toLowerCase(); }) || category;
+    if (category && !PART_VALID_CATEGORIES.includes(normCat)) rowErrors.push('unknown category "' + category + '"');
+
+    const buyingPrice  = parseFloat(buyRaw);
+    const sellingPrice = parseFloat(sellRaw);
+    const stockQty     = parseInt(stockRaw);
+
+    if (isNaN(sellingPrice) || sellingPrice <= 0) rowErrors.push('invalid sellingPrice');
+    if (buyRaw && (isNaN(buyingPrice) || buyingPrice < 0)) rowErrors.push('invalid buyingPrice');
+    if (stockRaw && (isNaN(stockQty) || stockQty < 0)) rowErrors.push('invalid stock');
+
+    const rowObj = {
+      rowNum,
+      category: normCat,
+      description,
+      compatibleModels: models,
+      partSerialNumber: serial || undefined,
+      buyingPrice: isNaN(buyingPrice) ? 0 : buyingPrice,
+      sellingPrice: isNaN(sellingPrice) ? 0 : sellingPrice,
+      stock: isNaN(stockQty) ? 0 : stockQty,
+      errors: rowErrors,
+      valid: rowErrors.length === 0,
+    };
+    validated.push(rowObj);
+    if (rowErrors.length) errors.push('Row ' + rowNum + ': ' + rowErrors.join('; '));
+  });
+
+  _partBulkRows = validated;
+  const goodCount = validated.filter(function(r) { return r.valid; }).length;
+  const badCount  = validated.length - goodCount;
+
+  const tbody  = document.getElementById('partBulk-previewBody');
+  const fmtNum = function(n) { return (n && n > 0) ? n.toLocaleString() : '—'; };
+  tbody.innerHTML = validated.slice(0, 200).map(function(r) {
+    const statusBadge = r.valid
+      ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700"><i class="fas fa-check text-[9px]"></i>OK</span>'
+      : '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700" title="' + r.errors.join('; ') + '"><i class="fas fa-exclamation text-[9px]"></i>Error</span>';
+    const rowCls = r.valid ? '' : 'bg-red-50';
+    return '<tr class="border-b border-gray-100 ' + rowCls + '">' +
+      '<td class="px-3 py-1.5 text-gray-400">' + r.rowNum + '</td>' +
+      '<td class="px-3 py-1.5 font-semibold">' + (r.category||'—') + '</td>' +
+      '<td class="px-3 py-1.5 max-w-[180px] truncate">' + (r.description||'—') + '</td>' +
+      '<td class="px-3 py-1.5 text-gray-500">' + (r.compatibleModels||'—') + '</td>' +
+      '<td class="px-3 py-1.5 font-mono">' + (r.partSerialNumber||'—') + '</td>' +
+      '<td class="px-3 py-1.5 text-right">' + fmtNum(r.buyingPrice) + '</td>' +
+      '<td class="px-3 py-1.5 text-right">' + fmtNum(r.sellingPrice) + '</td>' +
+      '<td class="px-3 py-1.5 text-right">' + fmtNum(r.stock) + '</td>' +
+      '<td class="px-3 py-1.5 text-center">' + statusBadge + '</td>' +
+      '</tr>';
+  }).join('');
+
+  document.getElementById('partBulk-previewLabel').textContent =
+    'Preview: ' + validated.length + ' row(s) from "' + fileName + '"' +
+    (badCount ? ' — ' + badCount + ' row(s) have errors (shown in red)' : ' — all rows valid');
+
+  const errDiv = document.getElementById('partBulk-errorList');
+  if (errors.length) {
+    errDiv.classList.remove('hidden');
+    errDiv.innerHTML = '<p class="font-semibold mb-1"><i class="fas fa-exclamation-triangle mr-1"></i>' + errors.length + ' error(s) found — these rows will be skipped:</p>' +
+      errors.map(function(e) { return '<p class="mt-0.5">• ' + e + '</p>'; }).join('');
+  } else {
+    errDiv.classList.add('hidden');
+  }
+
+  document.getElementById('partBulk-previewWrap').classList.remove('hidden');
+
+  if (goodCount > 0) {
+    const importBtn = document.getElementById('partBulk-importBtn');
+    importBtn.classList.remove('hidden');
+    document.getElementById('partBulk-importLabel').textContent = 'Import ' + goodCount + ' part' + (goodCount !== 1 ? 's' : '');
+  }
+
+  if (badCount === 0) {
+    partBulkShowStatus('success', '<i class="fas fa-check-circle mr-2 text-green-600"></i><span class="text-green-800 font-semibold">All ' + goodCount + ' rows are valid and ready to import.</span>');
+  } else if (goodCount > 0) {
+    partBulkShowStatus('warning', '<i class="fas fa-exclamation-triangle mr-2 text-amber-500"></i><span class="text-amber-800 font-semibold">' + goodCount + ' valid / ' + badCount + ' invalid row(s). Only valid rows will be imported.</span>');
+  } else {
+    partBulkShowStatus('error', '<i class="fas fa-times-circle mr-2"></i>No valid rows found. Please fix the errors and re-upload.');
+  }
+}
+
+function partBulkShowStatus(type, html) {
+  const el  = document.getElementById('partBulk-status');
+  const cls = {
+    success: 'flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-xl text-sm mb-3',
+    warning: 'flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm mb-3',
+    error:   'flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-sm mb-3 text-red-800',
+    info:    'flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-xl text-sm mb-3 text-blue-800',
+  };
+  el.className = cls[type] || cls.info;
+  el.innerHTML = html;
+}
+
+async function partBulkImport() {
+  const validRows = _partBulkRows.filter(function(r) { return r.valid; });
+  if (!validRows.length) return;
+
+  const btn = document.getElementById('partBulk-importBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i>Importing…';
+
+  try {
+    const payload = validRows.map(function(r) {
+      return {
+        category: r.category,
+        description: r.description,
+        compatibleModels: r.compatibleModels || '',
+        buyingPrice: r.buyingPrice,
+        sellingPrice: r.sellingPrice,
+        stockQuantity: r.stock,
+        ...(r.partSerialNumber ? { partSerialNumber: r.partSerialNumber } : {}),
+      };
+    });
+
+    const { data } = await axios.post('/api/catalogue/parts/bulk', payload);
+    const added   = data.added   || 0;
+    const skipped = data.skipped || 0;
+
+    closeModal('modal-partBulk');
+    partBulkClearFile();
+
+    // Refresh parts list
+    const { data: fresh } = await axios.get('/api/catalogue/parts');
+    allParts = fresh;
+    filterParts();
+
+    showToast('✔ ' + added + ' part' + (added !== 1 ? 's' : '') + ' imported successfully' + (skipped ? ' (' + skipped + ' skipped)' : ''), 'success');
+  } catch(err) {
+    partBulkShowStatus('error', '<i class="fas fa-times-circle mr-2"></i>Import failed: ' + (err?.response?.data?.error || err.message));
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-database mr-1.5"></i><span id="partBulk-importLabel">Retry Import</span>';
+  }
+}
+
+function downloadPartTemplate() {
+  const headers = ['category','description','compatibleModels','buyingPrice','sellingPrice','stock','partSerialNumber'];
+  const examples = [
+    ['Air Filter','Air Filter – Toyota Hilux 2.7','HILUX,FORTUNER',7000,25000,15,'TOY-AF-HILUX-2.7'],
+    ['Oil Filter','Oil Filter – Toyota Land Cruiser','LAND CRUISER,PRADO',9000,22000,20,'TOY-OF-LC200'],
+    ['Spark Plugs','NGK Spark Plug – Iridium','COROLLA,CAMRY,VIOS',8000,18000,30,'NGK-IR-CORD'],
+    ['AC Filter','Cabin Air Filter – Nissan X-Trail','X-TRAIL,QASHQAI',6000,16000,12,'NIS-AC-XTRAIL'],
+    ['Diesel Filter','Diesel Filter – Mitsubishi Canter','CANTER,FUSO',12000,28000,10,'MIT-DF-CANTER'],
+    ['Accessory','Steering Wheel Cover – Universal','UNIVERSAL',5000,12000,25,'ACC-SWC-UNV'],
+  ];
+
+  const ws_data = [headers].concat(examples);
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(ws_data);
+  ws['!cols'] = [14,40,30,14,14,8,22].map(function(w) { return { wch: w }; });
+  XLSX.utils.book_append_sheet(wb, ws, 'Parts');
+  XLSX.writeFile(wb, 'parts_upload_template.xlsx');
   showToast('Template downloaded — fill in your data and re-upload', 'info');
 }
 
@@ -8430,47 +8815,46 @@ function renderPartsTable(parts) {
   const tbody = document.getElementById('partsTable');
   if (!tbody) return;
   if (!parts.length) {
-    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-12 text-gray-400"><i class="fas fa-search text-3xl mb-3 block"></i>No parts found</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" class="text-center py-12 text-gray-400"><i class="fas fa-search text-3xl mb-3 block"></i>No parts found</td></tr>';
     return;
   }
-  tbody.innerHTML = parts.map(p => {
+  tbody.innerHTML = parts.map(function(p) {
     const c = CAT_COLORS[p.category] || { bg:'#f1f5f9', text:'#64748b' };
     const marginPct = Math.round((p.margin / p.sellingPrice) * 100);
     const marginColor = marginPct >= 50 ? '#16a34a' : marginPct >= 30 ? '#d97706' : '#dc2626';
-    return \`
-      <tr class="table-row border-b border-gray-50">
-        <td class="px-4 py-3">
-          <span class="badge" style="background:\${c.bg};color:\${c.text}">\${p.category}</span>
-        </td>
-        <td class="px-4 py-3 font-medium text-gray-800 text-sm">\${p.description}</td>
-        <td class="px-4 py-3 text-xs text-gray-500">
-          <div class="flex flex-wrap gap-1">
-            \${p.compatibleModels.split(',').slice(0,3).map(m => \`<span class="tag bg-gray-100 text-gray-600">\${m.trim()}</span>\`).join('')}
-            \${p.compatibleModels.split(',').length > 3 ? \`<span class="tag bg-gray-100 text-gray-400">+\${p.compatibleModels.split(',').length-3} more</span>\` : ''}
-          </div>
-        </td>
-        <td class="px-4 py-3 text-right text-gray-600">\${fmt(p.buyingPrice)}</td>
-        <td class="px-4 py-3 text-right font-bold text-gray-900">\${fmt(p.sellingPrice)}</td>
-        <td class="px-4 py-3 text-right font-semibold text-green-600">\${fmt(p.margin)}</td>
-        <td class="px-4 py-3 text-right">
-          <span class="font-bold text-sm" style="color:\${marginColor}">\${marginPct}%</span>
-        </td>
-        <td class="px-4 py-3 text-right">
-          \${(p.stockQuantity || 0) === 0
-            ? \`<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-600"><i class="fas fa-times-circle"></i>Out</span>\`
-            : (p.stockQuantity || 0) <= 5
-              ? \`<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700"><i class="fas fa-exclamation-triangle"></i>\${p.stockQuantity}</span>\`
-              : \`<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700"><i class="fas fa-check"></i>\${p.stockQuantity}</span>\`
-          }
-        </td>
-        <td class="px-4 py-3 text-center">
-          <div class="flex items-center justify-center gap-1">
-            <button onclick="showEditCataloguePartModal('\${p.id}')" title="Edit part" class="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center transition-colors"><i class="fas fa-pen text-xs"></i></button>
-            <button onclick="showRestockModal('\${p.id}')" title="Add stock" class="w-7 h-7 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 flex items-center justify-center transition-colors"><i class="fas fa-plus text-xs"></i></button>
-          </div>
-        </td>
-      </tr>
-    \`;
+    const batchCell = p.batchNumber
+      ? '<span class="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-indigo-50 text-indigo-700">'+p.batchNumber+'</span>'
+      : '<span class="text-xs text-gray-300">\u2014</span>';
+    const serialCell = p.partSerialNumber
+      ? '<span class="text-xs font-mono text-gray-700">'+p.partSerialNumber+'</span>'
+      : '<span class="text-xs text-gray-300">\u2014</span>';
+    const modelsHtml = (function() {
+      const parts2 = (p.compatibleModels || '').split(',').filter(function(m) { return m.trim(); });
+      const visible = parts2.slice(0,3).map(function(m) { return '<span class="tag bg-gray-100 text-gray-600">'+m.trim()+'</span>'; }).join('');
+      const extra = parts2.length > 3 ? '<span class="tag bg-gray-100 text-gray-400">+' + (parts2.length-3) + ' more</span>' : '';
+      return visible + extra;
+    })();
+    const stockBadge = (p.stockQuantity || 0) === 0
+      ? '<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-600"><i class="fas fa-times-circle"></i>Out</span>'
+      : (p.stockQuantity || 0) <= 5
+        ? '<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700"><i class="fas fa-exclamation-triangle"></i>'+p.stockQuantity+'</span>'
+        : '<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700"><i class="fas fa-check"></i>'+p.stockQuantity+'</span>';
+    return '<tr class="table-row border-b border-gray-50">' +
+      '<td class="px-4 py-3"><span class="badge" style="background:'+c.bg+';color:'+c.text+'">'+p.category+'</span></td>' +
+      '<td class="px-4 py-3 font-medium text-gray-800 text-sm">'+p.description+'</td>' +
+      '<td class="px-4 py-3 text-xs text-gray-500"><div class="flex flex-wrap gap-1">'+modelsHtml+'</div></td>' +
+      '<td class="px-4 py-3">'+batchCell+'</td>' +
+      '<td class="px-4 py-3">'+serialCell+'</td>' +
+      '<td class="px-4 py-3 text-right text-gray-600">'+fmt(p.buyingPrice)+'</td>' +
+      '<td class="px-4 py-3 text-right font-bold text-gray-900">'+fmt(p.sellingPrice)+'</td>' +
+      '<td class="px-4 py-3 text-right font-semibold text-green-600">'+fmt(p.margin)+'</td>' +
+      '<td class="px-4 py-3 text-right"><span class="font-bold text-sm" style="color:'+marginColor+'">'+marginPct+'%</span></td>' +
+      '<td class="px-4 py-3 text-right">'+stockBadge+'</td>' +
+      '<td class="px-4 py-3 text-center"><div class="flex items-center justify-center gap-1">' +
+        '<button onclick="showEditCataloguePartModal(\''+p.id+'\')" title="Edit part" class="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center transition-colors"><i class="fas fa-pen text-xs"></i></button>' +
+        '<button onclick="showRestockModal(\''+p.id+'\')" title="Add stock" class="w-7 h-7 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 flex items-center justify-center transition-colors"><i class="fas fa-plus text-xs"></i></button>' +
+      '</div></td>' +
+    '</tr>';
   }).join('');
 }
 
@@ -8501,6 +8885,7 @@ function showAddCataloguePartModal() {
   document.getElementById('acp-category').value = '';
   document.getElementById('acp-description').value = '';
   document.getElementById('acp-models').value = '';
+  document.getElementById('acp-serial').value = '';
   document.getElementById('acp-buy').value = '';
   document.getElementById('acp-sell').value = '';
   document.getElementById('acp-stock').value = '0';
@@ -8531,9 +8916,11 @@ async function submitAddCatPart() {
   if (!cat) { showToast('Please select a category', 'error'); return; }
   if (!desc) { showToast('Please enter a description', 'error'); return; }
   if (sell <= 0) { showToast('Please enter a selling price', 'error'); return; }
+  const serial = document.getElementById('acp-serial').value.trim();
   const { data } = await axios.post('/api/catalogue/parts', {
     category: cat, description: desc, compatibleModels: models,
-    buyingPrice: buy, sellingPrice: sell, stockQuantity: stock
+    buyingPrice: buy, sellingPrice: sell, stockQuantity: stock,
+    ...(serial ? { partSerialNumber: serial } : {})
   });
   allParts.push(data);
   closeModal('modal-addCatPart');
@@ -8549,8 +8936,16 @@ function showEditCataloguePartModal(id) {
   document.getElementById('ecp-category').value = p.category;
   document.getElementById('ecp-description').value = p.description;
   document.getElementById('ecp-models').value = p.compatibleModels;
+  document.getElementById('ecp-serial').value = p.partSerialNumber || '';
   document.getElementById('ecp-buy').value = p.buyingPrice;
   document.getElementById('ecp-sell').value = p.sellingPrice;
+  // Show batch number (read-only)
+  if (p.batchNumber) {
+    document.getElementById('ecp-batchDisplay').textContent = p.batchNumber;
+    document.getElementById('ecp-batchRow').classList.remove('hidden');
+  } else {
+    document.getElementById('ecp-batchRow').classList.add('hidden');
+  }
   ecpCalcMargin();
   openModal('modal-editCatPart');
 }
@@ -8569,11 +8964,13 @@ async function submitEditCatPart() {
   const buy = parseFloat(document.getElementById('ecp-buy').value) || 0;
   const sell = parseFloat(document.getElementById('ecp-sell').value) || 0;
   const models = document.getElementById('ecp-models').value.trim();
+  const serial = document.getElementById('ecp-serial').value.trim();
   if (!desc || sell <= 0) { showToast('Please fill in required fields', 'error'); return; }
   const margin = sell - buy;
   const { data } = await axios.put('/api/catalogue/parts/' + id, {
     category: cat, description: desc, compatibleModels: models,
-    buyingPrice: buy, sellingPrice: sell, margin
+    buyingPrice: buy, sellingPrice: sell, margin,
+    partSerialNumber: serial || undefined
   });
   const idx = allParts.findIndex(x => x.id === id);
   if (idx !== -1) allParts[idx] = { ...allParts[idx], ...data };
