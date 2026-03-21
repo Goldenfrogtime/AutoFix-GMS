@@ -1712,6 +1712,67 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
   </div>
 </div>
 
+<!-- Edit Payment Modal -->
+<div id="modal-editPayment" class="modal-overlay hidden" style="z-index:1100">
+  <div class="modal-box" style="--mw:460px">
+    <div class="flex items-center justify-between mb-5">
+      <h3 class="text-lg font-bold text-gray-900">Edit Payment</h3>
+      <button onclick="closeModal('modal-editPayment')" class="text-gray-400 hover:text-gray-600 text-xl"><i class="fas fa-times"></i></button>
+    </div>
+
+    <!-- Warning banner -->
+    <div class="flex items-start gap-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 mb-5 text-sm text-amber-700">
+      <i class="fas fa-exclamation-triangle mt-0.5 flex-shrink-0"></i>
+      <span>Only edit this payment if it bounced, was entered incorrectly, or has not reflected. This will recalculate the invoice balance.</span>
+    </div>
+
+    <!-- Amount -->
+    <div class="mb-4">
+      <label class="form-label">Amount (TZS) <span class="text-red-500">*</span></label>
+      <input class="form-input font-bold text-lg" type="number" id="ep-amount" placeholder="0"/>
+    </div>
+
+    <!-- Method -->
+    <div class="mb-4">
+      <label class="form-label">Payment Method <span class="text-red-500">*</span></label>
+      <div class="grid grid-cols-4 gap-2" id="ep-method-btns">
+        <button type="button" onclick="epSelectMethod('Mobile Money')"
+          class="ep-method-btn flex flex-col items-center gap-1 p-2.5 rounded-xl border-2 border-gray-200 hover:border-green-400 transition-all text-xs font-semibold text-gray-600"
+          data-method="Mobile Money"><i class="fas fa-mobile-alt text-lg text-gray-400"></i>Mobile Money</button>
+        <button type="button" onclick="epSelectMethod('Bank')"
+          class="ep-method-btn flex flex-col items-center gap-1 p-2.5 rounded-xl border-2 border-gray-200 hover:border-blue-400 transition-all text-xs font-semibold text-gray-600"
+          data-method="Bank"><i class="fas fa-university text-lg text-gray-400"></i>Bank</button>
+        <button type="button" onclick="epSelectMethod('Lipa Number')"
+          class="ep-method-btn flex flex-col items-center gap-1 p-2.5 rounded-xl border-2 border-gray-200 hover:border-purple-400 transition-all text-xs font-semibold text-gray-600"
+          data-method="Lipa Number"><i class="fas fa-hashtag text-lg text-gray-400"></i>Lipa Number</button>
+        <button type="button" onclick="epSelectMethod('Cash')"
+          class="ep-method-btn flex flex-col items-center gap-1 p-2.5 rounded-xl border-2 border-gray-200 hover:border-orange-400 transition-all text-xs font-semibold text-gray-600"
+          data-method="Cash"><i class="fas fa-money-bill-wave text-lg text-gray-400"></i>Cash</button>
+      </div>
+      <input type="hidden" id="ep-method"/>
+    </div>
+
+    <!-- Reference -->
+    <div class="mb-5">
+      <label class="form-label">Reference / Transaction ID <span class="text-gray-400 font-normal">(optional)</span></label>
+      <input class="form-input" type="text" id="ep-reference" placeholder="e.g. MPESA123, Bank Ref…"/>
+    </div>
+
+    <!-- Date -->
+    <div class="mb-5">
+      <label class="form-label">Payment Date &amp; Time</label>
+      <input class="form-input" type="datetime-local" id="ep-date"/>
+    </div>
+
+    <div class="flex gap-2">
+      <button class="btn-secondary flex-1" onclick="closeModal('modal-editPayment')">Cancel</button>
+      <button class="btn-primary flex-1" id="ep-submit" onclick="submitEditPayment()">
+        <i class="fas fa-save mr-1.5"></i>Save Changes
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- Send PFI Modal -->
 <div id="modal-sendPFI" class="modal-overlay hidden">
   <div class="modal-box" style="--mw:640px">
@@ -6342,14 +6403,30 @@ function showInvoiceDetail(invId, event) {
   if (payments.length) {
     paySection.classList.remove('hidden');
     payList.innerHTML = payments.map(p => \`
-      <div class="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
-        <div class="flex items-center gap-2">
-          <i class="fas \${methodIcon(p.method)} \${methodColor(p.method)} text-sm"></i>
-          <span class="text-sm font-semibold text-gray-700">\${fmt2(p.amount)}</span>
-          <span class="text-xs text-gray-400">via \${p.method}</span>
-          \${p.reference ? \`<span class="text-xs text-gray-400">· \${p.reference}</span>\` : ''}
+      <div class="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2.5 border border-gray-100 gap-2">
+        <div class="flex items-center gap-2 min-w-0 flex-1">
+          <i class="fas \${methodIcon(p.method)} \${methodColor(p.method)} text-sm flex-shrink-0"></i>
+          <div class="min-w-0">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="text-sm font-bold text-gray-800">\${fmt2(p.amount)}</span>
+              <span class="text-xs text-gray-400">via \${p.method}</span>
+              \${p.reference ? \`<span class="text-xs bg-gray-100 text-gray-500 rounded px-1.5 py-0.5 font-mono">\${p.reference}</span>\` : ''}
+            </div>
+            <span class="text-xs text-gray-400">\${fmtTs(p.paidAt)}</span>
+          </div>
         </div>
-        <span class="text-xs text-gray-400">\${fmtTs(p.paidAt)}</span>
+        \${p.id ? \`
+        <div class="flex items-center gap-1 flex-shrink-0">
+          <button onclick="openEditPayment('\${inv.id}', '\${p.id}')"
+            class="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors" title="Edit payment">
+            <i class="fas fa-pencil-alt text-xs"></i>
+          </button>
+          <button onclick="confirmRemovePayment('\${inv.id}', '\${p.id}', \${p.amount})"
+            class="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors" title="Remove payment">
+            <i class="fas fa-trash-alt text-xs"></i>
+          </button>
+        </div>
+        \` : ''}
       </div>
     \`).join('');
     // Balance row
@@ -6393,6 +6470,114 @@ function showInvoiceDetail(invId, event) {
 function _invdPay() {
   closeModal('modal-invoiceDetail');
   if (_invDetailId) showPayInvoiceModal(_invDetailId);
+}
+
+// ─── Edit Payment ─────────────────────────────────────────────────────────────
+var _epInvId = null;
+var _epPayId = null;
+
+function openEditPayment(invId, payId) {
+  const inv = allInvoices.find(i => i.id === invId);
+  if (!inv) return;
+  const payment = (inv.payments || []).find(p => p.id === payId);
+  if (!payment) return;
+
+  _epInvId = invId;
+  _epPayId = payId;
+
+  // Pre-fill form
+  document.getElementById('ep-amount').value    = payment.amount;
+  document.getElementById('ep-reference').value = payment.reference || '';
+
+  // Format datetime-local (needs YYYY-MM-DDTHH:MM)
+  const dt = payment.paidAt ? new Date(payment.paidAt) : new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const localDt = dt.getFullYear() + '-' + pad(dt.getMonth()+1) + '-' + pad(dt.getDate())
+    + 'T' + pad(dt.getHours()) + ':' + pad(dt.getMinutes());
+  document.getElementById('ep-date').value = localDt;
+
+  // Reset + select method
+  document.getElementById('ep-method').value = '';
+  document.querySelectorAll('.ep-method-btn').forEach(function(b) {
+    const m = b.getAttribute('data-method');
+    const colorMap = { 'Mobile Money':'green', 'Bank':'blue', 'Lipa Number':'purple', 'Cash':'orange' };
+    const c = colorMap[m] || 'gray';
+    b.className = \`ep-method-btn flex flex-col items-center gap-1 p-2.5 rounded-xl border-2 border-gray-200 hover:border-\${c}-400 transition-all text-xs font-semibold text-gray-600\`;
+    b.querySelector('i').className = b.querySelector('i').className.replace(/text-\w+-\d+/, 'text-gray-400');
+  });
+  if (payment.method) epSelectMethod(payment.method);
+
+  openModal('modal-editPayment');
+}
+
+function epSelectMethod(method) {
+  document.getElementById('ep-method').value = method;
+  const colorMap  = { 'Mobile Money':'green', 'Bank':'blue', 'Lipa Number':'purple', 'Cash':'orange' };
+  const iconMap   = { 'Mobile Money':'text-green-600', 'Bank':'text-blue-600', 'Lipa Number':'text-purple-600', 'Cash':'text-orange-600' };
+  document.querySelectorAll('.ep-method-btn').forEach(function(b) {
+    const m = b.getAttribute('data-method');
+    const c = colorMap[m] || 'gray';
+    if (m === method) {
+      b.className = \`ep-method-btn flex flex-col items-center gap-1 p-2.5 rounded-xl border-2 border-\${c}-500 bg-\${c}-50 text-\${c}-700 transition-all text-xs font-semibold\`;
+      const icon = b.querySelector('i');
+      if (icon) { icon.className = icon.className.replace(/text-\w+-\d+/, ''); icon.classList.add(iconMap[m] || 'text-gray-600'); }
+    } else {
+      b.className = \`ep-method-btn flex flex-col items-center gap-1 p-2.5 rounded-xl border-2 border-gray-200 hover:border-\${c}-400 transition-all text-xs font-semibold text-gray-600\`;
+      const icon = b.querySelector('i');
+      if (icon) { icon.className = icon.className.replace(/text-\w+-\d+/, 'text-gray-400'); }
+    }
+  });
+}
+
+async function submitEditPayment() {
+  const amount    = parseFloat(document.getElementById('ep-amount').value);
+  const method    = document.getElementById('ep-method').value;
+  const reference = document.getElementById('ep-reference').value.trim();
+  const dateVal   = document.getElementById('ep-date').value;
+
+  if (!amount || amount <= 0) { showToast('Please enter a valid amount', 'error'); return; }
+  if (!method) { showToast('Please select a payment method', 'error'); return; }
+
+  const btn = document.getElementById('ep-submit');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i>Saving…';
+
+  try {
+    await axios.patch(\`/api/invoices/\${_epInvId}/payments/\${_epPayId}\`, {
+      amount,
+      method,
+      reference: reference || undefined,
+      paidAt: dateVal ? new Date(dateVal).toISOString() : undefined,
+    });
+    closeModal('modal-editPayment');
+    showToast('Payment updated successfully', 'success');
+    await syncFinance();
+    // Reopen invoice detail with fresh data
+    showInvoiceDetail(_epInvId, null);
+  } catch(e) {
+    showToast('Could not update payment', 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-save mr-1.5"></i>Save Changes';
+  }
+}
+
+function confirmRemovePayment(invId, payId, amount) {
+  const fmtAmt = 'TZS ' + Number(amount).toLocaleString();
+  if (!confirm(\`Remove this payment of \${fmtAmt}?\n\nThis will reverse the payment and recalculate the invoice balance. Use this only for bounced or incorrect payments.\`)) return;
+  removePayment(invId, payId);
+}
+
+async function removePayment(invId, payId) {
+  try {
+    await axios.delete(\`/api/invoices/\${invId}/payments/\${payId}\`);
+    showToast('Payment removed. Invoice balance updated.', 'warning');
+    await syncFinance();
+    // Reopen invoice detail with refreshed data
+    showInvoiceDetail(invId, null);
+  } catch(e) {
+    showToast('Could not remove payment', 'error');
+  }
 }
 
 // ═══ PACKAGES ═══

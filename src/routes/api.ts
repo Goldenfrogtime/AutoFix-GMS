@@ -411,6 +411,7 @@ api.patch('/invoices/:id/status', async (c) => {
   const newPayments = prev.payments ? [...prev.payments] : []
   if (body.paymentMethod && newPaymentAmount > 0) {
     newPayments.push({
+      id: 'pay-' + prev.id + '-' + Date.now(),
       amount: newPaymentAmount,
       method: body.paymentMethod as any,
       reference: body.paymentReference,
@@ -460,6 +461,99 @@ api.patch('/invoices/:id/status', async (c) => {
       `${inv.invoiceNumber} – TZS ${inv.totalAmount.toLocaleString()} is now overdue${jc ? ' (' + jc.jobCardNumber + ')' : ''}`,
       { jobCardId: jc?.id, jobCardNumber: jc?.jobCardNumber, entityId: inv.id, entityType: 'invoice' })
   }
+  return c.json(invoices[idx])
+})
+
+// ─── Edit a single payment entry ─────────────────────────────────────────────
+api.patch('/invoices/:id/payments/:paymentId', async (c) => {
+  const idx = invoices.findIndex(x => x.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Invoice not found' }, 404)
+
+  const inv      = invoices[idx]
+  const payId    = c.req.param('paymentId')
+  const payments = inv.payments ? [...inv.payments] : []
+  const pIdx     = payments.findIndex(p => p.id === payId)
+  if (pIdx === -1) return c.json({ error: 'Payment not found' }, 404)
+
+  const body = await c.req.json<{
+    amount?: number
+    method?: string
+    reference?: string
+    paidAt?: string
+  }>()
+
+  payments[pIdx] = {
+    ...payments[pIdx],
+    ...(body.amount    !== undefined ? { amount:    body.amount }             : {}),
+    ...(body.method    !== undefined ? { method:    body.method as any }      : {}),
+    ...(body.reference !== undefined ? { reference: body.reference }          : {}),
+    ...(body.paidAt    !== undefined ? { paidAt:    body.paidAt }             : {}),
+  }
+
+  const totalAmountPaid = payments.reduce((s, p) => s + p.amount, 0)
+  let newStatus: any = inv.status
+  if (totalAmountPaid >= inv.totalAmount) {
+    newStatus = 'Paid'
+  } else if (totalAmountPaid > 0) {
+    newStatus = 'Partially Paid'
+  } else {
+    newStatus = inv.dueDate && inv.dueDate < new Date().toISOString().slice(0, 10) ? 'Overdue' : 'Issued'
+  }
+
+  // Update top-level paymentMethod to the latest payment's method
+  const lastPayment = payments[payments.length - 1]
+
+  invoices[idx] = {
+    ...inv,
+    payments,
+    amountPaid: totalAmountPaid,
+    status: newStatus,
+    paymentMethod: lastPayment?.method ?? inv.paymentMethod,
+    paidAt: newStatus === 'Paid' ? (lastPayment?.paidAt ?? inv.paidAt) : undefined,
+  }
+
+  return c.json(invoices[idx])
+})
+
+// ─── Delete a single payment entry ───────────────────────────────────────────
+api.delete('/invoices/:id/payments/:paymentId', async (c) => {
+  const idx = invoices.findIndex(x => x.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Invoice not found' }, 404)
+
+  const inv      = invoices[idx]
+  const payId    = c.req.param('paymentId')
+  const payments = (inv.payments || []).filter(p => p.id !== payId)
+
+  if ((inv.payments || []).length === payments.length) {
+    return c.json({ error: 'Payment not found' }, 404)
+  }
+
+  const totalAmountPaid = payments.reduce((s, p) => s + p.amount, 0)
+  let newStatus: any = inv.status
+  if (totalAmountPaid >= inv.totalAmount) {
+    newStatus = 'Paid'
+  } else if (totalAmountPaid > 0) {
+    newStatus = 'Partially Paid'
+  } else {
+    newStatus = inv.dueDate && inv.dueDate < new Date().toISOString().slice(0, 10) ? 'Overdue' : 'Issued'
+  }
+
+  const lastPayment = payments[payments.length - 1]
+  const jc = jobCards.find(j => j.id === inv.jobCardId)
+
+  invoices[idx] = {
+    ...inv,
+    payments,
+    amountPaid: totalAmountPaid,
+    status: newStatus,
+    paymentMethod: lastPayment?.method ?? undefined,
+    paidAt: newStatus === 'Paid' ? (lastPayment?.paidAt ?? undefined) : undefined,
+  }
+
+  addNotification('invoice_paid', 'warning', 'Payment Removed',
+    `A payment was removed from ${inv.invoiceNumber}${jc ? ' (' + jc.jobCardNumber + ')' : ''}. New balance: TZS ${(inv.totalAmount - totalAmountPaid).toLocaleString()}`,
+    { entityId: inv.id, entityType: 'invoice', jobCardId: jc?.id, jobCardNumber: jc?.jobCardNumber })
+
   return c.json(invoices[idx])
 })
 

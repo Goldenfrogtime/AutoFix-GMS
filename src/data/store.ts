@@ -266,6 +266,7 @@ export interface Invoice {
   paymentReference?: string            // e.g. M-Pesa code, bank ref, etc.
   amountPaid?: number                  // total amount received so far (sum of all payments)
   payments?: {                         // ledger of individual payment transactions
+    id: string                           // unique ID for edit/delete
     amount: number
     method: PaymentMethod
     reference?: string
@@ -491,12 +492,12 @@ export const partsConsumption: PartConsumption[] = [
 ]
 
 export const invoices: Invoice[] = [
-  { id: 'inv001', jobCardId: 'jc001', invoiceNumber: 'INV-2025-001', labourCost: 180000, partsCost: 320000, tax: 0, totalAmount: 500000, amountPaid: 500000, status: 'Paid',    issuedAt: '2025-11-15T16:30:00Z', dueDate: '2025-11-30', paidAt: '2025-11-20T10:00:00Z', claimReference: 'MUA-2025-001', pfiReference: 'pfi001', paymentMethod: 'Bank',         payments: [{ amount: 500000, method: 'Bank',         paidAt: '2025-11-20T10:00:00Z' }] },
-  { id: 'inv002', jobCardId: 'jc002', invoiceNumber: 'INV-2025-002', labourCost: 150000, partsCost: 227000, tax: 0, totalAmount: 377000, amountPaid: 377000, status: 'Paid',    issuedAt: '2025-11-08T17:30:00Z', dueDate: '2025-11-22', paidAt: '2025-11-09T09:00:00Z', paymentMethod: 'Mobile Money', payments: [{ amount: 377000, method: 'Mobile Money', paidAt: '2025-11-09T09:00:00Z' }] },
-  { id: 'inv003', jobCardId: 'jc004', invoiceNumber: 'INV-2025-003', labourCost:  50000, partsCost: 115000, tax: 0, totalAmount: 165000, amountPaid: 165000, status: 'Paid',    issuedAt: '2025-11-22T12:30:00Z', dueDate: '2025-12-06', paidAt: '2025-11-22T14:00:00Z', paymentMethod: 'Cash',         payments: [{ amount: 165000, method: 'Cash',         paidAt: '2025-11-22T14:00:00Z' }] },
+  { id: 'inv001', jobCardId: 'jc001', invoiceNumber: 'INV-2025-001', labourCost: 180000, partsCost: 320000, tax: 0, totalAmount: 500000, amountPaid: 500000, status: 'Paid',    issuedAt: '2025-11-15T16:30:00Z', dueDate: '2025-11-30', paidAt: '2025-11-20T10:00:00Z', claimReference: 'MUA-2025-001', pfiReference: 'pfi001', paymentMethod: 'Bank',         payments: [{ id: 'pay-inv001-1', amount: 500000, method: 'Bank',         paidAt: '2025-11-20T10:00:00Z' }] },
+  { id: 'inv002', jobCardId: 'jc002', invoiceNumber: 'INV-2025-002', labourCost: 150000, partsCost: 227000, tax: 0, totalAmount: 377000, amountPaid: 377000, status: 'Paid',    issuedAt: '2025-11-08T17:30:00Z', dueDate: '2025-11-22', paidAt: '2025-11-09T09:00:00Z', paymentMethod: 'Mobile Money', payments: [{ id: 'pay-inv002-1', amount: 377000, method: 'Mobile Money', paidAt: '2025-11-09T09:00:00Z' }] },
+  { id: 'inv003', jobCardId: 'jc004', invoiceNumber: 'INV-2025-003', labourCost:  50000, partsCost: 115000, tax: 0, totalAmount: 165000, amountPaid: 165000, status: 'Paid',    issuedAt: '2025-11-22T12:30:00Z', dueDate: '2025-12-06', paidAt: '2025-11-22T14:00:00Z', paymentMethod: 'Cash',         payments: [{ id: 'pay-inv003-1', amount: 165000, method: 'Cash',         paidAt: '2025-11-22T14:00:00Z' }] },
   { id: 'inv004', jobCardId: 'jc007', invoiceNumber: 'INV-2025-004', labourCost: 150000, partsCost: 287000, tax: 0, totalAmount: 437000, amountPaid:      0, status: 'Overdue', issuedAt: '2025-12-03T17:00:00Z', dueDate: '2025-12-17', payments: [] },
-  { id: 'inv005', jobCardId: 'jc008', invoiceNumber: 'INV-2025-005', labourCost:  50000, partsCost: 107000, tax: 0, totalAmount: 157000, amountPaid: 157000, status: 'Paid',    issuedAt: '2025-12-03T13:00:00Z', dueDate: '2025-12-17', paidAt: '2025-12-03T15:00:00Z', paymentMethod: 'Cash',         payments: [{ amount: 157000, method: 'Cash',         paidAt: '2025-12-03T15:00:00Z' }] },
-  { id: 'inv006', jobCardId: 'jc012', invoiceNumber: 'INV-2025-006', labourCost:  30000, partsCost:  20000, tax: 0, totalAmount:  50000, amountPaid:  50000, status: 'Paid',    issuedAt: '2025-12-06T11:30:00Z', dueDate: '2025-12-20', paidAt: '2025-12-06T12:00:00Z', paymentMethod: 'Mobile Money', payments: [{ amount:  50000, method: 'Mobile Money', paidAt: '2025-12-06T12:00:00Z' }] },
+  { id: 'inv005', jobCardId: 'jc008', invoiceNumber: 'INV-2025-005', labourCost:  50000, partsCost: 107000, tax: 0, totalAmount: 157000, amountPaid: 157000, status: 'Paid',    issuedAt: '2025-12-03T13:00:00Z', dueDate: '2025-12-17', paidAt: '2025-12-03T15:00:00Z', paymentMethod: 'Cash',         payments: [{ id: 'pay-inv005-1', amount: 157000, method: 'Cash',         paidAt: '2025-12-03T15:00:00Z' }] },
+  { id: 'inv006', jobCardId: 'jc012', invoiceNumber: 'INV-2025-006', labourCost:  30000, partsCost:  20000, tax: 0, totalAmount:  50000, amountPaid:  50000, status: 'Paid',    issuedAt: '2025-12-06T11:30:00Z', dueDate: '2025-12-20', paidAt: '2025-12-06T12:00:00Z', paymentMethod: 'Mobile Money', payments: [{ id: 'pay-inv006-1', amount:  50000, method: 'Mobile Money', paidAt: '2025-12-06T12:00:00Z' }] },
 ]
 
 export const servicePackages: ServicePackage[] = [
