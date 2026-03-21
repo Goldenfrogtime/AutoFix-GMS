@@ -998,6 +998,12 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
             <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
             <input class="search-input w-full" type="text" placeholder="Search lubricants…" id="lubSearch" oninput="filterLubricants(this.value)"/>
           </div>
+          <button onclick="downloadLubricantTemplate()" class="btn-secondary flex items-center gap-2" title="Download CSV template">
+            <i class="fas fa-file-csv text-green-600"></i> Template
+          </button>
+          <button onclick="showLubBulkUploadModal()" class="btn-secondary flex items-center gap-2" data-perm="packages.manage">
+            <i class="fas fa-file-upload text-blue-600"></i> Bulk Upload
+          </button>
           <button onclick="showAddLubricantModal()" class="btn-primary flex items-center gap-2" data-perm="packages.manage">
             <i class="fas fa-plus"></i> Add Lubricant
           </button>
@@ -2499,6 +2505,84 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
     <div class="flex gap-3 mt-6">
       <button class="btn-secondary flex-1" onclick="closeModal('modal-lubRestock')">Cancel</button>
       <button class="btn-primary flex-1" onclick="submitLubRestock()"><i class="fas fa-plus mr-1"></i>Add Stock</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: Bulk Upload Lubricants ═══ -->
+<div id="modal-lubBulkUpload" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:860px">
+    <div class="flex items-center justify-between mb-5">
+      <div>
+        <h3 class="text-xl font-bold text-gray-900"><i class="fas fa-file-upload text-blue-500 mr-2"></i>Bulk Upload Lubricants</h3>
+        <p class="text-sm text-gray-500 mt-1">Upload a CSV or Excel file to add multiple lubricants at once</p>
+      </div>
+      <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-lubBulkUpload')"><i class="fas fa-times"></i></button>
+    </div>
+
+    <!-- Template hint -->
+    <div class="flex items-start gap-3 p-3 bg-blue-50 border border-blue-100 rounded-xl mb-4 text-sm">
+      <i class="fas fa-info-circle text-blue-500 mt-0.5 flex-shrink-0"></i>
+      <div>
+        <p class="text-blue-800 font-semibold mb-1">Required columns (CSV / Excel first row must be headers):</p>
+        <p class="text-blue-700 font-mono text-xs">brand, description, type, viscosity, volume, buyingPrice, sellingPrice, stock, mileageInterval</p>
+        <p class="text-blue-600 text-xs mt-1"><em>mileageInterval</em> is optional — only for Engine Oil &amp; Transmission Fluid. All other columns are required.</p>
+        <button onclick="downloadLubricantTemplate()" class="mt-2 text-xs text-blue-600 hover:underline font-semibold"><i class="fas fa-download mr-1"></i>Download CSV template</button>
+      </div>
+    </div>
+
+    <!-- Drop zone -->
+    <div id="lubBulk-dropzone"
+      class="relative border-2 border-dashed border-gray-300 rounded-2xl p-10 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-all mb-4"
+      onclick="document.getElementById('lubBulk-fileInput').click()"
+      ondragover="event.preventDefault();this.classList.add('border-blue-500','bg-blue-50')"
+      ondragleave="this.classList.remove('border-blue-500','bg-blue-50')"
+      ondrop="lubBulkHandleDrop(event)">
+      <input type="file" id="lubBulk-fileInput" accept=".csv,.xlsx,.xls" class="hidden" onchange="lubBulkParseFile(this.files[0])"/>
+      <i class="fas fa-cloud-upload-alt text-4xl text-gray-300 mb-3 block"></i>
+      <p class="font-semibold text-gray-600">Drag &amp; drop your file here, or <span class="text-blue-600">click to browse</span></p>
+      <p class="text-xs text-gray-400 mt-1">Supports .csv, .xlsx, .xls — max 5 MB</p>
+    </div>
+
+    <!-- Parse status -->
+    <div id="lubBulk-status" class="hidden mb-3"></div>
+
+    <!-- Preview table -->
+    <div id="lubBulk-previewWrap" class="hidden">
+      <div class="flex items-center justify-between mb-2">
+        <p class="text-sm font-semibold text-gray-700" id="lubBulk-previewLabel"></p>
+        <button onclick="lubBulkClearFile()" class="text-xs text-red-500 hover:text-red-700 font-semibold"><i class="fas fa-times mr-1"></i>Clear</button>
+      </div>
+      <div class="border border-gray-200 rounded-xl overflow-hidden mb-1">
+        <div class="overflow-auto max-h-64">
+          <table class="w-full text-xs" style="min-width:700px" id="lubBulk-previewTable">
+            <thead class="bg-gray-50 sticky top-0">
+              <tr>
+                <th class="px-3 py-2 text-left font-semibold text-gray-600">#</th>
+                <th class="px-3 py-2 text-left font-semibold text-gray-600">Brand</th>
+                <th class="px-3 py-2 text-left font-semibold text-gray-600">Description</th>
+                <th class="px-3 py-2 text-left font-semibold text-gray-600">Type</th>
+                <th class="px-3 py-2 text-left font-semibold text-gray-600">Viscosity</th>
+                <th class="px-3 py-2 text-left font-semibold text-gray-600">Volume</th>
+                <th class="px-3 py-2 text-right font-semibold text-gray-600">Buy Price</th>
+                <th class="px-3 py-2 text-right font-semibold text-gray-600">Sell Price</th>
+                <th class="px-3 py-2 text-right font-semibold text-gray-600">Stock</th>
+                <th class="px-3 py-2 text-right font-semibold text-gray-600">Interval (km)</th>
+                <th class="px-3 py-2 text-center font-semibold text-gray-600">Status</th>
+              </tr>
+            </thead>
+            <tbody id="lubBulk-previewBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="lubBulk-errorList" class="hidden mt-2 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-700 max-h-28 overflow-y-auto"></div>
+    </div>
+
+    <div class="flex gap-3 mt-5">
+      <button class="btn-secondary flex-1" onclick="closeModal('modal-lubBulkUpload')">Cancel</button>
+      <button class="btn-primary flex-1 hidden" id="lubBulk-importBtn" onclick="lubBulkImport()">
+        <i class="fas fa-database mr-1.5"></i><span id="lubBulk-importLabel">Import</span>
+      </button>
     </div>
   </div>
 </div>
@@ -7766,6 +7850,301 @@ async function deleteLubricant(id) {
   } catch(err) {
     showToast('Failed to delete', 'error');
   }
+}
+
+// ═══ LUBRICANTS BULK UPLOAD ═══
+let _lubBulkRows = [];   // parsed & validated rows ready for import
+
+// Valid values for normalisation
+const LUB_VALID_BRANDS = ['Toyota','Total','Castrol','Shell','Mobil','Valvoline','Other'];
+const LUB_VALID_TYPES  = ['Engine Oil','Gear Oil','Transmission Fluid','Brake Fluid','Power Steering Fluid','Coolant','Grease','Other'];
+
+function showLubBulkUploadModal() {
+  lubBulkClearFile();
+  openModal('modal-lubBulkUpload');
+}
+
+function lubBulkHandleDrop(event) {
+  event.preventDefault();
+  const dz = document.getElementById('lubBulk-dropzone');
+  dz.classList.remove('border-blue-500','bg-blue-50');
+  const file = event.dataTransfer.files[0];
+  if (file) lubBulkParseFile(file);
+}
+
+function lubBulkClearFile() {
+  _lubBulkRows = [];
+  document.getElementById('lubBulk-fileInput').value = '';
+  document.getElementById('lubBulk-status').className = 'hidden mb-3';
+  document.getElementById('lubBulk-status').innerHTML = '';
+  document.getElementById('lubBulk-previewWrap').classList.add('hidden');
+  document.getElementById('lubBulk-previewBody').innerHTML = '';
+  document.getElementById('lubBulk-errorList').classList.add('hidden');
+  document.getElementById('lubBulk-errorList').innerHTML = '';
+  document.getElementById('lubBulk-importBtn').classList.add('hidden');
+}
+
+function lubBulkParseFile(file) {
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) {
+    lubBulkShowStatus('error', 'File too large — maximum 5 MB');
+    return;
+  }
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (!['csv','xlsx','xls'].includes(ext)) {
+    lubBulkShowStatus('error', 'Unsupported file type. Please use .csv, .xlsx or .xls');
+    return;
+  }
+  lubBulkShowStatus('info', '<i class="fas fa-spinner fa-spin mr-2"></i>Parsing file…');
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      let rows = [];
+      if (ext === 'csv') {
+        // Parse CSV with XLSX
+        const wb = XLSX.read(e.target.result, { type: 'binary' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      } else {
+        const wb = XLSX.read(e.target.result, { type: 'binary' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        rows = XLSX.utils.sheet_to_json(ws, { defval: '' });
+      }
+      if (!rows.length) {
+        lubBulkShowStatus('error', 'File is empty or has no data rows');
+        return;
+      }
+      lubBulkValidateAndPreview(rows, file.name);
+    } catch(err) {
+      lubBulkShowStatus('error', 'Failed to parse file: ' + err.message);
+    }
+  };
+  reader.readAsBinaryString(file);
+}
+
+function lubBulkNormaliseHeader(h) {
+  // Normalise common column name variations
+  h = String(h).trim().toLowerCase().replace(/[\s_-]+/g,'');
+  const map = {
+    brand:'brand', type:'type', lubricanttype:'type', lubtype:'type',
+    description:'description', desc:'description', name:'description', productname:'description',
+    viscosity:'viscosity', grade:'viscosity',
+    volume:'volume', size:'volume', packsize:'volume',
+    buyingprice:'buyingPrice', buyprice:'buyingPrice', costprice:'buyingPrice', cost:'buyingPrice',
+    sellingprice:'sellingPrice', sellprice:'sellingPrice', saleprice:'sellingPrice', price:'sellingPrice',
+    stock:'stock', stockquantity:'stock', qty:'stock', quantity:'stock', initialstock:'stock',
+    mileageinterval:'mileageInterval', interval:'mileageInterval', serviceinterval:'mileageInterval', kminterval:'mileageInterval',
+  };
+  return map[h] || h;
+}
+
+function lubBulkValidateAndPreview(rawRows, fileName) {
+  // Map headers
+  const firstRow = rawRows[0];
+  const headerMap = {};
+  Object.keys(firstRow).forEach(function(h) { headerMap[lubBulkNormaliseHeader(h)] = h; });
+
+  const required = ['brand','description','type','buyingPrice','sellingPrice','stock'];
+  const missing  = required.filter(function(k) { return !headerMap[k]; });
+  if (missing.length) {
+    lubBulkShowStatus('error', 'Missing required columns: <strong>' + missing.join(', ') + '</strong>. Please check your file headers.');
+    return;
+  }
+
+  const validated = [];
+  const errors    = [];
+
+  rawRows.forEach(function(raw, i) {
+    const rowNum = i + 2; // 1-based + header row
+    function get(key) { return headerMap[key] ? String(raw[headerMap[key]] || '').trim() : ''; }
+
+    const brand       = get('brand');
+    const description = get('description');
+    const type        = get('type');
+    const viscosity   = get('viscosity');
+    const volume      = get('volume');
+    const buyRaw      = get('buyingPrice').replace(/,/g,'');
+    const sellRaw     = get('sellingPrice').replace(/,/g,'');
+    const stockRaw    = get('stock').replace(/,/g,'');
+    const intervalRaw = get('mileageInterval').replace(/,/g,'');
+
+    const rowErrors = [];
+
+    if (!description) rowErrors.push('description is empty');
+    if (!brand)       rowErrors.push('brand is missing');
+    if (!type)        rowErrors.push('type is missing');
+
+    // Normalise brand
+    const normBrand = LUB_VALID_BRANDS.find(function(b) { return b.toLowerCase() === brand.toLowerCase(); }) || brand;
+    if (!LUB_VALID_BRANDS.includes(normBrand)) rowErrors.push('unknown brand "' + brand + '"');
+
+    // Normalise type
+    const normType = LUB_VALID_TYPES.find(function(t) { return t.toLowerCase() === type.toLowerCase(); }) || type;
+    if (!LUB_VALID_TYPES.includes(normType)) rowErrors.push('unknown type "' + type + '"');
+
+    const buyingPrice  = parseFloat(buyRaw);
+    const sellingPrice = parseFloat(sellRaw);
+    const stockQty     = parseInt(stockRaw);
+    const interval     = intervalRaw ? parseInt(intervalRaw) : undefined;
+
+    if (isNaN(buyingPrice)  || buyingPrice  < 0) rowErrors.push('invalid buyingPrice');
+    if (isNaN(sellingPrice) || sellingPrice <= 0) rowErrors.push('invalid sellingPrice');
+    if (isNaN(stockQty)     || stockQty     < 0)  rowErrors.push('invalid stock');
+    if (intervalRaw && (isNaN(interval) || interval < 0)) rowErrors.push('invalid mileageInterval');
+
+    const rowObj = {
+      rowNum: rowNum,
+      brand: normBrand,
+      description: description,
+      type: normType,
+      viscosity: viscosity,
+      volume: volume,
+      buyingPrice: isNaN(buyingPrice)  ? 0 : buyingPrice,
+      sellingPrice: isNaN(sellingPrice) ? 0 : sellingPrice,
+      stock: isNaN(stockQty) ? 0 : stockQty,
+      mileageInterval: (!intervalRaw || isNaN(interval)) ? undefined : interval,
+      errors: rowErrors,
+      valid: rowErrors.length === 0,
+    };
+    validated.push(rowObj);
+    if (rowErrors.length) errors.push('Row ' + rowNum + ': ' + rowErrors.join('; '));
+  });
+
+  _lubBulkRows = validated;
+  const goodCount = validated.filter(function(r) { return r.valid; }).length;
+  const badCount  = validated.length - goodCount;
+
+  // Build preview table
+  const tbody  = document.getElementById('lubBulk-previewBody');
+  const fmtNum = function(n) { return n ? n.toLocaleString() : '—'; };
+  tbody.innerHTML = validated.slice(0, 200).map(function(r) {
+    const statusBadge = r.valid
+      ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700"><i class="fas fa-check text-[9px]"></i>OK</span>'
+      : '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700" title="' + r.errors.join('; ') + '"><i class="fas fa-exclamation text-[9px]"></i>Error</span>';
+    const rowCls = r.valid ? '' : 'bg-red-50';
+    return '<tr class="border-b border-gray-100 ' + rowCls + '">' +
+      '<td class="px-3 py-1.5 text-gray-400">' + r.rowNum + '</td>' +
+      '<td class="px-3 py-1.5 font-semibold">' + (r.brand||'—') + '</td>' +
+      '<td class="px-3 py-1.5 max-w-[200px] truncate">' + (r.description||'—') + '</td>' +
+      '<td class="px-3 py-1.5">' + (r.type||'—') + '</td>' +
+      '<td class="px-3 py-1.5">' + (r.viscosity||'—') + '</td>' +
+      '<td class="px-3 py-1.5">' + (r.volume||'—') + '</td>' +
+      '<td class="px-3 py-1.5 text-right">' + fmtNum(r.buyingPrice) + '</td>' +
+      '<td class="px-3 py-1.5 text-right">' + fmtNum(r.sellingPrice) + '</td>' +
+      '<td class="px-3 py-1.5 text-right">' + fmtNum(r.stock) + '</td>' +
+      '<td class="px-3 py-1.5 text-right">' + (r.mileageInterval ? r.mileageInterval.toLocaleString() + ' km' : '—') + '</td>' +
+      '<td class="px-3 py-1.5 text-center">' + statusBadge + '</td>' +
+      '</tr>';
+  }).join('');
+
+  // Label
+  document.getElementById('lubBulk-previewLabel').textContent =
+    'Preview: ' + validated.length + ' row(s) from "' + fileName + '"' +
+    (badCount ? ' — ' + badCount + ' row(s) have errors (shown in red)' : ' — all rows valid');
+
+  // Error list
+  const errDiv = document.getElementById('lubBulk-errorList');
+  if (errors.length) {
+    errDiv.classList.remove('hidden');
+    errDiv.innerHTML = '<p class="font-semibold mb-1"><i class="fas fa-exclamation-triangle mr-1"></i>' + errors.length + ' error(s) found — these rows will be skipped during import:</p>' +
+      errors.map(function(e) { return '<p class="mt-0.5">• ' + e + '</p>'; }).join('');
+  } else {
+    errDiv.classList.add('hidden');
+  }
+
+  document.getElementById('lubBulk-previewWrap').classList.remove('hidden');
+
+  if (goodCount > 0) {
+    const importBtn = document.getElementById('lubBulk-importBtn');
+    importBtn.classList.remove('hidden');
+    document.getElementById('lubBulk-importLabel').textContent = 'Import ' + goodCount + ' lubricant' + (goodCount !== 1 ? 's' : '');
+  }
+
+  if (badCount === 0) {
+    lubBulkShowStatus('success', '<i class="fas fa-check-circle mr-2 text-green-600"></i><span class="text-green-800 font-semibold">All ' + goodCount + ' rows are valid and ready to import.</span>');
+  } else if (goodCount > 0) {
+    lubBulkShowStatus('warning', '<i class="fas fa-exclamation-triangle mr-2 text-amber-500"></i><span class="text-amber-800 font-semibold">' + goodCount + ' valid / ' + badCount + ' invalid row(s). Only valid rows will be imported.</span>');
+  } else {
+    lubBulkShowStatus('error', '<i class="fas fa-times-circle mr-2"></i>No valid rows found. Please fix the errors and re-upload.');
+  }
+}
+
+function lubBulkShowStatus(type, html) {
+  const el  = document.getElementById('lubBulk-status');
+  const cls = {
+    success: 'flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-xl text-sm mb-3',
+    warning: 'flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm mb-3',
+    error:   'flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-sm mb-3 text-red-800',
+    info:    'flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-xl text-sm mb-3 text-blue-800',
+  };
+  el.className = cls[type] || cls.info;
+  el.innerHTML = html;
+}
+
+async function lubBulkImport() {
+  const validRows = _lubBulkRows.filter(function(r) { return r.valid; });
+  if (!validRows.length) return;
+
+  const btn = document.getElementById('lubBulk-importBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i>Importing…';
+
+  try {
+    const payload = validRows.map(function(r) {
+      return {
+        brand: r.brand,
+        description: r.description,
+        lubricantType: r.type,
+        viscosity: r.viscosity || '',
+        volume: r.volume || '',
+        buyingPrice: r.buyingPrice,
+        sellingPrice: r.sellingPrice,
+        stockQuantity: r.stock,
+        ...(r.mileageInterval ? { mileageInterval: r.mileageInterval } : {}),
+      };
+    });
+
+    const { data } = await axios.post('/api/catalogue/lubricants/bulk', payload);
+    const added   = data.added   || 0;
+    const skipped = data.skipped || 0;
+
+    closeModal('modal-lubBulkUpload');
+    lubBulkClearFile();
+
+    // Refresh lubricants list
+    const { data: fresh } = await axios.get('/api/catalogue/lubricants');
+    allLubricants = fresh;
+    applyLubFilters();
+
+    showToast('\u2714 ' + added + ' lubricant' + (added !== 1 ? 's' : '') + ' imported successfully' + (skipped ? ' (' + skipped + ' skipped)' : ''), 'success');
+  } catch(err) {
+    lubBulkShowStatus('error', '<i class="fas fa-times-circle mr-2"></i>Import failed: ' + (err?.response?.data?.error || err.message));
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-database mr-1.5"></i><span id="lubBulk-importLabel">Retry Import</span>';
+  }
+}
+
+function downloadLubricantTemplate() {
+  const headers = ['brand','description','type','viscosity','volume','buyingPrice','sellingPrice','stock','mileageInterval'];
+  const examples = [
+    ['Toyota','Toyota Genuine Motor Oil 5W-30','Engine Oil','5W-30','4L',55000,85000,20,10000],
+    ['Total','Total Quartz 9000 5W-40','Engine Oil','5W-40','5L',68000,98000,15,15000],
+    ['Castrol','Castrol ATF Dexron III','Transmission Fluid','ATF','1L',10000,18000,30,40000],
+    ['Shell','Shell Brake Fluid DOT 4','Brake Fluid','DOT 4','500ml',8000,14000,25,''],
+    ['Mobil','Mobil Gear Oil 80W-90','Gear Oil','80W-90','1L',12000,20000,18,''],
+  ];
+
+  const ws_data = [headers].concat(examples);
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(ws_data);
+
+  // Column widths
+  ws['!cols'] = [12,40,22,12,10,14,14,8,16].map(function(w) { return { wch: w }; });
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Lubricants');
+  XLSX.writeFile(wb, 'lubricants_upload_template.xlsx');
+  showToast('Template downloaded — fill in your data and re-upload', 'info');
 }
 
 // ═══ OIL SERVICES (pricing tiers — kept for job card add-service modal) ═══

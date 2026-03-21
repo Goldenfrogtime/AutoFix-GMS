@@ -1065,6 +1065,44 @@ api.post('/catalogue/lubricants', async (c) => {
   return c.json(newItem, 201)
 })
 
+// Bulk insert lubricants — must be registered BEFORE the /:id routes
+api.post('/catalogue/lubricants/bulk', async (c) => {
+  const rows = await c.req.json<Omit<LubricantProduct, 'id' | 'margin'>[]>()
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return c.json({ error: 'Payload must be a non-empty array' }, 400)
+  }
+  const MAX_ROWS = 1000
+  const toProcess = rows.slice(0, MAX_ROWS)
+  let added   = 0
+  let skipped = 0
+  const inserted: LubricantProduct[] = []
+
+  for (const body of toProcess) {
+    // Basic validation
+    if (!body.description || !body.brand || !body.lubricantType) { skipped++; continue }
+    if (!body.sellingPrice || Number(body.sellingPrice) <= 0)     { skipped++; continue }
+
+    const newItem: LubricantProduct = {
+      id: 'lub' + genId(),
+      brand: String(body.brand),
+      description: String(body.description),
+      viscosity: body.viscosity ? String(body.viscosity) : '',
+      volume: body.volume ? String(body.volume) : '',
+      lubricantType: String(body.lubricantType) as LubricantProduct['lubricantType'],
+      buyingPrice:  Number(body.buyingPrice)  || 0,
+      sellingPrice: Number(body.sellingPrice) || 0,
+      margin: Number(body.sellingPrice || 0) - Number(body.buyingPrice || 0),
+      stockQuantity: Number(body.stockQuantity) || 0,
+      ...(body.mileageInterval ? { mileageInterval: Number(body.mileageInterval) } : {}),
+    }
+    lubricantProducts.push(newItem)
+    inserted.push(newItem)
+    added++
+  }
+
+  return c.json({ added, skipped, items: inserted }, 201)
+})
+
 api.put('/catalogue/lubricants/:id', async (c) => {
   const idx = lubricantProducts.findIndex(l => l.id === c.req.param('id'))
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
