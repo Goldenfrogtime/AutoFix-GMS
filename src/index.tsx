@@ -186,7 +186,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
   </div>
 </div>
 
-<div class="flex h-screen overflow-hidden" id="appShell" style="display:none !important">
+<div class="flex h-screen overflow-hidden" id="appShell" style="display:none">
 
 <!-- Sidebar backdrop (mobile) -->
 <div id="sidebar-backdrop" onclick="closeSidebar()" class="fixed inset-0 bg-black/40 z-40 backdrop-blur-sm" style="display:none"></div>
@@ -3040,7 +3040,7 @@ async function doLogin(e) {
     currentPermissions = meRes.data.permissions;
     // Show app
     document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('appShell').style.removeProperty('display');
+    document.getElementById('appShell').style.display = 'flex';
     updateSidebarUser();
     applyNavPermissions();
     loadDashboard();
@@ -3065,7 +3065,7 @@ async function doLogout() {
   currentUser = null;
   currentPermissions = [];
   delete axios.defaults.headers.common['Authorization'];
-  document.getElementById('appShell').style.setProperty('display', 'none', 'important');
+  document.getElementById('appShell').style.display = 'none';
   document.getElementById('loginScreen').style.display = '';
   document.getElementById('loginForm').reset();
   if (_notifInterval) { clearInterval(_notifInterval); _notifInterval = null; }
@@ -3079,7 +3079,7 @@ async function tryAutoLogin() {
     currentUser = meRes.data.user;
     currentPermissions = meRes.data.permissions;
     document.getElementById('loginScreen').style.display = 'none';
-    document.getElementById('appShell').style.removeProperty('display');
+    document.getElementById('appShell').style.display = 'flex';
     updateSidebarUser();
     applyNavPermissions();
     return true;
@@ -8851,8 +8851,8 @@ function renderPartsTable(parts) {
       '<td class="px-4 py-3 text-right"><span class="font-bold text-sm" style="color:'+marginColor+'">'+marginPct+'%</span></td>' +
       '<td class="px-4 py-3 text-right">'+stockBadge+'</td>' +
       '<td class="px-4 py-3 text-center"><div class="flex items-center justify-center gap-1">' +
-        '<button onclick="showEditCataloguePartModal(\''+p.id+'\')" title="Edit part" class="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center transition-colors"><i class="fas fa-pen text-xs"></i></button>' +
-        '<button onclick="showRestockModal(\''+p.id+'\')" title="Add stock" class="w-7 h-7 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 flex items-center justify-center transition-colors"><i class="fas fa-plus text-xs"></i></button>' +
+        '<button onclick="showEditCataloguePartModal(&apos;'+p.id+'&apos;)" title="Edit part" class="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center transition-colors"><i class="fas fa-pen text-xs"></i></button>' +
+        '<button onclick="showRestockModal(&apos;'+p.id+'&apos;)" title="Add stock" class="w-7 h-7 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 flex items-center justify-center transition-colors"><i class="fas fa-plus text-xs"></i></button>' +
       '</div></td>' +
     '</tr>';
   }).join('');
