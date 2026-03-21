@@ -752,20 +752,18 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <!-- Table -->
       <div class="card overflow-hidden">
         <div class="table-scroll">
-        <table class="w-full text-sm" style="min-width:700px">
+        <table class="w-full text-sm" style="min-width:600px">
           <thead><tr class="border-b border-gray-100 bg-gray-50">
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Invoice #</th>
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Job Card</th>
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Customer</th>
-            <th class="text-left px-4 py-3 font-semibold text-gray-600">Labour</th>
-            <th class="text-left px-4 py-3 font-semibold text-gray-600">Parts</th>
-            <th class="text-left px-4 py-3 font-semibold text-gray-600">Tax</th>
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Total</th>
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Due Date</th>
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Paid At</th>
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Payment Method</th>
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Amount Paid</th>
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Status</th>
+            <th class="text-left px-4 py-3 font-semibold text-gray-600">Actions</th>
           </tr></thead>
           <tbody id="invoicesTable"></tbody>
         </table>
@@ -1615,6 +1613,100 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <button class="btn-secondary flex-1" onclick="closeModal('modal-payInvoice')">Cancel</button>
       <button class="btn-primary flex-1" id="pi-submit" onclick="submitPayInvoice()">
         <i class="fas fa-check mr-1.5"></i> Record Payment
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Invoice Detail Modal -->
+<div id="modal-invoiceDetail" class="modal-overlay hidden">
+  <div class="modal-box" style="--mw:640px">
+    <div class="flex items-start justify-between mb-5">
+      <div>
+        <h3 class="text-lg font-bold text-gray-900" id="invd-number">Invoice</h3>
+        <p class="text-sm text-gray-400 mt-0.5" id="invd-subtitle"></p>
+      </div>
+      <button onclick="closeModal('modal-invoiceDetail')" class="text-gray-400 hover:text-gray-600 text-xl"><i class="fas fa-times"></i></button>
+    </div>
+
+    <!-- Status bar -->
+    <div class="flex items-center gap-3 mb-5 p-3 rounded-xl bg-gray-50 border border-gray-100">
+      <span id="invd-status-badge" class="badge text-sm px-3 py-1"></span>
+      <div class="flex-1">
+        <div class="flex justify-between text-xs text-gray-400 mb-1">
+          <span>Payment progress</span>
+          <span id="invd-progress-label"></span>
+        </div>
+        <div class="w-full bg-gray-200 rounded-full h-2">
+          <div id="invd-progress-bar" class="h-2 rounded-full transition-all" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Key details grid -->
+    <div class="grid grid-cols-2 gap-x-6 gap-y-3 mb-5 text-sm">
+      <div>
+        <p class="text-xs text-gray-400 mb-0.5">Job Card</p>
+        <p class="font-semibold text-gray-700" id="invd-jobcard">—</p>
+      </div>
+      <div>
+        <p class="text-xs text-gray-400 mb-0.5">Customer</p>
+        <p class="font-semibold text-gray-700" id="invd-customer">—</p>
+      </div>
+      <div>
+        <p class="text-xs text-gray-400 mb-0.5">Issued Date</p>
+        <p class="font-semibold text-gray-700" id="invd-issued">—</p>
+      </div>
+      <div>
+        <p class="text-xs text-gray-400 mb-0.5">Due Date</p>
+        <p class="font-semibold text-gray-700" id="invd-due">—</p>
+      </div>
+      <div id="invd-claim-row">
+        <p class="text-xs text-gray-400 mb-0.5">Claim Reference</p>
+        <p class="font-semibold text-gray-700" id="invd-claim">—</p>
+      </div>
+      <div id="invd-pfi-row">
+        <p class="text-xs text-gray-400 mb-0.5">PFI Reference</p>
+        <p class="font-semibold text-gray-700" id="invd-pfi">—</p>
+      </div>
+    </div>
+
+    <!-- Cost breakdown -->
+    <div class="bg-gray-50 rounded-xl border border-gray-100 mb-5 overflow-hidden">
+      <div class="px-4 py-2 border-b border-gray-100">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Cost Breakdown</p>
+      </div>
+      <div class="px-4 py-3 space-y-2 text-sm">
+        <div class="flex justify-between">
+          <span class="text-gray-500">Labour</span>
+          <span class="font-medium text-gray-700" id="invd-labour">—</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-gray-500">Parts &amp; Materials</span>
+          <span class="font-medium text-gray-700" id="invd-parts">—</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-gray-500">Tax / VAT</span>
+          <span class="font-medium text-gray-700" id="invd-tax">—</span>
+        </div>
+        <div class="flex justify-between border-t border-gray-200 pt-2 mt-1">
+          <span class="font-bold text-gray-800">Total</span>
+          <span class="font-bold text-green-600 text-base" id="invd-total">—</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Payment history -->
+    <div id="invd-payment-section" class="mb-5">
+      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Payment History</p>
+      <div id="invd-payment-list" class="space-y-2"></div>
+    </div>
+
+    <!-- Footer actions -->
+    <div class="flex gap-2 justify-end">
+      <button class="btn-secondary" onclick="closeModal('modal-invoiceDetail')">Close</button>
+      <button id="invd-pay-btn" class="btn-primary hidden" onclick="_invdPay()">
+        <i class="fas fa-money-bill-wave mr-1.5"></i>Record Payment
       </button>
     </div>
   </div>
@@ -6161,26 +6253,146 @@ function _renderInvoicesTable(data, filter) {
       : '<span class="text-gray-300 text-xs">—</span>';
     const rowHighlight = inv.status === 'Overdue' ? 'bg-red-50/40' : inv.status === 'Partially Paid' ? 'bg-amber-50/30' : '';
     return \`
-    <tr class="table-row border-b border-gray-50 \${rowHighlight}">
+    <tr class="table-row border-b border-gray-50 \${rowHighlight} cursor-pointer" onclick="showInvoiceDetail('\${inv.id}', event)">
       <td class="px-4 py-3 font-bold text-blue-600 text-sm">\${inv.invoiceNumber}</td>
       <td class="px-4 py-3 text-sm font-medium text-gray-700">\${inv.jobCardNumber||'—'}</td>
       <td class="px-4 py-3 text-sm text-gray-600">\${inv.customerName||'—'}</td>
-      <td class="px-4 py-3 text-sm">\${fmt(inv.labourCost)}</td>
-      <td class="px-4 py-3 text-sm">\${fmt(inv.partsCost)}</td>
-      <td class="px-4 py-3 text-sm">\${fmt(inv.tax)}</td>
-      <td class="px-4 py-3 font-bold text-green-600">\${fmt(inv.totalAmount)}</td>
+      <td class="px-4 py-3 font-bold text-gray-800">\${fmt(inv.totalAmount)}</td>
       <td class="px-4 py-3 text-xs text-gray-400">\${inv.dueDate||'—'}</td>
       <td class="px-4 py-3 text-xs text-gray-400">\${inv.paidAt ? fmtDate(inv.paidAt) : '—'}</td>
       <td class="px-4 py-3">\${methodHtml}</td>
       <td class="px-4 py-3">\${amountPaidHtml}</td>
-      <td class="px-4 py-3">
-        <div class="flex items-center gap-2 flex-wrap">
-          <span class="badge \${statusClass}">\${inv.status}</span>
-          \${canPay ? \`<button class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition-colors" onclick="showPayInvoiceModal('\${inv.id}')"><i class="fas fa-money-bill-wave mr-1"></i>\${inv.status === 'Partially Paid' ? 'Pay Balance' : 'Record Payment'}</button>\` : ''}
-        </div>
+      <td class="px-4 py-3"><span class="badge \${statusClass}">\${inv.status}</span></td>
+      <td class="px-4 py-3" onclick="event.stopPropagation()">
+        \${canPay ? \`<button class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition-colors whitespace-nowrap" onclick="showPayInvoiceModal('\${inv.id}')"><i class="fas fa-money-bill-wave mr-1"></i>\${inv.status === 'Partially Paid' ? 'Pay Balance' : 'Record Payment'}</button>\` : '<span class="text-gray-300 text-xs">—</span>'}
       </td>
     </tr>\`;
-  }).join('') || \`<tr><td colspan="12" class="text-center py-12 text-gray-400"><i class="fas fa-file-invoice text-3xl mb-3 block"></i>No \${filter === 'all' ? '' : filter + ' '}invoices</td></tr>\`;
+  }).join('') || \`<tr><td colspan="10" class="text-center py-12 text-gray-400"><i class="fas fa-file-invoice text-3xl mb-3 block"></i>No \${filter === 'all' ? '' : filter + ' '}invoices</td></tr>\`;
+}
+
+// ─── Invoice Detail Modal ───────────────────────────────────────────────────
+var _invDetailId = null;
+
+function showInvoiceDetail(invId, event) {
+  // Don't open if a button inside the row was clicked
+  if (event && event.target.closest('button')) return;
+  const inv = allInvoices.find(i => i.id === invId);
+  if (!inv) return;
+  _invDetailId = invId;
+
+  const fmt2 = (n) => 'TZS ' + Number(n||0).toLocaleString();
+  const fmtDt = (s) => s ? new Date(s).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }) : '—';
+  const fmtTs = (s) => s ? new Date(s).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+
+  // Header
+  document.getElementById('invd-number').textContent = inv.invoiceNumber;
+  document.getElementById('invd-subtitle').textContent = (inv.customerName || '') + (inv.jobCardNumber ? ' · ' + inv.jobCardNumber : '');
+
+  // Status badge
+  const badge = document.getElementById('invd-status-badge');
+  badge.textContent = inv.status;
+  badge.className = 'badge text-sm px-3 py-1 '
+    + (inv.status === 'Paid' ? 'bg-green-100 text-green-700'
+    : inv.status === 'Partially Paid' ? 'bg-amber-100 text-amber-700'
+    : inv.status === 'Overdue' ? 'bg-red-100 text-red-700'
+    : 'bg-gray-100 text-gray-600');
+
+  // Progress bar
+  const total    = inv.totalAmount || 0;
+  const paid     = inv.amountPaid  || 0;
+  const pct      = total > 0 ? Math.min(100, Math.round(paid / total * 100)) : (inv.status === 'Paid' ? 100 : 0);
+  const barColor = inv.status === 'Paid' ? 'bg-green-500'
+                 : inv.status === 'Overdue' ? 'bg-red-500'
+                 : inv.status === 'Partially Paid' ? 'bg-amber-500'
+                 : 'bg-gray-300';
+  document.getElementById('invd-progress-bar').style.width = pct + '%';
+  document.getElementById('invd-progress-bar').className = 'h-2 rounded-full transition-all ' + barColor;
+  document.getElementById('invd-progress-label').textContent = fmt2(paid) + ' / ' + fmt2(total);
+
+  // Details grid
+  document.getElementById('invd-jobcard').textContent  = inv.jobCardNumber  || '—';
+  document.getElementById('invd-customer').textContent = inv.customerName   || '—';
+  document.getElementById('invd-issued').textContent   = fmtDt(inv.issuedAt);
+  document.getElementById('invd-due').textContent      = inv.dueDate ? inv.dueDate : '—';
+
+  const claimRow = document.getElementById('invd-claim-row');
+  const pfiRow   = document.getElementById('invd-pfi-row');
+  if (inv.claimReference) {
+    document.getElementById('invd-claim').textContent = inv.claimReference;
+    claimRow.classList.remove('hidden');
+  } else { claimRow.classList.add('hidden'); }
+  if (inv.pfiReference) {
+    document.getElementById('invd-pfi').textContent = inv.pfiReference;
+    pfiRow.classList.remove('hidden');
+  } else { pfiRow.classList.add('hidden'); }
+
+  // Cost breakdown
+  document.getElementById('invd-labour').textContent = fmt2(inv.labourCost);
+  document.getElementById('invd-parts').textContent  = fmt2(inv.partsCost);
+  document.getElementById('invd-tax').textContent    = fmt2(inv.tax);
+  document.getElementById('invd-total').textContent  = fmt2(inv.totalAmount);
+
+  // Payment history
+  const methodIcon  = (m) => m === 'Mobile Money' ? 'fa-mobile-alt' : m === 'Bank' ? 'fa-university' : m === 'Lipa Number' ? 'fa-hashtag' : m === 'Cash' ? 'fa-money-bill-wave' : 'fa-credit-card';
+  const methodColor = (m) => m === 'Mobile Money' ? 'text-green-600' : m === 'Bank' ? 'text-blue-600' : m === 'Lipa Number' ? 'text-purple-600' : m === 'Cash' ? 'text-orange-600' : 'text-gray-500';
+  const paySection  = document.getElementById('invd-payment-section');
+  const payList     = document.getElementById('invd-payment-list');
+
+  const payments = inv.payments || [];
+  if (payments.length) {
+    paySection.classList.remove('hidden');
+    payList.innerHTML = payments.map(p => \`
+      <div class="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
+        <div class="flex items-center gap-2">
+          <i class="fas \${methodIcon(p.method)} \${methodColor(p.method)} text-sm"></i>
+          <span class="text-sm font-semibold text-gray-700">\${fmt2(p.amount)}</span>
+          <span class="text-xs text-gray-400">via \${p.method}</span>
+          \${p.reference ? \`<span class="text-xs text-gray-400">· \${p.reference}</span>\` : ''}
+        </div>
+        <span class="text-xs text-gray-400">\${fmtTs(p.paidAt)}</span>
+      </div>
+    \`).join('');
+    // Balance row
+    if (inv.status !== 'Paid') {
+      const balance = total - paid;
+      payList.innerHTML += \`
+        <div class="flex justify-between items-center px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-sm">
+          <span class="font-semibold text-amber-700">Balance remaining</span>
+          <span class="font-bold text-amber-700">\${fmt2(balance)}</span>
+        </div>
+      \`;
+    }
+  } else if (inv.status === 'Paid' && inv.paidAt) {
+    paySection.classList.remove('hidden');
+    payList.innerHTML = \`
+      <div class="flex items-center justify-between bg-green-50 rounded-lg px-3 py-2 border border-green-100">
+        <div class="flex items-center gap-2">
+          <i class="fas fa-check-circle text-green-600 text-sm"></i>
+          <span class="text-sm font-semibold text-gray-700">\${fmt2(total)}</span>
+          \${inv.paymentMethod ? \`<span class="text-xs text-gray-400">via \${inv.paymentMethod}</span>\` : ''}
+        </div>
+        <span class="text-xs text-gray-400">\${fmtTs(inv.paidAt)}</span>
+      </div>
+    \`;
+  } else {
+    paySection.classList.add('hidden');
+  }
+
+  // Pay button
+  const payBtn = document.getElementById('invd-pay-btn');
+  if (inv.status !== 'Paid') {
+    payBtn.classList.remove('hidden');
+    payBtn.innerHTML = \`<i class="fas fa-money-bill-wave mr-1.5"></i>\${inv.status === 'Partially Paid' ? 'Pay Balance' : 'Record Payment'}\`;
+  } else {
+    payBtn.classList.add('hidden');
+  }
+
+  openModal('modal-invoiceDetail');
+}
+
+function _invdPay() {
+  closeModal('modal-invoiceDetail');
+  if (_invDetailId) showPayInvoiceModal(_invDetailId);
 }
 
 // ═══ PACKAGES ═══
