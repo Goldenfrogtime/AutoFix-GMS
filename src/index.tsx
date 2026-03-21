@@ -785,20 +785,78 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 
     <!-- ═══ ANALYTICS ═══ -->
     <div id="page-analytics" class="page">
-      <div class="mb-6">
-        <h2 class="text-2xl font-bold text-gray-900">Analytics & Margin Report</h2>
-        <p class="text-gray-500 text-sm mt-1">Business performance and profitability overview</p>
+      <div class="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-900">Analytics & Reports</h2>
+          <p class="text-gray-500 text-sm mt-1">Business performance, profitability and turnaround time</p>
+        </div>
       </div>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6" id="analyticsStats"></div>
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div class="card p-5">
-          <h3 class="font-bold text-gray-800 mb-4">Revenue Breakdown</h3>
-          <div style="height:260px"><canvas id="revenueChart"></canvas></div>
+      <!-- Analytics Tabs -->
+      <div class="flex gap-2 mb-5 border-b border-gray-200 overflow-x-auto">
+        <button id="analyticsTab-overview" class="analytics-tab-btn px-4 py-2 text-sm font-semibold border-b-2 border-blue-600 text-blue-700 whitespace-nowrap" onclick="switchAnalyticsTab('overview')"><i class="fas fa-chart-bar mr-1.5"></i>Overview</button>
+        <button id="analyticsTab-performance" class="analytics-tab-btn px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap" onclick="switchAnalyticsTab('performance')"><i class="fas fa-stopwatch mr-1.5"></i>Performance & TAT</button>
+      </div>
+
+      <!-- Overview Tab -->
+      <div id="analyticsPane-overview">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6" id="analyticsStats"></div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="card p-5">
+            <h3 class="font-bold text-gray-800 mb-4">Revenue Breakdown</h3>
+            <div style="height:260px"><canvas id="revenueChart"></canvas></div>
+          </div>
+          <div class="card p-5">
+            <h3 class="font-bold text-gray-800 mb-4">Jobs by Insurer</h3>
+            <div style="height:260px"><canvas id="insurerChart"></canvas></div>
+          </div>
         </div>
-        <div class="card p-5">
-          <h3 class="font-bold text-gray-800 mb-4">Jobs by Insurer</h3>
-          <div style="height:260px"><canvas id="insurerChart"></canvas></div>
+      </div>
+
+      <!-- Performance & TAT Tab -->
+      <div id="analyticsPane-performance" class="hidden">
+        <!-- KPI Cards Row -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5" id="tatKpiCards">
+          <div class="card p-4 border-l-4 border-violet-400">
+            <p class="text-xs text-gray-500 font-semibold uppercase mb-1">Avg TAT (Completed)</p>
+            <p class="text-xl font-bold text-violet-700" id="tatAvgCompleted">—</p>
+            <p class="text-xs text-gray-400 mt-0.5">Working hours only</p>
+          </div>
+          <div class="card p-4 border-l-4 border-blue-400">
+            <p class="text-xs text-gray-500 font-semibold uppercase mb-1">Completed Jobs</p>
+            <p class="text-xl font-bold text-blue-700" id="tatCompletedCount">—</p>
+            <p class="text-xs text-gray-400 mt-0.5" id="tatTotalCount"></p>
+          </div>
+          <div class="card p-4 border-l-4 border-green-400">
+            <p class="text-xs text-gray-500 font-semibold uppercase mb-1">Fastest TAT</p>
+            <p class="text-xl font-bold text-green-700" id="tatMin">—</p>
+            <p class="text-xs text-gray-400 mt-0.5">Best completion time</p>
+          </div>
+          <div class="card p-4 border-l-4 border-red-400">
+            <p class="text-xs text-gray-500 font-semibold uppercase mb-1">Slowest TAT</p>
+            <p class="text-xl font-bold text-red-600" id="tatMax">—</p>
+            <p class="text-xs text-gray-400 mt-0.5">Longest completion time</p>
+          </div>
         </div>
+
+        <!-- Bottleneck + Avg per Status -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
+          <div class="card p-5">
+            <div class="flex items-center justify-between mb-4">
+              <h3 class="font-bold text-gray-800">Avg Time per Status</h3>
+              <span class="text-xs text-gray-400">Closed entries only</span>
+            </div>
+            <div id="tatByStatusChart" class="space-y-2.5"></div>
+          </div>
+          <div class="card p-5">
+            <h3 class="font-bold text-gray-800 mb-4">Technician Performance</h3>
+            <div id="tatTechLeaderboard"></div>
+          </div>
+        </div>
+
+        <!-- Bottleneck Alert -->
+        <div id="tatBottleneck" class="mb-4 hidden"></div>
+
+        <p class="text-xs text-gray-400 text-center mt-2"><i class="fas fa-info-circle mr-1"></i>Working hours: 08:00–18:00, Mon–Sun · Durations calculated from closed status entries</p>
       </div>
     </div>
 
@@ -3638,6 +3696,17 @@ async function viewJobDetail(id) {
           </div>
         </div>\` : ''}
 
+        <!-- Time Tracking -->
+        <div class="card p-5 border-l-4 border-violet-400" id="timeTrackCard-\${j.id}">
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="font-bold text-gray-800 text-sm"><i class="fas fa-stopwatch text-violet-500 mr-2"></i>Time Tracking</h4>
+            <button onclick="refreshTimeTrack('\${j.id}')" class="text-xs text-violet-500 hover:text-violet-700 font-semibold" title="Refresh"><i class="fas fa-sync-alt"></i></button>
+          </div>
+          <div id="timeTrackContent-\${j.id}">
+            <p class="text-xs text-gray-400 text-center py-3"><i class="fas fa-spinner fa-spin mr-1"></i>Loading…</p>
+          </div>
+        </div>
+
         <!-- PFI -->
         \${j.pfi ? \`
           <div class="card p-5">
@@ -3715,6 +3784,8 @@ async function viewJobDetail(id) {
   if (j.invoice) {
     loadJobPL(j.id);
   }
+  // Load time tracking panel
+  loadTimeTrack(j.id);
 }
 
 // Parts Modal
@@ -7442,6 +7513,135 @@ async function loadAnalytics() {
   });
 }
 
+// ── Analytics Tabs ────────────────────────────────────────────────────────────
+function switchAnalyticsTab(tab) {
+  // Update tab buttons
+  document.querySelectorAll('.analytics-tab-btn').forEach(function(btn) {
+    btn.classList.remove('border-blue-600','text-blue-700');
+    btn.classList.add('border-transparent','text-gray-500');
+  });
+  var activeBtn = document.getElementById('analyticsTab-' + tab);
+  if (activeBtn) {
+    activeBtn.classList.remove('border-transparent','text-gray-500');
+    activeBtn.classList.add('border-blue-600','text-blue-700');
+  }
+  // Show/hide panes
+  ['overview','performance'].forEach(function(p) {
+    var el = document.getElementById('analyticsPane-' + p);
+    if (el) el.classList.toggle('hidden', p !== tab);
+  });
+  // Load TAT data when switching to performance tab
+  if (tab === 'performance') loadTATAnalytics();
+}
+
+async function loadTATAnalytics() {
+  try {
+    var { data } = await axios.get('/api/analytics/tat');
+
+    // KPI Cards
+    var avg = document.getElementById('tatAvgCompleted');
+    var cnt = document.getElementById('tatCompletedCount');
+    var tot = document.getElementById('tatTotalCount');
+    var mn  = document.getElementById('tatMin');
+    var mx  = document.getElementById('tatMax');
+    if (avg) avg.textContent = data.avgCompletedTATFormatted || '—';
+    if (cnt) cnt.textContent = data.completedJobs || 0;
+    if (tot) tot.textContent = 'of ' + (data.totalJobs || 0) + ' total jobs';
+    if (mn)  mn.textContent  = data.minCompletedTATFormatted || '—';
+    if (mx)  mx.textContent  = data.maxCompletedTATFormatted || '—';
+
+    // Bottleneck alert
+    var bottleneckEl = document.getElementById('tatBottleneck');
+    if (bottleneckEl) {
+      if (data.bottleneck && data.bottleneck.avgMins > 0) {
+        bottleneckEl.className = 'mb-4 flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3';
+        bottleneckEl.innerHTML =
+          '<i class="fas fa-exclamation-triangle text-amber-500 mt-0.5 flex-shrink-0"></i>' +
+          '<div>' +
+            '<p class="text-sm font-semibold text-amber-800">Bottleneck Detected: ' + data.bottleneck.label + '</p>' +
+            '<p class="text-xs text-amber-700 mt-0.5">Average time spent at this stage: <strong>' + data.bottleneck.avgFormatted + '</strong> — consider investigating delays here.</p>' +
+          '</div>';
+      } else {
+        bottleneckEl.classList.add('hidden');
+      }
+    }
+
+    // Per-status horizontal bar chart
+    var statusChartEl = document.getElementById('tatByStatusChart');
+    if (statusChartEl && data.avgByStatus) {
+      var maxAvgMins = Math.max(...data.avgByStatus.map(function(s){ return s.avgMins; }), 1);
+      var STATUS_BG_TAT = {
+        RECEIVED:'#dbeafe', INSPECTION:'#e0e7ff', PFI_PREPARATION:'#fef3c7',
+        AWAITING_INSURER_APPROVAL:'#fee2e2', REPAIR_IN_PROGRESS:'#d1fae5',
+        WAITING_FOR_PARTS:'#ffedd5', QUALITY_CHECK:'#f0fdf4',
+        COMPLETED:'#dcfce7', INVOICED:'#f5f3ff', RELEASED:'#f1f5f9'
+      };
+      var STATUS_TEXT_TAT = {
+        RECEIVED:'#1d4ed8', INSPECTION:'#4338ca', PFI_PREPARATION:'#d97706',
+        AWAITING_INSURER_APPROVAL:'#dc2626', REPAIR_IN_PROGRESS:'#059669',
+        WAITING_FOR_PARTS:'#ea580c', QUALITY_CHECK:'#16a34a',
+        COMPLETED:'#15803d', INVOICED:'#7c3aed', RELEASED:'#475569'
+      };
+      statusChartEl.innerHTML = data.avgByStatus
+        .filter(function(s){ return s.sampleCount > 0; })
+        .map(function(s) {
+          var pct = Math.max(4, Math.round((s.avgMins / maxAvgMins) * 100));
+          var bg = STATUS_BG_TAT[s.status] || '#f1f5f9';
+          var tc = STATUS_TEXT_TAT[s.status] || '#64748b';
+          return '<div class="mb-2">' +
+            '<div class="flex items-center justify-between text-xs mb-1">' +
+              '<span class="font-medium text-gray-700">' + s.label + '</span>' +
+              '<div class="flex items-center gap-2">' +
+                '<span class="text-gray-400 text-[11px]">n=' + s.sampleCount + '</span>' +
+                '<span class="font-semibold text-gray-800">' + s.avgFormatted + '</span>' +
+              '</div>' +
+            '</div>' +
+            '<div class="h-3 bg-gray-100 rounded-full overflow-hidden">' +
+              '<div class="h-3 rounded-full transition-all" style="width:' + pct + '%;background:' + tc + ';opacity:0.7"></div>' +
+            '</div>' +
+          '</div>';
+        }).join('') || '<p class="text-sm text-gray-400 text-center py-6">No completed status entries yet.<br><span class="text-xs">Data populates once job cards move through statuses.</span></p>';
+    }
+
+    // Technician leaderboard
+    var techEl = document.getElementById('tatTechLeaderboard');
+    if (techEl && data.techLeaderboard) {
+      if (data.techLeaderboard.length === 0) {
+        techEl.innerHTML = '<p class="text-sm text-gray-400 text-center py-6">No technician data yet.</p>';
+      } else {
+        techEl.innerHTML = '<div class="space-y-2">' +
+          data.techLeaderboard.map(function(t, i) {
+            var medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i+1) + '.';
+            var completionRate = t.jobCount > 0 ? Math.round((t.completedCount / t.jobCount) * 100) : 0;
+            return '<div class="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-100">' +
+              '<span class="text-base w-7 text-center flex-shrink-0">' + medal + '</span>' +
+              '<div class="flex-1 min-w-0">' +
+                '<p class="text-sm font-semibold text-gray-800 truncate">' + t.name + '</p>' +
+                '<div class="flex items-center gap-2 mt-0.5">' +
+                  '<span class="text-xs text-gray-400">' + t.jobCount + ' job' + (t.jobCount !== 1 ? 's' : '') + '</span>' +
+                  '<span class="text-xs text-green-600 font-semibold">' + t.completedCount + ' done</span>' +
+                  '<span class="text-xs text-gray-300">·</span>' +
+                  '<span class="text-xs text-gray-500">' + completionRate + '% rate</span>' +
+                '</div>' +
+              '</div>' +
+              '<div class="text-right flex-shrink-0">' +
+                '<p class="text-sm font-bold text-violet-700">' + t.avgTATFormatted + '</p>' +
+                '<p class="text-[10px] text-gray-400">avg TAT</p>' +
+              '</div>' +
+            '</div>';
+          }).join('') +
+        '</div>';
+      }
+    }
+  } catch(e) {
+    console.error('TAT analytics error', e);
+    ['tatKpiCards','tatByStatusChart','tatTechLeaderboard'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.innerHTML = '<p class="text-xs text-gray-400 text-center py-4">Unable to load data</p>';
+    });
+  }
+}
+
 // ═══ USERS & RBAC ═══
 
 // Role descriptions for preview
@@ -9590,6 +9790,104 @@ async function loadJobPL(jobId) {
   } catch(e) {
     panel.innerHTML = '<p class="text-xs text-gray-400 text-center py-2">P&L unavailable</p>';
   }
+}
+
+// ─── Time Tracking Panel ──────────────────────────────────────────────────────
+const STATUS_COLORS_TT = {
+  RECEIVED:                   { bg:'#dbeafe', text:'#1d4ed8' },
+  INSPECTION:                 { bg:'#e0e7ff', text:'#4338ca' },
+  PFI_PREPARATION:            { bg:'#fef3c7', text:'#d97706' },
+  AWAITING_INSURER_APPROVAL:  { bg:'#fee2e2', text:'#dc2626' },
+  REPAIR_IN_PROGRESS:         { bg:'#d1fae5', text:'#059669' },
+  WAITING_FOR_PARTS:          { bg:'#ffedd5', text:'#ea580c' },
+  QUALITY_CHECK:              { bg:'#f0fdf4', text:'#16a34a' },
+  COMPLETED:                  { bg:'#dcfce7', text:'#15803d' },
+  INVOICED:                   { bg:'#f5f3ff', text:'#7c3aed' },
+  RELEASED:                   { bg:'#f1f5f9', text:'#475569' }
+};
+const STATUS_LABELS_TT = {
+  RECEIVED:'Received', INSPECTION:'Inspection', PFI_PREPARATION:'PFI Prep',
+  AWAITING_INSURER_APPROVAL:'Insurer Approval', REPAIR_IN_PROGRESS:'Repair',
+  WAITING_FOR_PARTS:'Waiting Parts', QUALITY_CHECK:'Quality Check',
+  COMPLETED:'Completed', INVOICED:'Invoiced', RELEASED:'Released'
+};
+
+async function loadTimeTrack(jobId) {
+  var container = document.getElementById('timeTrackContent-' + jobId);
+  if (!container) return;
+  try {
+    var { data } = await axios.get('/api/jobcards/' + jobId + '/timeline');
+    renderTimeTrack(container, data);
+  } catch(e) {
+    container.innerHTML = '<p class="text-xs text-gray-400 text-center py-3">Time tracking unavailable</p>';
+  }
+}
+
+function refreshTimeTrack(jobId) {
+  var container = document.getElementById('timeTrackContent-' + jobId);
+  if (!container) return;
+  container.innerHTML = '<p class="text-xs text-gray-400 text-center py-2"><i class="fas fa-spinner fa-spin mr-1"></i>Refreshing…</p>';
+  loadTimeTrack(jobId);
+}
+
+function renderTimeTrack(container, data) {
+  var tl = data.timeline || [];
+  var totalMins = data.totalTATMins || 0;
+  var totalFormatted = data.totalTATFormatted || '0m';
+
+  // TAT summary row
+  var isCompleted = ['COMPLETED','INVOICED','RELEASED'].includes(data.currentStatus);
+  var tatColor = isCompleted ? 'text-green-700' : 'text-violet-700';
+  var tatBg = isCompleted ? 'bg-green-50' : 'bg-violet-50';
+
+  var html = '<div class="' + tatBg + ' rounded-xl px-3 py-2.5 mb-3 flex items-center justify-between">' +
+    '<div>' +
+      '<p class="text-xs text-gray-500 font-semibold uppercase tracking-wide">Total TAT</p>' +
+      '<p class="text-base font-bold ' + tatColor + '">' + totalFormatted + '</p>' +
+    '</div>' +
+    '<div class="text-right">' +
+      '<p class="text-xs text-gray-400">' + (isCompleted ? 'Completed' : 'In Progress') + '</p>' +
+      (data.completedAt ? '<p class="text-xs text-green-600 font-medium">' + fmtDate(data.completedAt) + '</p>' : '') +
+    '</div>' +
+  '</div>';
+
+  // Timeline bar + entries
+  if (tl.length === 0) {
+    html += '<p class="text-xs text-gray-400 text-center py-2">No timeline data yet</p>';
+    container.innerHTML = html;
+    return;
+  }
+
+  // Visual proportional bar (based on duration)
+  var maxMins = Math.max(...tl.map(function(e){ return e.durationMins || 0; }), 1);
+  html += '<div class="space-y-2">';
+  tl.forEach(function(entry) {
+    var cfg = STATUS_COLORS_TT[entry.status] || { bg:'#f1f5f9', text:'#64748b' };
+    var label = STATUS_LABELS_TT[entry.status] || entry.status;
+    var pct = Math.max(8, Math.round(((entry.durationMins || 0) / maxMins) * 100));
+    var isOpen = entry.isOpen;
+    var techName = entry.technicianName || '';
+
+    html += '<div class="group relative">' +
+      '<div class="flex items-center justify-between text-xs mb-0.5">' +
+        '<div class="flex items-center gap-1.5 min-w-0">' +
+          '<span class="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-semibold flex-shrink-0" style="background:' + cfg.bg + ';color:' + cfg.text + '">' + label + '</span>' +
+          (isOpen ? '<span class="text-xs text-violet-500 font-semibold animate-pulse"><i class="fas fa-circle text-[6px] mr-0.5"></i>Live</span>' : '') +
+        '</div>' +
+        '<span class="font-semibold text-gray-700 flex-shrink-0 ml-2">' + (entry.durationFormatted || '—') + '</span>' +
+      '</div>' +
+      '<div class="h-2 rounded-full bg-gray-100 overflow-hidden">' +
+        '<div class="h-2 rounded-full transition-all" style="width:' + pct + '%;background:' + cfg.text + ';opacity:0.6"></div>' +
+      '</div>' +
+      (techName ? '<p class="text-xs text-gray-400 mt-0.5"><i class="fas fa-user-hard-hat mr-1"></i>' + techName + '</p>' : '') +
+    '</div>';
+  });
+  html += '</div>';
+
+  // Working hours note
+  html += '<p class="text-xs text-gray-300 mt-3 text-center">Working hrs: 08:00–18:00, Mon–Sun</p>';
+
+  container.innerHTML = html;
 }
 
 // ─── Finance Summary Cards (Dashboard) ───────────────────────────────────────

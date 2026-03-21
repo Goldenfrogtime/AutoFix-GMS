@@ -9,7 +9,7 @@ import {
   type PartConsumption, type ServicePackage, type User, type Invoice,
   type CataloguePart, type CarWashPackage, type AddOnService, type Appointment,
   type JobService, type Expense, type Notification, type NotificationType, type NotificationPriority,
-  type LubricantProduct, type Permission
+  type LubricantProduct, type Permission, type StatusTimelineEntry, type JobCardStatus
 } from '../data/store'
 
 const api = new Hono()
@@ -27,6 +27,72 @@ function genBatchNumber() {
   const year = new Date().getFullYear()
   const seq  = String(_batchCounter++).padStart(4, '0')
   return `BAT-${year}-${seq}`
+}
+
+// ─── Working-Time Calculator ─────────────────────────────────────────────────
+// Working hours: 08:00–18:00, Mon–Sun (all 7 days)
+const WORK_START_H = 8   // 08:00
+const WORK_END_H   = 18  // 18:00
+const WORK_MINS_PER_DAY = (WORK_END_H - WORK_START_H) * 60  // 600 mins
+
+/**
+ * Returns the number of working minutes between two ISO timestamps.
+ * Working hours: 08:00–18:00 every day (Mon–Sun).
+ */
+function workingMinutes(fromISO: string, toISO: string): number {
+  const from = new Date(fromISO)
+  const to   = new Date(toISO)
+  if (to <= from) return 0
+
+  let total = 0
+  // Walk day by day from `from` to `to`
+  const cursor = new Date(from)
+
+  while (cursor < to) {
+    // Working window for this calendar day
+    const dayStart = new Date(cursor)
+    dayStart.setHours(WORK_START_H, 0, 0, 0)
+    const dayEnd = new Date(cursor)
+    dayEnd.setHours(WORK_END_H, 0, 0, 0)
+
+    // Clamp the interval [from, to] to [dayStart, dayEnd]
+    const windowStart = cursor < dayStart ? dayStart : cursor
+    const windowEnd   = to    < dayEnd   ? to       : dayEnd
+
+    if (windowEnd > windowStart) {
+      total += (windowEnd.getTime() - windowStart.getTime()) / 60000
+    }
+
+    // Advance cursor to the start of next working day
+    cursor.setDate(cursor.getDate() + 1)
+    cursor.setHours(WORK_START_H, 0, 0, 0)
+  }
+  return Math.round(total)
+}
+
+/** Format minutes → human string e.g. "2d 3h 15m" */
+function fmtDuration(mins: number): string {
+  if (mins <= 0) return '0m'
+  const d = Math.floor(mins / (WORK_MINS_PER_DAY))
+  const h = Math.floor((mins % WORK_MINS_PER_DAY) / 60)
+  const m = mins % 60
+  const parts: string[] = []
+  if (d > 0) parts.push(`${d}d`)
+  if (h > 0) parts.push(`${h}h`)
+  if (m > 0 || parts.length === 0) parts.push(`${m}m`)
+  return parts.join(' ')
+}
+
+/** Open a new timeline entry (called on job create or status change) */
+function openTimelineEntry(jc: JobCard, status: JobCardStatus, timestamp: string): StatusTimelineEntry {
+  return { status, enteredAt: timestamp, technician: jc.assignedTechnician || undefined }
+}
+
+/** Close the current open timeline entry in-place and return duration */
+function closeTimelineEntry(entry: StatusTimelineEntry, exitTimestamp: string): number {
+  entry.exitedAt    = exitTimestamp
+  entry.durationMins = workingMinutes(entry.enteredAt, exitTimestamp)
+  return entry.durationMins
 }
 
 // ─── Auth / RBAC Helpers ─────────────────────────────────────────────────────
@@ -225,12 +291,66 @@ api.get('/jobcards/:id', (c) => {
   return c.json({ ...j, vehicle: v, customer: cu, technicianName: tech?.name, pfi, parts, services, invoice, logs })
 })
 
+// GET /jobcards/:id/timeline — returns timeline entries with enriched data
+api.get('/jobcards/:id/timeline', (c) => {
+  const j = jobCards.find(x => x.id === c.req.param('id'))
+  if (!j) return c.json({ error: 'Not found' }, 404)
+  const tsNow = now()
+  // Enrich timeline: for the open (current) entry, compute live duration
+  const timeline = (j.statusTimeline || []).map(entry => {
+    const durationMins = entry.exitedAt
+      ? (entry.durationMins ?? workingMinutes(entry.enteredAt, entry.exitedAt))
+      : workingMinutes(entry.enteredAt, tsNow)
+    const techUser = entry.technician ? users.find(u => u.id === entry.technician) : null
+    return {
+      ...entry,
+      durationMins,
+      durationFormatted: fmtDuration(durationMins),
+      isOpen: !entry.exitedAt,
+      technicianName: techUser?.name || entry.technician || null
+    }
+  })
+  // Total TAT: sum of completed entries + current open entry time
+  const totalMins = j.totalTATMins != null
+    ? j.totalTATMins
+    : workingMinutes(j.createdAt, tsNow)
+  return c.json({
+    jobCardId: j.id,
+    jobCardNumber: j.jobCardNumber,
+    currentStatus: j.status,
+    createdAt: j.createdAt,
+    completedAt: j.completedAt || null,
+    totalTATMins: totalMins,
+    totalTATFormatted: fmtDuration(totalMins),
+    timeline,
+    workingHours: `${WORK_START_H}:00–${WORK_END_H}:00, Mon–Sun`
+  })
+})
+
 api.post('/jobcards', async (c) => {
   const body = await c.req.json<Omit<JobCard, 'id' | 'jobCardNumber' | 'status' | 'createdAt' | 'updatedAt'>>()
   const num = 'GMS-' + new Date().getFullYear() + '-' + String(jobCards.length + 1).padStart(3, '0')
-  const newJob: JobCard = { ...body, id: 'j' + genId(), jobCardNumber: num, status: 'RECEIVED', createdAt: now(), updatedAt: now() }
+  const ts = now()
+  // Open first timeline entry at RECEIVED
+  const firstEntry: StatusTimelineEntry = {
+    status: 'RECEIVED',
+    enteredAt: ts,
+    technician: body.assignedTechnician || undefined
+  }
+  // Record technicianAssignedAt if a technician is already assigned
+  const techAssignedAt = body.assignedTechnician ? ts : undefined
+  const newJob: JobCard = {
+    ...body,
+    id: 'j' + genId(),
+    jobCardNumber: num,
+    status: 'RECEIVED',
+    statusTimeline: [firstEntry],
+    technicianAssignedAt: techAssignedAt,
+    createdAt: ts,
+    updatedAt: ts
+  }
   jobCards.push(newJob)
-  activityLog.push({ id: 'a' + genId(), jobCardId: newJob.id, action: 'JOB_CREATED', description: 'New job card created', userId: 'u3', userName: 'System', timestamp: now() })
+  activityLog.push({ id: 'a' + genId(), jobCardId: newJob.id, action: 'JOB_CREATED', description: 'New job card created', userId: 'u3', userName: 'System', timestamp: ts })
   const cust = customers.find(x => x.id === newJob.customerId)
   const veh  = vehicles.find(x => x.id === newJob.vehicleId)
   addNotification('job_created', 'info', 'New Job Card Created',
@@ -244,8 +364,38 @@ api.patch('/jobcards/:id/status', async (c) => {
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
   const { status } = await c.req.json<{ status: string }>()
   const old = jobCards[idx].status
-  jobCards[idx] = { ...jobCards[idx], status: status as any, updatedAt: now() }
-  activityLog.push({ id: 'a' + genId(), jobCardId: jobCards[idx].id, action: 'STATUS_CHANGE', description: `Status changed from ${old} to ${status}`, userId: 'u2', userName: 'System', timestamp: now() })
+  const ts = now()
+
+  // ── Timeline: close the current open entry, open a new one ──────────────
+  const timeline: StatusTimelineEntry[] = jobCards[idx].statusTimeline
+    ? [...jobCards[idx].statusTimeline!]
+    : []
+  // Close the last open entry (no exitedAt yet)
+  const openEntry = timeline.findLast ? timeline.findLast(e => !e.exitedAt) : [...timeline].reverse().find(e => !e.exitedAt)
+  if (openEntry) {
+    closeTimelineEntry(openEntry, ts)
+  }
+  // Open new entry for the new status
+  const newEntry = openTimelineEntry(jobCards[idx], status as JobCardStatus, ts)
+  timeline.push(newEntry)
+
+  // Compute total TAT when reaching COMPLETED
+  let completedAt = jobCards[idx].completedAt
+  let totalTATMins = jobCards[idx].totalTATMins
+  if (status === 'COMPLETED') {
+    completedAt = ts
+    totalTATMins = workingMinutes(jobCards[idx].createdAt, ts)
+  }
+
+  jobCards[idx] = {
+    ...jobCards[idx],
+    status: status as any,
+    statusTimeline: timeline,
+    completedAt,
+    totalTATMins,
+    updatedAt: ts
+  }
+  activityLog.push({ id: 'a' + genId(), jobCardId: jobCards[idx].id, action: 'STATUS_CHANGE', description: `Status changed from ${old} to ${status}`, userId: 'u2', userName: 'System', timestamp: ts })
   const jc = jobCards[idx]
   const statusLabels: Record<string, string> = {
     RECEIVED: 'Received', INSPECTION: 'Under Inspection', PFI_PREPARATION: 'PFI Preparation',
@@ -268,7 +418,24 @@ api.put('/jobcards/:id', async (c) => {
   const idx = jobCards.findIndex(x => x.id === c.req.param('id'))
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
   const body = await c.req.json<Partial<JobCard>>()
-  jobCards[idx] = { ...jobCards[idx], ...body, updatedAt: now() }
+  const ts = now()
+  // If technician is being assigned or changed, record the timestamp and update the current open timeline entry
+  const technicianChanged = body.assignedTechnician && body.assignedTechnician !== jobCards[idx].assignedTechnician
+  let timeline = jobCards[idx].statusTimeline ? [...jobCards[idx].statusTimeline!] : []
+  if (technicianChanged) {
+    // Update the technician in the most recent open timeline entry
+    const openEntry = timeline.findLast ? timeline.findLast(e => !e.exitedAt) : [...timeline].reverse().find(e => !e.exitedAt)
+    if (openEntry) {
+      openEntry.technician = body.assignedTechnician
+    }
+  }
+  jobCards[idx] = {
+    ...jobCards[idx],
+    ...body,
+    statusTimeline: timeline,
+    technicianAssignedAt: technicianChanged ? ts : (jobCards[idx].technicianAssignedAt || (body.assignedTechnician ? ts : undefined)),
+    updatedAt: ts
+  }
   return c.json(jobCards[idx])
 })
 
@@ -277,10 +444,22 @@ api.get('/pfis', (c) => c.json(pfis))
 
 api.post('/jobcards/:id/pfi', async (c) => {
   const body = await c.req.json<Omit<PFI, 'id' | 'jobCardId' | 'createdAt'>>()
-  const newPFI: PFI = { ...body, id: 'p' + genId(), jobCardId: c.req.param('id'), createdAt: now() }
+  const ts = now()
+  const newPFI: PFI = { ...body, id: 'p' + genId(), jobCardId: c.req.param('id'), createdAt: ts }
   pfis.push(newPFI)
   const jIdx = jobCards.findIndex(x => x.id === c.req.param('id'))
-  if (jIdx !== -1) { jobCards[jIdx].status = 'PFI_PREPARATION'; jobCards[jIdx].updatedAt = now() }
+  if (jIdx !== -1) {
+    // Close current timeline entry and open PFI_PREPARATION
+    const timeline: StatusTimelineEntry[] = jobCards[jIdx].statusTimeline
+      ? [...jobCards[jIdx].statusTimeline!]
+      : []
+    const openEntry = timeline.findLast ? timeline.findLast(e => !e.exitedAt) : [...timeline].reverse().find(e => !e.exitedAt)
+    if (openEntry) closeTimelineEntry(openEntry, ts)
+    timeline.push(openTimelineEntry(jobCards[jIdx], 'PFI_PREPARATION', ts))
+    jobCards[jIdx].status = 'PFI_PREPARATION'
+    jobCards[jIdx].statusTimeline = timeline
+    jobCards[jIdx].updatedAt = ts
+  }
   const jc = jobCards[jIdx]
   if (jc) addNotification('pfi_created', 'info', 'PFI Created',
     `Pro Forma Invoice created for ${jc.jobCardNumber} — TZS ${newPFI.totalEstimate.toLocaleString()}`,
@@ -846,6 +1025,117 @@ api.get('/analytics', (c) => {
   }, {} as Record<string, number>)
 
   return c.json({ totalRevenue, totalLabour, totalParts, totalCost, margin, avgJobValue, byInsurer, byStatus, invoiceCount: paid.length })
+})
+
+// GET /analytics/tat — Turn-Around-Time analytics across all job cards
+api.get('/analytics/tat', (c) => {
+  const tsNow = now()
+
+  // Status labels
+  const STATUS_LABELS: Record<string, string> = {
+    RECEIVED: 'Received', INSPECTION: 'Under Inspection', PFI_PREPARATION: 'PFI Preparation',
+    AWAITING_INSURER_APPROVAL: 'Awaiting Insurer Approval', REPAIR_IN_PROGRESS: 'Repair In Progress',
+    WAITING_FOR_PARTS: 'Waiting for Parts', QUALITY_CHECK: 'Quality Check',
+    COMPLETED: 'Completed', INVOICED: 'Invoiced', RELEASED: 'Released'
+  }
+  const STATUS_FLOW_LIST = ['RECEIVED','INSPECTION','PFI_PREPARATION','AWAITING_INSURER_APPROVAL',
+    'REPAIR_IN_PROGRESS','WAITING_FOR_PARTS','QUALITY_CHECK','COMPLETED','INVOICED','RELEASED']
+
+  // Per-status average durations across all job cards (closed entries only)
+  const statusTotals: Record<string, { totalMins: number; count: number }> = {}
+  STATUS_FLOW_LIST.forEach(s => { statusTotals[s] = { totalMins: 0, count: 0 } })
+
+  // Per-technician stats
+  const techStats: Record<string, { name: string; jobCount: number; totalMins: number; completedCount: number }> = {}
+
+  // Completed jobs TAT
+  const completedTATs: number[] = []
+  const activeJobMins: number[] = []
+
+  jobCards.forEach(j => {
+    // TAT for completed jobs
+    if (j.status === 'COMPLETED' || j.status === 'INVOICED' || j.status === 'RELEASED') {
+      if (j.totalTATMins != null) {
+        completedTATs.push(j.totalTATMins)
+      } else if (j.completedAt) {
+        completedTATs.push(workingMinutes(j.createdAt, j.completedAt))
+      }
+    } else {
+      activeJobMins.push(workingMinutes(j.createdAt, tsNow))
+    }
+
+    // Status durations
+    if (j.statusTimeline) {
+      j.statusTimeline.forEach(entry => {
+        const mins = entry.exitedAt
+          ? (entry.durationMins ?? workingMinutes(entry.enteredAt, entry.exitedAt))
+          : workingMinutes(entry.enteredAt, tsNow)
+        if (statusTotals[entry.status] && entry.exitedAt) {
+          statusTotals[entry.status].totalMins += mins
+          statusTotals[entry.status].count += 1
+        }
+      })
+    }
+
+    // Technician stats (using current assignedTechnician)
+    if (j.assignedTechnician) {
+      const tech = users.find(u => u.id === j.assignedTechnician)
+      if (!techStats[j.assignedTechnician]) {
+        techStats[j.assignedTechnician] = {
+          name: tech?.name || j.assignedTechnician,
+          jobCount: 0,
+          totalMins: 0,
+          completedCount: 0
+        }
+      }
+      techStats[j.assignedTechnician].jobCount += 1
+      if (j.status === 'COMPLETED' || j.status === 'INVOICED' || j.status === 'RELEASED') {
+        techStats[j.assignedTechnician].completedCount += 1
+        const tatMins = j.totalTATMins ?? (j.completedAt ? workingMinutes(j.createdAt, j.completedAt) : 0)
+        techStats[j.assignedTechnician].totalMins += tatMins
+      }
+    }
+  })
+
+  // Compute averages per status
+  const avgByStatus = STATUS_FLOW_LIST.map(s => ({
+    status: s,
+    label: STATUS_LABELS[s] || s,
+    avgMins: statusTotals[s].count > 0 ? Math.round(statusTotals[s].totalMins / statusTotals[s].count) : 0,
+    avgFormatted: statusTotals[s].count > 0 ? fmtDuration(Math.round(statusTotals[s].totalMins / statusTotals[s].count)) : '—',
+    sampleCount: statusTotals[s].count
+  }))
+
+  const avgCompletedTAT = completedTATs.length > 0
+    ? Math.round(completedTATs.reduce((a, b) => a + b, 0) / completedTATs.length)
+    : 0
+  const maxCompletedTAT = completedTATs.length > 0 ? Math.max(...completedTATs) : 0
+  const minCompletedTAT = completedTATs.length > 0 ? Math.min(...completedTATs) : 0
+
+  // Technician leaderboard (sorted by completedCount desc, then avgTAT asc)
+  const techLeaderboard = Object.values(techStats)
+    .map(t => ({
+      ...t,
+      avgTATMins: t.completedCount > 0 ? Math.round(t.totalMins / t.completedCount) : 0,
+      avgTATFormatted: t.completedCount > 0 ? fmtDuration(Math.round(t.totalMins / t.completedCount)) : '—'
+    }))
+    .sort((a, b) => b.completedCount - a.completedCount || a.avgTATMins - b.avgTATMins)
+
+  // Bottleneck = status with highest average duration (completed entries)
+  const bottleneck = [...avgByStatus].filter(s => s.avgMins > 0).sort((a, b) => b.avgMins - a.avgMins)[0] || null
+
+  return c.json({
+    totalJobs: jobCards.length,
+    completedJobs: completedTATs.length,
+    activeJobs: activeJobMins.length,
+    avgCompletedTATMins: avgCompletedTAT,
+    avgCompletedTATFormatted: fmtDuration(avgCompletedTAT),
+    maxCompletedTATFormatted: fmtDuration(maxCompletedTAT),
+    minCompletedTATFormatted: fmtDuration(minCompletedTAT),
+    avgByStatus,
+    techLeaderboard,
+    bottleneck: bottleneck ? { status: bottleneck.status, label: bottleneck.label, avgMins: bottleneck.avgMins, avgFormatted: bottleneck.avgFormatted } : null
+  })
 })
 
 // ─── Twiga Catalogue: Oil Services ──────────────────────────────────────────
