@@ -1497,10 +1497,19 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         <div><label class="form-label">Phone Number</label><input class="form-input" id="cust-phone" required placeholder="+255 7XX XXX XXX"/></div>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+        <div>
+          <label class="form-label"><i class="fab fa-whatsapp text-green-500 mr-1"></i>WhatsApp Number <span class="text-gray-400 font-normal text-xs">(optional)</span></label>
+          <div class="relative">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-green-500 text-sm"><i class="fab fa-whatsapp"></i></span>
+            <input class="form-input pl-8" id="cust-whatsapp" placeholder="+255 7XX XXX XXX (if different)"/>
+          </div>
+        </div>
         <div><label class="form-label">Email Address</label><input class="form-input" type="email" id="cust-email" placeholder="john@example.com"/></div>
-        <div><label class="form-label">ID Number (optional)</label><input class="form-input" id="cust-id" placeholder="TZ123456789"/></div>
       </div>
-      <div class="mb-6"><label class="form-label">Address</label><input class="form-input" id="cust-address" placeholder="Street, City"/></div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+        <div><label class="form-label">ID Number <span class="text-gray-400 font-normal text-xs">(optional)</span></label><input class="form-input" id="cust-id" placeholder="TZ123456789"/></div>
+        <div><label class="form-label">Address</label><input class="form-input" id="cust-address" placeholder="Street, City"/></div>
+      </div>
       <div class="flex gap-3 justify-end">
         <button type="button" class="btn-secondary" onclick="closeModal('modal-newCustomer')">Cancel</button>
         <button type="submit" class="btn-primary"><i class="fas fa-save"></i> Add Customer</button>
@@ -5097,7 +5106,8 @@ function renderCustomers(list) {
             \${typeBadge}
           </div>
           \${isCorp && c.contactPerson ? \`<p class="text-xs text-gray-500"><i class="fas fa-user-tie text-xs mr-1 text-purple-400"></i>\${c.contactPerson}</p>\` : ''}
-          <p class="text-xs text-gray-500">\${c.phone}</p>
+          <p class="text-xs text-gray-500"><i class="fas fa-phone text-xs mr-1 text-gray-400"></i>\${c.phone}</p>
+          \${c.whatsapp ? \`<p class="text-xs text-green-600"><i class="fab fa-whatsapp text-xs mr-1"></i>\${c.whatsapp}</p>\` : ''}
           \${c.email ? \`<p class="text-xs text-gray-400">\${c.email}</p>\` : ''}
           \${c.taxPin ? \`<p class="text-xs text-gray-400 mt-0.5"><i class="fas fa-receipt text-xs mr-1 text-green-400"></i>\${c.taxPin}</p>\` : ''}
         </div>
@@ -5132,6 +5142,7 @@ function filterCustomers(q) {
   if (lq) list = list.filter(c =>
     c.name.toLowerCase().includes(lq) ||
     c.phone.includes(lq) ||
+    (c.whatsapp||'').includes(lq) ||
     (c.email||'').toLowerCase().includes(lq) ||
     (c.companyName||'').toLowerCase().includes(lq) ||
     (c.contactPerson||'').toLowerCase().includes(lq)
@@ -5166,6 +5177,7 @@ async function viewCustomerDetail(id) {
           \${typeBadge}
         </div>
         <p class="text-gray-500 text-sm mt-0.5">\${c.phone} · \${c.email||'—'}</p>
+        \${c.whatsapp ? \`<p class="text-green-600 text-xs mt-0.5 font-medium"><i class="fab fa-whatsapp mr-1"></i>\${c.whatsapp}</p>\` : ''}
       </div>
     </div>
     \${corpHtml}
@@ -5215,9 +5227,11 @@ function selectCustType(type) {
 async function submitNewCustomer(e) {
   e.preventDefault();
   const type = document.getElementById('cust-type').value;
+  const whatsappVal = document.getElementById('cust-whatsapp').value.trim();
   const payload = {
     name: document.getElementById('cust-name').value,
     phone: document.getElementById('cust-phone').value,
+    whatsapp: whatsappVal || undefined,
     email: document.getElementById('cust-email').value,
     address: document.getElementById('cust-address').value,
     idNumber: document.getElementById('cust-id').value,

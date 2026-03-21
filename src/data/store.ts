@@ -185,6 +185,7 @@ export interface Customer {
   id: string
   name: string
   phone: string
+  whatsapp?: string             // WhatsApp number (if different from phone)
   email: string
   address: string
   idNumber?: string
