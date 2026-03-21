@@ -248,7 +248,11 @@ export interface PFI {
   jobCardId: string
   labourCost: number
   partsCost: number
-  totalEstimate: number
+  discountType?: 'fixed' | 'percentage'  // type of discount applied
+  discountValue?: number                  // amount (TZS) or percentage (0–100)
+  discountAmount?: number                 // resolved discount in TZS (always)
+  discountReason?: string                 // optional note e.g. "Loyal customer"
+  totalEstimate: number                   // (labour + parts) − discount
   status: PFIStatus
   notes?: string
   sentAt?: string     // ISO timestamp when last emailed
@@ -271,8 +275,12 @@ export interface Invoice {
   invoiceNumber: string
   labourCost: number
   partsCost: number
+  discountType?: 'fixed' | 'percentage'  // carried from PFI
+  discountValue?: number                  // original entered value
+  discountAmount?: number                 // resolved TZS discount
+  discountReason?: string
   tax: number
-  totalAmount: number
+  totalAmount: number                     // (labour + parts) − discount + tax
   status: InvoiceStatus
   issuedAt: string
   dueDate?: string        // ISO date string — payment due date

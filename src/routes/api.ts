@@ -445,7 +445,25 @@ api.get('/pfis', (c) => c.json(pfis))
 api.post('/jobcards/:id/pfi', async (c) => {
   const body = await c.req.json<Omit<PFI, 'id' | 'jobCardId' | 'createdAt'>>()
   const ts = now()
-  const newPFI: PFI = { ...body, id: 'p' + genId(), jobCardId: c.req.param('id'), createdAt: ts }
+
+  // ── Resolve discount ─────────────────────────────────────────────────────
+  const subtotal = (body.labourCost || 0) + (body.partsCost || 0)
+  let discountAmount = 0
+  if (body.discountType === 'percentage' && body.discountValue) {
+    discountAmount = Math.round(subtotal * Math.min(body.discountValue, 100) / 100)
+  } else if (body.discountType === 'fixed' && body.discountValue) {
+    discountAmount = Math.min(Math.round(body.discountValue), subtotal)
+  }
+  const totalEstimate = Math.max(0, subtotal - discountAmount)
+
+  const newPFI: PFI = {
+    ...body,
+    id: 'p' + genId(),
+    jobCardId: c.req.param('id'),
+    discountAmount,
+    totalEstimate,
+    createdAt: ts
+  }
   pfis.push(newPFI)
   const jIdx = jobCards.findIndex(x => x.id === c.req.param('id'))
   if (jIdx !== -1) {
@@ -461,8 +479,9 @@ api.post('/jobcards/:id/pfi', async (c) => {
     jobCards[jIdx].updatedAt = ts
   }
   const jc = jobCards[jIdx]
+  const discountNote = discountAmount > 0 ? ` (discount: TZS ${discountAmount.toLocaleString()})` : ''
   if (jc) addNotification('pfi_created', 'info', 'PFI Created',
-    `Pro Forma Invoice created for ${jc.jobCardNumber} — TZS ${newPFI.totalEstimate.toLocaleString()}`,
+    `Pro Forma Invoice created for ${jc.jobCardNumber} — TZS ${newPFI.totalEstimate.toLocaleString()}${discountNote}`,
     { jobCardId: jc.id, jobCardNumber: jc.jobCardNumber, entityId: newPFI.id, entityType: 'pfi' })
   return c.json(newPFI, 201)
 })
@@ -471,7 +490,20 @@ api.patch('/pfi/:id', async (c) => {
   const idx = pfis.findIndex(x => x.id === c.req.param('id'))
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
   const body = await c.req.json<Partial<PFI>>()
-  pfis[idx] = { ...pfis[idx], ...body }
+  const merged = { ...pfis[idx], ...body }
+  // Recalculate discountAmount and totalEstimate if discount fields are updated
+  if (body.discountType !== undefined || body.discountValue !== undefined || body.labourCost !== undefined || body.partsCost !== undefined) {
+    const subtotal = (merged.labourCost || 0) + (merged.partsCost || 0)
+    let discountAmount = 0
+    if (merged.discountType === 'percentage' && merged.discountValue) {
+      discountAmount = Math.round(subtotal * Math.min(merged.discountValue, 100) / 100)
+    } else if (merged.discountType === 'fixed' && merged.discountValue) {
+      discountAmount = Math.min(Math.round(merged.discountValue), subtotal)
+    }
+    merged.discountAmount = discountAmount
+    merged.totalEstimate = Math.max(0, subtotal - discountAmount)
+  }
+  pfis[idx] = merged
   return c.json(pfis[idx])
 })
 
@@ -580,7 +612,27 @@ api.post('/jobcards/:id/invoice', async (c) => {
   const dueDate = body.dueDate || (() => {
     const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().slice(0, 10)
   })()
-  const newInv: Invoice = { ...body, id: 'i' + genId(), jobCardId: c.req.param('id'), invoiceNumber: invNum, issuedAt: now(), dueDate }
+  // ── Resolve discount (may be passed from PFI or entered in invoice modal) ──
+  const subtotal = (body.labourCost || 0) + (body.partsCost || 0)
+  let discountAmount = body.discountAmount ?? 0
+  if (!discountAmount && body.discountType && body.discountValue) {
+    if (body.discountType === 'percentage') {
+      discountAmount = Math.round(subtotal * Math.min(body.discountValue, 100) / 100)
+    } else {
+      discountAmount = Math.min(Math.round(body.discountValue), subtotal)
+    }
+  }
+  const totalAmount = body.totalAmount ?? Math.max(0, subtotal - discountAmount + (body.tax || 0))
+  const newInv: Invoice = {
+    ...body,
+    id: 'i' + genId(),
+    jobCardId: c.req.param('id'),
+    invoiceNumber: invNum,
+    discountAmount,
+    totalAmount,
+    issuedAt: now(),
+    dueDate
+  }
   invoices.push(newInv)
   const jIdx = jobCards.findIndex(x => x.id === c.req.param('id'))
   if (jIdx !== -1) { jobCards[jIdx].status = 'INVOICED'; jobCards[jIdx].updatedAt = now() }
@@ -850,6 +902,10 @@ api.get('/finance/summary', (c) => {
   const grossMargin  = grossIncome > 0 ? ((netIncome / grossIncome) * 100) : 0
   const avgJobValue  = paidCount > 0 ? totalPaid / paidCount : 0
 
+  // ── Discount Metrics ──────────────────────────────────────────────────────
+  const totalDiscountsGiven = allInv.reduce((s, i) => s + (i.discountAmount || 0), 0)
+  const discountedInvoiceCount = allInv.filter(i => (i.discountAmount || 0) > 0).length
+
   // ── Monthly P&L trend ─────────────────────────────────────────────────────
   const allMonths = new Set([
     ...Object.keys(monthlyRevenue),
@@ -875,6 +931,7 @@ api.get('/finance/summary', (c) => {
       jobLinked: jobLinkedExp, overhead: overheadExp, byCategory: expByCategory,
     },
     pl: { grossIncome, netIncome, grossMargin, avgJobValue },
+    discounts: { total: totalDiscountsGiven, invoiceCount: discountedInvoiceCount },
     trends: { revenue: revenueMonths, expenses: expenseMonths, pl: monthlyPL },
   })
 })

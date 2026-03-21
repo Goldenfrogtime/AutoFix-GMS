@@ -914,7 +914,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       </div>
 
       <!-- P&L Summary row -->
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
+      <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5">
         <div class="card p-4">
           <div class="flex items-center gap-2 mb-2">
             <div class="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center"><i class="fas fa-arrow-up text-green-600 text-xs"></i></div>
@@ -946,6 +946,14 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
           </div>
           <div class="text-xl font-bold" id="finMarginPct">—</div>
           <div class="text-xs text-gray-400 mt-1" id="finAvgJob">Avg job value: —</div>
+        </div>
+        <div class="card p-4">
+          <div class="flex items-center gap-2 mb-2">
+            <div class="w-8 h-8 rounded-full bg-green-50 flex items-center justify-center"><i class="fas fa-tag text-green-500 text-xs"></i></div>
+            <span class="text-sm text-gray-500 font-medium">Discounts Given</span>
+          </div>
+          <div class="text-xl font-bold text-green-600" id="finTotalDiscounts">—</div>
+          <div class="text-xs text-gray-400 mt-1" id="finDiscountCount">0 invoices</div>
         </div>
       </div>
 
@@ -1791,6 +1799,10 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         <div class="flex justify-between">
           <span class="text-gray-500">Parts &amp; Materials</span>
           <span class="font-medium text-gray-700" id="invd-parts">—</span>
+        </div>
+        <div class="flex justify-between text-green-600" id="invd-discount-row" style="display:none">
+          <span class="flex items-center gap-1"><i class="fas fa-tag text-xs"></i>Discount <span class="text-xs text-green-500 font-normal" id="invd-discount-reason"></span></span>
+          <span class="font-semibold" id="invd-discount">—</span>
         </div>
         <div class="flex justify-between">
           <span class="text-gray-500">Tax / VAT</span>
@@ -3738,6 +3750,7 @@ async function viewJobDetail(id) {
             <div class="space-y-2 text-sm">
               <div class="flex justify-between"><span class="text-gray-400">Labour</span><span class="font-semibold">\${fmt(j.pfi.labourCost)}</span></div>
               <div class="flex justify-between"><span class="text-gray-400">Parts Total</span><span class="font-semibold">\${fmt(j.pfi.partsCost)}</span></div>
+              \${(j.pfi.discountAmount||0) > 0 ? '<div class="flex justify-between text-green-600"><span class="flex items-center gap-1"><i class="fas fa-tag text-xs"></i>Discount' + (j.pfi.discountReason ? ' <span class=\\'text-xs text-green-500\\'>('+j.pfi.discountReason+')</span>' : '') + '</span><span class="font-semibold">− '+fmt(j.pfi.discountAmount)+'</span></div>' : ''}
               <div class="flex justify-between border-t pt-2 font-bold"><span>Total Estimate</span><span class="text-blue-600">\${fmt(j.pfi.totalEstimate)}</span></div>
             </div>
             <div class="mt-3 flex items-center justify-between">
@@ -3754,6 +3767,7 @@ async function viewJobDetail(id) {
             <div class="space-y-2 text-sm">
               <div class="flex justify-between"><span class="text-gray-400">Labour</span><span>\${fmt(j.invoice.labourCost)}</span></div>
               <div class="flex justify-between"><span class="text-gray-400">Parts</span><span>\${fmt(j.invoice.partsCost)}</span></div>
+              \${(j.invoice.discountAmount||0) > 0 ? '<div class="flex justify-between text-green-600"><span class="flex items-center gap-1"><i class="fas fa-tag text-xs"></i>Discount' + (j.invoice.discountReason ? ' <span class=\\'text-xs text-green-500\\'>('+j.invoice.discountReason+')</span>' : '') + '</span><span class="font-semibold">− '+fmt(j.invoice.discountAmount)+'</span></div>' : ''}
               <div class="flex justify-between"><span class="text-gray-400">Tax (18%)</span><span>\${fmt(j.invoice.tax)}</span></div>
               <div class="flex justify-between border-t pt-2 font-bold text-green-600"><span>Total</span><span>\${fmt(j.invoice.totalAmount)}</span></div>
             </div>
@@ -4136,7 +4150,7 @@ async function showPFIModal(jobId, category) {
   }
 
   openModal('modal-statusUpdate');
-  setModalWidth('#modal-statusUpdate', 620);
+  setModalWidth('#modal-statusUpdate', 640);
   document.getElementById('statusUpdateContent').innerHTML = \`
     <p class="text-sm text-gray-500 mb-3">\${isInsurance ? 'Create a Pro Forma Invoice for insurer approval' : 'Create a Pro Forma Invoice to send to the customer'}</p>
     \${isInsurance ? '' : \`<div class="flex items-center gap-2 mb-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700"><i class="fas fa-user-circle"></i> Private / Individual job – PFI will go directly to the customer</div>\`}
@@ -4152,10 +4166,53 @@ async function showPFIModal(jobId, category) {
         <input class="form-input" type="number" id="pfi-parts" required min="0" value="\${totalBillable}"/>
       </div>
     </div>
-    <div class="mb-3">
-      <label class="form-label">Total Estimate</label>
-      <input class="form-input font-bold text-blue-700" id="pfi-total" readonly placeholder="Auto-calculated"/>
+
+    <!-- Discount Section -->
+    <div class="mb-3 p-3 bg-green-50 border border-green-200 rounded-xl">
+      <div class="flex items-center justify-between mb-2">
+        <label class="text-sm font-semibold text-green-800"><i class="fas fa-tag mr-1.5 text-green-500"></i>Discount <span class="font-normal text-green-600 text-xs">(optional)</span></label>
+        <div class="flex items-center gap-1">
+          <button type="button" id="pfi-disc-type-fixed" onclick="pfiSetDiscountType('fixed')"
+            class="px-2.5 py-1 text-xs font-semibold rounded-lg border border-green-300 bg-white text-green-700 hover:bg-green-100 transition-all">TZS</button>
+          <button type="button" id="pfi-disc-type-pct" onclick="pfiSetDiscountType('percentage')"
+            class="px-2.5 py-1 text-xs font-semibold rounded-lg border border-transparent bg-transparent text-green-600 hover:bg-green-100 transition-all">%</button>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <div class="relative">
+            <span id="pfi-disc-prefix" class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-500 font-semibold">TZS</span>
+            <input class="form-input pl-11" type="number" id="pfi-disc-value" min="0" placeholder="0" oninput="pfiCalcTotal()"/>
+          </div>
+          <p class="text-xs text-green-600 mt-1" id="pfi-disc-preview"></p>
+        </div>
+        <div>
+          <input class="form-input" type="text" id="pfi-disc-reason" placeholder="Reason (e.g. Loyal customer)" maxlength="80"/>
+        </div>
+      </div>
     </div>
+
+    <!-- Total -->
+    <div class="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-xl">
+      <div class="flex items-center justify-between">
+        <div class="space-y-1 text-sm flex-1">
+          <div class="flex justify-between text-gray-500">
+            <span>Subtotal</span>
+            <span id="pfi-subtotal-display" class="font-medium text-gray-700"></span>
+          </div>
+          <div class="flex justify-between text-green-600" id="pfi-disc-line" style="display:none!important">
+            <span><i class="fas fa-tag mr-1 text-xs"></i>Discount</span>
+            <span id="pfi-disc-amount-display" class="font-semibold">— TZS 0</span>
+          </div>
+          <div class="flex justify-between font-bold text-gray-800 border-t border-blue-200 pt-1 mt-1">
+            <span>Total Estimate</span>
+            <span id="pfi-total-display" class="text-blue-700 text-base"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <input type="hidden" id="pfi-total"/>
+
     <div class="mb-5">
       <label class="form-label">Notes</label>
       <textarea class="form-input" id="pfi-notes" rows="2" placeholder="\${isInsurance ? 'Additional notes for insurer\u2026' : 'Additional notes for customer\u2026'}"></textarea>
@@ -4166,35 +4223,111 @@ async function showPFIModal(jobId, category) {
     </div>
   \`;
 
+  // Initialise discount type state
+  window._pfiDiscType = 'fixed';
+  pfiSetDiscountType('fixed');
+
   // Wire up total calculation and trigger with pre-filled billable cost
-  const calcTotal = () => {
-    const l = +document.getElementById('pfi-labour').value || 0;
-    const p = +document.getElementById('pfi-parts').value || 0;
-    document.getElementById('pfi-total').value = fmt(l + p);
-  };
-  calcTotal();
-  document.getElementById('pfi-labour').oninput = calcTotal;
-  document.getElementById('pfi-parts').oninput  = calcTotal;
+  pfiCalcTotal();
+  document.getElementById('pfi-labour').oninput = pfiCalcTotal;
+  document.getElementById('pfi-parts').oninput  = pfiCalcTotal;
 
   document.getElementById('pfi-submit').onclick = async () => {
     const l = +document.getElementById('pfi-labour').value || 0;
     const p = +document.getElementById('pfi-parts').value || 0;
+    const discType  = window._pfiDiscType;
+    const discValue = +document.getElementById('pfi-disc-value').value || 0;
+    const discReason = document.getElementById('pfi-disc-reason').value.trim();
+    const subtotal = l + p;
+    let discountAmount = 0;
+    if (discType === 'percentage' && discValue > 0) {
+      discountAmount = Math.round(subtotal * Math.min(discValue, 100) / 100);
+    } else if (discType === 'fixed' && discValue > 0) {
+      discountAmount = Math.min(Math.round(discValue), subtotal);
+    }
+    const totalEstimate = Math.max(0, subtotal - discountAmount);
     const initialStatus = isInsurance ? 'Submitted' : 'Draft';
     await axios.post('/api/jobcards/' + jobId + '/pfi', {
       labourCost: l,
       partsCost: p,
-      totalEstimate: l + p,
+      discountType: discValue > 0 ? discType : undefined,
+      discountValue: discValue > 0 ? discValue : undefined,
+      discountAmount,
+      discountReason: discReason || undefined,
+      totalEstimate,
       status: initialStatus,
       notes: document.getElementById('pfi-notes').value
     });
     closeModal('modal-statusUpdate');
     viewJobDetail(jobId);
-    showToast(isInsurance ? 'PFI submitted to insurer' : 'PFI created – ready to send to customer');
+    const discNote = discountAmount > 0 ? ' with discount of ' + fmt(discountAmount) : '';
+    showToast(isInsurance ? 'PFI submitted to insurer' + discNote : 'PFI created' + discNote + ' – ready to send to customer');
   };
 }
 
+// ── PFI Discount helpers ──────────────────────────────────────────────────────
+function pfiSetDiscountType(type) {
+  window._pfiDiscType = type;
+  const fixedBtn = document.getElementById('pfi-disc-type-fixed');
+  const pctBtn   = document.getElementById('pfi-disc-type-pct');
+  const prefix   = document.getElementById('pfi-disc-prefix');
+  if (!fixedBtn || !pctBtn) return;
+  if (type === 'fixed') {
+    fixedBtn.className = 'px-2.5 py-1 text-xs font-semibold rounded-lg border border-green-500 bg-green-500 text-white transition-all';
+    pctBtn.className   = 'px-2.5 py-1 text-xs font-semibold rounded-lg border border-transparent bg-transparent text-green-600 hover:bg-green-100 transition-all';
+    if (prefix) prefix.textContent = 'TZS';
+  } else {
+    fixedBtn.className = 'px-2.5 py-1 text-xs font-semibold rounded-lg border border-transparent bg-transparent text-green-600 hover:bg-green-100 transition-all';
+    pctBtn.className   = 'px-2.5 py-1 text-xs font-semibold rounded-lg border border-green-500 bg-green-500 text-white transition-all';
+    if (prefix) prefix.textContent = '%';
+  }
+  pfiCalcTotal();
+}
+
+function pfiCalcTotal() {
+  const l = +document.getElementById('pfi-labour')?.value || 0;
+  const p = +document.getElementById('pfi-parts')?.value  || 0;
+  const subtotal = l + p;
+  const discValue = +document.getElementById('pfi-disc-value')?.value || 0;
+  const discType  = window._pfiDiscType || 'fixed';
+
+  let discountAmount = 0;
+  if (discValue > 0) {
+    if (discType === 'percentage') {
+      discountAmount = Math.round(subtotal * Math.min(discValue, 100) / 100);
+    } else {
+      discountAmount = Math.min(Math.round(discValue), subtotal);
+    }
+  }
+  const total = Math.max(0, subtotal - discountAmount);
+
+  // Update display elements
+  var subEl   = document.getElementById('pfi-subtotal-display');
+  var discLine = document.getElementById('pfi-disc-line');
+  var discAmt  = document.getElementById('pfi-disc-amount-display');
+  var totDisp  = document.getElementById('pfi-total-display');
+  var preview  = document.getElementById('pfi-disc-preview');
+  var hiddenTotal = document.getElementById('pfi-total');
+
+  if (subEl)    subEl.textContent = fmt(subtotal);
+  if (totDisp)  totDisp.textContent = fmt(total);
+  if (hiddenTotal) hiddenTotal.value = String(total);
+
+  if (discountAmount > 0) {
+    if (discLine)  discLine.style.removeProperty('display');
+    if (discAmt)   discAmt.textContent = '− ' + fmt(discountAmount);
+    if (preview)   preview.textContent = discType === 'percentage'
+      ? 'Saves ' + fmt(discountAmount) + ' (' + discValue + '%)'
+      : discValue + '% equivalent';
+  } else {
+    if (discLine)  discLine.style.setProperty('display','none','important');
+    if (discAmt)   discAmt.textContent = '— TZS 0';
+    if (preview)   preview.textContent = '';
+  }
+}
+
 // Invoice Modal
-async function showInvoiceModal(jobId, labourCost, partsCost) {
+async function showInvoiceModal(jobId, labourCost, partsCost, pfiDiscount) {
   // Fetch full job to get parts + services
   const { data: job } = await axios.get('/api/jobcards/' + jobId);
   const parts    = job.parts    || [];
@@ -4203,7 +4336,12 @@ async function showInvoiceModal(jobId, labourCost, partsCost) {
   const actualServicesCost = services.reduce((s, sv) => s + sv.totalCost, 0);
   // Total billable = services + parts (use passed-in partsCost as fallback if nothing recorded yet)
   const totalBillable = (actualPartsCost + actualServicesCost) || partsCost;
-  const tax = Math.round((labourCost + totalBillable) * 0.18);
+  // Discount carried from PFI (if any)
+  const disc = pfiDiscount || {};
+  const discountAmount = disc.discountAmount || 0;
+  const subtotal = labourCost + totalBillable;
+  const afterDiscount = Math.max(0, subtotal - discountAmount);
+  const tax = Math.round(afterDiscount * 0.18);
 
   // Build services HTML
   let servicesHtml = '';
@@ -4266,6 +4404,16 @@ async function showInvoiceModal(jobId, labourCost, partsCost) {
       '</div>';
   }
 
+  // Discount row HTML (carried from PFI if present)
+  const discountRowHtml = discountAmount > 0
+    ? '<div class="mb-3 px-3 py-2.5 bg-green-50 border border-green-200 rounded-xl flex items-center justify-between text-sm">' +
+        '<span class="flex items-center gap-1.5 text-green-700 font-semibold"><i class="fas fa-tag text-green-500 text-xs"></i>Discount' +
+          (disc.discountReason ? ' <span class="font-normal text-green-600 text-xs">(' + disc.discountReason + ')</span>' : '') +
+        '</span>' +
+        '<span class="font-bold text-green-700">− ' + fmt(discountAmount) + '</span>' +
+      '</div>'
+    : '';
+
   openModal('modal-statusUpdate');
   setModalWidth('#modal-statusUpdate', (services.length || parts.length) ? 620 : 480);
   document.getElementById('statusUpdateContent').innerHTML = \`
@@ -4276,6 +4424,7 @@ async function showInvoiceModal(jobId, labourCost, partsCost) {
       <div><label class="form-label">Labour Cost (TZS)</label><input class="form-input" type="number" id="inv-labour" value="\${labourCost}"/></div>
       <div><label class="form-label">Services + Parts (TZS) <span class="text-gray-400 font-normal text-xs">auto-filled</span></label><input class="form-input" type="number" id="inv-parts" value="\${totalBillable}"/></div>
     </div>
+    \${discountRowHtml}
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
       <div><label class="form-label">Tax (18%) (TZS)</label><input class="form-input" type="number" id="inv-tax" value="\${tax}"/></div>
       <div><label class="form-label">Status</label><select class="form-input" id="inv-status"><option>Issued</option><option>Paid</option></select></div>
@@ -4286,21 +4435,33 @@ async function showInvoiceModal(jobId, labourCost, partsCost) {
     </div>
   \`;
 
-  // Auto-recalculate tax when labour or parts change
+  // Auto-recalculate tax based on (labour + parts − discount) * 18%
   const recalcTax = () => {
     const l = +document.getElementById('inv-labour').value || 0;
     const p = +document.getElementById('inv-parts').value || 0;
-    document.getElementById('inv-tax').value = Math.round((l + p) * 0.18);
+    document.getElementById('inv-tax').value = Math.round(Math.max(0, l + p - discountAmount) * 0.18);
   };
   document.getElementById('inv-labour').oninput = recalcTax;
   document.getElementById('inv-parts').oninput = recalcTax;
 
   document.getElementById('inv-submit').onclick = async () => {
-    const l = +document.getElementById('inv-labour').value, p = +document.getElementById('inv-parts').value, t = +document.getElementById('inv-tax').value;
-    await axios.post('/api/jobcards/' + jobId + '/invoice', { labourCost:l, partsCost:p, tax:t, totalAmount:l+p+t, status:document.getElementById('inv-status').value });
+    const l = +document.getElementById('inv-labour').value || 0;
+    const p = +document.getElementById('inv-parts').value || 0;
+    const t = +document.getElementById('inv-tax').value || 0;
+    const total = Math.max(0, l + p - discountAmount) + t;
+    await axios.post('/api/jobcards/' + jobId + '/invoice', {
+      labourCost: l, partsCost: p,
+      discountType:   disc.discountType,
+      discountValue:  disc.discountValue,
+      discountAmount: discountAmount,
+      discountReason: disc.discountReason,
+      tax: t,
+      totalAmount: total,
+      status: document.getElementById('inv-status').value
+    });
     closeModal('modal-statusUpdate');
     viewJobDetail(jobId);
-    showToast('Invoice generated successfully');
+    showToast('Invoice generated successfully' + (discountAmount > 0 ? ' (discount: ' + fmt(discountAmount) + ')' : ''));
     syncFinance();
   };
 }
@@ -6404,6 +6565,7 @@ function renderClaims(pfis) {
           \${partsBreakdownHtml}
           <div class="flex justify-between text-sm mb-1"><span class="text-gray-500">Labour</span><span class="font-semibold">\${fmt(pfi.labourCost)}</span></div>
           <div class="flex justify-between text-sm mb-1"><span class="text-gray-500">Parts Total</span><span class="font-semibold">\${fmt(pfi.partsCost)}</span></div>
+          \${(pfi.discountAmount||0) > 0 ? \`<div class="flex justify-between text-sm mb-1 text-green-600"><span class="flex items-center gap-1"><i class="fas fa-tag text-xs"></i>Discount\${pfi.discountReason ? ' <span class="text-xs">('+pfi.discountReason+')</span>' : ''}</span><span class="font-semibold">− \${fmt(pfi.discountAmount)}</span></div>\` : ''}
           <div class="flex justify-between text-sm font-bold border-t pt-2"><span>Total Estimate</span><span class="text-blue-600">\${fmt(pfi.totalEstimate)}</span></div>
         </div>
         \${pfi.notes ? \`<p class="text-xs text-gray-500 mb-3 italic">"\${pfi.notes}"</p>\` : ''}
@@ -6486,8 +6648,13 @@ async function generateInvoiceFromPFI(pfiId) {
   const pfi = allPFIs.find(function(p) { return p.id === pfiId; });
   if (!pfi) return;
   if (_pfiHasInvoice(pfi.jobCardId)) { showToast('Invoice already exists for this job', 'info'); return; }
-  // Open the existing invoice modal pre-filled with PFI values
-  await showInvoiceModal(pfi.jobCardId, pfi.labourCost, pfi.partsCost);
+  // Open the existing invoice modal pre-filled with PFI values (including discount)
+  await showInvoiceModal(pfi.jobCardId, pfi.labourCost, pfi.partsCost, {
+    discountType:   pfi.discountType,
+    discountValue:  pfi.discountValue,
+    discountAmount: pfi.discountAmount || 0,
+    discountReason: pfi.discountReason,
+  });
 }
 
 // ─── Pay Invoice Modal ────────────────────────────────────────────────────────
@@ -6749,7 +6916,10 @@ function _renderInvoicesTable(data, filter) {
       <td class="px-4 py-3 font-bold text-blue-600 text-sm">\${inv.invoiceNumber}</td>
       <td class="px-4 py-3 text-sm font-medium text-gray-700">\${inv.jobCardNumber||'—'}</td>
       <td class="px-4 py-3 text-sm text-gray-600">\${inv.customerName||'—'}</td>
-      <td class="px-4 py-3 font-bold text-gray-800">\${fmt(inv.totalAmount)}</td>
+      <td class="px-4 py-3 font-bold text-gray-800">
+        \${fmt(inv.totalAmount)}
+        \${(inv.discountAmount||0)>0 ? \`<span class="ml-1 inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700"><i class="fas fa-tag"></i> −\${fmt(inv.discountAmount)}</span>\` : ''}
+      </td>
       <td class="px-4 py-3 text-xs text-gray-400">\${inv.dueDate||'—'}</td>
       <td class="px-4 py-3 text-xs text-gray-400">\${inv.paidAt ? fmtDate(inv.paidAt) : '—'}</td>
       <td class="px-4 py-3">\${methodHtml}</td>
@@ -6823,6 +6993,20 @@ function showInvoiceDetail(invId, event) {
   document.getElementById('invd-parts').textContent  = fmt2(inv.partsCost);
   document.getElementById('invd-tax').textContent    = fmt2(inv.tax);
   document.getElementById('invd-total').textContent  = fmt2(inv.totalAmount);
+
+  // Discount row
+  const discRow    = document.getElementById('invd-discount-row');
+  const discSpan   = document.getElementById('invd-discount');
+  const discReason = document.getElementById('invd-discount-reason');
+  if (discRow && discSpan) {
+    if ((inv.discountAmount || 0) > 0) {
+      discSpan.textContent   = '− ' + fmt2(inv.discountAmount);
+      if (discReason) discReason.textContent = inv.discountReason ? '(' + inv.discountReason + ')' : '';
+      discRow.style.removeProperty('display');
+    } else {
+      discRow.style.display = 'none';
+    }
+  }
 
   // Payment history
   const methodIcon  = (m) => m === 'Mobile Money' ? 'fa-mobile-alt' : m === 'Bank' ? 'fa-university' : m === 'Lipa Number' ? 'fa-hashtag' : m === 'Cash' ? 'fa-money-bill-wave' : 'fa-credit-card';
@@ -10004,6 +10188,9 @@ function renderFinanceKPIs(d) {
     marginEl.className = 'text-xl font-bold ' + (d.pl.grossMargin >= 30 ? 'text-green-600' : d.pl.grossMargin >= 10 ? 'text-amber-600' : 'text-red-600');
   }
   set('finAvgJob', 'Avg job value: ' + fmt(d.pl.avgJobValue));
+  // Discounts row
+  set('finTotalDiscounts', fmt(d.discounts ? d.discounts.total : 0));
+  set('finDiscountCount', (d.discounts ? d.discounts.invoiceCount : 0) + ' invoice' + ((d.discounts?.invoiceCount !== 1) ? 's' : '') + ' discounted');
 }
 
 function renderFinancePLChart(d) {
