@@ -139,6 +139,18 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 /* Service modal tab bar: icon-only on xs, icon+label on sm */
 .svc-tab-bar button .svc-tab-label{display:none}
 @media(min-width:480px){.svc-tab-bar button .svc-tab-label{display:inline}}
+/* ── Customer Search Picker ─────────────────────────────── */
+.cust-picker-wrap{position:relative}
+.cust-picker-list{position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:9999;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);max-height:220px;overflow-y:auto;padding:4px 0;margin:0;list-style:none}
+.cust-picker-item{padding:9px 13px;cursor:pointer;transition:background .12s}
+.cust-picker-item:hover{background:#f0f9ff}
+.cust-picker-item-main{display:flex;align-items:center;gap:6px}
+.cust-picker-item-name{font-weight:600;font-size:.87rem;color:#1e293b}
+.cust-picker-item-sub{font-size:.78rem;color:#94a3b8;margin-top:2px;padding-left:0}
+.cust-picker-badge{font-size:.65rem;font-weight:700;padding:1px 6px;border-radius:99px;white-space:nowrap}
+.cust-picker-badge--corp{background:#ede9fe;color:#7c3aed}
+.cust-picker-badge--indiv{background:#dbeafe;color:#1d4ed8}
+.cust-picker-empty{padding:10px 14px;font-size:.85rem;color:#94a3b8;text-align:center}
 </style>
 </head>
 <body>
@@ -1527,7 +1539,22 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
     </div>
     <form id="newVehicleForm" onsubmit="submitNewVehicle(event)">
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-        <div><label class="form-label">Owner (Customer)</label><select class="form-input" id="veh-customerId" required><option value="">Select customer…</option></select></div>
+        <div>
+          <label class="form-label">Owner (Customer) <span class="text-red-500">*</span></label>
+          <!-- Searchable customer picker -->
+          <div class="cust-picker-wrap" id="vehCustPickerWrap">
+            <div class="relative">
+              <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"><i class="fas fa-search"></i></span>
+              <input type="text" class="form-input pl-8" id="veh-cust-search" autocomplete="off"
+                placeholder="Search customer name…"
+                oninput="custPickerFilter('veh')"
+                onfocus="custPickerOpen('veh')"
+                onblur="custPickerBlur('veh')"/>
+            </div>
+            <ul id="veh-cust-list" class="cust-picker-list hidden"></ul>
+            <input type="hidden" id="veh-customerId" required/>
+          </div>
+        </div>
         <div><label class="form-label">Registration Number</label><input class="form-input" id="veh-reg" required placeholder="T123 ABC"/></div>
       </div>
       <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
@@ -1963,9 +1990,19 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <div>
           <label class="form-label">Customer <span class="text-red-500">*</span></label>
-          <select class="form-input" id="apt-customerId" required onchange="aptLoadVehicles()">
-            <option value="">Select customer…</option>
-          </select>
+          <!-- Searchable customer picker -->
+          <div class="cust-picker-wrap" id="aptCustPickerWrap">
+            <div class="relative">
+              <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"><i class="fas fa-search"></i></span>
+              <input type="text" class="form-input pl-8" id="apt-cust-search" autocomplete="off"
+                placeholder="Search customer name…"
+                oninput="custPickerFilter('apt')"
+                onfocus="custPickerOpen('apt')"
+                onblur="custPickerBlur('apt')"/>
+            </div>
+            <ul id="apt-cust-list" class="cust-picker-list hidden"></ul>
+            <input type="hidden" id="apt-customerId" required/>
+          </div>
         </div>
         <div>
           <label class="form-label">Vehicle <span class="text-red-500">*</span></label>
@@ -5250,6 +5287,90 @@ async function submitNewCustomer(e) {
   loadCustomers();
 }
 
+// ═══════════════════════════════════════════════════════════
+// SHARED CUSTOMER SEARCH PICKER
+// Usage: namespace is 'veh' or 'apt'. Each namespace needs:
+//   #{ns}-cust-search  (text input)
+//   #{ns}-cust-list    (ul dropdown)
+//   #{ns}-customerId   (hidden input — stores selected id)
+// ═══════════════════════════════════════════════════════════
+var _custPickerBlurTimer = {};
+
+function custPickerReset(ns) {
+  var inp  = document.getElementById(ns + '-cust-search');
+  var list = document.getElementById(ns + '-cust-list');
+  var hid  = document.getElementById(ns + '-customerId');
+  if (inp)  inp.value  = '';
+  if (hid)  hid.value  = '';
+  if (list) { list.innerHTML = ''; list.classList.add('hidden'); }
+}
+
+function custPickerOpen(ns) {
+  // On focus: show all customers if nothing typed yet
+  custPickerFilter(ns);
+}
+
+function custPickerFilter(ns) {
+  var inp  = document.getElementById(ns + '-cust-search');
+  var list = document.getElementById(ns + '-cust-list');
+  var hid  = document.getElementById(ns + '-customerId');
+  if (!inp || !list) return;
+  var q = inp.value.trim().toLowerCase();
+  // Clear selected id when user edits text
+  if (hid) hid.value = '';
+  var matches = allCustomers.filter(function(c) {
+    return !q ||
+      c.name.toLowerCase().includes(q) ||
+      (c.companyName||'').toLowerCase().includes(q) ||
+      (c.phone||'').includes(q) ||
+      (c.whatsapp||'').includes(q);
+  }).slice(0, 8); // cap at 8 results for performance
+  if (!matches.length) {
+    list.innerHTML = '<li class="cust-picker-empty">No customers found</li>';
+  } else {
+    list.innerHTML = matches.map(function(c) {
+      var isCorp = c.customerType === 'Corporate';
+      var badge  = isCorp
+        ? '<span class="cust-picker-badge cust-picker-badge--corp"><i class="fas fa-building"></i> Corp</span>'
+        : '<span class="cust-picker-badge cust-picker-badge--indiv"><i class="fas fa-user"></i> Indiv</span>';
+      var sub = isCorp && c.companyName ? c.companyName : (c.phone || '');
+      return '<li class="cust-picker-item" onmousedown="custPickerSelect(\'' + ns + '\',\'' + c.id + '\')">' +
+        '<div class="cust-picker-item-main">' +
+          '<span class="cust-picker-item-name">' + c.name + '</span>' + badge +
+        '</div>' +
+        (sub ? '<div class="cust-picker-item-sub">' + sub + '</div>' : '') +
+      '</li>';
+    }).join('');
+  }
+  list.classList.remove('hidden');
+}
+
+function custPickerSelect(ns, custId) {
+  var c    = allCustomers.find(function(x) { return x.id === custId; });
+  var inp  = document.getElementById(ns + '-cust-search');
+  var list = document.getElementById(ns + '-cust-list');
+  var hid  = document.getElementById(ns + '-customerId');
+  if (!c) return;
+  var label = c.name + (c.customerType === 'Corporate' && c.companyName ? ' · ' + c.companyName : '');
+  if (inp)  inp.value  = label;
+  if (hid)  hid.value  = c.id;
+  if (list) { list.innerHTML = ''; list.classList.add('hidden'); }
+  // For appointment picker: load vehicles when customer is chosen
+  if (ns === 'apt') aptLoadVehicles();
+}
+
+function custPickerBlur(ns) {
+  // Delay close so onmousedown on list item fires first
+  _custPickerBlurTimer[ns] = setTimeout(function() {
+    var list = document.getElementById(ns + '-cust-list');
+    var inp  = document.getElementById(ns + '-cust-search');
+    var hid  = document.getElementById(ns + '-customerId');
+    if (list) { list.innerHTML = ''; list.classList.add('hidden'); }
+    // If nothing was selected, clear the text too
+    if (hid && !hid.value && inp) inp.value = '';
+  }, 180);
+}
+
 // ═══ VEHICLES ═══
 async function loadVehicles() {
   const { data } = await axios.get('/api/vehicles');
@@ -5494,16 +5615,21 @@ async function deleteVehicleById(id) {
 
 async function showNewVehicleModal() {
   if (!allCustomers.length) { const { data } = await axios.get('/api/customers'); allCustomers = data; }
-  document.getElementById('veh-customerId').innerHTML = '<option value="">Select customer…</option>' + allCustomers.map(function(c) { return '<option value="' + c.id + '">' + c.name + '</option>'; }).join('');
+  // Reset the customer picker
+  custPickerReset('veh');
+  document.getElementById('newVehicleForm').reset();
   openModal('modal-newVehicle');
 }
 
 async function submitNewVehicle(e) {
   e.preventDefault();
-  const payload = { customerId:document.getElementById('veh-customerId').value, registrationNumber:document.getElementById('veh-reg').value, make:document.getElementById('veh-make').value, model:document.getElementById('veh-model').value, year:+document.getElementById('veh-year').value, vin:document.getElementById('veh-vin').value, engineNumber:document.getElementById('veh-engine').value, insurer:document.getElementById('veh-insurer').value };
+  const custId = document.getElementById('veh-customerId').value;
+  if (!custId) { showToast('Please select a customer first', 'error'); return; }
+  const payload = { customerId: custId, registrationNumber:document.getElementById('veh-reg').value, make:document.getElementById('veh-make').value, model:document.getElementById('veh-model').value, year:+document.getElementById('veh-year').value, vin:document.getElementById('veh-vin').value, engineNumber:document.getElementById('veh-engine').value, insurer:document.getElementById('veh-insurer').value };
   await axios.post('/api/vehicles', payload);
   closeModal('modal-newVehicle');
   document.getElementById('newVehicleForm').reset();
+  custPickerReset('veh');
   showToast('Vehicle registered successfully');
   loadVehicles();
 }
@@ -5721,7 +5847,7 @@ async function showNewAppointmentModal() {
   const nextHour = new Date(now); nextHour.setHours(now.getHours()+1,0,0,0);
   document.getElementById('apt-time').value = nextHour.toTimeString().slice(0,5);
   document.getElementById('apt-status').value = 'Scheduled';
-  aptPopulateCustomers();
+  aptPopulateCustomers();   // resets picker, no pre-selection for new appointments
   aptPopulateTechnicians();
   openModal('modal-appointment');
 }
@@ -5748,9 +5874,15 @@ async function showEditAppointmentModal(id) {
 }
 
 function aptPopulateCustomers(selectedId) {
-  document.getElementById('apt-customerId').innerHTML =
-    '<option value="">Select customer…</option>' +
-    allCustomers.map(c => \`<option value="\${c.id}" \${c.id===selectedId?'selected':''}>\${c.name}</option>\`).join('');
+  // Use picker: reset then pre-fill if editing
+  custPickerReset('apt');
+  if (selectedId) {
+    const c = allCustomers.find(x => x.id === selectedId);
+    if (c) {
+      document.getElementById('apt-cust-search').value = c.name + (c.customerType === 'Corporate' && c.companyName ? ' · ' + c.companyName : '');
+      document.getElementById('apt-customerId').value  = c.id;
+    }
+  }
 }
 
 async function aptLoadVehicles(selectedId) {
@@ -5771,8 +5903,10 @@ function aptPopulateTechnicians(selectedId) {
 async function submitAppointment(e) {
   e.preventDefault();
   const id = document.getElementById('apt-id').value;
+  const custId = document.getElementById('apt-customerId').value;
+  if (!custId) { showToast('Please select a customer first', 'error'); return; }
   const payload = {
-    customerId:         document.getElementById('apt-customerId').value,
+    customerId:         custId,
     vehicleId:          document.getElementById('apt-vehicleId').value,
     serviceType:        document.getElementById('apt-serviceType').value,
     status:             document.getElementById('apt-status').value,
@@ -5790,6 +5924,7 @@ async function submitAppointment(e) {
     showToast('Appointment booked successfully');
   }
   closeModal('modal-appointment');
+  custPickerReset('apt');
   loadAppointments();
 }
 
