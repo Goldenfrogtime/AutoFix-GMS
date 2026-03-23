@@ -465,7 +465,8 @@ export interface Expense {
   vendor?: string             // supplier / payee name
   receiptRef?: string         // receipt or invoice number
   status: ExpenseStatus
-  paidBy?: string             // staff member who paid
+  paymentMethod?: PaymentMethod  // how the expense was / will be paid
+  paidBy?: string             // staff member who paid (kept for legacy)
   notes?: string
   date: string                // YYYY-MM-DD
   createdAt: string

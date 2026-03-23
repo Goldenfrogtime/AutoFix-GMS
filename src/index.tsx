@@ -1327,6 +1327,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
                 <th class="px-4 py-3 text-left font-semibold text-gray-600">Category</th>
                 <th class="px-4 py-3 text-left font-semibold text-gray-600">Job Card</th>
                 <th class="px-4 py-3 text-left font-semibold text-gray-600">Vendor</th>
+                <th class="px-4 py-3 text-left font-semibold text-gray-600">Payment</th>
                 <th class="px-4 py-3 text-right font-semibold text-gray-600">Amount</th>
                 <th class="px-4 py-3 text-left font-semibold text-gray-600">Status</th>
                 <th class="px-4 py-3 text-center font-semibold text-gray-600">Actions</th>
@@ -3122,11 +3123,20 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
           <option value="">— Overhead / not job-specific —</option>
         </select>
       </div>
-      <!-- Row 6: Paid By + Notes -->
+      <!-- Row 6: Payment Method + Notes -->
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
         <div>
-          <label class="form-label">Paid By</label>
-          <input type="text" class="form-input" id="exp-paidBy" placeholder="e.g. Michael Osei"/>
+          <label class="form-label">Payment Method</label>
+          <div class="relative">
+            <i class="fas fa-credit-card absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none"></i>
+            <select class="form-input pl-9" id="exp-paymentMethod">
+              <option value="">-- Select method --</option>
+              <option value="Cash">Cash</option>
+              <option value="Mobile Money">Mobile Money</option>
+              <option value="Bank">Bank Transfer</option>
+              <option value="Lipa Number">Lipa Number</option>
+            </select>
+          </div>
         </div>
         <div>
           <label class="form-label">Notes</label>
@@ -10227,6 +10237,27 @@ function expCatBadge(cat) {
   return '<span class="inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full" style="background:'+color+'20;color:'+color+'">'+cat+'</span>';
 }
 
+function _pmIcon(method) {
+  if (method === 'Mobile Money') return 'fa-mobile-alt';
+  if (method === 'Bank')         return 'fa-university';
+  if (method === 'Lipa Number')  return 'fa-hashtag';
+  if (method === 'Cash')         return 'fa-money-bill-wave';
+  return 'fa-credit-card';
+}
+
+function _pmBadge(method) {
+  if (!method) return '';
+  var icon = _pmIcon(method);
+  var cfg = {
+    'Cash':         { bg:'#f0fdf4', color:'#16a34a' },
+    'Mobile Money': { bg:'#eff6ff', color:'#2563eb' },
+    'Bank':         { bg:'#f5f3ff', color:'#7c3aed' },
+    'Lipa Number':  { bg:'#fff7ed', color:'#ea580c' },
+  };
+  var c = cfg[method] || { bg:'#f8fafc', color:'#64748b' };
+  return '<span class="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full" style="background:'+c.bg+';color:'+c.color+'"><i class="fas '+icon+'"></i>'+method+'</span>';
+}
+
 async function loadExpenses() {
   try {
     const [expRes, summaryRes] = await Promise.all([
@@ -10310,6 +10341,7 @@ function _renderExpensesTable(list) {
           ? '<button class="text-blue-600 text-xs font-semibold hover:underline flex items-center gap-1" data-exp-vendor="'+e.vendorId+'"><i class="fas fa-store mr-1 text-blue-400"></i>'+escHtml(e.vendor||e.vendorId)+'</button>'
           : (e.vendor ? '<span class="text-gray-500 text-xs">'+escHtml(e.vendor)+'</span>' : '<span class="text-gray-400 text-xs">-</span>')) +
       '</td>' +
+      '<td class="px-4 py-3">' + (e.paymentMethod ? _pmBadge(e.paymentMethod) : '<span class="text-gray-300 text-xs">-</span>') + '</td>' +
       '<td class="px-4 py-3 text-right font-semibold text-gray-900 whitespace-nowrap">'+fmt(e.amount)+'</td>' +
       '<td class="px-4 py-3">'+expStatusBadge(e.status)+'</td>' +
       '<td class="px-4 py-3">' +
@@ -10394,9 +10426,9 @@ async function showEditExpenseModal(expId) {
     document.getElementById('exp-vendor').value        = exp.vendor;
   }
   expVendorOnCategoryChange();
-  document.getElementById('exp-receiptRef').value  = exp.receiptRef|| '';
-  document.getElementById('exp-paidBy').value      = exp.paidBy    || '';
-  document.getElementById('exp-notes').value       = exp.notes     || '';
+  document.getElementById('exp-receiptRef').value     = exp.receiptRef     || '';
+  document.getElementById('exp-paymentMethod').value  = exp.paymentMethod  || '';
+  document.getElementById('exp-notes').value          = exp.notes          || '';
   await _populateExpJobDropdown(exp.jobCardId || '');
   openModal('modal-expense');
 }
@@ -10427,10 +10459,10 @@ async function submitExpense(e) {
     status:      document.getElementById('exp-status').value,
     vendorId:    vendorId,
     vendor:      vendorName,
-    receiptRef:  document.getElementById('exp-receiptRef').value.trim()  || undefined,
-    jobCardId:   document.getElementById('exp-jobCardId').value           || undefined,
-    paidBy:      document.getElementById('exp-paidBy').value.trim()      || undefined,
-    notes:       document.getElementById('exp-notes').value.trim()       || undefined,
+    receiptRef:     document.getElementById('exp-receiptRef').value.trim()    || undefined,
+    jobCardId:      document.getElementById('exp-jobCardId').value              || undefined,
+    paymentMethod:  document.getElementById('exp-paymentMethod').value          || undefined,
+    notes:          document.getElementById('exp-notes').value.trim()           || undefined,
   };
   try {
     if (_expenseEditId) {
@@ -10474,7 +10506,7 @@ function viewExpenseDetail(expId) {
         '<div><p class="text-xs text-gray-400 mb-0.5">Status</p>'+expStatusBadge(e.status)+'</div>' +
         (e.jobCardId ? '<div><p class="text-xs text-gray-400 mb-0.5">Job Card</p><button class="text-blue-600 text-sm font-semibold hover:underline" data-det-job="'+e.jobCardId+'">'+(e.jobCardNumber||e.jobCardId)+'</button></div>' :
                        '<div><p class="text-xs text-gray-400 mb-0.5">Scope</p><p class="text-sm text-gray-600">Overhead</p></div>') +
-        (e.paidBy   ? '<div><p class="text-xs text-gray-400 mb-0.5">Paid By</p><p class="text-sm text-gray-700">'+e.paidBy+'</p></div>' : '') +
+        (e.paymentMethod ? '<div><p class="text-xs text-gray-400 mb-0.5">Payment Method</p><p class="text-sm text-gray-700"><i class="fas '+_pmIcon(e.paymentMethod)+' mr-1 text-blue-400"></i>'+e.paymentMethod+'</p></div>' : (e.paidBy ? '<div><p class="text-xs text-gray-400 mb-0.5">Paid By</p><p class="text-sm text-gray-700">'+e.paidBy+'</p></div>' : '')) +
         (e.receiptRef ? '<div><p class="text-xs text-gray-400 mb-0.5">Receipt Ref</p><p class="text-sm text-gray-700">'+e.receiptRef+'</p></div>' : '') +
       '</div>' +
       (e.notes ? '<div class="p-3 bg-amber-50 border border-amber-100 rounded-lg text-sm text-amber-800"><i class="fas fa-sticky-note mr-1"></i>'+e.notes+'</div>' : '') +
