@@ -1139,16 +1139,32 @@ api.get('/analytics/tat', (c) => {
       const tech = users.find(u => u.id === j.assignedTechnician)
       if (!techStats[j.assignedTechnician]) {
         techStats[j.assignedTechnician] = {
+          techId: j.assignedTechnician,
           name: tech?.name || j.assignedTechnician,
           jobCount: 0,
           totalMins: 0,
-          completedCount: 0
+          completedCount: 0,
+          jobs: []
         }
       }
+      const cust = customers.find(c => c.id === j.customerId)
+      const veh  = vehicles.find(v => v.id === j.vehicleId)
+      const tatMins = j.totalTATMins ?? (j.completedAt ? workingMinutes(j.createdAt, j.completedAt) : 0)
+      techStats[j.assignedTechnician].jobs.push({
+        id: j.id,
+        jobCardNumber: j.jobCardNumber,
+        status: j.status,
+        category: j.category,
+        customerName: cust?.name || '—',
+        vehicleInfo: veh ? `${veh.make} ${veh.model} (${veh.registrationNumber})` : '—',
+        createdAt: j.createdAt,
+        completedAt: j.completedAt || null,
+        tatMins: tatMins,
+        tatFormatted: tatMins > 0 ? fmtDuration(tatMins) : '—'
+      })
       techStats[j.assignedTechnician].jobCount += 1
       if (j.status === 'COMPLETED' || j.status === 'INVOICED' || j.status === 'RELEASED') {
         techStats[j.assignedTechnician].completedCount += 1
-        const tatMins = j.totalTATMins ?? (j.completedAt ? workingMinutes(j.createdAt, j.completedAt) : 0)
         techStats[j.assignedTechnician].totalMins += tatMins
       }
     }
@@ -1171,8 +1187,13 @@ api.get('/analytics/tat', (c) => {
 
   // Technician leaderboard (sorted by completedCount desc, then avgTAT asc)
   const techLeaderboard = Object.values(techStats)
-    .map(t => ({
-      ...t,
+    .map((t: any) => ({
+      techId: t.techId,
+      name: t.name,
+      jobCount: t.jobCount,
+      completedCount: t.completedCount,
+      totalMins: t.totalMins,
+      jobs: t.jobs,
       avgTATMins: t.completedCount > 0 ? Math.round(t.totalMins / t.completedCount) : 0,
       avgTATFormatted: t.completedCount > 0 ? fmtDuration(Math.round(t.totalMins / t.completedCount)) : '—'
     }))

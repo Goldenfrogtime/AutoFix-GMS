@@ -3090,6 +3090,64 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
   </div>
 </div>
 
+<!-- ═══ TECHNICIAN DETAIL MODAL ═══ -->
+<div id="modal-techDetail" class="modal-overlay hidden">
+  <div class="modal-box" style="--mw:720px">
+    <!-- Header -->
+    <div class="flex items-start justify-between mb-5">
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center text-white text-lg font-bold flex-shrink-0" id="techDetailAvatar" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">SA</div>
+        <div>
+          <h3 class="text-xl font-bold text-gray-900" id="techDetailName">Technician</h3>
+          <p class="text-sm text-gray-500" id="techDetailSub">Performance summary</p>
+        </div>
+      </div>
+      <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-techDetail')"><i class="fas fa-times"></i></button>
+    </div>
+
+    <!-- KPI strip -->
+    <div class="grid grid-cols-3 gap-3 mb-5" id="techDetailKpis">
+      <div class="rounded-xl p-3 text-center" style="background:#f5f3ff">
+        <div class="text-xl font-bold text-violet-700" id="tdkTotalJobs">—</div>
+        <div class="text-xs text-gray-500 mt-0.5">Total Jobs</div>
+      </div>
+      <div class="rounded-xl p-3 text-center" style="background:#f0fdf4">
+        <div class="text-xl font-bold text-green-600" id="tdkCompleted">—</div>
+        <div class="text-xs text-gray-500 mt-0.5">Completed</div>
+      </div>
+      <div class="rounded-xl p-3 text-center" style="background:#eff6ff">
+        <div class="text-xl font-bold text-blue-600" id="tdkAvgTAT">—</div>
+        <div class="text-xs text-gray-500 mt-0.5">Avg TAT</div>
+      </div>
+    </div>
+
+    <!-- Filter tabs -->
+    <div class="flex gap-2 mb-3 flex-wrap">
+      <button id="tdTab-all"      class="px-3 py-1 rounded-lg text-xs font-semibold bg-blue-600 text-white" onclick="techDetailFilter('all')">All Jobs</button>
+      <button id="tdTab-active"   class="px-3 py-1 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200" onclick="techDetailFilter('active')">Active</button>
+      <button id="tdTab-done"     class="px-3 py-1 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200" onclick="techDetailFilter('done')">Completed</button>
+    </div>
+
+    <!-- Jobs table -->
+    <div class="overflow-x-auto rounded-xl border border-gray-100">
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
+            <th class="px-3 py-2.5 text-left font-semibold">Job Card</th>
+            <th class="px-3 py-2.5 text-left font-semibold">Customer</th>
+            <th class="px-3 py-2.5 text-left font-semibold hidden sm:table-cell">Vehicle</th>
+            <th class="px-3 py-2.5 text-left font-semibold">Status</th>
+            <th class="px-3 py-2.5 text-right font-semibold">TAT</th>
+            <th class="px-3 py-2.5 text-center font-semibold">Action</th>
+          </tr>
+        </thead>
+        <tbody id="techDetailJobsList" class="divide-y divide-gray-50"></tbody>
+      </table>
+    </div>
+    <p class="text-xs text-gray-400 text-center mt-3"><i class="fas fa-info-circle mr-1"></i>Click a job card row or the <i class="fas fa-external-link-alt text-[10px]"></i> button to open the full job detail.</p>
+  </div>
+</div>
+
 <script>
 // ═══ GLOBAL STATE ═══
 let allJobCards = [], allCustomers = [], allVehicles = [], allPFIs = [], allInvoices = [], allPackages = [], allUsers = [], allAppointments = [];
@@ -8007,6 +8065,8 @@ async function loadTATAnalytics() {
     // Technician leaderboard
     var techEl = document.getElementById('tatTechLeaderboard');
     if (techEl && data.techLeaderboard) {
+      // Store leaderboard data for the detail modal
+      window._techLeaderboardData = data.techLeaderboard;
       if (data.techLeaderboard.length === 0) {
         techEl.innerHTML = '<p class="text-sm text-gray-400 text-center py-6">No technician data yet.</p>';
       } else {
@@ -8014,10 +8074,15 @@ async function loadTATAnalytics() {
           data.techLeaderboard.map(function(t, i) {
             var medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i+1) + '.';
             var completionRate = t.jobCount > 0 ? Math.round((t.completedCount / t.jobCount) * 100) : 0;
-            return '<div class="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-100">' +
+            var initials = t.name.split(' ').map(function(n){ return n[0]; }).join('').substring(0,2).toUpperCase();
+            var colors = ['#6366f1','#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6'];
+            var color = colors[i % colors.length];
+            return '<div class="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-gray-50 border border-gray-100 cursor-pointer hover:bg-violet-50 hover:border-violet-200 hover:shadow-sm transition-all group" ' +
+              'onclick="showTechDetail(' + i + ')" title="View ' + t.name.replace(/'/g,'') + ' job details">' +
               '<span class="text-base w-7 text-center flex-shrink-0">' + medal + '</span>' +
+              '<div class="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style="background:' + color + '">' + initials + '</div>' +
               '<div class="flex-1 min-w-0">' +
-                '<p class="text-sm font-semibold text-gray-800 truncate">' + t.name + '</p>' +
+                '<p class="text-sm font-semibold text-gray-800 truncate group-hover:text-violet-700">' + t.name + '</p>' +
                 '<div class="flex items-center gap-2 mt-0.5">' +
                   '<span class="text-xs text-gray-400">' + t.jobCount + ' job' + (t.jobCount !== 1 ? 's' : '') + '</span>' +
                   '<span class="text-xs text-green-600 font-semibold">' + t.completedCount + ' done</span>' +
@@ -8029,6 +8094,7 @@ async function loadTATAnalytics() {
                 '<p class="text-sm font-bold text-violet-700">' + t.avgTATFormatted + '</p>' +
                 '<p class="text-[10px] text-gray-400">avg TAT</p>' +
               '</div>' +
+              '<i class="fas fa-chevron-right text-gray-300 group-hover:text-violet-400 text-xs flex-shrink-0 ml-1"></i>' +
             '</div>';
           }).join('') +
         '</div>';
@@ -8043,7 +8109,128 @@ async function loadTATAnalytics() {
   }
 }
 
-// ═══ USERS & RBAC ═══
+// ─── Technician Detail Modal ──────────────────────────────────────────────────
+var _techDetailIndex = null;
+var _techDetailFilter = 'all';
+
+function showTechDetail(idx) {
+  var data = window._techLeaderboardData;
+  if (!data || !data[idx]) return;
+  var t = data[idx];
+  _techDetailIndex = idx;
+  _techDetailFilter = 'all';
+
+  // Avatar + header
+  var initials = t.name.split(' ').map(function(n){ return n[0]; }).join('').substring(0,2).toUpperCase();
+  var colors = ['#6366f1','#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6'];
+  var color = colors[idx % colors.length];
+  document.getElementById('techDetailAvatar').textContent = initials;
+  document.getElementById('techDetailAvatar').style.background = 'linear-gradient(135deg,' + color + ',' + color + 'cc)';
+  document.getElementById('techDetailName').textContent = t.name;
+  var completionRate = t.jobCount > 0 ? Math.round((t.completedCount / t.jobCount) * 100) : 0;
+  document.getElementById('techDetailSub').textContent = completionRate + '% completion rate · ' + t.jobCount + ' job' + (t.jobCount !== 1 ? 's' : '') + ' assigned';
+
+  // KPIs
+  document.getElementById('tdkTotalJobs').textContent = t.jobCount;
+  document.getElementById('tdkCompleted').textContent = t.completedCount;
+  document.getElementById('tdkAvgTAT').textContent = t.avgTATFormatted;
+
+  // Render jobs list
+  _renderTechJobsList(t.jobs, 'all');
+  openModal('modal-techDetail');
+}
+
+function techDetailFilter(filter) {
+  _techDetailFilter = filter;
+  // Update tab styles
+  ['all','active','done'].forEach(function(f) {
+    var btn = document.getElementById('tdTab-' + f);
+    if (btn) {
+      btn.className = 'px-3 py-1 rounded-lg text-xs font-semibold ' +
+        (f === filter ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200');
+    }
+  });
+  var data = window._techLeaderboardData;
+  if (!data || _techDetailIndex === null) return;
+  _renderTechJobsList(data[_techDetailIndex].jobs, filter);
+}
+
+function _renderTechJobsList(jobs, filter) {
+  var tbody = document.getElementById('techDetailJobsList');
+  if (!tbody) return;
+
+  var filtered = jobs.filter(function(j) {
+    if (filter === 'active') return j.status !== 'COMPLETED' && j.status !== 'INVOICED' && j.status !== 'RELEASED';
+    if (filter === 'done')   return j.status === 'COMPLETED' || j.status === 'INVOICED' || j.status === 'RELEASED';
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-sm text-gray-400 py-8">No jobs in this category</td></tr>';
+    return;
+  }
+
+  // Sort: active first, then by createdAt desc
+  filtered.sort(function(a, b) {
+    var aDone = (a.status === 'COMPLETED' || a.status === 'INVOICED' || a.status === 'RELEASED') ? 1 : 0;
+    var bDone = (b.status === 'COMPLETED' || b.status === 'INVOICED' || b.status === 'RELEASED') ? 1 : 0;
+    if (aDone !== bDone) return aDone - bDone;
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+
+  tbody.innerHTML = filtered.map(function(j) {
+    var sc = STATUS_CONFIG[j.status] || { bg:'#f3f4f6', text:'#6b7280', label: j.status };
+    var catIcon = {
+      'Insurance': 'fa-shield-alt',
+      'Private': 'fa-user',
+      'Fleet': 'fa-truck',
+      'Walk-in': 'fa-walking'
+    }[j.category] || 'fa-car';
+    var isDone = j.status === 'COMPLETED' || j.status === 'INVOICED' || j.status === 'RELEASED';
+    return '<tr class="hover:bg-violet-50 cursor-pointer transition-colors group td-job-row" data-jid="' + j.id + '">' +
+      '<td class="px-3 py-2.5">' +
+        '<div class="flex items-center gap-1.5">' +
+          '<i class="fas ' + catIcon + ' text-gray-300 text-[10px]"></i>' +
+          '<span class="font-semibold text-blue-600 text-sm group-hover:underline">' + j.jobCardNumber + '</span>' +
+        '</div>' +
+        '<div class="text-[10px] text-gray-400 mt-0.5">' + fmtDate(j.createdAt) + '</div>' +
+      '</td>' +
+      '<td class="px-3 py-2.5 text-sm text-gray-700 max-w-[120px] truncate">' + j.customerName + '</td>' +
+      '<td class="px-3 py-2.5 text-xs text-gray-500 hidden sm:table-cell max-w-[140px] truncate">' + j.vehicleInfo + '</td>' +
+      '<td class="px-3 py-2.5">' +
+        '<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold" style="background:' + sc.bg + ';color:' + sc.text + '">' +
+          sc.label +
+        '</span>' +
+      '</td>' +
+      '<td class="px-3 py-2.5 text-right text-xs ' + (isDone ? 'text-violet-700 font-bold' : 'text-gray-400') + '">' + (isDone ? j.tatFormatted : '—') + '</td>' +
+      '<td class="px-3 py-2.5 text-center">' +
+        '<button class="text-violet-400 hover:text-violet-600 transition-colors td-open-btn" data-jid="' + j.id + '" title="Open Job Card">' +
+          '<i class="fas fa-external-link-alt text-xs pointer-events-none"></i>' +
+        '</button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+
+  // Delegate click events via data-jid (avoids inline string-escaping issues)
+  tbody.querySelectorAll('.td-job-row').forEach(function(row) {
+    row.addEventListener('click', function() { techDetailOpenJob(this.dataset.jid); });
+  });
+  tbody.querySelectorAll('.td-open-btn').forEach(function(btn) {
+    btn.addEventListener('click', function(e) { e.stopPropagation(); techDetailOpenJob(this.dataset.jid); });
+  });
+}
+
+function techDetailOpenJob(jobId) {
+  closeModal('modal-techDetail');
+  // Navigate to job cards page and open the job detail
+  showPage('jobs');
+  setTimeout(function() {
+    var job = allJobCards.find(function(j){ return j.id === jobId; });
+    if (job) viewJobDetail(job);
+  }, 150);
+}
+
+
 
 // Role descriptions for preview
 var ROLE_DESCRIPTIONS = {
