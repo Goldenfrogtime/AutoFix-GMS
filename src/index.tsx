@@ -10307,8 +10307,8 @@ function _renderExpensesTable(list) {
       '</td>' +
       '<td class="px-4 py-3 text-sm text-gray-600">' +
         (e.vendorId
-          ? '<button class="text-blue-600 text-xs font-semibold hover:underline flex items-center gap-1" onclick="viewVendorDetail(\''+e.vendorId+'\')"><i class="fas fa-store mr-1 text-blue-400"></i>'+(e.vendor||e.vendorId)+'</button>'
-          : (e.vendor ? '<span class="text-gray-500 text-xs">'+escHtml(e.vendor)+'</span>' : '<span class="text-gray-400 text-xs">—</span>')) +
+          ? '<button class="text-blue-600 text-xs font-semibold hover:underline flex items-center gap-1" data-exp-vendor="'+e.vendorId+'"><i class="fas fa-store mr-1 text-blue-400"></i>'+escHtml(e.vendor||e.vendorId)+'</button>'
+          : (e.vendor ? '<span class="text-gray-500 text-xs">'+escHtml(e.vendor)+'</span>' : '<span class="text-gray-400 text-xs">-</span>')) +
       '</td>' +
       '<td class="px-4 py-3 text-right font-semibold text-gray-900 whitespace-nowrap">'+fmt(e.amount)+'</td>' +
       '<td class="px-4 py-3">'+expStatusBadge(e.status)+'</td>' +
@@ -10333,6 +10333,9 @@ function _renderExpensesTable(list) {
   });
   tbody.querySelectorAll('[data-exp-job]').forEach(function(btn) {
     btn.addEventListener('click', function() { viewJobDetail(btn.dataset.expJob); });
+  });
+  tbody.querySelectorAll('[data-exp-vendor]').forEach(function(btn) {
+    btn.addEventListener('click', function() { viewVendorDetail(btn.dataset.expVendor); });
   });
 }
 
@@ -11187,6 +11190,12 @@ function escHtml(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
+// Escape for use inside HTML attribute values (handles single quotes too)
+function escAttr(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // ─── VENDORS ────────────────────────────────────────────────────────
 // ═══════════════════════════════════════════════════════════════════
@@ -11245,7 +11254,7 @@ function _renderVendorsGrid(list) {
           '<div class="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg flex-shrink-0" style="'+avatarBg+'">'+initials+'</div>' +
           '<div class="min-w-0">' +
             '<p class="font-bold text-gray-900 truncate">'+escHtml(v.name)+'</p>' +
-            '<p class="text-xs text-gray-500 truncate">'+(v.location ? escHtml(v.location) : '—')+'</p>' +
+            '<p class="text-xs text-gray-500 truncate">'+(v.location ? escHtml(v.location) : '-')+'</p>' +
           '</div>' +
         '</div>' +
         '<span class="badge '+statusCls+' flex-shrink-0">'+v.status+'</span>' +
@@ -11261,12 +11270,23 @@ function _renderVendorsGrid(list) {
         '<span class="font-semibold text-gray-700">TZS '+fmt(v.totalSpend||0)+'</span>' +
       '</div>' +
       '<div class="flex gap-2 pt-1">' +
-        '<button class="btn-secondary flex-1 text-xs py-1.5" onclick="viewVendorDetail(\''+v.id+'\')"><i class="fas fa-eye mr-1"></i>View</button>' +
-        '<button class="btn-secondary flex-1 text-xs py-1.5" onclick="editVendor(\''+v.id+'\')"><i class="fas fa-pen mr-1"></i>Edit</button>' +
-        '<button class="btn-secondary flex-1 text-xs py-1.5 text-red-500 hover:bg-red-50" onclick="deleteVendor(\''+v.id+'\')"><i class="fas fa-trash mr-1"></i>Del</button>' +
+        '<button class="btn-secondary flex-1 text-xs py-1.5 vnd-view" data-vnd="'+v.id+'"><i class="fas fa-eye mr-1"></i>View</button>' +
+        '<button class="btn-secondary flex-1 text-xs py-1.5 vnd-edit" data-vnd="'+v.id+'"><i class="fas fa-pen mr-1"></i>Edit</button>' +
+        '<button class="btn-secondary flex-1 text-xs py-1.5 text-red-500 hover:bg-red-50 vnd-del" data-vnd="'+v.id+'"><i class="fas fa-trash mr-1"></i>Del</button>' +
       '</div>' +
     '</div>';
   }).join('');
+
+  // Event delegation — safe against any special characters in vendor names/IDs
+  grid.querySelectorAll('.vnd-view').forEach(function(btn){
+    btn.addEventListener('click', function(){ viewVendorDetail(btn.dataset.vnd); });
+  });
+  grid.querySelectorAll('.vnd-edit').forEach(function(btn){
+    btn.addEventListener('click', function(){ editVendor(btn.dataset.vnd); });
+  });
+  grid.querySelectorAll('.vnd-del').forEach(function(btn){
+    btn.addEventListener('click', function(){ deleteVendor(btn.dataset.vnd); });
+  });
 }
 
 function filterVendors() {
@@ -11330,7 +11350,7 @@ async function submitVendor(e) {
 }
 
 async function deleteVendor(vendorId) {
-  if (!confirm('Delete this vendor? This cannot be undone.\nVendors with linked expenses cannot be deleted — deactivate them instead.')) return;
+  if (!confirm('Delete this vendor? Vendors with linked expenses cannot be deleted - deactivate them instead.')) return;
   try {
     await axios.delete('/api/vendors/' + vendorId);
     showToast('\u2714 Vendor deleted');
@@ -11346,6 +11366,8 @@ async function viewVendorDetail(vendorId) {
     var { data } = await axios.get('/api/vendors/' + vendorId);
     var v = data;
     var initials = v.name.split(' ').slice(0,2).map(function(w){ return w[0]; }).join('').toUpperCase();
+    var statusBadgeCls = v.status === 'Active' ? 'badge-active' : 'badge-inactive';
+    var statusBadgeHtml = '<span class="badge ' + statusBadgeCls + '">' + v.status + '</span>';
 
     // Header
     document.getElementById('vndDetailName').textContent = v.name;
@@ -11354,11 +11376,11 @@ async function viewVendorDetail(vendorId) {
     // Info grid
     document.getElementById('vndDetailInfo').innerHTML =
       _vndField('fa-phone','Phone', v.phone) +
-      _vndField('fa-envelope','Email', v.email || '—') +
-      _vndField('fa-id-card','TIN', v.tin || '—') +
-      _vndField('fa-file-invoice','VRN', v.vrn || '—') +
-      _vndField('fa-map-marker-alt','Location', v.location || '—') +
-      _vndField('fa-circle','Status', '<span class="badge '+(v.status==='Active'?'badge-active':'badge-inactive')+'">'+v.status+'</span>') +
+      _vndField('fa-envelope','Email', v.email || '-') +
+      _vndField('fa-id-card','TIN', v.tin || '-') +
+      _vndField('fa-file-invoice','VRN', v.vrn || '-') +
+      _vndField('fa-map-marker-alt','Location', v.location || '-') +
+      _vndField('fa-circle','Status', statusBadgeHtml) +
       (v.notes ? _vndField('fa-sticky-note','Notes', escHtml(v.notes)) : '');
 
     // KPIs
@@ -11382,10 +11404,17 @@ async function viewVendorDetail(vendorId) {
         '<tr><td colspan="5" class="text-center py-8 text-gray-400 text-sm"><i class="fas fa-receipt text-3xl mb-2 block opacity-30"></i>No expenses linked to this vendor yet</td></tr>';
     }
 
-    // Action buttons
+    // Action buttons — use data attributes to avoid quote nesting issues
     document.getElementById('vndDetailActions').innerHTML =
-      '<button class="btn-secondary flex-1" onclick="closeModal(\'modal-vendorDetail\');editVendor(\''+v.id+'\')"><i class="fas fa-pen mr-1"></i>Edit</button>' +
-      '<button class="btn-primary flex-1" onclick="closeModal(\'modal-vendorDetail\')">Close</button>';
+      '<button class="btn-secondary flex-1 vnd-detail-edit" data-vnd="'+v.id+'"><i class="fas fa-pen mr-1"></i>Edit</button>' +
+      '<button class="btn-primary flex-1 vnd-detail-close">Close</button>';
+    document.querySelector('.vnd-detail-edit').addEventListener('click', function(){
+      closeModal('modal-vendorDetail');
+      editVendor(document.querySelector('.vnd-detail-edit').dataset.vnd);
+    });
+    document.querySelector('.vnd-detail-close').addEventListener('click', function(){
+      closeModal('modal-vendorDetail');
+    });
 
     openModal('modal-vendorDetail');
   } catch(err) { showToast('Failed to load vendor details', 'error'); }
@@ -11429,8 +11458,9 @@ function expVendorSearch() {
     list.innerHTML = '<li class="px-4 py-3 text-sm text-gray-400 italic">No registered vendors found</li>';
   } else {
     list.innerHTML = vendors.map(function(v){
-      return '<li class="flex items-center gap-3 px-4 py-2.5 hover:bg-blue-50 cursor-pointer text-sm" onclick="expVendorSelect(\''+v.id+'\',\''+escHtml(v.name)+'\')">'+
-        '<div class="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">'+v.name.split(' ').slice(0,2).map(function(w){ return w[0]; }).join('').toUpperCase()+'</div>'+
+      var initials = v.name.split(' ').slice(0,2).map(function(w){ return w[0]; }).join('').toUpperCase();
+      return '<li class="flex items-center gap-3 px-4 py-2.5 hover:bg-blue-50 cursor-pointer text-sm exp-vendor-item" data-vid="'+v.id+'" data-vname="'+escAttr(v.name)+'">'+
+        '<div class="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">'+initials+'</div>'+
         '<div class="min-w-0">'+
           '<p class="font-medium text-gray-800 truncate">'+escHtml(v.name)+'</p>'+
           '<p class="text-xs text-gray-400">'+(v.tin?'TIN: '+v.tin+'  ':'')+''+(v.location?v.location:'')+'</p>'+
@@ -11438,6 +11468,13 @@ function expVendorSearch() {
         (v.vrn ? '<span class="ml-auto text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium flex-shrink-0">VRN</span>' : '') +
       '</li>';
     }).join('');
+    // Use event delegation – safe against vendor names with quotes
+    list.querySelectorAll('.exp-vendor-item').forEach(function(li) {
+      li.addEventListener('mousedown', function(ev) {
+        ev.preventDefault(); // prevent blur from firing before click
+        expVendorSelect(li.dataset.vid, li.dataset.vname);
+      });
+    });
   }
   list.classList.remove('hidden');
   document.getElementById('expVendorClear').classList.toggle('hidden', !document.getElementById('exp-vendor-search').value);
