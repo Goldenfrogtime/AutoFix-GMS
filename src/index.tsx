@@ -8222,12 +8222,8 @@ function _renderTechJobsList(jobs, filter) {
 
 function techDetailOpenJob(jobId) {
   closeModal('modal-techDetail');
-  // Navigate to job cards page and open the job detail
-  showPage('jobs');
-  setTimeout(function() {
-    var job = allJobCards.find(function(j){ return j.id === jobId; });
-    if (job) viewJobDetail(job);
-  }, 150);
+  // viewJobDetail fetches from API directly — no need to wait for allJobCards
+  viewJobDetail(jobId);
 }
 
 
