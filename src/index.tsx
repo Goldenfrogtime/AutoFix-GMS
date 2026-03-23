@@ -246,6 +246,9 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
     <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('expenses')" data-perm="expenses.view">
       <i class="fas fa-receipt w-5 text-center"></i> Expenses
     </a>
+    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('vendors')" data-perm="expenses.view">
+      <i class="fas fa-store w-5 text-center"></i> Vendors
+    </a>
     <p class="text-xs text-blue-300 font-semibold uppercase tracking-widest px-3 pt-3 pb-1">Management</p>
     <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('packages')" data-perm="packages.view">
       <i class="fas fa-box-open w-5 text-center"></i> Service Packages
@@ -1333,6 +1336,43 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
           </table>
         </div>
       </div>
+    </div>
+
+    <!-- ═══ VENDORS ═══ -->
+    <div id="page-vendors" class="page">
+      <div class="flex flex-wrap items-start justify-between gap-3 mb-6">
+        <div>
+          <h2 class="text-xl sm:text-2xl font-bold text-gray-900">Vendors</h2>
+          <p class="text-gray-500 text-sm mt-1">Registered suppliers of parts, lubricants and services</p>
+        </div>
+        <button class="btn-primary text-sm" onclick="showVendorModal()">
+          <i class="fas fa-plus mr-1"></i> Add Vendor
+        </button>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-5" id="vendorStats"></div>
+      <div class="card p-4 mb-5">
+        <div class="flex flex-wrap gap-3 items-end">
+          <div class="flex-1 min-w-[180px]">
+            <label class="form-label">Search</label>
+            <div class="relative">
+              <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+              <input type="text" id="vendorSearch" class="form-input pl-9" placeholder="Name, phone, TIN, location…" oninput="filterVendors()"/>
+            </div>
+          </div>
+          <div class="min-w-[140px]">
+            <label class="form-label">Status</label>
+            <select id="vendorFilterStatus" class="form-input" onchange="filterVendors()">
+              <option value="">All</option>
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+          <button class="btn-secondary text-sm" onclick="document.getElementById('vendorSearch').value='';document.getElementById('vendorFilterStatus').value='';filterVendors()">
+            <i class="fas fa-times mr-1"></i>Clear
+          </button>
+        </div>
+      </div>
+      <div id="vendorsGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
     </div>
 
     <!-- ═══ NOTIFICATIONS ═══ -->
@@ -3007,7 +3047,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         </div>
         <div>
           <label class="form-label">Category <span class="text-red-500">*</span></label>
-          <select class="form-input" id="exp-category" required>
+          <select class="form-input" id="exp-category" required onchange="expVendorOnCategoryChange()">
             <option value="">Select category…</option>
             <option>Parts & Materials</option>
             <option>Labour</option>
@@ -3045,8 +3085,30 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <!-- Row 4: Vendor + Receipt Ref -->
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <div>
-          <label class="form-label">Vendor / Supplier</label>
-          <input type="text" class="form-input" id="exp-vendor" placeholder="e.g. AutoSupply Dar"/>
+          <label class="form-label">
+            Vendor / Supplier <span id="expVendorRequired" class="text-red-500 hidden">*</span>
+            <span class="text-gray-400 font-normal text-xs ml-1" id="expVendorHint">(optional)</span>
+          </label>
+          <!-- Vendor picker wrapper -->
+          <div class="relative" id="expVendorPickerWrap">
+            <i class="fas fa-store absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none z-10"></i>
+            <input type="text" id="exp-vendor-search" class="form-input pl-9 pr-8"
+              placeholder="Search vendors…"
+              oninput="expVendorSearch()"
+              onfocus="expVendorSearch()"
+              onblur="setTimeout(function(){document.getElementById('exp-vendor-list').classList.add('hidden')},200)"
+              autocomplete="off"/>
+            <button type="button" id="expVendorClear" class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 hidden" onclick="expVendorClear()">
+              <i class="fas fa-times text-xs"></i>
+            </button>
+            <ul id="exp-vendor-list" class="cust-picker-list hidden"></ul>
+          </div>
+          <!-- Hidden fields -->
+          <input type="hidden" id="exp-vendorId"/>
+          <input type="hidden" id="exp-vendor"/>
+          <p class="text-xs text-amber-600 mt-1 hidden" id="expVendorWarning">
+            <i class="fas fa-exclamation-triangle mr-1"></i>Select a registered vendor for this category
+          </p>
         </div>
         <div>
           <label class="form-label">Receipt / Invoice Ref</label>
@@ -3087,6 +3149,122 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-expenseDetail')"><i class="fas fa-times"></i></button>
     </div>
     <div id="expenseDetailBody"></div>
+  </div>
+</div>
+
+<!-- ═══ VENDOR ADD/EDIT MODAL ═══ -->
+<div id="modal-vendor" class="modal-overlay hidden">
+  <div class="modal-box" style="--mw:580px">
+    <div class="flex items-center justify-between mb-5">
+      <div>
+        <h3 class="text-xl font-bold text-gray-900" id="vendorModalTitle">Add Vendor</h3>
+        <p class="text-sm text-gray-500" id="vendorModalSub">Register a new supplier</p>
+      </div>
+      <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-vendor')"><i class="fas fa-times"></i></button>
+    </div>
+    <form id="vendorForm" onsubmit="submitVendor(event)">
+      <!-- Name + Phone -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+        <div>
+          <label class="form-label">Vendor Name <span class="text-red-500">*</span></label>
+          <input type="text" class="form-input" id="vnd-name" required placeholder="e.g. Auto Parts Hub"/>
+        </div>
+        <div>
+          <label class="form-label">Phone Number <span class="text-red-500">*</span></label>
+          <div class="relative">
+            <i class="fas fa-phone absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+            <input type="tel" class="form-input pl-9" id="vnd-phone" required placeholder="0754 333 444"/>
+          </div>
+        </div>
+      </div>
+      <!-- Email -->
+      <div class="mb-4">
+        <label class="form-label">Email Address</label>
+        <div class="relative">
+          <i class="fas fa-envelope absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+          <input type="email" class="form-input pl-9" id="vnd-email" placeholder="vendor@example.com"/>
+        </div>
+      </div>
+      <!-- TIN + VRN -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+        <div>
+          <label class="form-label">TIN Number <span class="text-gray-400 font-normal text-xs">(Tax ID)</span></label>
+          <input type="text" class="form-input" id="vnd-tin" placeholder="e.g. 102-345-678"/>
+        </div>
+        <div>
+          <label class="form-label">VRN <span class="text-gray-400 font-normal text-xs">(VAT Reg. – if applicable)</span></label>
+          <input type="text" class="form-input" id="vnd-vrn" placeholder="e.g. VRN-102-002"/>
+        </div>
+      </div>
+      <!-- Location -->
+      <div class="mb-4">
+        <label class="form-label">Location / Address</label>
+        <div class="relative">
+          <i class="fas fa-map-marker-alt absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+          <input type="text" class="form-input pl-9" id="vnd-location" placeholder="e.g. Kariakoo, Dar es Salaam"/>
+        </div>
+      </div>
+      <!-- Status + Notes -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-5">
+        <div>
+          <label class="form-label">Status</label>
+          <select class="form-input" id="vnd-status">
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Notes <span class="text-gray-400 font-normal text-xs">(optional)</span></label>
+          <input type="text" class="form-input" id="vnd-notes" placeholder="Any remarks…"/>
+        </div>
+      </div>
+      <div class="flex gap-3">
+        <button type="button" class="btn-secondary flex-1" onclick="closeModal('modal-vendor')">Cancel</button>
+        <button type="submit" class="btn-primary flex-1" id="vendorSubmitBtn"><i class="fas fa-save mr-1"></i>Save Vendor</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ═══ VENDOR DETAIL MODAL ═══ -->
+<div id="modal-vendorDetail" class="modal-overlay hidden">
+  <div class="modal-box" style="--mw:680px">
+    <div class="flex items-start justify-between mb-5">
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-xl bg-emerald-600 flex items-center justify-center flex-shrink-0">
+          <i class="fas fa-store text-white text-lg"></i>
+        </div>
+        <div>
+          <h3 class="text-xl font-bold text-gray-900" id="vndDetailName">Vendor</h3>
+          <p class="text-sm text-gray-500" id="vndDetailSub">Vendor profile</p>
+        </div>
+      </div>
+      <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-vendorDetail')"><i class="fas fa-times"></i></button>
+    </div>
+    <!-- Info grid -->
+    <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5" id="vndDetailInfo"></div>
+    <!-- KPIs -->
+    <div class="grid grid-cols-2 gap-3 mb-5" id="vndDetailKpis"></div>
+    <!-- Linked expenses -->
+    <div>
+      <h4 class="font-semibold text-gray-700 mb-3 text-sm flex items-center gap-2"><i class="fas fa-receipt text-emerald-500"></i> Purchase History</h4>
+      <div class="overflow-x-auto rounded-xl border border-gray-100">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="bg-gray-50 text-xs text-gray-500 uppercase tracking-wide">
+              <th class="px-3 py-2.5 text-left font-semibold">Date</th>
+              <th class="px-3 py-2.5 text-left font-semibold">Description</th>
+              <th class="px-3 py-2.5 text-left font-semibold hidden sm:table-cell">Category</th>
+              <th class="px-3 py-2.5 text-right font-semibold">Amount</th>
+              <th class="px-3 py-2.5 text-left font-semibold">Status</th>
+            </tr>
+          </thead>
+          <tbody id="vndDetailExpenses" class="divide-y divide-gray-50"></tbody>
+        </table>
+      </div>
+    </div>
+    <!-- Action buttons -->
+    <div class="flex gap-3 mt-5" id="vndDetailActions"></div>
   </div>
 </div>
 
@@ -3487,6 +3665,7 @@ function showPage(page) {
   if (page === 'car-wash') loadCarWash();
   if (page === 'add-ons') loadAddOns();
   if (page === 'expenses') loadExpenses();
+  if (page === 'vendors') loadVendors();
   if (page === 'notifications') loadNotificationsPage();
   window.scrollTo(0, 0);
 }
@@ -10126,7 +10305,11 @@ function _renderExpensesTable(list) {
           ? '<button class="text-blue-600 text-xs font-semibold hover:underline" data-exp-job="'+e.jobCardId+'">'+(e.jobCardNumber||e.jobCardId)+'</button>'
           : '<span class="text-gray-400 text-xs">Overhead</span>') +
       '</td>' +
-      '<td class="px-4 py-3 text-sm text-gray-600">'+(e.vendor||'—')+'</td>' +
+      '<td class="px-4 py-3 text-sm text-gray-600">' +
+        (e.vendorId
+          ? '<button class="text-blue-600 text-xs font-semibold hover:underline flex items-center gap-1" onclick="viewVendorDetail(\''+e.vendorId+'\')"><i class="fas fa-store mr-1 text-blue-400"></i>'+(e.vendor||e.vendorId)+'</button>'
+          : (e.vendor ? '<span class="text-gray-500 text-xs">'+escHtml(e.vendor)+'</span>' : '<span class="text-gray-400 text-xs">—</span>')) +
+      '</td>' +
       '<td class="px-4 py-3 text-right font-semibold text-gray-900 whitespace-nowrap">'+fmt(e.amount)+'</td>' +
       '<td class="px-4 py-3">'+expStatusBadge(e.status)+'</td>' +
       '<td class="px-4 py-3">' +
@@ -10180,6 +10363,8 @@ async function showAddExpenseModal(preJobId) {
   document.getElementById('expModal-title').textContent = 'Add Expense';
   document.getElementById('expModal-subtitle').textContent = 'Record a new expense entry';
   document.getElementById('expenseForm').reset();
+  expVendorClear();
+  expVendorOnCategoryChange();
   document.getElementById('exp-date').value = new Date().toISOString().split('T')[0];
   document.getElementById('exp-status').value = 'Pending';
   await _populateExpJobDropdown(preJobId || '');
@@ -10197,7 +10382,15 @@ async function showEditExpenseModal(expId) {
   document.getElementById('exp-description').value = exp.description;
   document.getElementById('exp-amount').value      = exp.amount;
   document.getElementById('exp-status').value      = exp.status;
-  document.getElementById('exp-vendor').value      = exp.vendor    || '';
+  // Populate vendor picker
+  expVendorClear();
+  if (exp.vendorId) {
+    expVendorSelect(exp.vendorId, exp.vendor || exp.vendorId);
+  } else if (exp.vendor) {
+    document.getElementById('exp-vendor-search').value = exp.vendor;
+    document.getElementById('exp-vendor').value        = exp.vendor;
+  }
+  expVendorOnCategoryChange();
   document.getElementById('exp-receiptRef').value  = exp.receiptRef|| '';
   document.getElementById('exp-paidBy').value      = exp.paidBy    || '';
   document.getElementById('exp-notes').value       = exp.notes     || '';
@@ -10219,13 +10412,18 @@ async function _populateExpJobDropdown(selectedJobId) {
 
 async function submitExpense(e) {
   e.preventDefault();
+  // Validate vendor selection for required categories
+  if (!expVendorValidate()) return;
+  const vendorId = document.getElementById('exp-vendorId').value.trim() || undefined;
+  const vendorName = document.getElementById('exp-vendor').value.trim() || undefined;
   const body = {
     date:        document.getElementById('exp-date').value,
     category:    document.getElementById('exp-category').value,
     description: document.getElementById('exp-description').value,
     amount:      parseFloat(document.getElementById('exp-amount').value) || 0,
     status:      document.getElementById('exp-status').value,
-    vendor:      document.getElementById('exp-vendor').value.trim()      || undefined,
+    vendorId:    vendorId,
+    vendor:      vendorName,
     receiptRef:  document.getElementById('exp-receiptRef').value.trim()  || undefined,
     jobCardId:   document.getElementById('exp-jobCardId').value           || undefined,
     paidBy:      document.getElementById('exp-paidBy').value.trim()      || undefined,
@@ -10987,6 +11185,288 @@ function resetNotifFilters() {
 function escHtml(s) {
   if (!s) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ─── VENDORS ────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════
+
+var allVendors = [];
+var _vendorEditId = null;
+
+async function loadVendors() {
+  try {
+    const { data } = await axios.get('/api/vendors');
+    allVendors = data;
+    _renderVendorStats(data);
+    _renderVendorsGrid(data);
+  } catch(e) { showToast('Failed to load vendors', 'error'); }
+}
+
+function _renderVendorStats(list) {
+  const total    = list.length;
+  const active   = list.filter(function(v){ return v.status === 'Active'; }).length;
+  const inactive = list.filter(function(v){ return v.status === 'Inactive'; }).length;
+  const totalSpend = list.reduce(function(s, v){ return s + (v.totalSpend || 0); }, 0);
+  const stats = [
+    { label:'Total Vendors',  value: total,    icon:'fa-store',       g1:'#2563eb', g2:'#3b82f6' },
+    { label:'Active',         value: active,   icon:'fa-check-circle',g1:'#16a34a', g2:'#22c55e' },
+    { label:'Inactive',       value: inactive, icon:'fa-pause-circle',g1:'#d97706', g2:'#f59e0b' },
+    { label:'Total Spend',    value:'TZS '+fmt(totalSpend), icon:'fa-coins', g1:'#7c3aed', g2:'#8b5cf6' },
+  ];
+  document.getElementById('vendorStats').innerHTML = stats.map(function(s){
+    return '<div class="stat-card" style="--g1:'+s.g1+';--g2:'+s.g2+'">' +
+      '<div class="flex items-start justify-between">' +
+        '<div>' +
+          '<p class="text-blue-100 text-xs font-semibold uppercase tracking-wide mb-1">'+s.label+'</p>' +
+          '<p class="text-xl sm:text-2xl font-bold">'+s.value+'</p>' +
+        '</div>' +
+        '<div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">' +
+          '<i class="fas '+s.icon+' text-white text-lg"></i>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function _renderVendorsGrid(list) {
+  var grid = document.getElementById('vendorsGrid');
+  if (!list.length) {
+    grid.innerHTML = '<div class="col-span-3 text-center py-16 text-gray-400"><i class="fas fa-store text-4xl mb-3 block opacity-40"></i><p class="font-medium">No vendors found</p><p class="text-sm mt-1">Add your first vendor to get started.</p></div>';
+    return;
+  }
+  grid.innerHTML = list.map(function(v){
+    var statusCls = v.status === 'Active' ? 'badge-active' : 'badge-inactive';
+    var initials = v.name.split(' ').slice(0,2).map(function(w){ return w[0]; }).join('').toUpperCase();
+    var avatarBg = v.status === 'Active' ? 'background:linear-gradient(135deg,#2563eb,#7c3aed)' : 'background:linear-gradient(135deg,#9ca3af,#6b7280)';
+    return '<div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 hover:shadow-md transition-shadow flex flex-col gap-3">' +
+      '<div class="flex items-start justify-between gap-3">' +
+        '<div class="flex items-center gap-3">' +
+          '<div class="w-12 h-12 rounded-xl flex items-center justify-center text-white font-bold text-lg flex-shrink-0" style="'+avatarBg+'">'+initials+'</div>' +
+          '<div class="min-w-0">' +
+            '<p class="font-bold text-gray-900 truncate">'+escHtml(v.name)+'</p>' +
+            '<p class="text-xs text-gray-500 truncate">'+(v.location ? escHtml(v.location) : '—')+'</p>' +
+          '</div>' +
+        '</div>' +
+        '<span class="badge '+statusCls+' flex-shrink-0">'+v.status+'</span>' +
+      '</div>' +
+      '<div class="grid grid-cols-2 gap-2 text-sm">' +
+        '<div class="flex items-center gap-1.5 text-gray-600"><i class="fas fa-phone w-4 text-gray-400"></i>'+escHtml(v.phone)+'</div>' +
+        (v.email ? '<div class="flex items-center gap-1.5 text-gray-600 truncate"><i class="fas fa-envelope w-4 text-gray-400"></i><span class="truncate">'+escHtml(v.email)+'</span></div>' : '<div></div>') +
+        (v.tin   ? '<div class="flex items-center gap-1.5 text-gray-500 text-xs"><i class="fas fa-id-card w-4 text-gray-400"></i>TIN: '+escHtml(v.tin)+'</div>'   : '<div></div>') +
+        (v.vrn   ? '<div class="flex items-center gap-1.5 text-gray-500 text-xs"><i class="fas fa-file-invoice w-4 text-gray-400"></i>VRN: '+escHtml(v.vrn)+'</div>' : '<div></div>') +
+      '</div>' +
+      '<div class="flex items-center justify-between pt-2 border-t border-gray-100 text-xs text-gray-500">' +
+        '<span><i class="fas fa-receipt mr-1 text-gray-400"></i>'+(v.expenseCount||0)+' expense'+(v.expenseCount===1?'':'s')+'</span>' +
+        '<span class="font-semibold text-gray-700">TZS '+fmt(v.totalSpend||0)+'</span>' +
+      '</div>' +
+      '<div class="flex gap-2 pt-1">' +
+        '<button class="btn-secondary flex-1 text-xs py-1.5" onclick="viewVendorDetail(\''+v.id+'\')"><i class="fas fa-eye mr-1"></i>View</button>' +
+        '<button class="btn-secondary flex-1 text-xs py-1.5" onclick="editVendor(\''+v.id+'\')"><i class="fas fa-pen mr-1"></i>Edit</button>' +
+        '<button class="btn-secondary flex-1 text-xs py-1.5 text-red-500 hover:bg-red-50" onclick="deleteVendor(\''+v.id+'\')"><i class="fas fa-trash mr-1"></i>Del</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function filterVendors() {
+  var q      = (document.getElementById('vendorSearch').value || '').toLowerCase();
+  var status = document.getElementById('vendorFilterStatus').value;
+  var list = allVendors.filter(function(v){
+    var matchQ = !q || v.name.toLowerCase().includes(q) || (v.phone && v.phone.includes(q)) ||
+                 (v.tin && v.tin.toLowerCase().includes(q)) || (v.location && v.location.toLowerCase().includes(q));
+    var matchS = !status || v.status === status;
+    return matchQ && matchS;
+  });
+  _renderVendorsGrid(list);
+}
+
+function showVendorModal(vendorId) {
+  _vendorEditId = vendorId || null;
+  document.getElementById('vendorForm').reset();
+  document.getElementById('vendorModalTitle').textContent = vendorId ? 'Edit Vendor' : 'Add Vendor';
+  document.getElementById('vendorModalSub').textContent   = vendorId ? 'Update vendor details' : 'Register a new supplier';
+  if (vendorId) {
+    var v = allVendors.find(function(x){ return x.id === vendorId; });
+    if (v) {
+      document.getElementById('vnd-name').value     = v.name     || '';
+      document.getElementById('vnd-phone').value    = v.phone    || '';
+      document.getElementById('vnd-email').value    = v.email    || '';
+      document.getElementById('vnd-tin').value      = v.tin      || '';
+      document.getElementById('vnd-vrn').value      = v.vrn      || '';
+      document.getElementById('vnd-location').value = v.location || '';
+      document.getElementById('vnd-status').value   = v.status   || 'Active';
+      document.getElementById('vnd-notes').value    = v.notes    || '';
+    }
+  }
+  openModal('modal-vendor');
+}
+
+function editVendor(vendorId) { showVendorModal(vendorId); }
+
+async function submitVendor(e) {
+  e.preventDefault();
+  var body = {
+    name:     document.getElementById('vnd-name').value.trim(),
+    phone:    document.getElementById('vnd-phone').value.trim(),
+    email:    document.getElementById('vnd-email').value.trim()    || undefined,
+    tin:      document.getElementById('vnd-tin').value.trim()      || undefined,
+    vrn:      document.getElementById('vnd-vrn').value.trim()      || undefined,
+    location: document.getElementById('vnd-location').value.trim() || undefined,
+    status:   document.getElementById('vnd-status').value,
+    notes:    document.getElementById('vnd-notes').value.trim()    || undefined,
+  };
+  try {
+    if (_vendorEditId) {
+      await axios.put('/api/vendors/' + _vendorEditId, body);
+      showToast('\u2714 Vendor updated');
+    } else {
+      await axios.post('/api/vendors', body);
+      showToast('\u2714 Vendor registered');
+    }
+    closeModal('modal-vendor');
+    await loadVendors();
+  } catch(err) { showToast('Failed to save vendor', 'error'); }
+}
+
+async function deleteVendor(vendorId) {
+  if (!confirm('Delete this vendor? This cannot be undone.\nVendors with linked expenses cannot be deleted — deactivate them instead.')) return;
+  try {
+    await axios.delete('/api/vendors/' + vendorId);
+    showToast('\u2714 Vendor deleted');
+    loadVendors();
+  } catch(err) {
+    var msg = (err.response && err.response.data && err.response.data.error) ? err.response.data.error : 'Failed to delete vendor';
+    showToast(msg, 'error');
+  }
+}
+
+async function viewVendorDetail(vendorId) {
+  try {
+    var { data } = await axios.get('/api/vendors/' + vendorId);
+    var v = data;
+    var initials = v.name.split(' ').slice(0,2).map(function(w){ return w[0]; }).join('').toUpperCase();
+
+    // Header
+    document.getElementById('vndDetailName').textContent = v.name;
+    document.getElementById('vndDetailSub').textContent  = v.location || 'Vendor profile';
+
+    // Info grid
+    document.getElementById('vndDetailInfo').innerHTML =
+      _vndField('fa-phone','Phone', v.phone) +
+      _vndField('fa-envelope','Email', v.email || '—') +
+      _vndField('fa-id-card','TIN', v.tin || '—') +
+      _vndField('fa-file-invoice','VRN', v.vrn || '—') +
+      _vndField('fa-map-marker-alt','Location', v.location || '—') +
+      _vndField('fa-circle','Status', '<span class="badge '+(v.status==='Active'?'badge-active':'badge-inactive')+'">'+v.status+'</span>') +
+      (v.notes ? _vndField('fa-sticky-note','Notes', escHtml(v.notes)) : '');
+
+    // KPIs
+    document.getElementById('vndDetailKpis').innerHTML =
+      '<div class="bg-blue-50 rounded-xl p-3 text-center"><p class="text-2xl font-bold text-blue-700">'+(v.expenseCount||0)+'</p><p class="text-xs text-blue-500 mt-0.5">Linked Expenses</p></div>' +
+      '<div class="bg-purple-50 rounded-xl p-3 text-center"><p class="text-2xl font-bold text-purple-700">TZS '+fmt(v.totalSpend||0)+'</p><p class="text-xs text-purple-500 mt-0.5">Total Spend</p></div>';
+
+    // Expense history
+    if (v.expenses && v.expenses.length) {
+      document.getElementById('vndDetailExpenses').innerHTML = v.expenses.map(function(e){
+        return '<tr class="hover:bg-gray-50">' +
+          '<td class="px-3 py-2 whitespace-nowrap text-gray-500 text-xs">'+fmtDate(e.date)+'</td>' +
+          '<td class="px-3 py-2 text-gray-800 text-sm">'+escHtml(e.description)+(e.receiptRef?'<br><span class="text-xs text-gray-400">'+escHtml(e.receiptRef)+'</span>':'')+'</td>' +
+          '<td class="px-3 py-2 hidden sm:table-cell"><span class="badge badge-info text-xs">'+e.category+'</span></td>' +
+          '<td class="px-3 py-2 text-right font-semibold text-gray-800 text-sm">'+fmt(e.amount)+'</td>' +
+          '<td class="px-3 py-2"><span class="badge badge-'+e.status.toLowerCase()+'">'+e.status+'</span></td>' +
+        '</tr>';
+      }).join('');
+    } else {
+      document.getElementById('vndDetailExpenses').innerHTML =
+        '<tr><td colspan="5" class="text-center py-8 text-gray-400 text-sm"><i class="fas fa-receipt text-3xl mb-2 block opacity-30"></i>No expenses linked to this vendor yet</td></tr>';
+    }
+
+    // Action buttons
+    document.getElementById('vndDetailActions').innerHTML =
+      '<button class="btn-secondary flex-1" onclick="closeModal(\'modal-vendorDetail\');editVendor(\''+v.id+'\')"><i class="fas fa-pen mr-1"></i>Edit</button>' +
+      '<button class="btn-primary flex-1" onclick="closeModal(\'modal-vendorDetail\')">Close</button>';
+
+    openModal('modal-vendorDetail');
+  } catch(err) { showToast('Failed to load vendor details', 'error'); }
+}
+
+function _vndField(icon, label, val) {
+  return '<div class="flex items-start gap-2.5">' +
+    '<div class="w-7 h-7 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0 mt-0.5"><i class="fas '+icon+' text-blue-500 text-xs"></i></div>' +
+    '<div><p class="text-xs text-gray-400 font-medium">'+label+'</p><p class="text-sm text-gray-800 font-medium mt-0.5">'+val+'</p></div>' +
+  '</div>';
+}
+
+// ─── EXPENSE VENDOR PICKER ───────────────────────────────────────────
+
+function _expVendorCategories() {
+  return ['Parts & Materials', 'Subcontractor', 'Equipment & Tools'];
+}
+
+function _expVendorIsRequired() {
+  var cat = document.getElementById('exp-category').value;
+  return _expVendorCategories().indexOf(cat) !== -1;
+}
+
+function expVendorOnCategoryChange() {
+  var req = _expVendorIsRequired();
+  document.getElementById('expVendorRequired').classList.toggle('hidden', !req);
+  document.getElementById('expVendorHint').classList.toggle('hidden', req);
+  document.getElementById('expVendorWarning').classList.add('hidden');
+}
+
+function expVendorSearch() {
+  var q    = (document.getElementById('exp-vendor-search').value || '').toLowerCase();
+  var list = document.getElementById('exp-vendor-list');
+  var vendors = allVendors.filter(function(v){
+    return v.status === 'Active' && (!q ||
+      v.name.toLowerCase().includes(q) ||
+      (v.tin && v.tin.toLowerCase().includes(q)) ||
+      (v.location && v.location.toLowerCase().includes(q)));
+  });
+  if (!vendors.length) {
+    list.innerHTML = '<li class="px-4 py-3 text-sm text-gray-400 italic">No registered vendors found</li>';
+  } else {
+    list.innerHTML = vendors.map(function(v){
+      return '<li class="flex items-center gap-3 px-4 py-2.5 hover:bg-blue-50 cursor-pointer text-sm" onclick="expVendorSelect(\''+v.id+'\',\''+escHtml(v.name)+'\')">'+
+        '<div class="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">'+v.name.split(' ').slice(0,2).map(function(w){ return w[0]; }).join('').toUpperCase()+'</div>'+
+        '<div class="min-w-0">'+
+          '<p class="font-medium text-gray-800 truncate">'+escHtml(v.name)+'</p>'+
+          '<p class="text-xs text-gray-400">'+(v.tin?'TIN: '+v.tin+'  ':'')+''+(v.location?v.location:'')+'</p>'+
+        '</div>'+
+        (v.vrn ? '<span class="ml-auto text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-medium flex-shrink-0">VRN</span>' : '') +
+      '</li>';
+    }).join('');
+  }
+  list.classList.remove('hidden');
+  document.getElementById('expVendorClear').classList.toggle('hidden', !document.getElementById('exp-vendor-search').value);
+}
+
+function expVendorSelect(vendorId, vendorName) {
+  document.getElementById('exp-vendorId').value        = vendorId;
+  document.getElementById('exp-vendor').value          = vendorName;
+  document.getElementById('exp-vendor-search').value   = vendorName;
+  document.getElementById('expVendorClear').classList.remove('hidden');
+  document.getElementById('exp-vendor-list').classList.add('hidden');
+  document.getElementById('expVendorWarning').classList.add('hidden');
+}
+
+function expVendorClear() {
+  document.getElementById('exp-vendorId').value       = '';
+  document.getElementById('exp-vendor').value         = '';
+  document.getElementById('exp-vendor-search').value  = '';
+  document.getElementById('expVendorClear').classList.add('hidden');
+  document.getElementById('exp-vendor-list').classList.add('hidden');
+}
+
+function expVendorValidate() {
+  if (_expVendorIsRequired() && !document.getElementById('exp-vendorId').value) {
+    document.getElementById('expVendorWarning').classList.remove('hidden');
+    document.getElementById('exp-vendor-search').focus();
+    return false;
+  }
+  return true;
 }
 
 // ═══ INIT ═══

@@ -3,13 +3,13 @@ import {
   customers, vehicles, jobCards, pfis, partsConsumption,
   invoices, servicePackages, users, activityLog, sessions,
   oilServiceProducts, catalogueParts, carWashPackages, addOnServices, appointments,
-  jobServices, expenses, notifications, lubricantProducts,
+  jobServices, expenses, notifications, lubricantProducts, vendors,
   ROLE_PERMISSIONS,
   type Customer, type Vehicle, type JobCard, type PFI,
   type PartConsumption, type ServicePackage, type User, type Invoice,
   type CataloguePart, type CarWashPackage, type AddOnService, type Appointment,
   type JobService, type Expense, type Notification, type NotificationType, type NotificationPriority,
-  type LubricantProduct, type Permission, type StatusTimelineEntry, type JobCardStatus
+  type LubricantProduct, type Permission, type StatusTimelineEntry, type JobCardStatus, type Vendor
 } from '../data/store'
 
 const api = new Hono()
@@ -1696,13 +1696,20 @@ api.post('/appointments/:id/convert', async (c) => {
 // GET /expenses — list all expenses, optionally filtered by jobCardId, category, status, dateFrom, dateTo
 api.get('/expenses', (c) => {
   const { jobCardId, category, status, dateFrom, dateTo } = c.req.query() as Record<string, string>
-  let list = expenses.map(e => ({
-    ...e,
-    jobCardNumber: e.jobCardId ? jobCards.find(j => j.id === e.jobCardId)?.jobCardNumber : undefined,
-    vehicleReg: e.jobCardId
-      ? vehicles.find(v => v.id === jobCards.find(j => j.id === e.jobCardId)?.vehicleId)?.registrationNumber
-      : undefined,
-  }))
+  let list = expenses.map(e => {
+    const vnd = e.vendorId ? vendors.find(v => v.id === e.vendorId) : null
+    return {
+      ...e,
+      vendor: vnd ? vnd.name : (e.vendor || undefined),
+      vendorId: e.vendorId || undefined,
+      vendorTIN: vnd?.tin,
+      vendorLocation: vnd?.location,
+      jobCardNumber: e.jobCardId ? jobCards.find(j => j.id === e.jobCardId)?.jobCardNumber : undefined,
+      vehicleReg: e.jobCardId
+        ? vehicles.find(v => v.id === jobCards.find(j => j.id === e.jobCardId)?.vehicleId)?.registrationNumber
+        : undefined,
+    }
+  })
   if (jobCardId) list = list.filter(e => e.jobCardId === jobCardId)
   if (category)  list = list.filter(e => e.category === category)
   if (status)    list = list.filter(e => e.status === status)
@@ -1746,12 +1753,16 @@ api.get('/expenses/:id', (c) => {
   const e = expenses.find(x => x.id === c.req.param('id'))
   if (!e) return c.json({ error: 'Not found' }, 404)
   const job = e.jobCardId ? jobCards.find(j => j.id === e.jobCardId) : undefined
-  return c.json({ ...e, jobCardNumber: job?.jobCardNumber })
+  const vnd = e.vendorId ? vendors.find(v => v.id === e.vendorId) : null
+  return c.json({ ...e, jobCardNumber: job?.jobCardNumber, vendorName: vnd?.name, vendorTIN: vnd?.tin })
 })
 
 // POST /expenses
 api.post('/expenses', async (c) => {
   const body = await c.req.json<Omit<Expense, 'id' | 'createdAt' | 'updatedAt'>>()
+  // If vendorId given, sync vendor name
+  const vnd = body.vendorId ? vendors.find(v => v.id === body.vendorId) : null
+  if (vnd) body.vendor = vnd.name
   const newExp: Expense = {
     ...body,
     id: 'ex' + genId(),
@@ -1772,6 +1783,11 @@ api.put('/expenses/:id', async (c) => {
   const idx = expenses.findIndex(e => e.id === c.req.param('id'))
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
   const body = await c.req.json<Partial<Expense>>()
+  // If vendorId given, sync vendor name
+  if (body.vendorId) {
+    const vnd = vendors.find(v => v.id === body.vendorId)
+    if (vnd) body.vendor = vnd.name
+  }
   expenses[idx] = { ...expenses[idx], ...body, updatedAt: now() }
   return c.json(expenses[idx])
 })
@@ -1798,6 +1814,91 @@ api.delete('/expenses/:id', (c) => {
   const idx = expenses.findIndex(e => e.id === c.req.param('id'))
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
   expenses.splice(idx, 1)
+  return c.json({ success: true })
+})
+
+// ─── Vendors ─────────────────────────────────────────────────────────────────
+
+// GET /vendors
+api.get('/vendors', (c) => {
+  const { status, q } = c.req.query() as Record<string, string>
+  let list = [...vendors]
+  if (status) list = list.filter(v => v.status === status)
+  if (q) {
+    const lq = q.toLowerCase()
+    list = list.filter(v =>
+      v.name.toLowerCase().includes(lq) ||
+      v.phone.includes(lq) ||
+      (v.email || '').toLowerCase().includes(lq) ||
+      (v.tin || '').includes(lq) ||
+      (v.location || '').toLowerCase().includes(lq)
+    )
+  }
+  // Enrich with expense count and total spend
+  return c.json(list.map(v => ({
+    ...v,
+    expenseCount: expenses.filter(e => e.vendorId === v.id).length,
+    totalSpend:   expenses.filter(e => e.vendorId === v.id).reduce((s, e) => s + e.amount, 0)
+  })).sort((a, b) => a.name.localeCompare(b.name)))
+})
+
+// GET /vendors/:id
+api.get('/vendors/:id', (c) => {
+  const v = vendors.find(x => x.id === c.req.param('id'))
+  if (!v) return c.json({ error: 'Not found' }, 404)
+  const vExpenses = expenses.filter(e => e.vendorId === v.id).map(e => ({
+    ...e,
+    jobCardNumber: e.jobCardId ? jobCards.find(j => j.id === e.jobCardId)?.jobCardNumber : undefined
+  }))
+  return c.json({
+    ...v,
+    expenseCount: vExpenses.length,
+    totalSpend:   vExpenses.reduce((s, e) => s + e.amount, 0),
+    expenses:     vExpenses
+  })
+})
+
+// POST /vendors
+api.post('/vendors', async (c) => {
+  const body = await c.req.json<Omit<Vendor, 'id' | 'createdAt' | 'updatedAt'>>()
+  if (!body.name || !body.phone) return c.json({ error: 'Name and phone are required' }, 400)
+  const newVendor: Vendor = {
+    ...body,
+    id: 'vnd' + genId(),
+    status: body.status || 'Active',
+    createdAt: now(),
+    updatedAt: now(),
+  }
+  vendors.push(newVendor)
+  return c.json(newVendor, 201)
+})
+
+// PUT /vendors/:id
+api.put('/vendors/:id', async (c) => {
+  const idx = vendors.findIndex(v => v.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const body = await c.req.json<Partial<Vendor>>()
+  vendors[idx] = { ...vendors[idx], ...body, updatedAt: now() }
+  return c.json(vendors[idx])
+})
+
+// PATCH /vendors/:id/status
+api.patch('/vendors/:id/status', async (c) => {
+  const idx = vendors.findIndex(v => v.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const { status } = await c.req.json<{ status: string }>()
+  vendors[idx] = { ...vendors[idx], status: status as any, updatedAt: now() }
+  return c.json(vendors[idx])
+})
+
+// DELETE /vendors/:id
+api.delete('/vendors/:id', (c) => {
+  const id = c.req.param('id')
+  const linked = expenses.some(e => e.vendorId === id)
+  if (linked) return c.json({ error: 'Cannot delete vendor with linked expenses. Deactivate instead.' }, 409)
+  const idx = vendors.findIndex(v => v.id === id)
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  vendors.splice(idx, 1)
   return c.json({ success: true })
 })
 

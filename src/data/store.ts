@@ -423,6 +423,23 @@ export interface LubricantProduct {
   partSerialNumber?: string    // supplier-assigned serial / part number
 }
 
+// ─── Vendors ─────────────────────────────────────────────────────────────────
+export type VendorStatus = 'Active' | 'Inactive'
+
+export interface Vendor {
+  id: string
+  name: string
+  phone: string
+  email?: string
+  tin?: string                  // Tax Identification Number
+  vrn?: string                  // VAT Registration Number (optional)
+  location?: string             // Physical address / area
+  status: VendorStatus
+  notes?: string
+  createdAt: string
+  updatedAt: string
+}
+
 // ─── Expenses ───────────────────────────────────────────────────────────────
 
 export type ExpenseCategory =
@@ -441,6 +458,7 @@ export type ExpenseStatus = 'Pending' | 'Approved' | 'Paid' | 'Rejected'
 export interface Expense {
   id: string
   jobCardId?: string          // optional – if linked to a specific job
+  vendorId?: string           // linked registered vendor
   category: ExpenseCategory
   description: string
   amount: number
@@ -848,16 +866,28 @@ export const jobServices: JobService[] = [
   { id: 'js008', jobCardId: 'jc012', category: 'Service Package', serviceId: 'sp8', serviceName: 'Tyre Rotation & Balancing', quantity: 1, unitCost: 50000, totalCost: 50000, notes: '4-wheel rotation' },
 ]
 
+// ─── Vendors ─────────────────────────────────────────────────────────────────
+export const vendors: Vendor[] = [
+  { id: 'vnd001', name: 'Toyota TZ Parts',    phone: '0222 211 001', email: 'sales@toyotatzparts.co.tz',  tin: '101-234-567', vrn: 'VRN-101-001', location: 'Kariakoo, Dar es Salaam',    status: 'Active',   createdAt: '2025-09-01T08:00:00Z', updatedAt: '2025-09-01T08:00:00Z' },
+  { id: 'vnd002', name: 'Auto Parts Hub',      phone: '0754 333 444', email: 'info@autopartshub.co.tz',    tin: '102-345-678', vrn: 'VRN-102-002', location: 'Pugu Road, Dar es Salaam',   status: 'Active',   createdAt: '2025-09-05T09:00:00Z', updatedAt: '2025-09-05T09:00:00Z' },
+  { id: 'vnd003', name: 'Toolcraft TZ',        phone: '0712 555 666', email: 'orders@toolcraft.co.tz',     tin: '103-456-789',                     location: 'Msimbazi, Dar es Salaam',    status: 'Active',   createdAt: '2025-09-10T10:00:00Z', updatedAt: '2025-09-10T10:00:00Z' },
+  { id: 'vnd004', name: 'Glass Pro DSM',        phone: '0768 777 888', email: 'glass@glassprodsm.co.tz',   tin: '104-567-890', vrn: 'VRN-104-004', location: 'Upanga, Dar es Salaam',      status: 'Active',   createdAt: '2025-09-15T08:00:00Z', updatedAt: '2025-09-15T08:00:00Z' },
+  { id: 'vnd005', name: 'DHL Tanzania',         phone: '0222 860 000', email: 'biz@dhl.co.tz',             tin: '105-678-901', vrn: 'VRN-105-005', location: 'Ali Hassan Mwinyi Rd, DSM',  status: 'Active',   createdAt: '2025-09-20T08:00:00Z', updatedAt: '2025-09-20T08:00:00Z' },
+  { id: 'vnd006', name: 'Quick Print DSM',      phone: '0745 999 000', email: 'print@quickprintdsm.com',   tin: '106-789-012',                     location: 'Ilala, Dar es Salaam',       status: 'Active',   createdAt: '2025-10-01T08:00:00Z', updatedAt: '2025-10-01T08:00:00Z' },
+  { id: 'vnd007', name: 'Jamhuri Properties',   phone: '0222 450 200', email: 'lease@jamhuriprop.co.tz',   tin: '107-890-123', vrn: 'VRN-107-007', location: 'Jamhuri St, Dar es Salaam',  status: 'Active',   createdAt: '2025-10-05T08:00:00Z', updatedAt: '2025-10-05T08:00:00Z' },
+  { id: 'vnd008', name: 'Speedy Lube Supplies', phone: '0713 100 200', email: 'supplies@speedylube.co.tz', tin: '108-901-234',                     location: 'Chang\'ombe, Dar es Salaam', status: 'Inactive', notes: 'Pending TIN verification', createdAt: '2025-10-10T08:00:00Z', updatedAt: '2025-10-10T08:00:00Z' },
+]
+
 // ─── Expenses ───────────────────────────────────────────────────────────────
 export const expenses: Expense[] = [
-  { id: 'exp001', category: 'Parts & Materials',    description: 'Bulk oil filters stock replenishment',   amount:  280000, vendor: 'Toyota TZ Parts',   receiptRef: 'RCP-001', status: 'Paid',    paidBy: 'John Banda',   date: '2025-11-01', createdAt: '2025-11-01T09:00:00Z', updatedAt: '2025-11-01T09:00:00Z' },
+  { id: 'exp001', category: 'Parts & Materials',    description: 'Bulk oil filters stock replenishment',   amount:  280000, vendorId: 'vnd001', vendor: 'Toyota TZ Parts',   receiptRef: 'RCP-001', status: 'Paid',    paidBy: 'John Banda',   date: '2025-11-01', createdAt: '2025-11-01T09:00:00Z', updatedAt: '2025-11-01T09:00:00Z' },
   { id: 'exp002', category: 'Utilities',             description: 'Electricity bill — November 2025',       amount:  450000, vendor: 'TANESCO',            receiptRef: 'ELC-NOV', status: 'Paid',    paidBy: 'Sam Mbeki',    date: '2025-11-05', createdAt: '2025-11-05T10:00:00Z', updatedAt: '2025-11-05T10:00:00Z' },
-  { id: 'exp003', category: 'Transport & Delivery',  description: 'Courier for spare parts from Nairobi',   amount:   85000, vendor: 'DHL Tanzania',       receiptRef: 'DHL-002', status: 'Paid',    paidBy: 'John Banda',   date: '2025-11-18', createdAt: '2025-11-18T08:00:00Z', updatedAt: '2025-11-18T08:00:00Z' },
-  { id: 'exp004', category: 'Equipment & Tools',     description: 'Hydraulic jack replacement',             amount:  650000, vendor: 'Toolcraft TZ',       receiptRef: 'TCF-045', status: 'Approved', paidBy: 'Mike Osei',    date: '2025-11-25', createdAt: '2025-11-25T11:00:00Z', updatedAt: '2025-11-25T11:00:00Z' },
-  { id: 'exp005', category: 'Rent & Facilities',     description: 'Workshop rent — December 2025',          amount: 1200000, vendor: 'Jamhuri Properties', receiptRef: 'RNT-DEC', status: 'Paid',    paidBy: 'Sam Mbeki',    date: '2025-12-01', createdAt: '2025-12-01T08:00:00Z', updatedAt: '2025-12-01T08:00:00Z' },
-  { id: 'exp006', category: 'Parts & Materials',     description: 'Brake pads and discs bulk order',        amount:  920000, vendor: 'Auto Parts Hub',     receiptRef: 'APH-112', status: 'Paid',    paidBy: 'John Banda',   date: '2025-12-02', createdAt: '2025-12-02T09:00:00Z', updatedAt: '2025-12-02T09:00:00Z' },
-  { id: 'exp007', category: 'Marketing & Admin',     description: 'Business cards and brochure printing',   amount:   95000, vendor: 'Quick Print DSM',    receiptRef: 'QP-089',  status: 'Pending',  date: '2025-12-04', createdAt: '2025-12-04T12:00:00Z', updatedAt: '2025-12-04T12:00:00Z' },
-  { id: 'exp008', category: 'Subcontractor',         description: 'Windscreen fitting specialist — jc010',  amount:  200000, vendor: 'Glass Pro DSM',      receiptRef: 'GP-034',  status: 'Pending', jobCardId: 'jc010', date: '2025-12-05', createdAt: '2025-12-05T10:00:00Z', updatedAt: '2025-12-05T10:00:00Z' },
+  { id: 'exp003', category: 'Transport & Delivery',  description: 'Courier for spare parts from Nairobi',   amount:   85000, vendorId: 'vnd005', vendor: 'DHL Tanzania',       receiptRef: 'DHL-002', status: 'Paid',    paidBy: 'John Banda',   date: '2025-11-18', createdAt: '2025-11-18T08:00:00Z', updatedAt: '2025-11-18T08:00:00Z' },
+  { id: 'exp004', category: 'Equipment & Tools',     description: 'Hydraulic jack replacement',             amount:  650000, vendorId: 'vnd003', vendor: 'Toolcraft TZ',       receiptRef: 'TCF-045', status: 'Approved', paidBy: 'Mike Osei',    date: '2025-11-25', createdAt: '2025-11-25T11:00:00Z', updatedAt: '2025-11-25T11:00:00Z' },
+  { id: 'exp005', category: 'Rent & Facilities',     description: 'Workshop rent — December 2025',          amount: 1200000, vendorId: 'vnd007', vendor: 'Jamhuri Properties', receiptRef: 'RNT-DEC', status: 'Paid',    paidBy: 'Sam Mbeki',    date: '2025-12-01', createdAt: '2025-12-01T08:00:00Z', updatedAt: '2025-12-01T08:00:00Z' },
+  { id: 'exp006', category: 'Parts & Materials',     description: 'Brake pads and discs bulk order',        amount:  920000, vendorId: 'vnd002', vendor: 'Auto Parts Hub',     receiptRef: 'APH-112', status: 'Paid',    paidBy: 'John Banda',   date: '2025-12-02', createdAt: '2025-12-02T09:00:00Z', updatedAt: '2025-12-02T09:00:00Z' },
+  { id: 'exp007', category: 'Marketing & Admin',     description: 'Business cards and brochure printing',   amount:   95000, vendorId: 'vnd006', vendor: 'Quick Print DSM',    receiptRef: 'QP-089',  status: 'Pending',  date: '2025-12-04', createdAt: '2025-12-04T12:00:00Z', updatedAt: '2025-12-04T12:00:00Z' },
+  { id: 'exp008', category: 'Subcontractor',         description: 'Windscreen fitting specialist — jc010',  amount:  200000, vendorId: 'vnd004', vendor: 'Glass Pro DSM',      receiptRef: 'GP-034',  status: 'Pending', jobCardId: 'jc010', date: '2025-12-05', createdAt: '2025-12-05T10:00:00Z', updatedAt: '2025-12-05T10:00:00Z' },
 ]
 
 // ─── Notifications ───────────────────────────────────────────────────────────
