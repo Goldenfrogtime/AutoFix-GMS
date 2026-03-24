@@ -5727,7 +5727,7 @@ async function showServiceCardModal(jobId) {
 function _buildServiceCardText(mileageOut) {
   if (!_svcCardData) return '';
   const { job, customer, vehicle, parts, services } = _svcCardData;
-  const NL = '\n', LINE = '─'.repeat(48);
+  const NL = String.fromCharCode(10), LINE = '\u2500'.repeat(48);
   let t = '';
   t += '   AUTOFIX GMS — DIGITAL SERVICE CARD' + NL;
   t += LINE + NL;
@@ -5888,23 +5888,25 @@ function shareServiceCardWhatsApp() {
   const { job, customer, vehicle } = _svcCardData;
   const mileageOut = +document.getElementById('svcCard-mileageOut').value || 0;
   const phone = (customer?.phone || '').replace(/\D/g,'');
+  const NL = String.fromCharCode(10);
+  const DIV = '\u2500'.repeat(29);
 
-  let msg = '🔧 *AutoFix GMS — Service Card*\n';
-  msg += '─────────────────────────────\n';
-  msg += '*Job Card:*  ' + (job.jobCardNumber || '—') + '\n';
-  msg += '*Date:*      ' + fmtDate(job.updatedAt || job.createdAt) + '\n';
-  msg += '*Vehicle:*   ' + (vehicle?.registrationNumber || '—') + ' ' + [vehicle?.make,vehicle?.model,vehicle?.year].filter(Boolean).join(' ') + '\n';
-  if (job.mileageIn)  msg += '*Mileage In:*  ' + job.mileageIn.toLocaleString() + ' km\n';
-  if (mileageOut > 0) msg += '*Mileage Out:* ' + mileageOut.toLocaleString() + ' km\n';
-  if (job.fuelLevel)  msg += '*Fuel Level:* ' + job.fuelLevel + '\n';
+  let msg = '\uD83D\uDD27 *AutoFix GMS \u2014 Service Card*' + NL;
+  msg += DIV + NL;
+  msg += '*Job Card:*  ' + (job.jobCardNumber || '\u2014') + NL;
+  msg += '*Date:*      ' + fmtDate(job.updatedAt || job.createdAt) + NL;
+  msg += '*Vehicle:*   ' + (vehicle?.registrationNumber || '\u2014') + ' ' + [vehicle?.make,vehicle?.model,vehicle?.year].filter(Boolean).join(' ') + NL;
+  if (job.mileageIn)  msg += '*Mileage In:*  ' + job.mileageIn.toLocaleString() + ' km' + NL;
+  if (mileageOut > 0) msg += '*Mileage Out:* ' + mileageOut.toLocaleString() + ' km' + NL;
+  if (job.fuelLevel)  msg += '*Fuel Level:* ' + job.fuelLevel + NL;
   if (job.nextServiceMileage) {
-    msg += '─────────────────────────────\n';
-    msg += '🔔 *NEXT SERVICE DUE AT:* ' + job.nextServiceMileage.toLocaleString() + ' km\n';
-    if (job.nextServiceLubricant) msg += '   _(' + job.nextServiceLubricant + ')_\n';
+    msg += DIV + NL;
+    msg += '\uD83D\uDD14 *NEXT SERVICE DUE AT:* ' + job.nextServiceMileage.toLocaleString() + ' km' + NL;
+    if (job.nextServiceLubricant) msg += '   _(' + job.nextServiceLubricant + ')_' + NL;
   }
-  msg += '─────────────────────────────\n';
-  msg += '_Thank you for choosing AutoFix GMS!_\n';
-  msg += '_📞 +255 700 000 000_';
+  msg += DIV + NL;
+  msg += '_Thank you for choosing AutoFix GMS!_' + NL;
+  msg += '_\uD83D\uDCDE +255 700 000 000_';
 
   const url = 'https://wa.me/' + (phone || '') + '?text=' + encodeURIComponent(msg);
   window.open(url, '_blank');
