@@ -1931,11 +1931,16 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
     </div>
 
     <!-- Footer actions -->
-    <div class="flex gap-2 justify-end">
-      <button class="btn-secondary" onclick="closeModal('modal-invoiceDetail')">Close</button>
-      <button id="invd-pay-btn" class="btn-primary hidden" onclick="_invdPay()">
-        <i class="fas fa-money-bill-wave mr-1.5"></i>Record Payment
+    <div class="flex gap-2 justify-between items-center">
+      <button class="btn-secondary text-sm flex items-center gap-1.5" onclick="_invdDownload()" id="invd-download-btn">
+        <i class="fas fa-download text-indigo-500"></i>Download PDF
       </button>
+      <div class="flex gap-2">
+        <button class="btn-secondary" onclick="closeModal('modal-invoiceDetail')">Close</button>
+        <button id="invd-pay-btn" class="btn-primary hidden" onclick="_invdPay()">
+          <i class="fas fa-money-bill-wave mr-1.5"></i>Record Payment
+        </button>
+      </div>
     </div>
   </div>
 </div>
@@ -7516,7 +7521,10 @@ function _renderInvoicesTable(data, filter) {
       <td class="px-4 py-3">\${amountPaidHtml}</td>
       <td class="px-4 py-3"><span class="badge \${statusClass}">\${inv.status}</span></td>
       <td class="px-4 py-3" onclick="event.stopPropagation()">
-        \${canPay ? \`<button class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition-colors whitespace-nowrap" onclick="showPayInvoiceModal('\${inv.id}')"><i class="fas fa-money-bill-wave mr-1"></i>\${inv.status === 'Partially Paid' ? 'Pay Balance' : 'Record Payment'}</button>\` : '<span class="text-gray-300 text-xs">—</span>'}
+        <div class="flex items-center gap-1.5">
+          \${canPay ? \`<button class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition-colors whitespace-nowrap" onclick="showPayInvoiceModal('\${inv.id}')"><i class="fas fa-money-bill-wave mr-1"></i>\${inv.status === 'Partially Paid' ? 'Pay Balance' : 'Record Payment'}</button>\` : ''}
+          <button class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 transition-colors whitespace-nowrap" onclick="downloadInvoice('\${inv.id}')" title="Download PDF"><i class="fas fa-download mr-1"></i>PDF</button>
+        </div>
       </td>
     </tr>\`;
   }).join('') || \`<tr><td colspan="10" class="text-center py-12 text-gray-400"><i class="fas fa-file-invoice text-3xl mb-3 block"></i>No \${filter === 'all' ? '' : filter + ' '}invoices</td></tr>\`;
@@ -7675,6 +7683,321 @@ function showInvoiceDetail(invId, event) {
 function _invdPay() {
   closeModal('modal-invoiceDetail');
   if (_invDetailId) showPayInvoiceModal(_invDetailId);
+}
+
+function _invdDownload() {
+  if (_invDetailId) downloadInvoice(_invDetailId);
+}
+
+// ─── Invoice PDF Download ──────────────────────────────────────────────────────
+
+async function downloadInvoice(invId) {
+  const inv = allInvoices.find(i => i.id === invId);
+  if (!inv) return;
+  showToast('Generating PDF…');
+  try {
+    // Fetch full job detail (services + parts + customer + vehicle)
+    const { data: job } = await axios.get('/api/jobcards/' + inv.jobCardId);
+    const doc = buildInvoiceDoc(inv, job);
+    const filename = inv.invoiceNumber.replace(/\//g, '-') + '-' + (job.customer?.name || 'Customer').replace(/\s+/g, '_') + '.pdf';
+    doc.save(filename);
+    showToast('✅ ' + filename + ' downloaded');
+  } catch(e) {
+    showToast('Failed to generate PDF', 'error');
+  }
+}
+
+function buildInvoiceDoc(inv, job) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+  const customer = job?.customer  || {};
+  const vehicle  = job?.vehicle   || {};
+  const services = job?.services  || [];
+  const parts    = job?.parts     || [];
+
+  const pageW = 210, margin = 18, contentW = pageW - margin * 2;
+  let y = 0;
+
+  // ── Status colours ─────────────────────────────────────────────────────────
+  const statusColors = {
+    'Paid':           [22,  163, 74],
+    'Partially Paid': [217, 119, 6],
+    'Overdue':        [220, 38,  38],
+    'Issued':         [37,  99,  235],
+    'Draft':          [100, 116, 139],
+    'Outstanding':    [37,  99,  235],
+  };
+  const sc = statusColors[inv.status] || [100, 116, 139];
+
+  // ── Header band ─────────────────────────────────────────────────────────────
+  doc.setFillColor(30, 64, 175);
+  doc.rect(0, 0, pageW, 42, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(22);
+  doc.text('AutoFix GMS', margin, 16);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Garage Management System', margin, 23);
+  doc.text('Tel: +255 700 000 000  |  info@autofixgms.co.tz', margin, 29);
+  doc.text('P.O. Box 12345, Dar es Salaam, Tanzania', margin, 35);
+
+  // INVOICE label top-right
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(20);
+  doc.text('INVOICE', pageW - margin, 18, { align: 'right' });
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text(inv.invoiceNumber, pageW - margin, 26, { align: 'right' });
+  doc.text('Issued: ' + (inv.issuedAt ? new Date(inv.issuedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'), pageW - margin, 32, { align: 'right' });
+  if (inv.dueDate) doc.text('Due: ' + inv.dueDate, pageW - margin, 38, { align: 'right' });
+  y = 52;
+
+  // ── Status badge strip ──────────────────────────────────────────────────────
+  doc.setFillColor(sc[0], sc[1], sc[2]);
+  doc.roundedRect(margin, y, contentW, 9, 2, 2, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  const statusLabel = inv.status.toUpperCase();
+  const amtPaid = inv.amountPaid || 0;
+  const balance = Math.max(0, (inv.totalAmount || 0) - amtPaid);
+  let statusRight = '';
+  if (inv.status === 'Paid') {
+    statusRight = 'Paid in full – ' + fmt(inv.totalAmount);
+  } else if (inv.status === 'Partially Paid') {
+    statusRight = 'Paid: ' + fmt(amtPaid) + '  |  Balance: ' + fmt(balance);
+  } else if (inv.status === 'Overdue') {
+    statusRight = 'OVERDUE – ' + fmt(inv.totalAmount) + ' outstanding';
+  } else {
+    statusRight = 'Amount Due: ' + fmt(inv.totalAmount);
+  }
+  doc.text(statusLabel, margin + 4, y + 6);
+  doc.setFont('helvetica', 'normal');
+  doc.text(statusRight, pageW - margin - 4, y + 6, { align: 'right' });
+  y += 16;
+
+  // ── Bill To + Vehicle info ───────────────────────────────────────────────────
+  doc.setTextColor(30, 41, 59);
+  doc.setFillColor(241, 245, 249);
+  doc.roundedRect(margin, y, contentW / 2 - 4, 38, 3, 3, 'F');
+  doc.roundedRect(margin + contentW / 2 + 4, y, contentW / 2 - 4, 38, 3, 3, 'F');
+
+  // Bill To
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(100, 116, 139);
+  doc.text('BILL TO', margin + 4, y + 7);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(30, 41, 59);
+  doc.text(customer.name || '—', margin + 4, y + 14);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(100, 116, 139);
+  if (customer.phone)   doc.text(customer.phone,   margin + 4, y + 20);
+  if (customer.email)   doc.text(customer.email,   margin + 4, y + 26);
+  if (customer.address) doc.text(customer.address, margin + 4, y + 32);
+
+  // Vehicle info
+  const vx = margin + contentW / 2 + 8;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(100, 116, 139);
+  doc.text('VEHICLE', vx, y + 7);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(30, 41, 59);
+  doc.text((vehicle.registrationNumber || '—'), vx, y + 14);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(100, 116, 139);
+  if (vehicle.make || vehicle.model) doc.text((vehicle.make || '') + ' ' + (vehicle.model || ''), vx, y + 20);
+  if (vehicle.year)                  doc.text('Year: ' + vehicle.year, vx, y + 26);
+  if (job?.jobCardNumber)            doc.text('Job Card: ' + job.jobCardNumber, vx, y + 32);
+  y += 46;
+
+  // ── Services table ──────────────────────────────────────────────────────────
+  if (services.length) {
+    doc.setFillColor(88, 28, 135);
+    doc.rect(margin, y, contentW, 8, 'F');
+    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+    doc.text('SERVICES', margin + 3, y + 5.5);
+    y += 8;
+    // Column headers
+    doc.setFillColor(248, 245, 255);
+    doc.rect(margin, y, contentW, 7, 'F');
+    doc.setTextColor(71, 85, 105); doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+    doc.text('#',        margin + 3,               y + 5);
+    doc.text('Service',  margin + 10,              y + 5);
+    doc.text('Category', margin + contentW * 0.55, y + 5);
+    doc.text('Qty',      margin + contentW * 0.75, y + 5);
+    doc.text('Total',    margin + contentW - 3,    y + 5, { align: 'right' });
+    y += 7;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+    services.forEach((sv, i) => {
+      if (i % 2 === 0) { doc.setFillColor(252, 250, 255); doc.rect(margin, y, contentW, 7, 'F'); }
+      doc.setTextColor(30, 41, 59);
+      doc.text(String(i + 1), margin + 3, y + 5);
+      const nm = sv.serviceName.length > 32 ? sv.serviceName.substring(0, 30) + '…' : sv.serviceName;
+      doc.text(nm,            margin + 10,              y + 5);
+      doc.text(sv.category,   margin + contentW * 0.55, y + 5);
+      doc.text(String(sv.quantity), margin + contentW * 0.75, y + 5);
+      doc.text(fmt(sv.totalCost), margin + contentW - 3, y + 5, { align: 'right' });
+      y += 7;
+    });
+    // Services subtotal
+    const svcTotal = services.reduce((s, sv) => s + sv.totalCost, 0);
+    doc.setFillColor(245, 240, 255);
+    doc.rect(margin, y, contentW, 7, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(88, 28, 135);
+    doc.text('Services Total', margin + contentW * 0.55, y + 5);
+    doc.text(fmt(svcTotal), margin + contentW - 3, y + 5, { align: 'right' });
+    y += 11;
+  }
+
+  // ── Parts & Materials table ─────────────────────────────────────────────────
+  if (parts.length) {
+    doc.setFillColor(30, 64, 175);
+    doc.rect(margin, y, contentW, 8, 'F');
+    doc.setTextColor(255, 255, 255); doc.setFont('helvetica', 'bold'); doc.setFontSize(9);
+    doc.text('PARTS & MATERIALS', margin + 3, y + 5.5);
+    y += 8;
+    // Column headers
+    doc.setFillColor(241, 245, 249);
+    doc.rect(margin, y, contentW, 7, 'F');
+    doc.setTextColor(71, 85, 105); doc.setFont('helvetica', 'bold'); doc.setFontSize(8);
+    doc.text('#',           margin + 3,               y + 5);
+    doc.text('Part / Description', margin + 10,       y + 5);
+    doc.text('Qty',         margin + contentW * 0.65, y + 5);
+    doc.text('Unit Cost',   margin + contentW * 0.76, y + 5);
+    doc.text('Total',       margin + contentW - 3,    y + 5, { align: 'right' });
+    y += 7;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+    parts.forEach((p, i) => {
+      if (i % 2 === 0) { doc.setFillColor(249, 250, 251); doc.rect(margin, y, contentW, 7, 'F'); }
+      doc.setTextColor(30, 41, 59);
+      doc.text(String(i + 1),      margin + 3,               y + 5);
+      const nm = (p.partName || '').length > 35 ? (p.partName || '').substring(0, 33) + '…' : (p.partName || '');
+      doc.text(nm,                  margin + 10,              y + 5);
+      doc.text(String(p.quantity),  margin + contentW * 0.65, y + 5);
+      doc.text(fmt(p.unitCost),     margin + contentW * 0.76, y + 5);
+      doc.text(fmt(p.totalCost),    margin + contentW - 3,    y + 5, { align: 'right' });
+      y += 7;
+    });
+    // Parts subtotal
+    const partsTotal = parts.reduce((s, p) => s + p.totalCost, 0);
+    doc.setFillColor(239, 246, 255);
+    doc.rect(margin, y, contentW, 7, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(30, 64, 175);
+    doc.text('Parts Total', margin + contentW * 0.65, y + 5);
+    doc.text(fmt(partsTotal), margin + contentW - 3, y + 5, { align: 'right' });
+    y += 11;
+  }
+
+  // ── Cost Summary ────────────────────────────────────────────────────────────
+  y += 2;
+  const sumX = margin + contentW * 0.52, sumW = contentW * 0.48;
+  const drawSumRow = (label, value, bold, bgRgb) => {
+    if (bgRgb) { doc.setFillColor(bgRgb[0], bgRgb[1], bgRgb[2]); doc.roundedRect(sumX, y, sumW, 8, 1, 1, 'F'); }
+    doc.setFont('helvetica', bold ? 'bold' : 'normal');
+    doc.setFontSize(bold ? 10 : 9);
+    doc.setTextColor(bold ? 30 : 71, bold ? 41 : 85, bold ? 59 : 105);
+    doc.text(label, sumX + 4, y + 5.5);
+    doc.text(value, sumX + sumW - 3, y + 5.5, { align: 'right' });
+    y += 8;
+  };
+  const labour    = inv.labourCost  || 0;
+  const svcParts  = inv.partsCost   || 0;
+  const disc      = inv.discountAmount || 0;
+  const tax       = inv.tax         || 0;
+  const total     = inv.totalAmount || 0;
+
+  drawSumRow('Labour',            fmt(labour),   false, null);
+  drawSumRow('Services + Parts',  fmt(svcParts), false, null);
+  if (disc > 0) {
+    doc.setFillColor(240, 253, 244);
+    doc.roundedRect(sumX, y, sumW, 8, 1, 1, 'F');
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(21, 128, 61);
+    doc.text('Discount' + (inv.discountReason ? ' (' + inv.discountReason + ')' : ''), sumX + 4, y + 5.5);
+    doc.text('− ' + fmt(disc), sumX + sumW - 3, y + 5.5, { align: 'right' });
+    y += 8;
+  }
+  drawSumRow('Tax / VAT (18%)',   fmt(tax),      false, null);
+  // Divider
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(0.3);
+  doc.line(sumX, y, sumX + sumW, y);
+  y += 3;
+  drawSumRow('TOTAL',             fmt(total),    true,  [sc[0], sc[1], sc[2]]);
+  // Overlay white text for the total row (coloured background)
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(10);
+  doc.text('TOTAL',   sumX + 4,         y - 2.5);
+  doc.text(fmt(total), sumX + sumW - 3, y - 2.5, { align: 'right' });
+  y += 4;
+
+  // ── Payment History ─────────────────────────────────────────────────────────
+  const payments = inv.payments || [];
+  if (payments.length || (inv.status === 'Paid' && inv.paidAt)) {
+    y += 4;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(71, 85, 105);
+    doc.text('PAYMENT HISTORY', margin, y + 5);
+    y += 9;
+    // Header
+    doc.setFillColor(241, 245, 249);
+    doc.rect(margin, y, contentW, 7, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(100, 116, 139);
+    doc.text('Date',   margin + 3,               y + 5);
+    doc.text('Method', margin + contentW * 0.28,  y + 5);
+    doc.text('Reference', margin + contentW * 0.52, y + 5);
+    doc.text('Amount',    margin + contentW - 3,    y + 5, { align: 'right' });
+    y += 7;
+
+    const payRows = payments.length ? payments : [{
+      paidAt: inv.paidAt, method: inv.paymentMethod || '—',
+      reference: inv.paymentReference, amount: total
+    }];
+    payRows.forEach((p, i) => {
+      if (i % 2 === 0) { doc.setFillColor(249, 250, 251); doc.rect(margin, y, contentW, 7, 'F'); }
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(30, 41, 59);
+      const dt = p.paidAt ? new Date(p.paidAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+      doc.text(dt,              margin + 3,               y + 5);
+      doc.text(p.method || '—', margin + contentW * 0.28, y + 5);
+      doc.text(p.reference || '—', margin + contentW * 0.52, y + 5);
+      doc.text(fmt(p.amount),   margin + contentW - 3,    y + 5, { align: 'right' });
+      y += 7;
+    });
+
+    // Balance row (if not fully paid)
+    if (inv.status !== 'Paid' && balance > 0) {
+      doc.setFillColor(254, 243, 199);
+      doc.rect(margin, y, contentW, 8, 'F');
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(146, 64, 14);
+      doc.text('Balance Remaining', margin + 3, y + 5.5);
+      doc.text(fmt(balance), margin + contentW - 3, y + 5.5, { align: 'right' });
+      y += 8;
+    }
+    y += 4;
+  }
+
+  // ── Paid watermark diagonal across centre ───────────────────────────────────
+  if (inv.status === 'Paid') {
+    doc.setGState(new doc.GState({ opacity: 0.07 }));
+    doc.setTextColor(22, 163, 74);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(72);
+    doc.text('PAID', pageW / 2, 200, { align: 'center', angle: 45 });
+    doc.setGState(new doc.GState({ opacity: 1 }));
+  } else if (inv.status === 'Overdue') {
+    doc.setGState(new doc.GState({ opacity: 0.06 }));
+    doc.setTextColor(220, 38, 38);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(72);
+    doc.text('OVERDUE', pageW / 2, 200, { align: 'center', angle: 45 });
+    doc.setGState(new doc.GState({ opacity: 1 }));
+  }
+
+  // ── Footer ──────────────────────────────────────────────────────────────────
+  const pageH = 297;
+  doc.setFillColor(241, 245, 249);
+  doc.rect(0, pageH - 24, pageW, 24, 'F');
+  doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(100, 116, 139);
+  doc.text('This is an official tax invoice. Please retain for your records.', pageW / 2, pageH - 16, { align: 'center' });
+  doc.setFont('helvetica', 'normal');
+  doc.text('AutoFix GMS  |  Tel: +255 700 000 000  |  info@autofixgms.co.tz  |  P.O. Box 12345, Dar es Salaam', pageW / 2, pageH - 10, { align: 'center' });
+  doc.text('Generated: ' + new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }), pageW / 2, pageH - 4, { align: 'center' });
+
+  return doc;
 }
 
 // ─── Edit Payment ─────────────────────────────────────────────────────────────
