@@ -1514,14 +1514,15 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         <p class="text-xs font-bold text-blue-700 uppercase tracking-wide mb-3"><i class="fas fa-tachometer-alt mr-1.5"></i>Vehicle Intake Readings</p>
         <div class="grid grid-cols-2 gap-4">
           <div>
-            <label class="form-label">Current Mileage (km)</label>
+            <label class="form-label">Current Mileage (km) <span class="text-red-500">*</span></label>
             <div class="relative">
-              <input class="form-input pr-10" type="number" id="job-mileage" placeholder="e.g. 75000" min="0"/>
+              <input class="form-input pr-10" type="number" id="job-mileage" placeholder="e.g. 75000" min="0" required oninput="this.classList.remove('border-red-400','bg-red-50');document.getElementById('job-mileage-error').classList.add('hidden')"/>
               <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-medium">km</span>
             </div>
+            <p id="job-mileage-error" class="hidden text-xs text-red-500 mt-1"><i class="fas fa-exclamation-circle mr-1"></i>Mileage is required</p>
           </div>
           <div>
-            <label class="form-label">Fuel Level</label>
+            <label class="form-label">Fuel Level <span class="text-red-500">*</span></label>
             <div class="grid grid-cols-5 gap-1.5 mt-1" id="fuelLevelBtns">
               <button type="button" data-fuel="Empty" onclick="selectFuelLevel('Empty')"
                 class="fuel-btn py-1.5 rounded-lg border-2 border-gray-200 text-xs font-bold text-gray-500 hover:border-red-400 hover:bg-red-50 transition-all">E</button>
@@ -1535,6 +1536,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
                 class="fuel-btn py-1.5 rounded-lg border-2 border-gray-200 text-xs font-bold text-gray-500 hover:border-green-600 hover:bg-green-50 transition-all">F</button>
             </div>
             <input type="hidden" id="job-fuelLevel"/>
+            <p id="job-fuel-error" class="hidden text-xs text-red-500 mt-1"><i class="fas fa-exclamation-circle mr-1"></i>Fuel level is required</p>
           </div>
         </div>
       </div>
@@ -5396,6 +5398,13 @@ async function showNewJobModal() {
   document.getElementById('job-technician').innerHTML = '<option value="">Select…</option>' + techs.data.filter(u => u.role === 'Technician').map(u => \`<option value="\${u.id}">\${u.name}</option>\`).join('');
   // Reset fuel level buttons to unselected state
   document.getElementById('job-fuelLevel').value = '';
+  // Clear any previous validation error states
+  const _mileageIn = document.getElementById('job-mileage');
+  _mileageIn.value = '';
+  _mileageIn.classList.remove('border-red-400', 'bg-red-50');
+  document.getElementById('job-mileage-error').classList.add('hidden');
+  document.getElementById('job-fuel-error').classList.add('hidden');
+  document.getElementById('fuelLevelBtns').classList.remove('ring-2', 'ring-red-400', 'rounded-lg');
   const _fuelCols = { 'Empty': 'red', '1/4': 'orange', '1/2': 'amber', '3/4': 'green', 'Full': 'emerald' };
   document.querySelectorAll('#fuelLevelBtns .fuel-btn').forEach(function(btn) {
     const f = btn.getAttribute('data-fuel');
@@ -5471,6 +5480,9 @@ function toggleInsuranceFields() {
 
 function selectFuelLevel(level) {
   document.getElementById('job-fuelLevel').value = level;
+  // Clear fuel error state as soon as a level is selected
+  document.getElementById('job-fuel-error').classList.add('hidden');
+  document.getElementById('fuelLevelBtns').classList.remove('ring-2', 'ring-red-400', 'rounded-lg');
   const fuelColors = { 'Empty': 'red', '1/4': 'orange', '1/2': 'amber', '3/4': 'green', 'Full': 'emerald' };
   document.querySelectorAll('#fuelLevelBtns .fuel-btn').forEach(function(btn) {
     const f = btn.getAttribute('data-fuel');
@@ -5493,9 +5505,41 @@ async function submitNewJob(e) {
     return;
   }
   document.getElementById('job-customer-search').classList.remove('border-red-400');
-  const cat = document.getElementById('job-category').value;
-  const mileageVal = document.getElementById('job-mileage').value;
+
+  // ── Validate Vehicle Intake Readings (both required) ──────────────────────
+  const mileageVal = document.getElementById('job-mileage').value.trim();
   const fuelVal    = document.getElementById('job-fuelLevel').value;
+  let intakeValid  = true;
+
+  const mileageInput = document.getElementById('job-mileage');
+  const mileageErr   = document.getElementById('job-mileage-error');
+  if (!mileageVal) {
+    mileageInput.classList.add('border-red-400', 'bg-red-50');
+    mileageErr.classList.remove('hidden');
+    intakeValid = false;
+  } else {
+    mileageInput.classList.remove('border-red-400', 'bg-red-50');
+    mileageErr.classList.add('hidden');
+  }
+
+  const fuelErr      = document.getElementById('job-fuel-error');
+  const fuelBtnGroup = document.getElementById('fuelLevelBtns');
+  if (!fuelVal) {
+    fuelBtnGroup.classList.add('ring-2', 'ring-red-400', 'rounded-lg');
+    fuelErr.classList.remove('hidden');
+    intakeValid = false;
+  } else {
+    fuelBtnGroup.classList.remove('ring-2', 'ring-red-400', 'rounded-lg');
+    fuelErr.classList.add('hidden');
+  }
+
+  if (!intakeValid) {
+    showToast('Please fill in mileage and fuel level', 'error');
+    return;
+  }
+  // ─────────────────────────────────────────────────────────────────────────
+
+  const cat = document.getElementById('job-category').value;
   const payload = {
     customerId: document.getElementById('job-customerId').value,
     vehicleId: document.getElementById('job-vehicleId').value,
@@ -5503,8 +5547,8 @@ async function submitNewJob(e) {
     category: cat,
     damageDescription: document.getElementById('job-damage').value,
     inspectionNotes: document.getElementById('job-notes').value,
-    ...(mileageVal ? { mileageIn: parseInt(mileageVal) } : {}),
-    ...(fuelVal    ? { fuelLevel: fuelVal }             : {}),
+    mileageIn: parseInt(mileageVal),
+    fuelLevel: fuelVal,
     ...(cat === 'Insurance' ? {
       claimReference: document.getElementById('job-claimRef').value,
       insurer: document.getElementById('job-insurer').value,
