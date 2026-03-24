@@ -1139,9 +1139,9 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         <div class="table-scroll">
           <table class="w-full text-sm" style="min-width:1200px">
             <thead><tr class="border-b border-gray-100 bg-gray-50">
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Batch #</th>
               <th class="text-left px-4 py-3 font-semibold text-gray-600">Brand</th>
               <th class="text-left px-4 py-3 font-semibold text-gray-600">Description</th>
-              <th class="text-left px-4 py-3 font-semibold text-gray-600">Batch #</th>
               <th class="text-left px-4 py-3 font-semibold text-gray-600">Serial / Part #</th>
               <th class="text-left px-4 py-3 font-semibold text-gray-600">Type</th>
               <th class="text-left px-4 py-3 font-semibold text-gray-600">Viscosity</th>
@@ -1200,10 +1200,10 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         <div class="table-scroll">
         <table class="w-full text-sm" style="min-width:1000px">
           <thead><tr class="border-b border-gray-100 bg-gray-50">
+            <th class="text-left px-4 py-3 font-semibold text-gray-600">Batch #</th>
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Category</th>
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Description</th>
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Compatible Models</th>
-            <th class="text-left px-4 py-3 font-semibold text-gray-600">Batch #</th>
             <th class="text-left px-4 py-3 font-semibold text-gray-600">Serial / Part #</th>
             <th class="text-right px-4 py-3 font-semibold text-gray-600">Buy Price</th>
             <th class="text-right px-4 py-3 font-semibold text-gray-600">Sell Price</th>
@@ -9178,9 +9178,9 @@ function renderLubricantsTable(list) {
       ? '<span class="text-xs font-mono text-gray-700">'+l.partSerialNumber+'</span>'
       : '<span class="text-xs text-gray-300">—</span>';
     return '<tr class="table-row border-b border-gray-50" data-id="'+l.id+'">' +
+      '<td class="px-4 py-3">'+batchCell+'</td>' +
       '<td class="px-4 py-3"><span class="badge" style="background:'+bc.bg+';color:'+bc.text+'">'+l.brand+'</span></td>' +
       '<td class="px-4 py-3 font-medium text-gray-800 text-sm max-w-[220px]">'+l.description+'</td>' +
-      '<td class="px-4 py-3">'+batchCell+'</td>' +
       '<td class="px-4 py-3">'+serialCell+'</td>' +
       '<td class="px-4 py-3"><span class="text-xs font-semibold px-2 py-0.5 rounded-full" style="background:'+tc+'20;color:'+tc+'">'+l.lubricantType+'</span></td>' +
       '<td class="px-4 py-3 text-sm text-gray-600 font-mono">'+l.viscosity+'</td>' +
@@ -10232,10 +10232,10 @@ function renderPartsTable(parts) {
         ? '<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700"><i class="fas fa-exclamation-triangle"></i>'+p.stockQuantity+'</span>'
         : '<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700"><i class="fas fa-check"></i>'+p.stockQuantity+'</span>';
     return '<tr class="table-row border-b border-gray-50">' +
+      '<td class="px-4 py-3">'+batchCell+'</td>' +
       '<td class="px-4 py-3"><span class="badge" style="background:'+c.bg+';color:'+c.text+'">'+p.category+'</span></td>' +
       '<td class="px-4 py-3 font-medium text-gray-800 text-sm">'+p.description+'</td>' +
       '<td class="px-4 py-3 text-xs text-gray-500"><div class="flex flex-wrap gap-1">'+modelsHtml+'</div></td>' +
-      '<td class="px-4 py-3">'+batchCell+'</td>' +
       '<td class="px-4 py-3">'+serialCell+'</td>' +
       '<td class="px-4 py-3 text-right text-gray-600">'+fmt(p.buyingPrice)+'</td>' +
       '<td class="px-4 py-3 text-right font-bold text-gray-900">'+fmt(p.sellingPrice)+'</td>' +
