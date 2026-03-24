@@ -619,18 +619,53 @@ api.get('/jobcards/:id/parts', (c) => {
 
 api.post('/jobcards/:id/parts', async (c) => {
   const body = await c.req.json<Omit<PartConsumption, 'id' | 'jobCardId'>>()
-  const newPart: PartConsumption = { ...body, id: 'pc' + genId(), jobCardId: c.req.param('id') }
+  const jobCardId = c.req.param('id')
+  const newPart: PartConsumption = { ...body, id: 'pc' + genId(), jobCardId }
   partsConsumption.push(newPart)
-  syncJobFinancials(c.req.param('id'))
+
+  // ── Auto-expense: record buying cost of the part ────────────────────────────
+  // Look up the buying price from the catalogue part or lubricant that was used.
+  // body.partId may carry the catalogue item id; if the buying price comes in via
+  // unitCost we derive it from the catalogue directly.
+  const cataloguePart  = catalogueParts.find(p => p.id === (body as any).partId)
+  const lubricantItem  = !cataloguePart ? lubricantProducts.find(l => l.id === (body as any).partId) : null
+  const buyingPrice    = cataloguePart?.buyingPrice ?? lubricantItem?.buyingPrice ?? null
+
+  if (buyingPrice !== null && buyingPrice > 0) {
+    const jc = jobCards.find(j => j.id === jobCardId)
+    const buyingTotal = buyingPrice * newPart.quantity
+    const autoExp: Expense = {
+      id:          'ex' + genId(),
+      jobCardId,
+      category:    'Parts & Materials',
+      description: `${newPart.partName} × ${newPart.quantity} (buying cost)`,
+      amount:      buyingTotal,
+      status:      'Approved',
+      auto:        true,
+      date:        now().substring(0, 10),
+      createdAt:   now(),
+      updatedAt:   now(),
+    }
+    expenses.push(autoExp)
+    // Link back so we can remove it if the part is deleted
+    newPart.autoExpenseId = autoExp.id
+  }
+
+  syncJobFinancials(jobCardId)
   return c.json(newPart, 201)
 })
 
 api.delete('/parts/:id', (c) => {
   const idx = partsConsumption.findIndex(x => x.id === c.req.param('id'))
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
-  const deletedJobCardId = partsConsumption[idx].jobCardId
+  const part = partsConsumption[idx]
+  // Remove the linked auto-expense if it exists
+  if (part.autoExpenseId) {
+    const expIdx = expenses.findIndex(e => e.id === part.autoExpenseId)
+    if (expIdx !== -1) expenses.splice(expIdx, 1)
+  }
   partsConsumption.splice(idx, 1)
-  syncJobFinancials(deletedJobCardId)
+  syncJobFinancials(part.jobCardId)
   return c.json({ success: true })
 })
 
@@ -641,14 +676,15 @@ api.get('/jobcards/:id/services', (c) => {
 
 api.post('/jobcards/:id/services', async (c) => {
   const body = await c.req.json<Omit<JobService, 'id' | 'jobCardId'>>()
-  const newSvc: JobService = { ...body, id: 'svc' + genId(), jobCardId: c.req.param('id') }
+  const jobCardId = c.req.param('id')
+  const newSvc: JobService = { ...body, id: 'svc' + genId(), jobCardId }
   jobServices.push(newSvc)
 
   // Auto-calculate nextServiceMileage when a lubricant with a mileageInterval is added
   if (body.lubricantId) {
     const lub = lubricantProducts.find(l => l.id === body.lubricantId)
     if (lub?.mileageInterval) {
-      const jcIdx = jobCards.findIndex(j => j.id === c.req.param('id'))
+      const jcIdx = jobCards.findIndex(j => j.id === jobCardId)
       if (jcIdx !== -1 && jobCards[jcIdx].mileageIn) {
         jobCards[jcIdx] = {
           ...jobCards[jcIdx],
@@ -660,16 +696,75 @@ api.post('/jobcards/:id/services', async (c) => {
     }
   }
 
-  syncJobFinancials(c.req.param('id'))
+  // ── Auto-expense: record buying cost of the service ─────────────────────────
+  // Buying cost sources by category:
+  //   Oil Service  → lubricant buyingPrice × quantity
+  //   Parts (catalogue part used as a service) → cataloguePart buyingPrice × quantity
+  //   Service Package → package labourCost (the garage's cost to perform the job)
+  //   Car Wash / Add-on → no buying cost (labour-only, no inventory consumed)
+  let buyingCost: number | null = null
+  let expenseCategory: 'Parts & Materials' | 'Labour' = 'Parts & Materials'
+
+  if (body.lubricantId) {
+    // Oil service — lubricant buying price
+    const lub = lubricantProducts.find(l => l.id === body.lubricantId)
+    if (lub && lub.buyingPrice > 0) {
+      buyingCost = lub.buyingPrice * newSvc.quantity
+    }
+  } else if (body.category === 'Service Package') {
+    // Service package — labourCost is the internal cost to the garage
+    const pkg = servicePackages.find(p => p.id === body.serviceId)
+    if (pkg && pkg.labourCost > 0) {
+      buyingCost = pkg.labourCost * newSvc.quantity
+      expenseCategory = 'Labour'
+    }
+  } else if (body.category === 'Add-on') {
+    // Add-on services have no buying price catalogue — skip
+    buyingCost = null
+  } else if (body.category === 'Car Wash') {
+    // Car wash packages have no buying price — skip
+    buyingCost = null
+  }
+  // For any other category where the serviceId maps to a catalogue part
+  if (buyingCost === null && !body.lubricantId && body.serviceId) {
+    const cp = catalogueParts.find(p => p.id === body.serviceId)
+    if (cp && cp.buyingPrice > 0) {
+      buyingCost = cp.buyingPrice * newSvc.quantity
+    }
+  }
+
+  if (buyingCost !== null && buyingCost > 0) {
+    const autoExp: Expense = {
+      id:          'ex' + genId(),
+      jobCardId,
+      category:    expenseCategory,
+      description: `${newSvc.serviceName} × ${newSvc.quantity} (buying cost)`,
+      amount:      buyingCost,
+      status:      'Approved',
+      auto:        true,
+      date:        now().substring(0, 10),
+      createdAt:   now(),
+      updatedAt:   now(),
+    }
+    expenses.push(autoExp)
+    newSvc.autoExpenseId = autoExp.id
+  }
+
+  syncJobFinancials(jobCardId)
   return c.json(newSvc, 201)
 })
 
 api.delete('/services/:id', (c) => {
   const idx = jobServices.findIndex(x => x.id === c.req.param('id'))
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
-  const deletedJobCardId = jobServices[idx].jobCardId
+  const svc = jobServices[idx]
+  // Remove the linked auto-expense if it exists
+  if (svc.autoExpenseId) {
+    const expIdx = expenses.findIndex(e => e.id === svc.autoExpenseId)
+    if (expIdx !== -1) expenses.splice(expIdx, 1)
+  }
   jobServices.splice(idx, 1)
-  syncJobFinancials(deletedJobCardId)
+  syncJobFinancials(svc.jobCardId)
   return c.json({ success: true })
 })
 

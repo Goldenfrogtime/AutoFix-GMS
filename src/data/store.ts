@@ -268,6 +268,7 @@ export interface PartConsumption {
   quantity: number
   unitCost: number
   totalCost: number
+  autoExpenseId?: string   // id of the auto-generated buying-cost expense
 }
 
 export interface Invoice {
@@ -314,6 +315,7 @@ export interface JobService {
   totalCost: number
   notes?: string           // e.g. oil brand/tier for oil services
   lubricantId?: string     // id of the LubricantProduct used (for oil services)
+  autoExpenseId?: string   // id of the auto-generated buying-cost expense
 }
 
 export interface ServicePackage {
@@ -471,6 +473,7 @@ export interface Expense {
   date: string                // YYYY-MM-DD
   createdAt: string
   updatedAt: string
+  auto?: boolean              // true = system-generated from a job part/service (not manual)
 }
 
 

@@ -4361,8 +4361,11 @@ async function showPartsModal(jobId) {
     const btn = document.getElementById('part-submit-btn');
     btn.disabled = true; btn.textContent = 'Adding…';
     try {
-      // 1. Record parts consumption on the job
-      await axios.post('/api/jobcards/' + jobId + '/parts', { partName: name, quantity: qty, unitCost: unit, totalCost: qty * unit });
+      // 1. Record parts consumption on the job (include partId so backend can look up buying price)
+      await axios.post('/api/jobcards/' + jobId + '/parts', {
+        partName: name, quantity: qty, unitCost: unit, totalCost: qty * unit,
+        ...(_selectedCatPart ? { partId: _selectedCatPart.id } : {})
+      });
       // 2. Deduct stock from catalogue if a catalogue part was selected
       if (_selectedCatPart) {
         await axios.patch('/api/catalogue/parts/' + _selectedCatPart.id + '/deduct', { quantity: qty });
@@ -5334,7 +5337,10 @@ function _renderPartsTab(el) {
     const btn = document.getElementById('part2-submit');
     btn.disabled = true; btn.textContent = 'Adding\u2026';
     try {
-      await axios.post('/api/jobcards/' + _svcJobId + '/parts', { partName: name, quantity: qty, unitCost: unit, totalCost: qty * unit });
+      await axios.post('/api/jobcards/' + _svcJobId + '/parts', {
+        partName: name, quantity: qty, unitCost: unit, totalCost: qty * unit,
+        ...(_sel2 ? { partId: _sel2.id } : {})
+      });
       if (_sel2) {
         await axios.patch('/api/catalogue/parts/' + _sel2.id + '/deduct', { quantity: qty });
         const ci = _catalogueCache.findIndex(p => p.id === _sel2.id);
@@ -11124,14 +11130,25 @@ function _renderExpensesTable(list) {
   const tbody = document.getElementById('expensesTable');
   document.getElementById('expenseCount').textContent = list.length + ' record' + (list.length!==1?'s':'');
   if (!list.length) {
-    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-10 text-gray-400">No expenses found</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="text-center py-10 text-gray-400">No expenses found</td></tr>';
     return;
   }
   tbody.innerHTML = list.map(function(e) {
-    return '<tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors">' +
+    // Auto-generated expenses (from adding parts/services) are read-only — managed via job card
+    var isAuto = !!e.auto;
+    var autoBadge = isAuto
+      ? '<span class="inline-flex items-center gap-1 text-xs font-semibold bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded ml-1.5" title="Auto-recorded from job card parts/services"><i class="fas fa-robot text-purple-500" style="font-size:0.65rem"></i> Auto</span>'
+      : '';
+    var actionBtns = isAuto
+      ? '<button class="text-blue-500 hover:text-blue-700 text-sm" title="View" data-exp-view="'+e.id+'"><i class="fas fa-eye"></i></button>' +
+        '<span class="text-gray-300 text-xs ml-1" title="Auto-recorded — edit via job card parts/services"><i class="fas fa-lock"></i></span>'
+      : '<button class="text-blue-500 hover:text-blue-700 text-sm" title="View" data-exp-view="'+e.id+'"><i class="fas fa-eye"></i></button>' +
+        '<button class="text-amber-500 hover:text-amber-700 text-sm" title="Edit" data-exp-edit="'+e.id+'"><i class="fas fa-edit"></i></button>' +
+        '<button class="text-red-400 hover:text-red-600 text-sm" title="Delete" data-exp-del="'+e.id+'"><i class="fas fa-trash"></i></button>';
+    return '<tr class="border-b border-gray-50 hover:bg-gray-50 transition-colors' + (isAuto ? ' bg-purple-50/30' : '') + '">' +
       '<td class="px-4 py-3 text-gray-700 whitespace-nowrap">'+fmtDate(e.date)+'</td>' +
       '<td class="px-4 py-3">' +
-        '<p class="font-medium text-gray-800 text-sm">'+e.description+'</p>' +
+        '<p class="font-medium text-gray-800 text-sm flex items-center flex-wrap gap-1">'+e.description+autoBadge+'</p>' +
         (e.receiptRef ? '<p class="text-xs text-gray-400 mt-0.5">Ref: '+e.receiptRef+'</p>' : '') +
       '</td>' +
       '<td class="px-4 py-3">'+expCatBadge(e.category)+'</td>' +
@@ -11149,11 +11166,7 @@ function _renderExpensesTable(list) {
       '<td class="px-4 py-3 text-right font-semibold text-gray-900 whitespace-nowrap">'+fmt(e.amount)+'</td>' +
       '<td class="px-4 py-3">'+expStatusBadge(e.status)+'</td>' +
       '<td class="px-4 py-3">' +
-        '<div class="flex items-center justify-center gap-2">' +
-          '<button class="text-blue-500 hover:text-blue-700 text-sm" title="View" data-exp-view="'+e.id+'"><i class="fas fa-eye"></i></button>' +
-          '<button class="text-amber-500 hover:text-amber-700 text-sm" title="Edit" data-exp-edit="'+e.id+'"><i class="fas fa-edit"></i></button>' +
-          '<button class="text-red-400 hover:text-red-600 text-sm" title="Delete" data-exp-del="'+e.id+'"><i class="fas fa-trash"></i></button>' +
-        '</div>' +
+        '<div class="flex items-center justify-center gap-2">' + actionBtns + '</div>' +
       '</td>' +
     '</tr>';
   }).join('');
@@ -11368,9 +11381,12 @@ async function loadJobExpenses(jobId) {
     '</div>' +
     (data.length ? '<div class="space-y-2">' +
       data.map(function(e) {
-        return '<div class="flex items-center justify-between gap-2 py-2 border-b border-gray-50 last:border-0">' +
+        var autoBadge = e.auto
+          ? '<span class="inline-flex items-center gap-0.5 text-xs font-semibold bg-purple-100 text-purple-700 px-1 py-0.5 rounded" title="Auto-recorded from parts/services"><i class="fas fa-robot" style="font-size:0.6rem"></i> Auto</span>'
+          : '';
+        return '<div class="flex items-center justify-between gap-2 py-2 border-b border-gray-50 last:border-0' + (e.auto ? ' bg-purple-50/40 rounded px-1' : '') + '">' +
           '<div class="flex-1 min-w-0">' +
-            '<p class="text-sm text-gray-800 font-medium truncate">'+e.description+'</p>' +
+            '<p class="text-sm text-gray-800 font-medium truncate flex items-center gap-1">'+e.description+autoBadge+'</p>' +
             '<p class="text-xs text-gray-400">'+fmtDate(e.date)+' &middot; '+e.category+(e.vendor?' &middot; '+e.vendor:'')+'</p>' +
           '</div>' +
           '<div class="flex items-center gap-2 flex-shrink-0">' +
