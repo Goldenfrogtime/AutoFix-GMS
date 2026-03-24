@@ -3,13 +3,14 @@ import {
   customers, vehicles, jobCards, pfis, partsConsumption,
   invoices, servicePackages, users, activityLog, sessions,
   oilServiceProducts, catalogueParts, carWashPackages, addOnServices, appointments,
-  jobServices, expenses, notifications, lubricantProducts, vendors,
+  jobServices, expenses, notifications, lubricantProducts, vendors, gatePasses,
   ROLE_PERMISSIONS,
   type Customer, type Vehicle, type JobCard, type PFI,
   type PartConsumption, type ServicePackage, type User, type Invoice,
   type CataloguePart, type CarWashPackage, type AddOnService, type Appointment,
   type JobService, type Expense, type Notification, type NotificationType, type NotificationPriority,
-  type LubricantProduct, type Permission, type StatusTimelineEntry, type JobCardStatus, type Vendor
+  type LubricantProduct, type Permission, type StatusTimelineEntry, type JobCardStatus, type Vendor,
+  type GatePass
 } from '../data/store'
 import { save } from '../data/persist'
 
@@ -432,6 +433,29 @@ api.post('/jobcards', async (c) => {
   addNotification('job_created', 'info', 'New Job Card Created',
     `${num} opened for ${cust?.name || 'customer'} – ${veh?.make || ''} ${veh?.model || ''} (${veh?.registrationNumber || ''})`,
     { jobCardId: newJob.id, jobCardNumber: num })
+
+  // ── Auto-create Entry Gate Pass ─────────────────────────────────────────────
+  const gpNum = 'GMS-GP-' + new Date().getFullYear() + '-' + String(gatePasses.length + 1).padStart(3, '0')
+  const entryGP: GatePass = {
+    id: 'gp' + genId(),
+    passNumber: gpNum,
+    jobCardId: newJob.id,
+    jobCardNumber: num,
+    vehicleReg: veh?.registrationNumber || body.vehicleReg || '',
+    vehicleMake: veh?.make,
+    vehicleModel: veh?.model,
+    vehicleYear: veh?.year,
+    vehicleColor: veh?.color,
+    customerName: cust?.name || '',
+    customerPhone: cust?.phone,
+    entryTime: ts,
+    status: 'Active',
+    createdAt: ts,
+    updatedAt: ts,
+  }
+  gatePasses.push(entryGP)
+  activityLog.push({ id: 'a' + genId(), jobCardId: newJob.id, action: 'GATE_PASS_ENTRY', description: `Entry Gate Pass ${gpNum} issued`, userId: 'u3', userName: 'System', timestamp: ts })
+
   return c.json(newJob, 201)
 })
 
@@ -487,6 +511,21 @@ api.patch('/jobcards/:id/status', async (c) => {
     isCompleted ? 'Job Completed ✔' : `Status: ${statusLabels[status] || status}`,
     `${jc.jobCardNumber} moved to ${statusLabels[status] || status}`,
     { jobCardId: jc.id, jobCardNumber: jc.jobCardNumber })
+
+  // ── Check if gate pass should move to Pending Exit ───────────────────────
+  if (isCompleted) {
+    const relatedInvoice = invoices.find(i => i.jobCardId === jc.id)
+    const isPaid = relatedInvoice?.status === 'Paid'
+    const gp = gatePasses.find(g => g.jobCardId === jc.id && g.status === 'Active')
+    if (gp && isPaid) {
+      gp.status = 'Pending Exit'
+      gp.updatedAt = ts
+      addNotification('gate_pass_exit_pending', 'warning', 'Exit Gate Pass Pending Approval',
+        `${jc.jobCardNumber} is completed & paid — please approve exit for ${gp.vehicleReg}`,
+        { jobCardId: jc.id, jobCardNumber: jc.jobCardNumber, entityId: gp.id, entityType: 'gate_pass' })
+    }
+  }
+
   return c.json(jobCards[idx])
 })
 
@@ -1028,6 +1067,17 @@ api.patch('/invoices/:id/status', async (c) => {
     addNotification('invoice_paid', 'success', 'Invoice Paid',
       `${inv.invoiceNumber} – TZS ${inv.totalAmount.toLocaleString()} received via ${inv.paymentMethod || 'payment'}${jc ? ' for ' + jc.jobCardNumber : ''}`,
       { jobCardId: jc?.id, jobCardNumber: jc?.jobCardNumber, entityId: inv.id, entityType: 'invoice' })
+    // ── Check gate pass: if job is also COMPLETED, move to Pending Exit ──────
+    if (jc && (jc.status === 'COMPLETED' || jc.status === 'INVOICED' || jc.status === 'RELEASED')) {
+      const gp = gatePasses.find(g => g.jobCardId === jc.id && g.status === 'Active')
+      if (gp) {
+        gp.status = 'Pending Exit'
+        gp.updatedAt = now()
+        addNotification('gate_pass_exit_pending', 'warning', 'Exit Gate Pass Pending Approval',
+          `${jc.jobCardNumber} invoice paid — please approve exit for ${gp.vehicleReg}`,
+          { jobCardId: jc.id, jobCardNumber: jc.jobCardNumber, entityId: gp.id, entityType: 'gate_pass' })
+      }
+    }
   } else if (newStatus === 'Partially Paid') {
     addNotification('invoice_paid', 'info', 'Partial Payment Received',
       `${inv.invoiceNumber} – TZS ${totalAmountPaid.toLocaleString()} of TZS ${inv.totalAmount.toLocaleString()} received${jc ? ' for ' + jc.jobCardNumber : ''}`,
@@ -2270,6 +2320,89 @@ api.delete('/notifications/:id', (c) => {
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
   notifications.splice(idx, 1)
   return c.json({ success: true })
+})
+
+// ─── Gate Passes ─────────────────────────────────────────────────────────────
+
+// GET /gate-passes — list all, with optional status filter
+api.get('/gate-passes', (c) => {
+  const status = c.req.query('status')
+  const list = status ? gatePasses.filter(g => g.status === status) : [...gatePasses]
+  return c.json(list.sort((a, b) => b.createdAt.localeCompare(a.createdAt)))
+})
+
+// GET /gate-passes/summary — counts by status
+api.get('/gate-passes/summary', (c) => {
+  const active       = gatePasses.filter(g => g.status === 'Active').length
+  const pendingExit  = gatePasses.filter(g => g.status === 'Pending Exit').length
+  const cleared      = gatePasses.filter(g => g.status === 'Cleared').length
+  const voided       = gatePasses.filter(g => g.status === 'Voided').length
+  return c.json({ active, pendingExit, cleared, voided, total: gatePasses.length })
+})
+
+// GET /gate-passes/:id
+api.get('/gate-passes/:id', (c) => {
+  const gp = gatePasses.find(g => g.id === c.req.param('id'))
+  if (!gp) return c.json({ error: 'Not found' }, 404)
+  const jc = jobCards.find(j => j.id === gp.jobCardId)
+  return c.json({ ...gp, jobCard: jc || null })
+})
+
+// GET /gate-passes/by-job/:jobCardId — get gate pass for a specific job
+api.get('/gate-passes/by-job/:jobCardId', (c) => {
+  const gp = gatePasses.find(g => g.jobCardId === c.req.param('jobCardId'))
+  if (!gp) return c.json({ error: 'Not found' }, 404)
+  const jc = jobCards.find(j => j.id === gp.jobCardId)
+  return c.json({ ...gp, jobCard: jc || null })
+})
+
+// PATCH /gate-passes/:id/approve — admin approves exit (with signature)
+api.patch('/gate-passes/:id/approve', async (c) => {
+  const idx = gatePasses.findIndex(g => g.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const gp = gatePasses[idx]
+  if (gp.status !== 'Pending Exit') {
+    return c.json({ error: 'Gate pass is not in Pending Exit status' }, 400)
+  }
+  const body = await c.req.json<{ approvedBy: string; signatureData?: string; notes?: string }>()
+  if (!body.approvedBy) return c.json({ error: 'approvedBy is required' }, 400)
+  const ts = now()
+  gatePasses[idx] = {
+    ...gp,
+    status: 'Cleared',
+    approvedBy: body.approvedBy,
+    approvedAt: ts,
+    exitTime: ts,
+    signatureData: body.signatureData,
+    notes: body.notes || gp.notes,
+    updatedAt: ts,
+  }
+  const jc = jobCards.find(j => j.id === gp.jobCardId)
+  activityLog.push({ id: 'a' + genId(), jobCardId: gp.jobCardId, action: 'GATE_PASS_EXIT', description: `Exit Gate Pass ${gp.passNumber} approved by ${body.approvedBy}`, userId: 'u3', userName: body.approvedBy, timestamp: ts })
+  addNotification('gate_pass_cleared', 'success', 'Exit Gate Pass Approved',
+    `${gp.vehicleReg} cleared to exit by ${body.approvedBy}${jc ? ' – ' + jc.jobCardNumber : ''}`,
+    { jobCardId: gp.jobCardId, jobCardNumber: jc?.jobCardNumber, entityId: gp.id, entityType: 'gate_pass' })
+  return c.json(gatePasses[idx])
+})
+
+// PATCH /gate-passes/:id/void — admin voids a gate pass
+api.patch('/gate-passes/:id/void', async (c) => {
+  const idx = gatePasses.findIndex(g => g.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const body = await c.req.json<{ reason?: string; voidedBy?: string }>()
+  const ts = now()
+  gatePasses[idx] = { ...gatePasses[idx], status: 'Voided', voidReason: body.reason, updatedAt: ts }
+  activityLog.push({ id: 'a' + genId(), jobCardId: gatePasses[idx].jobCardId, action: 'GATE_PASS_VOIDED', description: `Gate Pass ${gatePasses[idx].passNumber} voided: ${body.reason || 'No reason given'}`, userId: 'u3', userName: body.voidedBy || 'System', timestamp: ts })
+  return c.json(gatePasses[idx])
+})
+
+// PATCH /gate-passes/:id — update notes
+api.patch('/gate-passes/:id', async (c) => {
+  const idx = gatePasses.findIndex(g => g.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const body = await c.req.json<Partial<GatePass>>()
+  gatePasses[idx] = { ...gatePasses[idx], ...body, id: gatePasses[idx].id, updatedAt: now() }
+  return c.json(gatePasses[idx])
 })
 
 export default api

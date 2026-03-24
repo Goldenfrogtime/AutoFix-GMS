@@ -806,6 +806,42 @@ export const vendors: Vendor[] = []
 // ─── Expenses ───────────────────────────────────────────────────────────────
 export const expenses: Expense[] = []
 
+// ─── Gate Passes ─────────────────────────────────────────────────────────────
+
+export type GatePassStatus = 'Active' | 'Pending Exit' | 'Cleared' | 'Voided'
+
+export interface GatePass {
+  id: string
+  passNumber: string          // GMS-GP-2026-001
+  jobCardId: string
+  jobCardNumber?: string
+  // Vehicle snapshot (denormalised for quick display)
+  vehicleReg: string
+  vehicleMake?: string
+  vehicleModel?: string
+  vehicleYear?: number
+  vehicleColor?: string
+  // Customer snapshot
+  customerName: string
+  customerPhone?: string
+  // Timing
+  entryTime: string           // ISO — set when job card created
+  exitTime?: string           // ISO — set when exit approved
+  // Status
+  status: GatePassStatus
+  // Approval
+  approvedBy?: string
+  approvedAt?: string
+  signatureData?: string      // base64 PNG from canvas
+  // Meta
+  voidReason?: string
+  notes?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export const gatePasses: GatePass[] = []
+
 // ─── Notifications ───────────────────────────────────────────────────────────
 
 export type NotificationType =
@@ -827,6 +863,8 @@ export type NotificationType =
   | 'low_stock'
   | 'parts_added'
   | 'service_added'
+  | 'gate_pass_exit_pending'
+  | 'gate_pass_cleared'
 
 export type NotificationPriority = 'info' | 'success' | 'warning' | 'error'
 

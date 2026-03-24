@@ -249,6 +249,11 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
     <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('vendors')" data-perm="expenses.view">
       <i class="fas fa-store w-5 text-center"></i> Vendors
     </a>
+    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('gate-passes')" data-perm="jobcards.view">
+      <i class="fas fa-id-badge w-5 text-center"></i>
+      <span class="flex-1">Gate Passes</span>
+      <span id="gpNavBadge" class="hidden bg-orange-400 text-white text-xs font-bold rounded-full px-1.5 py-0.5 min-w-[20px] text-center leading-none"></span>
+    </a>
     <p class="text-xs text-blue-300 font-semibold uppercase tracking-widest px-3 pt-3 pb-1">Management</p>
     <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('packages')" data-perm="packages.view">
       <i class="fas fa-box-open w-5 text-center"></i> Service Packages
@@ -1391,6 +1396,55 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         </div>
       </div>
       <div id="vendorsGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
+    </div>
+
+    <!-- ═══ GATE PASSES ═══ -->
+    <div id="page-gate-passes" class="page">
+      <div class="flex flex-wrap items-start justify-between gap-3 mb-6">
+        <div>
+          <h2 class="text-xl sm:text-2xl font-bold text-gray-900"><i class="fas fa-id-badge text-blue-600 mr-2"></i>Gate Passes</h2>
+          <p class="text-gray-500 text-sm mt-1">Vehicle entry & exit control — track every vehicle on the premises</p>
+        </div>
+        <button class="btn-secondary text-sm" onclick="loadGatePasses()"><i class="fas fa-sync-alt mr-1"></i>Refresh</button>
+      </div>
+
+      <!-- Stats Row -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6" id="gpStats"></div>
+
+      <!-- Tabs -->
+      <div class="flex gap-2 mb-5 border-b border-gray-200 pb-0">
+        <button id="gpTab-all"          class="gp-tab px-4 py-2 text-sm font-semibold border-b-2 border-blue-600 text-blue-600 -mb-px"       onclick="setGPTab('all')">All</button>
+        <button id="gpTab-Active"       class="gp-tab px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-500 -mb-px"    onclick="setGPTab('Active')">Active <span id="gpTabCnt-Active" class="ml-1 bg-blue-100 text-blue-700 text-xs px-1.5 rounded-full"></span></button>
+        <button id="gpTab-Pending Exit" class="gp-tab px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-500 -mb-px"    onclick="setGPTab('Pending Exit')">Pending Exit <span id="gpTabCnt-Pending Exit" class="ml-1 bg-orange-100 text-orange-700 text-xs px-1.5 rounded-full"></span></button>
+        <button id="gpTab-Cleared"      class="gp-tab px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-500 -mb-px"    onclick="setGPTab('Cleared')">Cleared <span id="gpTabCnt-Cleared" class="ml-1 bg-green-100 text-green-700 text-xs px-1.5 rounded-full"></span></button>
+        <button id="gpTab-Voided"       class="gp-tab px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-500 -mb-px"    onclick="setGPTab('Voided')">Voided</button>
+      </div>
+
+      <!-- Table -->
+      <div class="card overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Pass #</th>
+                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Vehicle</th>
+                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Customer</th>
+                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Job Card</th>
+                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Entry Time</th>
+                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Exit Time</th>
+                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Status</th>
+                <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="gpTableBody" class="divide-y divide-gray-100"></tbody>
+          </table>
+        </div>
+        <div id="gpEmpty" class="hidden py-16 text-center text-gray-400">
+          <i class="fas fa-id-badge text-5xl mb-3 opacity-30"></i>
+          <p class="font-semibold">No gate passes found</p>
+          <p class="text-sm mt-1">Gate passes are created automatically when a job card is opened</p>
+        </div>
+      </div>
     </div>
 
     <!-- ═══ NOTIFICATIONS ═══ -->
@@ -2624,6 +2678,81 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
   </div>
 </div>
 
+<!-- ═══ APPROVE EXIT GATE PASS MODAL ═══ -->
+<div id="modal-approveGP" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:560px">
+    <div class="flex items-center justify-between mb-5">
+      <div>
+        <h3 class="text-xl font-bold text-gray-900"><i class="fas fa-sign-out-alt text-green-600 mr-2"></i>Approve Exit Gate Pass</h3>
+        <p class="text-sm text-gray-500 mt-1">Review vehicle details and sign to clear exit</p>
+      </div>
+      <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-approveGP')"><i class="fas fa-times"></i></button>
+    </div>
+
+    <!-- Gate Pass Info Card -->
+    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-4 mb-5">
+      <div class="grid grid-cols-2 gap-3 text-sm">
+        <div><p class="text-gray-400 text-xs font-semibold uppercase">Pass Number</p><p class="font-bold text-gray-900 mt-0.5" id="agp-passNum">—</p></div>
+        <div><p class="text-gray-400 text-xs font-semibold uppercase">Job Card</p><p class="font-bold text-gray-900 mt-0.5" id="agp-jobCard">—</p></div>
+        <div><p class="text-gray-400 text-xs font-semibold uppercase">Vehicle Reg</p><p class="font-bold text-blue-700 mt-0.5 text-base" id="agp-reg">—</p></div>
+        <div><p class="text-gray-400 text-xs font-semibold uppercase">Vehicle</p><p class="font-semibold text-gray-800 mt-0.5" id="agp-vehicle">—</p></div>
+        <div><p class="text-gray-400 text-xs font-semibold uppercase">Customer</p><p class="font-semibold text-gray-800 mt-0.5" id="agp-customer">—</p></div>
+        <div><p class="text-gray-400 text-xs font-semibold uppercase">Entry Time</p><p class="font-semibold text-gray-800 mt-0.5" id="agp-entry">—</p></div>
+      </div>
+    </div>
+
+    <!-- Approved By -->
+    <div class="mb-4">
+      <label class="form-label">Approved By <span class="text-red-500">*</span></label>
+      <input type="text" id="agp-approvedBy" class="form-input" placeholder="Enter authorising officer name" />
+    </div>
+
+    <!-- Notes -->
+    <div class="mb-4">
+      <label class="form-label">Notes <span class="text-gray-400 font-normal">(optional)</span></label>
+      <textarea id="agp-notes" class="form-input resize-none" rows="2" placeholder="Any exit remarks..."></textarea>
+    </div>
+
+    <!-- Digital Signature Canvas -->
+    <div class="mb-5">
+      <div class="flex items-center justify-between mb-2">
+        <label class="form-label mb-0">Digital Signature <span class="text-red-500">*</span></label>
+        <button type="button" class="text-xs text-red-500 hover:text-red-700 font-semibold" onclick="clearGPSignature()"><i class="fas fa-eraser mr-1"></i>Clear</button>
+      </div>
+      <div class="border-2 border-dashed border-gray-300 rounded-xl overflow-hidden bg-gray-50 hover:border-blue-400 transition-colors" style="height:140px">
+        <canvas id="gpSignatureCanvas" style="width:100%;height:140px;touch-action:none;cursor:crosshair;display:block"></canvas>
+      </div>
+      <p class="text-xs text-gray-400 mt-1.5"><i class="fas fa-info-circle mr-1"></i>Draw your signature above using mouse or touchscreen</p>
+    </div>
+
+    <div class="flex gap-3">
+      <button class="btn-secondary flex-1" onclick="closeModal('modal-approveGP')">Cancel</button>
+      <button class="btn-primary flex-1 bg-green-600 hover:bg-green-700" id="agp-submitBtn" onclick="submitGPApproval()">
+        <i class="fas fa-check-circle mr-1.5"></i>Approve Exit & Clear
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ VOID GATE PASS MODAL ═══ -->
+<div id="modal-voidGP" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:440px">
+    <div class="flex items-center justify-between mb-5">
+      <h3 class="text-lg font-bold text-gray-900"><i class="fas fa-ban text-red-500 mr-2"></i>Void Gate Pass</h3>
+      <button class="text-gray-400 hover:text-gray-600" onclick="closeModal('modal-voidGP')"><i class="fas fa-times"></i></button>
+    </div>
+    <p class="text-sm text-gray-600 mb-4">This will permanently mark the gate pass as voided. Please provide a reason.</p>
+    <div class="mb-4">
+      <label class="form-label">Reason for Voiding</label>
+      <textarea id="voidGP-reason" class="form-input resize-none" rows="3" placeholder="e.g. Vehicle left without job card, customer turned away..."></textarea>
+    </div>
+    <div class="flex gap-3">
+      <button class="btn-secondary flex-1" onclick="closeModal('modal-voidGP')">Cancel</button>
+      <button class="btn-danger flex-1" onclick="submitVoidGP()"><i class="fas fa-ban mr-1"></i>Void Pass</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ ADD CATALOGUE PART MODAL ═══ -->
 <div id="modal-addCatPart" class="modal-overlay hidden">
   <div class="modal-box" style="--mw:560px">
@@ -3715,6 +3844,7 @@ async function tryAutoLogin() {
 
 function startNotifPolling() {
   if (_notifInterval) clearInterval(_notifInterval);
+  _updateGPNavBadge();
   _notifInterval = setInterval(function() {
     axios.get('/api/notifications/summary').then(function(r) {
       var unread = r.data.unreadCount;
@@ -3729,7 +3859,18 @@ function startNotifPolling() {
         dropBadge.classList.add('hidden');
       }
     }).catch(function(){});
+    _updateGPNavBadge();
   }, 30000);
+}
+
+function _updateGPNavBadge() {
+  axios.get('/api/gate-passes/summary').then(function(r) {
+    var badge = document.getElementById('gpNavBadge');
+    if (!badge) return;
+    var count = (r.data.active || 0) + (r.data.pendingExit || 0);
+    if (count > 0) { badge.textContent = count > 99 ? '99+' : String(count); badge.classList.remove('hidden'); }
+    else { badge.classList.add('hidden'); }
+  }).catch(function(){});
 }
 
 const STATUS_CONFIG = {
@@ -3883,6 +4024,7 @@ function showPage(page) {
   if (page === 'expenses') loadExpenses();
   if (page === 'vendors') loadVendors();
   if (page === 'notifications') loadNotificationsPage();
+  if (page === 'gate-passes') loadGatePasses();
   window.scrollTo(0, 0);
 }
 
@@ -4078,7 +4220,11 @@ function filterJobCards(search) {
 }
 
 async function viewJobDetail(id) {
+  window._currentJobDetailId = id;
   const { data: j } = await axios.get('/api/jobcards/' + id);
+  // Fetch gate pass for this job (best-effort)
+  let _gpDetail = null;
+  try { const r = await axios.get('/api/gate-passes/by-job/' + id); _gpDetail = r.data; } catch(e) {}
   showPage('jobdetail');
   document.getElementById('jobDetailTitle').textContent = j.jobCardNumber;
   document.getElementById('jobDetailSub').textContent = (j.vehicle?.make||'') + ' ' + (j.vehicle?.model||'') + ' · ' + (j.vehicle?.registrationNumber||'') + ' · ' + (j.customer?.name||'');
@@ -4324,6 +4470,36 @@ async function viewJobDetail(id) {
             </button>
           </div>\`}
         </div>\` : ''}
+
+        <!-- Gate Pass Card -->
+        <div class="card p-5 border-l-4 \${_gpDetail ? (_gpDetail.status==='Cleared'?'border-green-400':_gpDetail.status==='Pending Exit'?'border-orange-400':'border-blue-400') : 'border-blue-400'}" id="gatePassCard-\${j.id}">
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="font-bold text-gray-800 text-sm"><i class="fas fa-id-badge text-blue-500 mr-2"></i>Gate Pass</h4>
+            \${_gpDetail ? \`<span class="badge text-xs \${_gpDetail.status==='Cleared'?'bg-green-100 text-green-700':_gpDetail.status==='Pending Exit'?'bg-orange-100 text-orange-700':_gpDetail.status==='Voided'?'bg-red-100 text-red-700':'bg-blue-100 text-blue-700'}">\${_gpDetail.status}</span>\` : '<span class="badge bg-gray-100 text-gray-400 text-xs">Not Found</span>'}
+          </div>
+          \${_gpDetail ? \`
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between"><span class="text-gray-400">Pass #</span><span class="font-mono font-bold text-gray-800">\${_gpDetail.passNumber}</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">Vehicle</span><span class="font-bold text-blue-700">\${_gpDetail.vehicleReg}</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">Entry</span><span class="font-semibold text-gray-700">\${fmtDateTime(_gpDetail.entryTime)}</span></div>
+            \${_gpDetail.exitTime ? \`<div class="flex justify-between"><span class="text-gray-400">Exit</span><span class="font-semibold text-green-700">\${fmtDateTime(_gpDetail.exitTime)}</span></div>\` : ''}
+            \${_gpDetail.approvedBy ? \`<div class="flex justify-between"><span class="text-gray-400">Approved By</span><span class="font-semibold text-gray-700">\${_gpDetail.approvedBy}</span></div>\` : ''}
+          </div>
+          \${_gpDetail.signatureData ? \`
+          <div class="mt-3 pt-3 border-t border-gray-100">
+            <p class="text-xs text-gray-400 mb-1.5 font-semibold uppercase tracking-wide">Authorising Signature</p>
+            <img src="\${_gpDetail.signatureData}" alt="Signature" class="max-h-12 border border-gray-200 rounded-lg bg-white p-1" />
+          </div>\` : ''}
+          <div class="mt-3 pt-3 border-t border-gray-100 flex flex-wrap gap-2">
+            \${_gpDetail.status === 'Pending Exit' ? \`
+              <button class="btn-primary flex-1 text-xs py-1.5 bg-green-600 hover:bg-green-700" onclick="openGPApprovalModal('\${_gpDetail.id}')"><i class="fas fa-sign-out-alt mr-1"></i>Approve Exit</button>
+            \` : ''}
+            <button class="btn-secondary flex-1 text-xs py-1.5" onclick="downloadGatePassPDF('\${_gpDetail.id}')"><i class="fas fa-download mr-1"></i>Download PDF</button>
+            \${_gpDetail.status === 'Active' || _gpDetail.status === 'Pending Exit' ? \`
+              <button class="btn-secondary text-xs py-1.5 px-2 text-red-600 border-red-200 hover:bg-red-50" onclick="openVoidGPModal('\${_gpDetail.id}')"><i class="fas fa-ban"></i></button>
+            \` : ''}
+          </div>\` : '<p class="text-xs text-gray-400 text-center py-4">Gate pass not yet generated</p>'}
+        </div>
 
         <!-- Time Tracking -->
         <div class="card p-5 border-l-4 border-violet-400" id="timeTrackCard-\${j.id}">
@@ -5936,6 +6112,328 @@ async function issueServiceCard() {
   }
 }
 // ═══════════════════════════════════════════════════════════════════
+
+// ─── Gate Pass Functions ──────────────────────────────────────────────────────
+let _currentGPId = null;
+let _gpSignaturePad = null;
+
+function _initGPSignatureCanvas() {
+  const canvas = document.getElementById('gpSignatureCanvas');
+  if (!canvas || canvas._gpInited) return;
+  canvas._gpInited = true;
+  const ctx = canvas.getContext('2d');
+  // Scale canvas to actual display size
+  const rect = canvas.getBoundingClientRect();
+  canvas.width  = rect.width  || 500;
+  canvas.height = rect.height || 140;
+  ctx.strokeStyle = '#1e40af';
+  ctx.lineWidth   = 2.5;
+  ctx.lineCap     = 'round';
+  ctx.lineJoin    = 'round';
+  let drawing = false, lastX = 0, lastY = 0;
+  function getPos(e) {
+    const r = canvas.getBoundingClientRect();
+    const src = e.touches ? e.touches[0] : e;
+    return [src.clientX - r.left, src.clientY - r.top];
+  }
+  canvas.addEventListener('mousedown',  e => { drawing = true; [lastX,lastY] = getPos(e); });
+  canvas.addEventListener('mousemove',  e => { if (!drawing) return; const [x,y] = getPos(e); ctx.beginPath(); ctx.moveTo(lastX,lastY); ctx.lineTo(x,y); ctx.stroke(); [lastX,lastY]=[x,y]; });
+  canvas.addEventListener('mouseup',    () => { drawing = false; });
+  canvas.addEventListener('mouseleave', () => { drawing = false; });
+  canvas.addEventListener('touchstart', e => { e.preventDefault(); drawing = true; [lastX,lastY] = getPos(e); }, { passive:false });
+  canvas.addEventListener('touchmove',  e => { e.preventDefault(); if (!drawing) return; const [x,y] = getPos(e); ctx.beginPath(); ctx.moveTo(lastX,lastY); ctx.lineTo(x,y); ctx.stroke(); [lastX,lastY]=[x,y]; }, { passive:false });
+  canvas.addEventListener('touchend',   () => { drawing = false; });
+}
+
+function clearGPSignature() {
+  const canvas = document.getElementById('gpSignatureCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+function _isGPCanvasEmpty() {
+  const canvas = document.getElementById('gpSignatureCanvas');
+  if (!canvas) return true;
+  const data = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data;
+  for (let i = 3; i < data.length; i += 4) { if (data[i] > 0) return false; }
+  return true;
+}
+
+async function loadGatePasses() {
+  showPage('gate-passes');
+  // Load stats
+  try {
+    const { data: s } = await axios.get('/api/gate-passes/summary');
+    document.getElementById('gpStats').innerHTML = \`
+      <div class="card p-4 text-center border-t-4 border-blue-500">
+        <p class="text-2xl font-bold text-blue-700">\${s.active}</p>
+        <p class="text-sm text-gray-500 mt-1">Active (On Premises)</p>
+      </div>
+      <div class="card p-4 text-center border-t-4 border-orange-400">
+        <p class="text-2xl font-bold text-orange-600">\${s.pendingExit}</p>
+        <p class="text-sm text-gray-500 mt-1">Pending Exit Approval</p>
+      </div>
+      <div class="card p-4 text-center border-t-4 border-green-500">
+        <p class="text-2xl font-bold text-green-700">\${s.cleared}</p>
+        <p class="text-sm text-gray-500 mt-1">Cleared (Exited)</p>
+      </div>
+      <div class="card p-4 text-center border-t-4 border-gray-400">
+        <p class="text-2xl font-bold text-gray-600">\${s.total}</p>
+        <p class="text-sm text-gray-500 mt-1">Total All Time</p>
+      </div>
+    \`;
+    // Update tab counts
+    document.getElementById('gpTabCnt-Active').textContent      = s.active      || '';
+    document.getElementById('gpTabCnt-Pending Exit').textContent = s.pendingExit || '';
+    document.getElementById('gpTabCnt-Cleared').textContent      = s.cleared     || '';
+    // Update sidebar badge
+    const badge = document.getElementById('gpNavBadge');
+    if (badge) { if (s.active + s.pendingExit > 0) { badge.textContent = s.active + s.pendingExit; badge.classList.remove('hidden'); } else { badge.classList.add('hidden'); } }
+  } catch(e) {}
+  // Load table
+  _renderGPTable(window._gpCurrentTab || 'all');
+}
+
+let _gpCurrentTab = 'all';
+function setGPTab(tab) {
+  window._gpCurrentTab = tab;
+  document.querySelectorAll('.gp-tab').forEach(b => {
+    b.classList.toggle('border-blue-600', b.id === 'gpTab-' + tab);
+    b.classList.toggle('text-blue-600',   b.id === 'gpTab-' + tab);
+    b.classList.toggle('border-transparent', b.id !== 'gpTab-' + tab);
+    b.classList.toggle('text-gray-500',   b.id !== 'gpTab-' + tab);
+  });
+  _renderGPTable(tab);
+}
+
+async function _renderGPTable(tab) {
+  const url = tab === 'all' ? '/api/gate-passes' : '/api/gate-passes?status=' + encodeURIComponent(tab);
+  const { data: passes } = await axios.get(url);
+  const tbody = document.getElementById('gpTableBody');
+  const empty = document.getElementById('gpEmpty');
+  if (!passes.length) { tbody.innerHTML = ''; empty.classList.remove('hidden'); return; }
+  empty.classList.add('hidden');
+  const statusCls = { Active:'bg-blue-100 text-blue-700', 'Pending Exit':'bg-orange-100 text-orange-700', Cleared:'bg-green-100 text-green-700', Voided:'bg-red-100 text-red-700' };
+  tbody.innerHTML = passes.map(gp => \`
+    <tr class="table-row">
+      <td class="px-4 py-3 font-mono font-bold text-gray-800 text-xs">\${gp.passNumber}</td>
+      <td class="px-4 py-3">
+        <p class="font-bold text-blue-700">\${gp.vehicleReg}</p>
+        <p class="text-xs text-gray-400">\${[gp.vehicleMake,gp.vehicleModel,gp.vehicleYear].filter(Boolean).join(' ')}</p>
+      </td>
+      <td class="px-4 py-3">
+        <p class="font-semibold text-gray-800">\${gp.customerName}</p>
+        <p class="text-xs text-gray-400">\${gp.customerPhone||''}</p>
+      </td>
+      <td class="px-4 py-3 font-semibold text-gray-700 text-xs">\${gp.jobCardNumber||'—'}</td>
+      <td class="px-4 py-3 text-xs text-gray-600">\${fmtDateTime(gp.entryTime)}</td>
+      <td class="px-4 py-3 text-xs \${gp.exitTime?'text-green-700 font-semibold':'text-gray-400'}">\${gp.exitTime ? fmtDateTime(gp.exitTime) : '—'}</td>
+      <td class="px-4 py-3"><span class="badge text-xs \${statusCls[gp.status]||'bg-gray-100 text-gray-500'}">\${gp.status}</span></td>
+      <td class="px-4 py-3">
+        <div class="flex gap-1.5 flex-wrap">
+          \${gp.jobCardNumber ? \`<button class="text-xs text-blue-600 hover:underline font-semibold" onclick="viewJobDetail('\${gp.jobCardId}')"><i class="fas fa-eye mr-0.5"></i>Job</button>\` : ''}
+          \${gp.status === 'Pending Exit' ? \`<button class="text-xs font-semibold bg-green-600 text-white px-2 py-0.5 rounded-lg hover:bg-green-700" onclick="openGPApprovalModal('\${gp.id}')"><i class="fas fa-sign-out-alt mr-0.5"></i>Approve</button>\` : ''}
+          <button class="text-xs text-gray-500 hover:text-blue-600 font-semibold" onclick="downloadGatePassPDF('\${gp.id}')"><i class="fas fa-download mr-0.5"></i>PDF</button>
+          \${gp.status === 'Active' || gp.status === 'Pending Exit' ? \`<button class="text-xs text-red-500 hover:text-red-700 font-semibold" onclick="openVoidGPModal('\${gp.id}')"><i class="fas fa-ban mr-0.5"></i>Void</button>\` : ''}
+        </div>
+      </td>
+    </tr>
+  \`).join('');
+}
+
+async function openGPApprovalModal(gpId) {
+  _currentGPId = gpId;
+  const { data: gp } = await axios.get('/api/gate-passes/' + gpId);
+  document.getElementById('agp-passNum').textContent   = gp.passNumber;
+  document.getElementById('agp-jobCard').textContent   = gp.jobCardNumber || '—';
+  document.getElementById('agp-reg').textContent       = gp.vehicleReg;
+  document.getElementById('agp-vehicle').textContent   = [gp.vehicleMake,gp.vehicleModel,gp.vehicleYear].filter(Boolean).join(' ') || '—';
+  document.getElementById('agp-customer').textContent  = gp.customerName;
+  document.getElementById('agp-entry').textContent     = fmtDateTime(gp.entryTime);
+  document.getElementById('agp-approvedBy').value = '';
+  document.getElementById('agp-notes').value = '';
+  clearGPSignature();
+  // Reset canvas init flag so it reinits with correct size
+  const canvas = document.getElementById('gpSignatureCanvas');
+  if (canvas) canvas._gpInited = false;
+  openModal('modal-approveGP');
+  setTimeout(_initGPSignatureCanvas, 100);
+}
+
+async function submitGPApproval() {
+  const approvedBy = document.getElementById('agp-approvedBy').value.trim();
+  if (!approvedBy) { showToast('Please enter the authorising officer name', 'error'); document.getElementById('agp-approvedBy').focus(); return; }
+  if (_isGPCanvasEmpty()) { showToast('Please draw your signature to approve', 'error'); return; }
+  const canvas = document.getElementById('gpSignatureCanvas');
+  const signatureData = canvas.toDataURL('image/png');
+  const notes = document.getElementById('agp-notes').value.trim();
+  try {
+    await axios.patch('/api/gate-passes/' + _currentGPId + '/approve', { approvedBy, signatureData, notes });
+    closeModal('modal-approveGP');
+    showToast('Exit Gate Pass approved — vehicle cleared!', 'success');
+    loadGatePasses();
+  } catch(e) {
+    showToast(e?.response?.data?.error || 'Failed to approve gate pass', 'error');
+  }
+}
+
+function openVoidGPModal(gpId) {
+  _currentGPId = gpId;
+  document.getElementById('voidGP-reason').value = '';
+  openModal('modal-voidGP');
+}
+
+async function submitVoidGP() {
+  const reason = document.getElementById('voidGP-reason').value.trim();
+  try {
+    await axios.patch('/api/gate-passes/' + _currentGPId + '/void', { reason });
+    closeModal('modal-voidGP');
+    showToast('Gate pass voided', 'info');
+    if (document.getElementById('page-gate-passes')?.classList.contains('active')) loadGatePasses();
+    else if (window._currentJobDetailId) viewJobDetail(window._currentJobDetailId);
+  } catch(e) {
+    showToast(e?.response?.data?.error || 'Failed to void gate pass', 'error');
+  }
+}
+
+function downloadGatePassPDF(gpId) {
+  axios.get('/api/gate-passes/' + gpId).then(({ data: gp }) => _buildGatePassPDF(gp));
+}
+
+function _buildGatePassPDF(gp) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a5' });
+  const pageW = 148, pageH = 210, margin = 14;
+  let y = 0;
+
+  // ── Header ────────────────────────────────────────────────────────────────
+  const hdrColor = gp.status === 'Cleared' ? [22, 163, 74] : gp.status === 'Pending Exit' ? [234, 88, 12] : [29, 78, 216];
+  doc.setFillColor(...hdrColor);
+  doc.rect(0, 0, pageW, 32, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(14); doc.setFont('helvetica', 'bold');
+  doc.text('AUTOFIX GMS', margin, 12);
+  doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+  doc.text('Garage Management System', margin, 18);
+  doc.setFontSize(11); doc.setFont('helvetica', 'bold');
+  doc.text('GATE PASS', pageW - margin, 12, { align: 'right' });
+  doc.setFontSize(8); doc.setFont('helvetica', 'normal');
+  doc.text(gp.passNumber, pageW - margin, 18, { align: 'right' });
+  y = 40;
+
+  // ── Status Banner ─────────────────────────────────────────────────────────
+  const bannerColor = gp.status === 'Cleared' ? [220, 252, 231] : gp.status === 'Pending Exit' ? [255, 237, 213] : [219, 234, 254];
+  const bannerText  = gp.status === 'Cleared' ? [21, 128, 61]   : gp.status === 'Pending Exit' ? [194, 65, 12]  : [29, 78, 216];
+  doc.setFillColor(...bannerColor);
+  doc.roundedRect(margin, y, pageW - margin * 2, 10, 2, 2, 'F');
+  doc.setTextColor(...bannerText);
+  doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+  doc.text(gp.status.toUpperCase(), pageW / 2, y + 6.5, { align: 'center' });
+  y += 17;
+
+  // ── Vehicle Info ──────────────────────────────────────────────────────────
+  doc.setTextColor(30, 30, 30);
+  doc.setFontSize(8); doc.setFont('helvetica', 'bold');
+  doc.text('VEHICLE INFORMATION', margin, y); y += 6;
+  doc.setDrawColor(200, 200, 200); doc.line(margin, y, pageW - margin, y); y += 4;
+  const vehicleRows = [
+    ['Registration', gp.vehicleReg],
+    ['Make / Model', [gp.vehicleMake, gp.vehicleModel, gp.vehicleYear].filter(Boolean).join(' ') || '—'],
+    ['Colour', gp.vehicleColor || '—'],
+    ['Job Card', gp.jobCardNumber || '—'],
+  ];
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+  vehicleRows.forEach(([label, value]) => {
+    doc.setTextColor(120, 120, 120); doc.text(label, margin, y);
+    doc.setTextColor(30, 30, 30); doc.setFont('helvetica', 'bold'); doc.text(String(value), 55, y);
+    doc.setFont('helvetica', 'normal');
+    y += 6;
+  });
+  y += 4;
+
+  // ── Customer Info ─────────────────────────────────────────────────────────
+  doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 30, 30);
+  doc.text('CUSTOMER INFORMATION', margin, y); y += 6;
+  doc.setDrawColor(200, 200, 200); doc.line(margin, y, pageW - margin, y); y += 4;
+  const custRows = [['Name', gp.customerName], ['Phone', gp.customerPhone || '—']];
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+  custRows.forEach(([label, value]) => {
+    doc.setTextColor(120, 120, 120); doc.text(label, margin, y);
+    doc.setTextColor(30, 30, 30); doc.setFont('helvetica', 'bold'); doc.text(String(value), 55, y);
+    doc.setFont('helvetica', 'normal');
+    y += 6;
+  });
+  y += 4;
+
+  // ── Timing ────────────────────────────────────────────────────────────────
+  doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 30, 30);
+  doc.text('ENTRY / EXIT TIMING', margin, y); y += 6;
+  doc.setDrawColor(200, 200, 200); doc.line(margin, y, pageW - margin, y); y += 4;
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(120, 120, 120); doc.text('Entry Time', margin, y);
+  doc.setTextColor(30, 30, 30); doc.setFont('helvetica', 'bold'); doc.text(fmtDateTime(gp.entryTime), 55, y); y += 6;
+  doc.setFont('helvetica', 'normal');
+  if (gp.exitTime) {
+    doc.setTextColor(120, 120, 120); doc.text('Exit Time', margin, y);
+    doc.setTextColor(22, 163, 74); doc.setFont('helvetica', 'bold'); doc.text(fmtDateTime(gp.exitTime), 55, y); y += 6;
+    doc.setFont('helvetica', 'normal');
+  }
+  if (gp.approvedBy) {
+    doc.setTextColor(120, 120, 120); doc.text('Approved By', margin, y);
+    doc.setTextColor(30, 30, 30); doc.setFont('helvetica', 'bold'); doc.text(gp.approvedBy, 55, y); y += 6;
+    doc.setFont('helvetica', 'normal');
+    if (gp.approvedAt) {
+      doc.setTextColor(120, 120, 120); doc.text('Approved At', margin, y);
+      doc.setTextColor(30, 30, 30); doc.setFont('helvetica', 'bold'); doc.text(fmtDateTime(gp.approvedAt), 55, y); y += 6;
+      doc.setFont('helvetica', 'normal');
+    }
+  }
+  y += 4;
+
+  // ── Signature ─────────────────────────────────────────────────────────────
+  if (gp.signatureData) {
+    doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 30, 30);
+    doc.text('AUTHORISING SIGNATURE', margin, y); y += 6;
+    doc.setDrawColor(200, 200, 200); doc.line(margin, y, pageW - margin, y); y += 4;
+    try {
+      doc.addImage(gp.signatureData, 'PNG', margin, y, 60, 20);
+    } catch(e) {}
+    y += 26;
+  } else {
+    // Blank signature box
+    doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(30, 30, 30);
+    doc.text('AUTHORISING SIGNATURE', margin, y); y += 6;
+    doc.setDrawColor(180, 180, 180);
+    doc.setFillColor(248, 248, 248);
+    doc.roundedRect(margin, y, 80, 22, 2, 2, 'FD'); y += 28;
+  }
+
+  // ── Notes ─────────────────────────────────────────────────────────────────
+  if (gp.notes) {
+    doc.setFontSize(7); doc.setFont('helvetica', 'italic'); doc.setTextColor(100, 100, 100);
+    doc.text('Notes: ' + gp.notes, margin, y); y += 6;
+  }
+
+  // ── QR Placeholder ────────────────────────────────────────────────────────
+  const qrY = pageH - 30;
+  doc.setFillColor(240, 240, 240);
+  doc.roundedRect(pageW - margin - 22, qrY - 4, 22, 22, 2, 2, 'F');
+  doc.setFontSize(6); doc.setTextColor(150, 150, 150); doc.setFont('helvetica', 'normal');
+  doc.text('QR', pageW - margin - 11, qrY + 8, { align: 'center' });
+  doc.text(gp.passNumber, pageW - margin - 11, qrY + 14, { align: 'center' });
+
+  // ── Footer ────────────────────────────────────────────────────────────────
+  doc.setFillColor(...hdrColor);
+  doc.rect(0, pageH - 10, pageW, 10, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(7); doc.setFont('helvetica', 'normal');
+  doc.text('AutoFix GMS  |  www.autofixgms.co.tz  |  +255 700 000 000', pageW / 2, pageH - 4, { align: 'center' });
+
+  doc.save('GatePass-' + gp.passNumber + '.pdf');
+}
+
+// ─── End Gate Pass Functions ──────────────────────────────────────────────────
 
 async function confirmReopenJob() {
   const reason = document.getElementById('reopenReasonInput').value.trim();
