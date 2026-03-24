@@ -1464,8 +1464,20 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
     </div>
     <form id="newJobForm" onsubmit="submitNewJob(event)">
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-        <div><label class="form-label">Customer</label><select class="form-input" id="job-customerId" onchange="loadCustomerVehicles()" required><option value="">Select customer…</option></select></div>
-        <div><label class="form-label">Vehicle</label><select class="form-input" id="job-vehicleId" required><option value="">Select vehicle…</option></select></div>
+        <div>
+          <label class="form-label">Customer <span class="text-red-500">*</span></label>
+          <div class="relative" id="jobCustPickerWrap">
+            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"><i class="fas fa-search text-xs"></i></span>
+            <input type="text" id="job-customer-search" class="form-input pl-8 pr-8" placeholder="Search by name or phone…" autocomplete="off"
+              oninput="jobCustSearch(this.value)" onfocus="jobCustSearch(this.value)" onblur="setTimeout(()=>jobCustHideList(),180)"/>
+            <button type="button" id="job-customer-clear" class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 hidden" onclick="jobCustClear()">
+              <i class="fas fa-times-circle"></i>
+            </button>
+            <input type="hidden" id="job-customerId"/>
+            <ul id="job-customer-list" class="absolute z-50 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-56 overflow-y-auto hidden"></ul>
+          </div>
+        </div>
+        <div><label class="form-label">Vehicle <span class="text-red-500">*</span></label><select class="form-input" id="job-vehicleId" required><option value="">Select vehicle…</option></select></div>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <div><label class="form-label">Job Category</label><select class="form-input" id="job-category" onchange="toggleInsuranceFields()" required><option>Insurance</option><option>Private</option></select></div>
@@ -5323,7 +5335,8 @@ async function updateJobStatus(jobId, status) {
 async function showNewJobModal() {
   const [custs, techs] = await Promise.all([axios.get('/api/customers'), axios.get('/api/users')]);
   allCustomers = custs.data; allVehicles = (await axios.get('/api/vehicles')).data;
-  document.getElementById('job-customerId').innerHTML = '<option value="">Select customer…</option>' + custs.data.map(c => \`<option value="\${c.id}">\${c.name}</option>\`).join('');
+  // Reset customer picker
+  jobCustClear();
   document.getElementById('job-technician').innerHTML = '<option value="">Select…</option>' + techs.data.filter(u => u.role === 'Technician').map(u => \`<option value="\${u.id}">\${u.name}</option>\`).join('');
   // Reset fuel level buttons to unselected state
   document.getElementById('job-fuelLevel').value = '';
@@ -5336,8 +5349,61 @@ async function showNewJobModal() {
   openModal('modal-newJob');
 }
 
-function loadCustomerVehicles() {
-  const custId = document.getElementById('job-customerId').value;
+// ── Customer picker helpers for New Job modal ─────────────────────────────────
+function jobCustSearch(q) {
+  const list = document.getElementById('job-customer-list');
+  const term = (q || '').toLowerCase().trim();
+  const matches = allCustomers.filter(c =>
+    c.name.toLowerCase().includes(term) ||
+    (c.phone || '').toLowerCase().includes(term) ||
+    (c.companyName || '').toLowerCase().includes(term)
+  ).slice(0, 10);
+  if (!matches.length) { list.innerHTML = '<li class="px-4 py-3 text-sm text-gray-400 italic">No customers found</li>'; list.classList.remove('hidden'); return; }
+  list.innerHTML = matches.map(c => {
+    const initials = c.name.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
+    const sub = c.companyName ? c.companyName : (c.phone || '');
+    return '<li class="flex items-center gap-3 px-3 py-2.5 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-0" data-cid="' + c.id + '" data-cname="' + escAttr(c.name) + '">' +
+      '<div class="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold shrink-0">' + initials + '</div>' +
+      '<div class="min-w-0"><p class="text-sm font-semibold text-gray-800 truncate">' + escHtml(c.name) + '</p>' +
+      '<p class="text-xs text-gray-400 truncate">' + escHtml(sub) + '</p></div>' +
+      '<span class="ml-auto text-xs px-2 py-0.5 rounded-full ' + (c.customerType === 'Corporate' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500') + '">' + (c.customerType || 'Individual') + '</span>' +
+      '</li>';
+  }).join('');
+  // attach click handlers
+  list.querySelectorAll('li[data-cid]').forEach(function(li) {
+    li.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      jobCustSelect(li.dataset.cid, li.dataset.cname);
+    });
+  });
+  list.classList.remove('hidden');
+}
+
+function jobCustSelect(id, name) {
+  document.getElementById('job-customerId').value = id;
+  document.getElementById('job-customer-search').value = name;
+  document.getElementById('job-customer-clear').classList.remove('hidden');
+  document.getElementById('job-customer-list').classList.add('hidden');
+  // load vehicles for this customer
+  loadCustomerVehicles(id);
+}
+
+function jobCustClear() {
+  document.getElementById('job-customerId').value = '';
+  document.getElementById('job-customer-search').value = '';
+  document.getElementById('job-customer-clear').classList.add('hidden');
+  document.getElementById('job-customer-list').classList.add('hidden');
+  document.getElementById('job-vehicleId').innerHTML = '<option value="">Select vehicle…</option>';
+}
+
+function jobCustHideList() {
+  document.getElementById('job-customer-list').classList.add('hidden');
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+function loadCustomerVehicles(custId) {
+  custId = custId || document.getElementById('job-customerId').value;
+  if (!custId) { document.getElementById('job-vehicleId').innerHTML = '<option value="">Select vehicle…</option>'; return; }
   const cvs = allVehicles.filter(v => v.customerId === custId);
   document.getElementById('job-vehicleId').innerHTML = '<option value="">Select vehicle…</option>' + cvs.map(v => \`<option value="\${v.id}">\${v.registrationNumber} – \${v.make} \${v.model}</option>\`).join('');
 }
@@ -5363,6 +5429,14 @@ function selectFuelLevel(level) {
 
 async function submitNewJob(e) {
   e.preventDefault();
+  // Validate customer picker (hidden input — not covered by HTML5 required)
+  if (!document.getElementById('job-customerId').value) {
+    document.getElementById('job-customer-search').focus();
+    document.getElementById('job-customer-search').classList.add('border-red-400');
+    showToast('Please select a customer', 'error');
+    return;
+  }
+  document.getElementById('job-customer-search').classList.remove('border-red-400');
   const cat = document.getElementById('job-category').value;
   const mileageVal = document.getElementById('job-mileage').value;
   const fuelVal    = document.getElementById('job-fuelLevel').value;
@@ -5384,6 +5458,7 @@ async function submitNewJob(e) {
   const { data } = await axios.post('/api/jobcards', payload);
   closeModal('modal-newJob');
   document.getElementById('newJobForm').reset();
+  jobCustClear(); // reset customer picker hidden state
   // Reset fuel level buttons
   const _fuelCols2 = { 'Empty': 'red', '1/4': 'orange', '1/2': 'amber', '3/4': 'green', 'Full': 'emerald' };
   document.querySelectorAll('#fuelLevelBtns .fuel-btn').forEach(function(btn) {
