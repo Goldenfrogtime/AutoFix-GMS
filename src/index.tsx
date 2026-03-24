@@ -4221,11 +4221,15 @@ async function viewJobDetail(id) {
               const _disc         = j.pfi.discountAmount || 0;
               const _discReason   = j.pfi.discountReason || '';
               const _total        = Math.max(0, _subtotal - _disc);
+              const _tax        = Math.round(_total * 0.18);
+              const _grandTotal = _total + _tax;
               return \`<div class="space-y-2 text-sm">
                 <div class="flex justify-between"><span class="text-gray-400">Labour</span><span class="font-semibold">\${fmt(_labour)}</span></div>
                 <div class="flex justify-between"><span class="text-gray-400">Services + Parts</span><span class="font-semibold">\${fmt(_liveBillable)}</span></div>
                 \${_disc > 0 ? '<div class=\\"flex justify-between text-green-600\\"><span class=\\"flex items-center gap-1\\"><i class=\\"fas fa-tag text-xs\\"></i>Discount'+(_discReason ? ' <span class=\\"text-xs text-green-500\\">('+_discReason+')</span>' : '')+'</span><span class=\\"font-semibold\\">− '+fmt(_disc)+'</span></div>' : ''}
-                <div class="flex justify-between border-t pt-2 font-bold"><span>Total Estimate</span><span class="text-blue-600">\${fmt(_total)}</span></div>
+                <div class="flex justify-between border-t pt-1 mt-1 text-gray-500"><span>Total Estimate</span><span class="font-medium">\${fmt(_total)}</span></div>
+                <div class="flex justify-between text-orange-600"><span class="flex items-center gap-1"><i class="fas fa-percent text-xs"></i>Tax / VAT (18%)</span><span class="font-semibold">\${fmt(_tax)}</span></div>
+                <div class="flex justify-between border-t pt-2 font-bold"><span>Grand Total</span><span class="text-blue-600">\${fmt(_grandTotal)}</span></div>
               </div>\`;
             })()}
             <div class="mt-3 flex items-center justify-between">
@@ -4695,9 +4699,17 @@ async function showPFIModal(jobId, category) {
             <span><i class="fas fa-tag mr-1 text-xs"></i>Discount</span>
             <span id="pfi-disc-amount-display" class="font-semibold">— TZS 0</span>
           </div>
+          <div class="flex justify-between text-gray-600 border-t border-blue-200 pt-1 mt-1">
+            <span>Total Estimate (before tax)</span>
+            <span id="pfi-total-display" class="font-medium text-gray-700"></span>
+          </div>
+          <div class="flex justify-between text-orange-600">
+            <span><i class="fas fa-percent mr-1 text-xs"></i>Tax / VAT (18%)</span>
+            <span id="pfi-tax-display" class="font-semibold"></span>
+          </div>
           <div class="flex justify-between font-bold text-gray-800 border-t border-blue-200 pt-1 mt-1">
-            <span>Total Estimate</span>
-            <span id="pfi-total-display" class="text-blue-700 text-base"></span>
+            <span>Grand Total (incl. Tax)</span>
+            <span id="pfi-grand-total-display" class="text-blue-700 text-base"></span>
           </div>
         </div>
       </div>
@@ -4737,6 +4749,8 @@ async function showPFIModal(jobId, category) {
       discountAmount = Math.min(Math.round(discValue), subtotal);
     }
     const totalEstimate = Math.max(0, subtotal - discountAmount);
+    const tax           = Math.round(totalEstimate * 0.18);
+    const totalAmount   = totalEstimate + tax;
     const initialStatus = isInsurance ? 'Submitted' : 'Draft';
     await axios.post('/api/jobcards/' + jobId + '/pfi', {
       labourCost: l,
@@ -4746,6 +4760,8 @@ async function showPFIModal(jobId, category) {
       discountAmount,
       discountReason: discReason || undefined,
       totalEstimate,
+      tax,
+      totalAmount,
       status: initialStatus,
       notes: document.getElementById('pfi-notes').value
     });
@@ -4793,15 +4809,22 @@ function pfiCalcTotal() {
   const total = Math.max(0, subtotal - discountAmount);
 
   // Update display elements
+  const tax = Math.round(total * 0.18);
+  const grandTotal = total + tax;
+
   var subEl   = document.getElementById('pfi-subtotal-display');
   var discLine = document.getElementById('pfi-disc-line');
   var discAmt  = document.getElementById('pfi-disc-amount-display');
   var totDisp  = document.getElementById('pfi-total-display');
+  var taxDisp  = document.getElementById('pfi-tax-display');
+  var grandDisp = document.getElementById('pfi-grand-total-display');
   var preview  = document.getElementById('pfi-disc-preview');
   var hiddenTotal = document.getElementById('pfi-total');
 
-  if (subEl)    subEl.textContent = fmt(subtotal);
-  if (totDisp)  totDisp.textContent = fmt(total);
+  if (subEl)     subEl.textContent = fmt(subtotal);
+  if (totDisp)   totDisp.textContent = fmt(total);
+  if (taxDisp)   taxDisp.textContent = fmt(tax);
+  if (grandDisp) grandDisp.textContent = fmt(grandTotal);
   if (hiddenTotal) hiddenTotal.value = String(total);
 
   if (discountAmount > 0) {
@@ -7008,11 +7031,33 @@ function buildPFIDoc(detail) {
     y += 8;
   };
   y += 2;
-  drawRow('Labour Cost',      fmt(pfi.labourCost),    false, false);
-  drawRow('Parts / Materials', fmt(pfi.partsCost),    false, false);
+  drawRow('Labour Cost',        fmt(pfi.labourCost),    false, false);
+  drawRow('Parts / Materials',  fmt(pfi.partsCost),    false, false);
+  if ((pfi.discountAmount || 0) > 0) {
+    // divider before discount
+    doc.setDrawColor(226, 232, 240); doc.line(sumX, y, sumX + sumW, y); y += 3;
+    // green discount row
+    doc.setFillColor(240, 253, 244); doc.rect(sumX, y, sumW, 8, 'F');
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(22, 163, 74);
+    const discLabel = pfi.discountReason ? 'Discount (' + pfi.discountReason + ')' : 'Discount';
+    doc.text(discLabel, sumX + 4, y + 5.5);
+    doc.text('- ' + fmt(pfi.discountAmount), sumX + sumW - 3, y + 5.5, { align: 'right' });
+    y += 8;
+  }
   // divider
   doc.setDrawColor(226, 232, 240); doc.line(sumX, y, sumX + sumW, y); y += 3;
-  drawRow('TOTAL ESTIMATE',   fmt(pfi.totalEstimate), true,  true);
+  drawRow('Total Estimate',     fmt(pfi.totalEstimate), false, false);
+  // orange tax row
+  doc.setFillColor(255, 247, 237); doc.rect(sumX, y, sumW, 8, 'F');
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(194, 120, 3);
+  const taxAmt = pfi.tax != null ? pfi.tax : Math.round(pfi.totalEstimate * 0.18);
+  const grandTotal = pfi.totalAmount != null ? pfi.totalAmount : pfi.totalEstimate + taxAmt;
+  doc.text('Tax / VAT (18%)', sumX + 4, y + 5.5);
+  doc.text(fmt(taxAmt), sumX + sumW - 3, y + 5.5, { align: 'right' });
+  y += 8;
+  // divider
+  doc.setDrawColor(226, 232, 240); doc.line(sumX, y, sumX + sumW, y); y += 3;
+  drawRow('GRAND TOTAL',        fmt(grandTotal),        true,  true);
   y += 4;
 
   // ── Notes ──
@@ -7074,8 +7119,17 @@ function buildPFITextPreview(detail) {
   }
   t += '  Labour:         ' + fmt(pfi.labourCost) + NL;
   t += '  Services+Parts: ' + fmt(pfi.partsCost) + NL;
+  if ((pfi.discountAmount || 0) > 0) {
+    const discNote = pfi.discountReason ? ' (' + pfi.discountReason + ')' : '';
+    t += '  Discount' + discNote + ': -' + fmt(pfi.discountAmount) + NL;
+  }
   t += '  ' + dash25 + NL;
-  t += '  TOTAL ESTIMATE: ' + fmt(pfi.totalEstimate) + NL;
+  const _taxAmt2     = pfi.tax != null ? pfi.tax : Math.round(pfi.totalEstimate * 0.18);
+  const _grandTotal2 = pfi.totalAmount != null ? pfi.totalAmount : pfi.totalEstimate + _taxAmt2;
+  t += '  Total Estimate: ' + fmt(pfi.totalEstimate) + NL;
+  t += '  Tax/VAT (18%):  ' + fmt(_taxAmt2) + NL;
+  t += '  ' + dash25 + NL;
+  t += '  GRAND TOTAL:    ' + fmt(_grandTotal2) + NL;
   if (pfi.notes) t += NL + 'Notes: ' + pfi.notes + NL;
   t += line + NL;
   t += 'This is a Pro Forma Invoice, not a tax invoice.' + NL;
@@ -7160,7 +7214,9 @@ async function showSendPFIModal(pfiId) {
       <div><span class="text-gray-500">Vehicle:</span> <strong>\${_currentPFIDetail.vehicle?.registrationNumber||'—'}</strong></div>
       <div><span class="text-gray-500">Labour:</span> <strong>\${fmt(pfi.labourCost)}</strong></div>
       <div><span class="text-gray-500">Services+Parts:</span> <strong>\${fmt(pfi.partsCost)}</strong></div>
-      <div><span class="text-gray-500">Total:</span> <strong class="text-blue-700">\${fmt(pfi.totalEstimate)}</strong></div>
+      <div><span class="text-gray-500">Total Estimate:</span> <strong>\${fmt(pfi.totalEstimate)}</strong></div>
+      <div><span class="text-gray-500">Tax / VAT (18%):</span> <strong class="text-orange-600">\${fmt(pfi.tax||Math.round(pfi.totalEstimate*0.18))}</strong></div>
+      <div><span class="text-gray-500">Grand Total:</span> <strong class="text-blue-700">\${fmt(pfi.totalAmount||(pfi.totalEstimate+Math.round(pfi.totalEstimate*0.18)))}</strong></div>
     </div>
     \${servicesBreakdownHtml}
     \${partsBreakdownHtml}
@@ -7205,6 +7261,8 @@ Summary:
   Labour Cost:    \${fmt(pfi.labourCost)}
   Services+Parts: \${fmt(pfi.partsCost)}
   Total Estimate: \${fmt(pfi.totalEstimate)}
+  Tax/VAT (18%):  \${fmt(pfi.tax||Math.round(pfi.totalEstimate*0.18))}
+  Grand Total:    \${fmt(pfi.totalAmount||(pfi.totalEstimate+Math.round(pfi.totalEstimate*0.18)))}
 
 \${pfi.notes ? 'Notes: ' + pfi.notes + '\\n\\n' : ''}\${closingLine}
 
@@ -7319,7 +7377,9 @@ function renderClaims(pfis) {
           <div class="flex justify-between text-sm mb-1"><span class="text-gray-500">Labour</span><span class="font-semibold">\${fmt(pfi.labourCost)}</span></div>
           <div class="flex justify-between text-sm mb-1"><span class="text-gray-500">Parts Total</span><span class="font-semibold">\${fmt(pfi.partsCost)}</span></div>
           \${(pfi.discountAmount||0) > 0 ? \`<div class="flex justify-between text-sm mb-1 text-green-600"><span class="flex items-center gap-1"><i class="fas fa-tag text-xs"></i>Discount\${pfi.discountReason ? ' <span class="text-xs">('+pfi.discountReason+')</span>' : ''}</span><span class="font-semibold">− \${fmt(pfi.discountAmount)}</span></div>\` : ''}
-          <div class="flex justify-between text-sm font-bold border-t pt-2"><span>Total Estimate</span><span class="text-blue-600">\${fmt(pfi.totalEstimate)}</span></div>
+          <div class="flex justify-between text-sm border-t pt-1 mt-1 text-gray-500"><span>Total Estimate</span><span class="font-medium">\${fmt(pfi.totalEstimate)}</span></div>
+          <div class="flex justify-between text-sm text-orange-600"><span class="flex items-center gap-1"><i class="fas fa-percent text-xs"></i>Tax / VAT (18%)</span><span class="font-semibold">\${fmt(pfi.tax||Math.round(pfi.totalEstimate*0.18))}</span></div>
+          <div class="flex justify-between text-sm font-bold border-t pt-2"><span>Grand Total</span><span class="text-blue-600">\${fmt(pfi.totalAmount||(pfi.totalEstimate+Math.round(pfi.totalEstimate*0.18)))}</span></div>
         </div>
         \${pfi.notes ? \`<p class="text-xs text-gray-500 mb-3 italic">"\${pfi.notes}"</p>\` : ''}
         \${pfi.sentAt ? \`<p class="text-xs text-green-600 mb-2"><i class="fas fa-check-circle mr-1"></i>Sent to <strong>\${pfi.sentTo||'customer'}</strong> on \${new Date(pfi.sentAt).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</p>\` : ''}

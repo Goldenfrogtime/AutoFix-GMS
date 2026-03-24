@@ -191,11 +191,16 @@ function syncJobFinancials(jobCardId: string) {
     } else {
       discountAmount = pfi.discountAmount || 0
     }
+    const pfiTotalEstimate = Math.max(0, subtotal - discountAmount)
+    const pfiTax           = Math.round(pfiTotalEstimate * 0.18)
+    const pfiTotalAmount   = pfiTotalEstimate + pfiTax
     pfis[pfiIdx] = {
       ...pfi,
       partsCost:     liveBillable,
       discountAmount,
-      totalEstimate: Math.max(0, subtotal - discountAmount),
+      totalEstimate: pfiTotalEstimate,
+      tax:           pfiTax,
+      totalAmount:   pfiTotalAmount,
     }
   }
 
@@ -586,6 +591,8 @@ api.post('/jobcards/:id/pfi', async (c) => {
     discountAmount = Math.min(Math.round(body.discountValue), subtotal)
   }
   const totalEstimate = Math.max(0, subtotal - discountAmount)
+  const tax           = Math.round(totalEstimate * 0.18)
+  const totalAmount   = totalEstimate + tax
 
   const newPFI: PFI = {
     ...body,
@@ -593,6 +600,8 @@ api.post('/jobcards/:id/pfi', async (c) => {
     jobCardId: c.req.param('id'),
     discountAmount,
     totalEstimate,
+    tax,
+    totalAmount,
     createdAt: ts
   }
   pfis.push(newPFI)
@@ -633,6 +642,8 @@ api.patch('/pfi/:id', async (c) => {
     }
     merged.discountAmount = discountAmount
     merged.totalEstimate = Math.max(0, subtotal - discountAmount)
+    merged.tax         = Math.round(merged.totalEstimate * 0.18)
+    merged.totalAmount = merged.totalEstimate + merged.tax
   }
   pfis[idx] = merged
   return c.json(pfis[idx])

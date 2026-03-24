@@ -257,6 +257,8 @@ export interface PFI {
   discountAmount?: number                 // resolved discount in TZS (always)
   discountReason?: string                 // optional note e.g. "Loyal customer"
   totalEstimate: number                   // (labour + parts) − discount
+  tax: number                             // 18% VAT on totalEstimate
+  totalAmount: number                     // totalEstimate + tax
   status: PFIStatus
   notes?: string
   sentAt?: string     // ISO timestamp when last emailed
