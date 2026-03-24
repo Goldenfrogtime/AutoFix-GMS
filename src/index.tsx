@@ -2472,6 +2472,11 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         <p class="text-sm text-gray-500 mt-1">Add a new part to the catalogue</p></div>
       <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-addCatPart')"><i class="fas fa-times"></i></button>
     </div>
+    <!-- Batch auto-gen notice -->
+    <div class="flex items-center gap-2.5 mb-4 px-3 py-2.5 bg-indigo-50 border border-indigo-100 rounded-xl">
+      <i class="fas fa-barcode text-indigo-400 text-sm"></i>
+      <p class="text-xs text-indigo-700"><span class="font-semibold">Batch # is auto-generated</span> by the system when this part is saved.</p>
+    </div>
     <div class="grid grid-cols-1 gap-4">
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
@@ -2634,6 +2639,11 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-lubricant')"><i class="fas fa-times"></i></button>
     </div>
     <input type="hidden" id="lub-id"/>
+    <!-- Batch # auto-gen notice (Add mode) -->
+    <div id="lub-batchAutoNotice" class="flex items-center gap-2.5 mb-3 px-3 py-2.5 bg-indigo-50 border border-indigo-100 rounded-xl">
+      <i class="fas fa-barcode text-indigo-400 text-sm"></i>
+      <p class="text-xs text-indigo-700"><span class="font-semibold">Batch # is auto-generated</span> by the system when this lubricant is saved.</p>
+    </div>
     <!-- System-generated batch number (read-only, shown in edit mode) -->
     <div id="lub-batchRow" class="hidden mb-3 flex items-center gap-3 p-2.5 bg-gray-50 rounded-xl border border-gray-100">
       <i class="fas fa-barcode text-gray-400 text-sm"></i>
@@ -9228,6 +9238,7 @@ function showAddLubricantModal() {
   document.getElementById('lub-intervalRow').classList.add('hidden');
   document.getElementById('lub-marginPreview').classList.add('hidden');
   document.getElementById('lub-batchRow').classList.add('hidden');
+  document.getElementById('lub-batchAutoNotice').classList.remove('hidden');
   openModal('modal-lubricant');
 }
 
@@ -9247,12 +9258,15 @@ function showEditLubricantModal(id) {
   document.getElementById('lub-stock').value       = l.stockQuantity || 0;
   document.getElementById('lub-interval').value   = l.mileageInterval || '';
   document.getElementById('lub-serial').value      = l.partSerialNumber || '';
-  // Show batch number (read-only)
+  // Hide the add-mode notice and show batch number (read-only)
+  document.getElementById('lub-batchAutoNotice').classList.add('hidden');
   if (l.batchNumber) {
     document.getElementById('lub-batchDisplay').textContent = l.batchNumber;
     document.getElementById('lub-batchRow').classList.remove('hidden');
   } else {
-    document.getElementById('lub-batchRow').classList.add('hidden');
+    // Pre-seeded items without batch; show pending notice
+    document.getElementById('lub-batchDisplay').textContent = 'Assigned on next save';
+    document.getElementById('lub-batchRow').classList.remove('hidden');
   }
   lubTypeChanged(); // show/hide interval row based on type
   lubCalcMargin();
@@ -10317,13 +10331,9 @@ function showEditCataloguePartModal(id) {
   document.getElementById('ecp-serial').value = p.partSerialNumber || '';
   document.getElementById('ecp-buy').value = p.buyingPrice;
   document.getElementById('ecp-sell').value = p.sellingPrice;
-  // Show batch number (read-only)
-  if (p.batchNumber) {
-    document.getElementById('ecp-batchDisplay').textContent = p.batchNumber;
-    document.getElementById('ecp-batchRow').classList.remove('hidden');
-  } else {
-    document.getElementById('ecp-batchRow').classList.add('hidden');
-  }
+  // Show batch number (read-only) — always visible in Edit mode
+  document.getElementById('ecp-batchDisplay').textContent = p.batchNumber || 'Assigned on next save';
+  document.getElementById('ecp-batchRow').classList.remove('hidden');
   ecpCalcMargin();
   openModal('modal-editCatPart');
 }

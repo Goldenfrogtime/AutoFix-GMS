@@ -22,7 +22,8 @@ function now() {
   return new Date().toISOString()
 }
 // Generate a sequential batch number: BAT-YYYY-NNNN
-let _batchCounter = 1
+// Starts at 77 to continue from the 76 pre-seeded catalogue items (lub-001..019 = 0001-0019, parts af1..of17 = 0020-0076)
+let _batchCounter = 77
 function genBatchNumber() {
   const year = new Date().getFullYear()
   const seq  = String(_batchCounter++).padStart(4, '0')
