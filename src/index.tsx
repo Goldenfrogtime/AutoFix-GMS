@@ -293,9 +293,20 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
   <header class="bg-white border-b border-gray-100 px-3 sm:px-6 py-3 flex items-center justify-between flex-shrink-0 gap-2">
     <div class="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
       <button class="lg:hidden text-gray-500 flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-100" onclick="toggleSidebar()"><i class="fas fa-bars text-lg"></i></button>
-      <div class="relative hidden sm:block flex-1 max-w-xs">
-        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-        <input class="search-input" type="text" placeholder="Search jobs, vehicles, customers…" id="globalSearch" oninput="handleGlobalSearch(this.value)"/>
+      <div class="relative hidden sm:block flex-1 max-w-md" id="globalSearchWrap">
+        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none"></i>
+        <input class="search-input pr-8" type="text" placeholder="Search jobs, customers, vehicles, parts…" id="globalSearch"
+          oninput="handleGlobalSearch(this.value)"
+          onfocus="if(this.value.trim()) handleGlobalSearch(this.value)"
+          onkeydown="globalSearchKeydown(event)"
+          autocomplete="off"/>
+        <button id="globalSearchClear" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 hidden" onclick="closeGlobalSearch()" type="button">
+          <i class="fas fa-times text-sm"></i>
+        </button>
+        <!-- Results overlay -->
+        <div id="globalSearchPanel" class="hidden absolute left-0 top-full mt-2 w-full min-w-[420px] bg-white rounded-2xl shadow-2xl border border-gray-100 z-[200] overflow-hidden" style="max-height:520px;overflow-y:auto">
+          <div id="globalSearchResults"></div>
+        </div>
       </div>
       <!-- Mobile search toggle -->
       <button class="sm:hidden text-gray-500 w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-100" onclick="toggleMobileSearch()" id="mobileSearchBtn"><i class="fas fa-search"></i></button>
@@ -336,9 +347,15 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
   </header>
   <!-- Mobile search bar (shown on toggle) -->
   <div id="mobileSearchBar" class="hidden sm:hidden bg-white border-b border-gray-100 px-3 py-2">
-    <div class="relative">
-      <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-      <input class="search-input pl-9 w-full" type="text" placeholder="Search jobs, vehicles, customers…" id="globalSearchMobile" oninput="handleGlobalSearch(this.value)"/>
+    <div class="relative" id="globalSearchWrapMobile">
+      <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none"></i>
+      <input class="search-input pl-9 w-full" type="text" placeholder="Search jobs, vehicles, customers, parts…" id="globalSearchMobile"
+        oninput="handleGlobalSearch(this.value, true)"
+        onkeydown="globalSearchKeydown(event)"
+        autocomplete="off"/>
+      <div id="globalSearchPanelMobile" class="hidden absolute left-0 right-0 top-full mt-2 bg-white rounded-2xl shadow-2xl border border-gray-100 z-[200] overflow-hidden" style="max-height:420px;overflow-y:auto">
+        <div id="globalSearchResultsMobile"></div>
+      </div>
     </div>
   </div>
 
@@ -8714,14 +8731,327 @@ function renderPermissionsMatrix(permsMap) {
 }
 
 // ═══ GLOBAL SEARCH ═══
-function handleGlobalSearch(q) {
-  if (!q) return;
-  if (allJobCards.some(j => j.jobCardNumber.toLowerCase().includes(q.toLowerCase()))) {
-    showPage('jobcards');
-    document.getElementById('jobSearch').value = q;
-    filterJobCards(q);
+// ══════════════════════════════════════════════════════════════════════════════
+// GLOBAL SEARCH
+// ══════════════════════════════════════════════════════════════════════════════
+
+let _gsDebounce = null;
+let _gsActiveIdx = -1;
+let _gsResults = []; // flat list of result items for keyboard nav
+
+function handleGlobalSearch(q, isMobile) {
+  clearTimeout(_gsDebounce);
+  const panel   = document.getElementById(isMobile ? 'globalSearchPanelMobile' : 'globalSearchPanel');
+  const clearBtn = document.getElementById('globalSearchClear');
+  if (clearBtn) clearBtn.classList.toggle('hidden', !q.trim());
+  if (!q.trim()) { panel.classList.add('hidden'); _gsResults = []; return; }
+  _gsDebounce = setTimeout(function() { _runGlobalSearch(q.trim(), isMobile); }, 180);
+}
+
+function _runGlobalSearch(q, isMobile) {
+  const term = q.toLowerCase();
+  const panel   = document.getElementById(isMobile ? 'globalSearchPanelMobile'   : 'globalSearchPanel');
+  const resultsEl = document.getElementById(isMobile ? 'globalSearchResultsMobile' : 'globalSearchResults');
+  _gsResults = [];
+  _gsActiveIdx = -1;
+
+  const sections = [];
+
+  // ── 1. Job Cards ───────────────────────────────────────────────────────────
+  const jobMatches = allJobCards.filter(j =>
+    j.jobCardNumber.toLowerCase().includes(term) ||
+    (j.damageDescription || '').toLowerCase().includes(term) ||
+    (j.insurer || '').toLowerCase().includes(term) ||
+    (j.claimReference || '').toLowerCase().includes(term) ||
+    (j.assignedTechnician || '').toLowerCase().includes(term)
+  ).slice(0, 5);
+  if (jobMatches.length) {
+    const items = jobMatches.map(j => {
+      const cust = allCustomers.find(c => c.id === j.customerId);
+      const veh  = allVehicles.find(v => v.id === j.vehicleId);
+      const statusCfg = STATUS_CONFIG[j.status] || { label: j.status, color: 'bg-gray-100 text-gray-600' };
+      return {
+        type: 'job', id: j.id,
+        primary: j.jobCardNumber,
+        secondary: (veh ? veh.registrationNumber + ' · ' : '') + (cust ? cust.name : ''),
+        meta: statusCfg.label,
+        metaClass: statusCfg.color,
+        icon: 'fa-clipboard-list', iconBg: 'bg-blue-100 text-blue-600',
+        action: function() { viewJobDetail(j.id); }
+      };
+    });
+    sections.push({ title: 'Job Cards', icon: 'fa-clipboard-list', items });
+  }
+
+  // ── 2. Customers ───────────────────────────────────────────────────────────
+  const custMatches = allCustomers.filter(c =>
+    c.name.toLowerCase().includes(term) ||
+    (c.phone || '').toLowerCase().includes(term) ||
+    (c.email || '').toLowerCase().includes(term) ||
+    (c.companyName || '').toLowerCase().includes(term) ||
+    (c.taxPin || '').toLowerCase().includes(term) ||
+    (c.idNumber || '').toLowerCase().includes(term)
+  ).slice(0, 5);
+  if (custMatches.length) {
+    const items = custMatches.map(c => ({
+      type: 'customer', id: c.id,
+      primary: c.name,
+      secondary: (c.companyName ? c.companyName + ' · ' : '') + (c.phone || c.email || ''),
+      meta: c.customerType || 'Individual',
+      metaClass: c.customerType === 'Corporate' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600',
+      icon: 'fa-user', iconBg: 'bg-indigo-100 text-indigo-600',
+      action: function() { showPage('customers'); setTimeout(function(){ viewCustomerDetail(c.id); }, 300); }
+    }));
+    sections.push({ title: 'Customers', icon: 'fa-users', items });
+  }
+
+  // ── 3. Vehicles ────────────────────────────────────────────────────────────
+  const vehMatches = allVehicles.filter(v =>
+    v.registrationNumber.toLowerCase().includes(term) ||
+    v.make.toLowerCase().includes(term) ||
+    v.model.toLowerCase().includes(term) ||
+    (v.vin || '').toLowerCase().includes(term) ||
+    (v.engineNumber || '').toLowerCase().includes(term) ||
+    (v.insurer || '').toLowerCase().includes(term)
+  ).slice(0, 5);
+  if (vehMatches.length) {
+    const items = vehMatches.map(v => {
+      const owner = allCustomers.find(c => c.id === v.customerId);
+      return {
+        type: 'vehicle', id: v.id,
+        primary: v.registrationNumber + ' – ' + v.make + ' ' + v.model,
+        secondary: (owner ? owner.name + ' · ' : '') + (v.insurer || '') + (v.year ? ' · ' + v.year : ''),
+        meta: v.year ? String(v.year) : '',
+        metaClass: 'bg-green-100 text-green-700',
+        icon: 'fa-car', iconBg: 'bg-green-100 text-green-600',
+        action: function() { showPage('vehicles'); setTimeout(function(){ openVehicleDetail(v.id); }, 300); }
+      };
+    });
+    sections.push({ title: 'Vehicles', icon: 'fa-car', items });
+  }
+
+  // ── 4. Vendors ─────────────────────────────────────────────────────────────
+  const vndMatches = allVendors.filter(v =>
+    v.name.toLowerCase().includes(term) ||
+    (v.phone || '').toLowerCase().includes(term) ||
+    (v.email || '').toLowerCase().includes(term) ||
+    (v.tin || '').toLowerCase().includes(term) ||
+    (v.vrn || '').toLowerCase().includes(term) ||
+    (v.location || '').toLowerCase().includes(term)
+  ).slice(0, 4);
+  if (vndMatches.length) {
+    const items = vndMatches.map(v => ({
+      type: 'vendor', id: v.id,
+      primary: v.name,
+      secondary: (v.location || '') + (v.tin ? ' · TIN: ' + v.tin : ''),
+      meta: v.status,
+      metaClass: v.status === 'Active' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600',
+      icon: 'fa-store', iconBg: 'bg-orange-100 text-orange-600',
+      action: function() { showPage('vendors'); setTimeout(function(){ viewVendorDetail(v.id); }, 300); }
+    }));
+    sections.push({ title: 'Vendors', icon: 'fa-store', items });
+  }
+
+  // ── 5. Lubricants ──────────────────────────────────────────────────────────
+  const lubMatches = allLubricants.filter(l =>
+    l.description.toLowerCase().includes(term) ||
+    l.brand.toLowerCase().includes(term) ||
+    (l.viscosity || '').toLowerCase().includes(term) ||
+    (l.lubricantType || '').toLowerCase().includes(term)
+  ).slice(0, 4);
+  if (lubMatches.length) {
+    const items = lubMatches.map(l => ({
+      type: 'lubricant', id: l.id,
+      primary: l.description,
+      secondary: l.brand + ' · ' + (l.viscosity || '') + ' · ' + (l.volume || '') + '  — TZS ' + fmt(l.sellingPrice),
+      meta: l.lubricantType || 'Lubricant',
+      metaClass: 'bg-yellow-100 text-yellow-700',
+      icon: 'fa-oil-can', iconBg: 'bg-yellow-100 text-yellow-700',
+      action: function() { showPage('oil-services'); }
+    }));
+    sections.push({ title: 'Lubricants', icon: 'fa-oil-can', items });
+  }
+
+  // ── 6. Parts Catalogue ─────────────────────────────────────────────────────
+  const partsMatches = allParts.filter(p =>
+    p.description.toLowerCase().includes(term) ||
+    p.category.toLowerCase().includes(term) ||
+    (p.compatibleModels || '').toLowerCase().includes(term)
+  ).slice(0, 4);
+  if (partsMatches.length) {
+    const items = partsMatches.map(p => ({
+      type: 'part', id: p.id,
+      primary: p.description,
+      secondary: p.category + (p.compatibleModels ? ' · ' + p.compatibleModels.slice(0, 60) + (p.compatibleModels.length > 60 ? '…' : '') : '') + '  — TZS ' + fmt(p.sellingPrice),
+      meta: p.category,
+      metaClass: 'bg-purple-100 text-purple-700',
+      icon: 'fa-cog', iconBg: 'bg-purple-100 text-purple-600',
+      action: function() { showPage('parts-catalogue'); }
+    }));
+    sections.push({ title: 'Parts Catalogue', icon: 'fa-cog', items });
+  }
+
+  // ── 7. Expenses ────────────────────────────────────────────────────────────
+  const expMatches = allExpenses.filter(e =>
+    (e.description || '').toLowerCase().includes(term) ||
+    (e.vendor || '').toLowerCase().includes(term) ||
+    (e.category || '').toLowerCase().includes(term) ||
+    (e.receiptRef || '').toLowerCase().includes(term)
+  ).slice(0, 4);
+  if (expMatches.length) {
+    const items = expMatches.map(e => ({
+      type: 'expense', id: e.id,
+      primary: e.description,
+      secondary: e.category + (e.vendor ? ' · ' + e.vendor : '') + '  — TZS ' + fmt(e.amount),
+      meta: e.status,
+      metaClass: e.status === 'Paid' ? 'bg-green-100 text-green-700' : e.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-blue-100 text-blue-700',
+      icon: 'fa-receipt', iconBg: 'bg-rose-100 text-rose-600',
+      action: function() { showPage('expenses'); }
+    }));
+    sections.push({ title: 'Expenses', icon: 'fa-receipt', items });
+  }
+
+  // ── 8. Invoices ────────────────────────────────────────────────────────────
+  const invMatches = allInvoices.filter(i =>
+    (i.invoiceNumber || '').toLowerCase().includes(term) ||
+    (i.claimReference || '').toLowerCase().includes(term)
+  ).slice(0, 3);
+  if (invMatches.length) {
+    const items = invMatches.map(i => {
+      const jc = allJobCards.find(j => j.id === i.jobCardId);
+      return {
+        type: 'invoice', id: i.id,
+        primary: i.invoiceNumber,
+        secondary: (jc ? jc.jobCardNumber + ' · ' : '') + 'TZS ' + fmt(i.totalAmount),
+        meta: i.status,
+        metaClass: i.status === 'Paid' ? 'bg-green-100 text-green-700' : i.status === 'Overdue' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700',
+        icon: 'fa-file-invoice', iconBg: 'bg-teal-100 text-teal-600',
+        action: function() { showPage('invoices'); }
+      };
+    });
+    sections.push({ title: 'Invoices', icon: 'fa-file-invoice', items });
+  }
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+  if (!sections.length) {
+    resultsEl.innerHTML =
+      '<div class="flex flex-col items-center justify-center py-10 text-gray-400">' +
+      '<i class="fas fa-search text-3xl mb-3 opacity-30"></i>' +
+      '<p class="text-sm font-medium">No results for <span class="font-bold text-gray-600">"' + escHtml(q) + '"</span></p>' +
+      '<p class="text-xs mt-1 text-gray-300">Try a different term</p></div>';
+    panel.classList.remove('hidden');
+    return;
+  }
+
+  // Build flat result list for keyboard nav
+  sections.forEach(function(sec) { sec.items.forEach(function(item) { _gsResults.push(item); }); });
+
+  let html = '';
+  // Search summary bar
+  html += '<div class="flex items-center gap-2 px-4 py-2.5 bg-gray-50 border-b border-gray-100">' +
+    '<i class="fas fa-search text-gray-400 text-xs"></i>' +
+    '<span class="text-xs text-gray-500 flex-1">Results for <strong class="text-gray-700">' + escHtml(q) + '</strong></span>' +
+    '<span class="text-xs text-gray-400">' + _gsResults.length + ' match' + (_gsResults.length !== 1 ? 'es' : '') + '</span>' +
+    '</div>';
+
+  let flatIdx = 0;
+  sections.forEach(function(sec) {
+    html += '<div class="px-3 pt-3 pb-1"><p class="text-xs font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1.5">' +
+      '<i class="fas ' + sec.icon + '"></i>' + sec.title + '</p></div>';
+    sec.items.forEach(function(item) {
+      const idx = flatIdx++;
+      html += '<div class="gs-result flex items-center gap-3 px-3 py-2.5 hover:bg-indigo-50 cursor-pointer transition-colors border-b border-gray-50 last:border-0" ' +
+        'data-gs-idx="' + idx + '">' +
+        '<div class="w-8 h-8 rounded-lg ' + item.iconBg + ' flex items-center justify-center shrink-0 text-sm">' +
+        '<i class="fas ' + item.icon + '"></i></div>' +
+        '<div class="min-w-0 flex-1">' +
+        '<p class="text-sm font-semibold text-gray-800 truncate">' + escHtml(item.primary) + '</p>' +
+        '<p class="text-xs text-gray-400 truncate">' + escHtml(item.secondary) + '</p>' +
+        '</div>' +
+        (item.meta ? '<span class="text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ' + item.metaClass + '">' + escHtml(item.meta) + '</span>' : '') +
+        '</div>';
+    });
+  });
+
+  html += '<div class="px-4 py-2.5 bg-gray-50 border-t border-gray-100 flex items-center justify-between">' +
+    '<span class="text-xs text-gray-400"><kbd class="px-1.5 py-0.5 bg-gray-200 rounded text-gray-600 font-mono text-xs">↑↓</kbd> navigate · ' +
+    '<kbd class="px-1.5 py-0.5 bg-gray-200 rounded text-gray-600 font-mono text-xs">Enter</kbd> open · ' +
+    '<kbd class="px-1.5 py-0.5 bg-gray-200 rounded text-gray-600 font-mono text-xs">Esc</kbd> close</span>' +
+    '</div>';
+
+  resultsEl.innerHTML = html;
+
+  // Attach click handlers
+  resultsEl.querySelectorAll('.gs-result').forEach(function(el) {
+    el.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      const idx = parseInt(el.getAttribute('data-gs-idx'));
+      closeGlobalSearch();
+      _gsResults[idx].action();
+    });
+  });
+
+  panel.classList.remove('hidden');
+}
+
+function globalSearchKeydown(e) {
+  const isMobile = e.target.id === 'globalSearchMobile';
+  const panel = document.getElementById(isMobile ? 'globalSearchPanelMobile' : 'globalSearchPanel');
+  if (panel.classList.contains('hidden')) return;
+
+  if (e.key === 'Escape') { closeGlobalSearch(); e.preventDefault(); return; }
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    _gsActiveIdx = Math.min(_gsActiveIdx + 1, _gsResults.length - 1);
+    _gsHighlight(isMobile);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    _gsActiveIdx = Math.max(_gsActiveIdx - 1, 0);
+    _gsHighlight(isMobile);
+  } else if (e.key === 'Enter' && _gsActiveIdx >= 0 && _gsResults[_gsActiveIdx]) {
+    e.preventDefault();
+    closeGlobalSearch();
+    _gsResults[_gsActiveIdx].action();
   }
 }
+
+function _gsHighlight(isMobile) {
+  const container = document.getElementById(isMobile ? 'globalSearchResultsMobile' : 'globalSearchResults');
+  container.querySelectorAll('.gs-result').forEach(function(el, i) {
+    if (i === _gsActiveIdx) {
+      el.classList.add('bg-indigo-50');
+      el.scrollIntoView({ block: 'nearest' });
+    } else {
+      el.classList.remove('bg-indigo-50');
+    }
+  });
+}
+
+function closeGlobalSearch() {
+  ['globalSearchPanel','globalSearchPanelMobile'].forEach(function(id) {
+    const el = document.getElementById(id);
+    if (el) el.classList.add('hidden');
+  });
+  ['globalSearch','globalSearchMobile'].forEach(function(id) {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  const btn = document.getElementById('globalSearchClear');
+  if (btn) btn.classList.add('hidden');
+  _gsResults = [];
+  _gsActiveIdx = -1;
+}
+
+// Close search panel when clicking outside
+document.addEventListener('mousedown', function(e) {
+  const wrap1 = document.getElementById('globalSearchWrap');
+  const wrap2 = document.getElementById('globalSearchWrapMobile');
+  if ((!wrap1 || !wrap1.contains(e.target)) && (!wrap2 || !wrap2.contains(e.target))) {
+    ['globalSearchPanel','globalSearchPanelMobile'].forEach(function(id) {
+      const el = document.getElementById(id); if (el) el.classList.add('hidden');
+    });
+  }
+});
 
 // ═══ LUBRICANTS CATALOGUE ═══
 let allLubricants = [];
