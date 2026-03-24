@@ -621,18 +621,27 @@ api.post('/jobcards/:id/parts', async (c) => {
   const body = await c.req.json<Omit<PartConsumption, 'id' | 'jobCardId'>>()
   const jobCardId = c.req.param('id')
   const newPart: PartConsumption = { ...body, id: 'pc' + genId(), jobCardId }
+
+  // ── Traceability: copy batch # and part serial # from catalogue item ─────────
+  // Look up the source catalogue item by partId (sent from the UI when a catalogue
+  // part is selected) and stamp the consumption record with the current batch number
+  // and supplier part serial number for full traceability.
+  const cataloguePart = catalogueParts.find(p => p.id === (body as any).partId)
+  const lubricantItem = !cataloguePart ? lubricantProducts.find(l => l.id === (body as any).partId) : null
+  const catalogueItem = cataloguePart ?? lubricantItem ?? null
+
+  if (catalogueItem) {
+    if (catalogueItem.batchNumber)      newPart.batchNumber      = catalogueItem.batchNumber
+    if ((catalogueItem as any).partSerialNumber) newPart.partSerialNumber = (catalogueItem as any).partSerialNumber
+    newPart.partId = (body as any).partId  // preserve for traceability
+  }
+
   partsConsumption.push(newPart)
 
   // ── Auto-expense: record buying cost of the part ────────────────────────────
-  // Look up the buying price from the catalogue part or lubricant that was used.
-  // body.partId may carry the catalogue item id; if the buying price comes in via
-  // unitCost we derive it from the catalogue directly.
-  const cataloguePart  = catalogueParts.find(p => p.id === (body as any).partId)
-  const lubricantItem  = !cataloguePart ? lubricantProducts.find(l => l.id === (body as any).partId) : null
-  const buyingPrice    = cataloguePart?.buyingPrice ?? lubricantItem?.buyingPrice ?? null
+  const buyingPrice = catalogueItem?.buyingPrice ?? null
 
   if (buyingPrice !== null && buyingPrice > 0) {
-    const jc = jobCards.find(j => j.id === jobCardId)
     const buyingTotal = buyingPrice * newPart.quantity
     const autoExp: Expense = {
       id:          'ex' + genId(),
@@ -678,6 +687,13 @@ api.post('/jobcards/:id/services', async (c) => {
   const body = await c.req.json<Omit<JobService, 'id' | 'jobCardId'>>()
   const jobCardId = c.req.param('id')
   const newSvc: JobService = { ...body, id: 'svc' + genId(), jobCardId }
+
+  // ── Traceability: stamp batch number for lubricant/oil services ──────────────
+  if (body.lubricantId) {
+    const srcLub = lubricantProducts.find(l => l.id === body.lubricantId)
+    if (srcLub?.batchNumber) newSvc.batchNumber = srcLub.batchNumber
+  }
+
   jobServices.push(newSvc)
 
   // Auto-calculate nextServiceMileage when a lubricant with a mileageInterval is added

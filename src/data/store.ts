@@ -269,6 +269,9 @@ export interface PartConsumption {
   unitCost: number
   totalCost: number
   autoExpenseId?: string   // id of the auto-generated buying-cost expense
+  batchNumber?: string        // copied from catalogue item at time of use (e.g. BAT-2026-0042)
+  partSerialNumber?: string   // supplier-assigned part/serial number copied from catalogue
+  partId?: string             // id of the source catalogue item (for traceability)
 }
 
 export interface Invoice {
@@ -316,6 +319,7 @@ export interface JobService {
   notes?: string           // e.g. oil brand/tier for oil services
   lubricantId?: string     // id of the LubricantProduct used (for oil services)
   autoExpenseId?: string   // id of the auto-generated buying-cost expense
+  batchNumber?: string     // batch number copied from lubricant/catalogue item at time of use
 }
 
 export interface ServicePackage {

@@ -3999,6 +3999,7 @@ async function viewJobDetail(id) {
                       <div class="min-w-0">
                         <p class="text-sm font-semibold text-gray-800 truncate">\${sv.serviceName}</p>
                         <p class="text-xs text-gray-500 mt-0.5">\${sv.category}\${sv.notes ? ' · ' + sv.notes : ''}\${sv.quantity > 1 ? ' · ×' + sv.quantity : ''}</p>
+                        \${sv.batchNumber ? \`<p class="text-xs text-gray-400 mt-0.5"><i class="fas fa-barcode mr-1"></i>Batch: <span class="font-mono font-semibold text-blue-700">\${sv.batchNumber}</span></p>\` : ''}
                       </div>
                     </div>
                     <div class="text-right flex-shrink-0">
@@ -4013,16 +4014,23 @@ async function viewJobDetail(id) {
             \${j.parts && j.parts.length ? \`
               <p class="text-xs font-semibold text-gray-400 uppercase mb-2 tracking-wide">Parts Consumed</p>
               <div class="overflow-x-auto mb-3">
-                <table class="w-full text-sm" style="min-width:320px">
-                  <thead><tr class="text-xs text-gray-400 uppercase border-b">
-                    <th class="text-left pb-2">Part</th><th class="text-right pb-2">Qty</th><th class="text-right pb-2">Unit</th><th class="text-right pb-2">Total</th>
+                <table class="w-full text-sm" style="min-width:480px">
+                  <thead><tr class="text-xs text-gray-400 uppercase border-b bg-gray-50">
+                    <th class="text-left pb-2 pt-1 px-2">Part</th>
+                    <th class="text-left pb-2 pt-1 px-2">Batch #</th>
+                    <th class="text-left pb-2 pt-1 px-2">Part #</th>
+                    <th class="text-right pb-2 pt-1 px-1">Qty</th>
+                    <th class="text-right pb-2 pt-1 px-1">Unit</th>
+                    <th class="text-right pb-2 pt-1 px-2">Total</th>
                   </tr></thead>
                   <tbody>\${j.parts.map(p => \`
-                    <tr class="border-b border-gray-50">
-                      <td class="py-2 font-medium text-gray-700">\${p.partName}</td>
-                      <td class="py-2 text-right">\${p.quantity}</td>
-                      <td class="py-2 text-right">\${fmt(p.unitCost)}</td>
-                      <td class="py-2 text-right font-semibold">\${fmt(p.totalCost)}</td>
+                    <tr class="border-b border-gray-50 hover:bg-gray-50">
+                      <td class="py-2 px-2 font-medium text-gray-700">\${p.partName}</td>
+                      <td class="py-2 px-2">\${p.batchNumber ? \`<span class="font-mono text-xs font-semibold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded">\${p.batchNumber}</span>\` : '<span class="text-gray-300 text-xs">—</span>'}</td>
+                      <td class="py-2 px-2">\${p.partSerialNumber ? \`<span class="font-mono text-xs text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded">\${p.partSerialNumber}</span>\` : '<span class="text-gray-300 text-xs">—</span>'}</td>
+                      <td class="py-2 px-1 text-right text-gray-600">\${p.quantity}</td>
+                      <td class="py-2 px-1 text-right text-gray-600">\${fmt(p.unitCost)}</td>
+                      <td class="py-2 px-2 text-right font-semibold text-gray-800">\${fmt(p.totalCost)}</td>
                     </tr>
                   \`).join('')}</tbody>
                 </table>
@@ -7183,9 +7191,15 @@ function renderClaims(pfis) {
           <p class="text-xs font-semibold text-gray-400 uppercase mb-1.5">Parts Consumed</p>
           <div class="space-y-1">
             \${jobParts.map(p => \`
-              <div class="flex justify-between text-xs">
-                <span class="text-gray-600 truncate max-w-[65%]">\${p.partName} <span class="text-gray-400">×\${p.quantity}</span></span>
-                <span class="font-semibold text-gray-700">\${fmt(p.totalCost)}</span>
+              <div class="text-xs">
+                <div class="flex justify-between">
+                  <span class="text-gray-600 truncate max-w-[65%]">\${p.partName} <span class="text-gray-400">×\${p.quantity}</span></span>
+                  <span class="font-semibold text-gray-700">\${fmt(p.totalCost)}</span>
+                </div>
+                \${(p.batchNumber || p.partSerialNumber) ? \`<div class="flex items-center gap-2 mt-0.5">
+                  \${p.batchNumber ? \`<span class="font-mono text-blue-600 bg-blue-50 px-1 rounded text-xs"><i class="fas fa-barcode mr-0.5"></i>\${p.batchNumber}</span>\` : ''}
+                  \${p.partSerialNumber ? \`<span class="font-mono text-gray-500 bg-gray-100 px-1 rounded text-xs">#\${p.partSerialNumber}</span>\` : ''}
+                </div>\` : ''}
               </div>\`).join('')}
           </div>
           <div class="border-t border-gray-100 mt-2"></div>
@@ -7914,7 +7928,10 @@ function buildInvoiceDoc(inv, job) {
     y += 7;
     doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
     parts.forEach((p, i) => {
-      if (i % 2 === 0) { doc.setFillColor(249, 250, 251); doc.rect(margin, y, contentW, 7, 'F'); }
+      // Calculate row height: extra line if batch or serial number exists
+      const hasMeta = !!(p.batchNumber || p.partSerialNumber);
+      const rowH = hasMeta ? 11 : 7;
+      if (i % 2 === 0) { doc.setFillColor(249, 250, 251); doc.rect(margin, y, contentW, rowH, 'F'); }
       doc.setTextColor(30, 41, 59);
       doc.text(String(i + 1),      margin + 3,               y + 5);
       const nm = (p.partName || '').length > 35 ? (p.partName || '').substring(0, 33) + '…' : (p.partName || '');
@@ -7922,7 +7939,16 @@ function buildInvoiceDoc(inv, job) {
       doc.text(String(p.quantity),  margin + contentW * 0.65, y + 5);
       doc.text(fmt(p.unitCost),     margin + contentW * 0.76, y + 5);
       doc.text(fmt(p.totalCost),    margin + contentW - 3,    y + 5, { align: 'right' });
-      y += 7;
+      // Batch # and Part # sub-line
+      if (hasMeta) {
+        doc.setFontSize(7); doc.setTextColor(100, 116, 139);
+        let metaStr = '';
+        if (p.batchNumber)      metaStr += 'Batch: ' + p.batchNumber;
+        if (p.partSerialNumber) metaStr += (metaStr ? '  |  ' : '') + 'Part #: ' + p.partSerialNumber;
+        doc.text(metaStr, margin + 10, y + 9.5);
+        doc.setFontSize(9); doc.setTextColor(30, 41, 59);
+      }
+      y += rowH;
     });
     // Parts subtotal
     const partsTotal = parts.reduce((s, p) => s + p.totalCost, 0);
