@@ -11,8 +11,24 @@ import {
   type JobService, type Expense, type Notification, type NotificationType, type NotificationPriority,
   type LubricantProduct, type Permission, type StatusTimelineEntry, type JobCardStatus, type Vendor
 } from '../data/store'
+import { save } from '../data/persist'
 
 const api = new Hono()
+
+// ─── Auto-persist middleware ─────────────────────────────────────────────────
+// After every mutating request (POST, PUT, PATCH, DELETE) that returns a
+// successful response (status < 400), write all live arrays to disk so that
+// data survives a server restart.
+api.use('*', async (c, next) => {
+  await next()
+  const method = c.req.method
+  if (method !== 'GET' && method !== 'HEAD') {
+    const status = c.res.status
+    if (status < 400) {
+      save()
+    }
+  }
+})
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 function genId() {

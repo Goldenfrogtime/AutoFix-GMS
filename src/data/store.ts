@@ -833,4 +833,7 @@ export interface Notification {
 
 export const notifications: Notification[] = []
 
-
+// ─── Persistence — load saved data on startup ─────────────────────────────────
+// This must be the last statement in the module so all arrays are declared first.
+import { load as _loadPersistedData } from './persist.js'
+_loadPersistedData()

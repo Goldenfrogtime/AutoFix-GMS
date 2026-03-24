@@ -3,7 +3,7 @@ module.exports = {
     {
       name: 'gms-webapp',
       script: 'npx',
-      args: 'wrangler pages dev dist --ip 0.0.0.0 --port 3000',
+      args: 'tsx server.mjs',
       cwd: '/home/user/webapp',
       env: {
         NODE_ENV: 'development',

@@ -31,3 +31,6 @@ lerna-debug.log*
 
 # misc
 .DS_Store
+
+# Runtime data — user's live data, never overwrite via git
+gms-data.json
