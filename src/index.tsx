@@ -3651,6 +3651,13 @@ const ROLE_CONFIG = {
 // ═══ UTILS ═══
 function fmt(n) { return 'TZS ' + Number(n).toLocaleString('en-TZ'); }
 function fmtDate(d) { return d ? new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '—'; }
+function fmtDateTime(d) {
+  if (!d) return '—';
+  const dt = new Date(d);
+  const date = dt.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});
+  const time = dt.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',hour12:true});
+  return date + ', ' + time;
+}
 var _toastTimer = null;
 function showToast(msg, type='success') {
   const t    = document.getElementById('toast');
@@ -3802,7 +3809,7 @@ async function loadDashboard() {
           \${statusBadge(j.status)}
           \${j.reopenCount ? '<span class="text-xs font-semibold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded"><i class="fas fa-folder-open mr-0.5"></i>Reopened</span>' : ''}
         </div>
-        <p class="text-xs text-gray-400 mt-1">\${fmtDate(j.updatedAt)}</p>
+        <p class="text-xs text-gray-400 mt-1"><i class="fas fa-calendar-plus mr-1 opacity-60"></i>\${fmtDateTime(j.createdAt)}</p>
       </div>
     </div>
   \`).join('');
@@ -3908,7 +3915,7 @@ function renderJobCards(jobs) {
     <tr class="table-row border-b border-gray-50 cursor-pointer" onclick="viewJobDetail('\${j.id}')">
       <td class="px-4 py-3">
         <p class="font-bold text-blue-600 text-sm">\${j.jobCardNumber}</p>
-        <p class="text-xs text-gray-400">\${fmtDate(j.createdAt)}</p>
+        <p class="text-xs text-gray-400"><i class="fas fa-calendar-plus mr-1 opacity-50"></i>\${fmtDateTime(j.createdAt)}</p>
       </td>
       <td class="px-4 py-3">
         <p class="font-semibold text-gray-800 text-sm">\${j.customer?.name||'—'}</p>
@@ -4029,7 +4036,7 @@ async function viewJobDetail(id) {
             \${j.claimReference ? \`<div><p class="text-gray-400 text-xs font-semibold uppercase mb-1">Claim Ref</p><p class="font-semibold">\${j.claimReference}</p></div>\` : ''}
             \${j.insurer ? \`<div><p class="text-gray-400 text-xs font-semibold uppercase mb-1">Insurer</p><p class="font-semibold">\${j.insurer}</p></div>\` : ''}
             \${j.assessor ? \`<div><p class="text-gray-400 text-xs font-semibold uppercase mb-1">Assessor</p><p class="font-semibold">\${j.assessor}</p></div>\` : ''}
-            <div><p class="text-gray-400 text-xs font-semibold uppercase mb-1">Created</p><p class="font-semibold">\${fmtDate(j.createdAt)}</p></div>
+            <div><p class="text-gray-400 text-xs font-semibold uppercase mb-1">Created</p><p class="font-semibold">\${fmtDateTime(j.createdAt)}</p></div>
           </div>
           <div class="mt-4 pt-4 border-t border-gray-100">
             <p class="text-gray-400 text-xs font-semibold uppercase mb-2">Damage / Service Description</p>
@@ -4107,17 +4114,26 @@ async function viewJobDetail(id) {
         </div>
         <!-- Activity Log -->
         <div class="card p-5">
-          <h4 class="font-bold text-gray-800 mb-4">Activity Log</h4>
-          <div class="space-y-3">
-            \${j.logs && j.logs.length ? j.logs.map(log => \`
-              <div class="flex gap-3">
-                <div class="timeline-dot bg-blue-400 mt-1.5 flex-shrink-0"></div>
-                <div class="flex-1">
-                  <p class="text-sm font-semibold text-gray-700">\${log.description}</p>
-                  <p class="text-xs text-gray-400 mt-0.5">\${log.userName} · \${fmtDate(log.timestamp)}</p>
+          <h4 class="font-bold text-gray-800 mb-4"><i class="fas fa-history text-blue-400 mr-2"></i>Activity Log</h4>
+          <div class="space-y-0">
+            \${j.logs && j.logs.length ? j.logs.map((log, idx) => \`
+              <div class="flex gap-3 \${idx < j.logs.length - 1 ? 'pb-4 border-l-2 border-blue-100 ml-[7px] pl-5 -ml-0' : ''}">
+                <div class="flex flex-col items-center flex-shrink-0 \${idx < j.logs.length - 1 ? '' : ''}">
+                  <div class="w-3.5 h-3.5 rounded-full bg-blue-500 border-2 border-white shadow flex-shrink-0 mt-0.5 z-10"></div>
+                </div>
+                <div class="flex-1 pb-\${idx < j.logs.length - 1 ? '4' : '0'} -mt-0.5">
+                  <p class="text-sm font-semibold text-gray-800">\${log.description}</p>
+                  <div class="flex items-center gap-2 mt-1 flex-wrap">
+                    <span class="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full border border-gray-100">
+                      <i class="fas fa-user-circle text-blue-300"></i>\${log.userName}
+                    </span>
+                    <span class="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full border border-gray-100">
+                      <i class="fas fa-clock text-blue-300"></i>\${fmtDateTime(log.timestamp)}
+                    </span>
+                  </div>
                 </div>
               </div>
-            \`).join('') : '<p class="text-gray-400 text-sm">No activity yet</p>'}
+            \`).join('') : '<p class="text-gray-400 text-sm text-center py-4"><i class="fas fa-history text-2xl mb-2 block opacity-30"></i>No activity yet</p>'}
           </div>
         </div>
       </div>
