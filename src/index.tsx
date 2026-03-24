@@ -2508,6 +2508,122 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
   </div>
 </div>
 
+<!-- ═══ Digital Service Card Modal ═══ -->
+<div id="modal-serviceCard" class="modal-overlay hidden">
+  <div class="modal-box" style="--mw:680px">
+    <div class="flex items-center justify-between mb-5">
+      <div>
+        <h3 class="text-xl font-bold text-gray-900"><i class="fas fa-id-card text-green-500 mr-2"></i>Digital Service Card</h3>
+        <p class="text-sm text-gray-500 mt-1" id="svcCard-subtitle">Generating service card…</p>
+      </div>
+      <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-serviceCard')"><i class="fas fa-times"></i></button>
+    </div>
+
+    <!-- Mileage Out input (optional) -->
+    <div class="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4 flex items-center gap-3">
+      <i class="fas fa-tachometer-alt text-blue-500 flex-shrink-0"></i>
+      <div class="flex-1">
+        <label class="text-xs font-semibold text-blue-700 uppercase tracking-wide">Mileage Out (km)</label>
+        <p class="text-xs text-blue-500 mt-0.5">Optional — odometer reading at vehicle handover</p>
+      </div>
+      <input type="number" id="svcCard-mileageOut" class="form-input w-32 text-sm" placeholder="e.g. 85200" min="0"/>
+    </div>
+
+    <!-- Card Preview -->
+    <div id="svcCard-preview" class="rounded-2xl overflow-hidden border border-gray-200 shadow-sm mb-5">
+      <!-- Header band -->
+      <div class="bg-gradient-to-r from-blue-700 to-blue-500 px-6 py-4 flex items-center justify-between">
+        <div class="text-white">
+          <p class="font-bold text-lg tracking-wide">AutoFix GMS</p>
+          <p class="text-blue-200 text-xs">Garage Management System</p>
+        </div>
+        <div class="text-right text-white">
+          <p class="text-xs text-blue-200 uppercase tracking-wide">Service Card</p>
+          <p class="font-bold text-sm" id="svcCard-jobNum">—</p>
+          <p class="text-xs text-blue-200" id="svcCard-date">—</p>
+        </div>
+      </div>
+
+      <!-- Body -->
+      <div class="bg-white px-6 py-4 grid grid-cols-2 gap-4 text-sm">
+        <!-- Left col -->
+        <div class="space-y-3">
+          <div>
+            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1"><i class="fas fa-user mr-1"></i>Customer</p>
+            <p class="font-bold text-gray-900" id="svcCard-custName">—</p>
+            <p class="text-gray-500 text-xs" id="svcCard-custPhone">—</p>
+          </div>
+          <div>
+            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1"><i class="fas fa-car mr-1"></i>Vehicle</p>
+            <p class="font-bold text-gray-900" id="svcCard-vehReg">—</p>
+            <p class="text-gray-500 text-xs" id="svcCard-vehInfo">—</p>
+          </div>
+          <div>
+            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1"><i class="fas fa-user-hard-hat mr-1"></i>Technician</p>
+            <p class="font-semibold text-gray-700" id="svcCard-tech">—</p>
+          </div>
+        </div>
+        <!-- Right col: mileage + next service -->
+        <div class="space-y-3">
+          <div class="bg-gray-50 rounded-xl p-3 space-y-2">
+            <div class="flex justify-between items-center">
+              <span class="text-xs text-gray-500"><i class="fas fa-road mr-1 text-blue-400"></i>Mileage In</span>
+              <span class="font-bold text-gray-800 text-xs" id="svcCard-mileageIn">—</span>
+            </div>
+            <div class="flex justify-between items-center" id="svcCard-mileageOutRow" style="display:none!important">
+              <span class="text-xs text-gray-500"><i class="fas fa-flag-checkered mr-1 text-gray-400"></i>Mileage Out</span>
+              <span class="font-bold text-gray-800 text-xs" id="svcCard-mileageOutVal">—</span>
+            </div>
+            <div class="flex justify-between items-center">
+              <span class="text-xs text-gray-500"><i class="fas fa-gas-pump mr-1 text-amber-400"></i>Fuel Level</span>
+              <span class="font-semibold text-xs" id="svcCard-fuel">—</span>
+            </div>
+          </div>
+          <!-- Next service highlight -->
+          <div class="bg-green-50 border-2 border-green-300 rounded-xl p-3 text-center" id="svcCard-nextSvcBox">
+            <p class="text-xs font-semibold text-green-600 uppercase tracking-wide mb-1"><i class="fas fa-bell mr-1"></i>Next Service Due</p>
+            <p class="text-2xl font-bold text-green-700" id="svcCard-nextSvcKm">—</p>
+            <p class="text-xs text-green-500 mt-0.5" id="svcCard-nextSvcLub">—</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Services & Parts done -->
+      <div class="bg-gray-50 px-6 py-3 border-t border-gray-100">
+        <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Services & Parts Performed</p>
+        <div id="svcCard-workDone" class="space-y-1 text-xs text-gray-700"></div>
+      </div>
+
+      <!-- Footer note -->
+      <div class="bg-blue-700 px-6 py-3 text-center">
+        <p class="text-blue-100 text-xs">Thank you for choosing AutoFix GMS · Tel: +255 700 000 000 · info@autofixgms.co.tz</p>
+      </div>
+    </div>
+
+    <!-- Delivery options -->
+    <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Share / Deliver</p>
+    <div class="grid grid-cols-3 gap-3 mb-5">
+      <button onclick="downloadServiceCardPDF()" class="flex flex-col items-center gap-2 p-3 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 transition-all">
+        <i class="fas fa-file-pdf text-xl"></i>
+        <span class="text-xs font-semibold">Download PDF</span>
+      </button>
+      <button onclick="shareServiceCardWhatsApp()" class="flex flex-col items-center gap-2 p-3 rounded-xl bg-green-50 hover:bg-green-100 border border-green-200 text-green-700 transition-all">
+        <i class="fab fa-whatsapp text-xl"></i>
+        <span class="text-xs font-semibold">WhatsApp</span>
+      </button>
+      <button onclick="shareServiceCardEmail()" class="flex flex-col items-center gap-2 p-3 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 transition-all">
+        <i class="fas fa-envelope text-xl"></i>
+        <span class="text-xs font-semibold">Email</span>
+      </button>
+    </div>
+
+    <div class="flex gap-3">
+      <button class="btn-secondary flex-1" onclick="closeModal('modal-serviceCard')">Close</button>
+      <button class="btn-primary flex-1" onclick="issueServiceCard()"><i class="fas fa-paper-plane mr-1"></i>Issue & Record</button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ ADD CATALOGUE PART MODAL ═══ -->
 <div id="modal-addCatPart" class="modal-overlay hidden">
   <div class="modal-box" style="--mw:560px">
@@ -3808,6 +3924,7 @@ async function loadDashboard() {
         <div class="flex items-center justify-end gap-1.5 flex-wrap">
           \${statusBadge(j.status)}
           \${j.reopenCount ? '<span class="text-xs font-semibold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded"><i class="fas fa-folder-open mr-0.5"></i>Reopened</span>' : ''}
+          \${j.nextServiceMileage ? '<span class="text-xs font-semibold bg-green-100 text-green-700 px-1.5 py-0.5 rounded" title="Next service due"><i class="fas fa-bell mr-0.5"></i>' + j.nextServiceMileage.toLocaleString() + ' km</span>' : ''}
         </div>
         <p class="text-xs text-gray-400 mt-1"><i class="fas fa-calendar-plus mr-1 opacity-60"></i>\${fmtDateTime(j.createdAt)}</p>
       </div>
@@ -3926,7 +4043,11 @@ function renderJobCards(jobs) {
       </td>
       <td class="px-4 py-3 text-sm text-gray-600">\${j.insurer||'—'}</td>
       <td class="px-4 py-3">
-        <div class="flex items-center gap-1.5 flex-wrap">\${statusBadge(j.status)}\${j.reopenCount ? '<span class="text-xs font-semibold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded whitespace-nowrap"><i class="fas fa-folder-open mr-0.5"></i>Reopened</span>' : ''}</div>
+        <div class="flex items-center gap-1.5 flex-wrap">
+          \${statusBadge(j.status)}
+          \${j.reopenCount ? '<span class="text-xs font-semibold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded whitespace-nowrap"><i class="fas fa-folder-open mr-0.5"></i>Reopened</span>' : ''}
+          \${j.nextServiceMileage ? '<span class="text-xs font-semibold bg-green-100 text-green-700 px-1.5 py-0.5 rounded whitespace-nowrap" title="Next service at ' + j.nextServiceMileage.toLocaleString() + ' km"><i class="fas fa-bell mr-0.5"></i>Next Svc: ' + j.nextServiceMileage.toLocaleString() + ' km</span>' : ''}
+        </div>
       </td>
       <td class="px-4 py-3 text-xs text-gray-500">\${fmtDate(j.updatedAt)}</td>
       <td class="px-4 py-3">
@@ -3966,6 +4087,7 @@ async function viewJobDetail(id) {
   const canMakePFI = !j.pfi;
   const canReopen = ['RELEASED', 'COMPLETED', 'INVOICED'].includes(j.status);
   const isReopened = (j.reopenCount || 0) > 0;
+  const canServiceCard = !!(j.mileageIn || j.nextServiceMileage);
   
   document.getElementById('jobDetailActions').innerHTML = \`
     \${canReopen
@@ -3973,6 +4095,7 @@ async function viewJobDetail(id) {
       : \`<button class="btn-secondary text-sm" onclick="showStatusModal('\${j.id}','\${j.status}')"><i class="fas fa-exchange-alt"></i> Update Status</button>\`}
     \${canMakePFI ? \`<button class="btn-secondary text-sm" onclick="showPFIModal('\${j.id}','\${j.category}')"><i class="fas fa-file-invoice"></i> Create PFI</button>\` : ''}
     \${canMakeInvoice ? \`<button class="btn-primary text-sm" onclick="showInvoiceModal('\${j.id}',\${j.pfi?.labourCost||0},\${j.parts?.reduce((s,p)=>s+p.totalCost,0)||0})"><i class="fas fa-receipt"></i> Generate Invoice</button>\` : ''}
+    \${canServiceCard ? \`<button class="text-sm font-semibold rounded-xl px-3 py-2 transition-all bg-green-100 hover:bg-green-200 text-green-700 border border-green-300 flex items-center gap-1.5" onclick="showServiceCardModal('\${j.id}')"><i class="fas fa-id-card"></i> Service Card\${j.serviceCardIssuedAt ? ' <i class=\\"fas fa-check-circle text-green-500 ml-0.5\\" title=\\"Issued: '+fmtDate(j.serviceCardIssuedAt)+'\\"></i>' : ''}</button>\` : ''}
   \`;
   
   const totalPartsCost = j.parts ? j.parts.reduce((s, p) => s + p.totalCost, 0) : 0;
@@ -4186,6 +4309,20 @@ async function viewJobDetail(id) {
               </div>
             </div>\` : ''}
           </div>
+          \${j.serviceCardIssuedAt ? \`
+          <div class="mt-3 pt-3 border-t border-blue-100 flex items-center gap-2">
+            <i class="fas fa-check-circle text-green-500 text-sm"></i>
+            <div class="flex-1">
+              <p class="text-xs font-semibold text-green-700">Service Card Issued</p>
+              <p class="text-xs text-gray-400">\${fmtDateTime(j.serviceCardIssuedAt)}</p>
+            </div>
+            <button class="text-xs text-blue-600 hover:underline font-semibold" onclick="showServiceCardModal('\${j.id}')"><i class="fas fa-redo mr-0.5"></i>Reissue</button>
+          </div>\` : \`
+          <div class="mt-3 pt-3 border-t border-blue-100">
+            <button class="w-full text-sm font-semibold rounded-xl px-3 py-2 bg-green-100 hover:bg-green-200 text-green-700 border border-green-300 flex items-center justify-center gap-2 transition-all" onclick="showServiceCardModal('\${j.id}')">
+              <i class="fas fa-id-card"></i> Issue Service Card
+            </button>
+          </div>\`}
         </div>\` : ''}
 
         <!-- Time Tracking -->
@@ -5508,6 +5645,295 @@ function showReopenModal(jobId) {
   document.getElementById('reopenReasonError').style.display = 'none';
   openModal('modal-reopenJob');
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// DIGITAL SERVICE CARD
+// ═══════════════════════════════════════════════════════════════════
+let _svcCardData = null;   // cached detail bundle for current modal session
+
+async function showServiceCardModal(jobId) {
+  _svcCardData = null;
+  document.getElementById('svcCard-subtitle').textContent = 'Loading job details…';
+  openModal('modal-serviceCard');
+
+  const { data } = await axios.get('/api/jobcards/' + jobId + '/service-card');
+  _svcCardData = data;
+  const { job, customer, vehicle, parts, services } = data;
+
+  // Subtitle
+  document.getElementById('svcCard-subtitle').textContent =
+    (job.jobCardNumber || '—') + ' · ' + (customer?.name || '—') + ' · ' + (vehicle?.registrationNumber || '—');
+
+  // Header
+  document.getElementById('svcCard-jobNum').textContent = job.jobCardNumber || '—';
+  document.getElementById('svcCard-date').textContent = fmtDate(job.updatedAt || job.createdAt);
+
+  // Customer
+  document.getElementById('svcCard-custName').textContent  = customer?.name  || '—';
+  document.getElementById('svcCard-custPhone').textContent = customer?.phone || '—';
+
+  // Vehicle
+  document.getElementById('svcCard-vehReg').textContent  = vehicle?.registrationNumber || '—';
+  document.getElementById('svcCard-vehInfo').textContent = [vehicle?.make, vehicle?.model, vehicle?.year].filter(Boolean).join(' ');
+
+  // Technician
+  document.getElementById('svcCard-tech').textContent = job.assignedTechnician || '—';
+
+  // Mileage & Fuel
+  document.getElementById('svcCard-mileageIn').textContent =
+    job.mileageIn ? job.mileageIn.toLocaleString() + ' km' : '—';
+  const fuelColors = {'Empty':'text-red-600','1/4':'text-orange-600','1/2':'text-amber-600','3/4':'text-green-600','Full':'text-emerald-600'};
+  const fuelEl = document.getElementById('svcCard-fuel');
+  fuelEl.textContent = job.fuelLevel || '—';
+  fuelEl.className = 'font-semibold text-xs ' + (fuelColors[job.fuelLevel] || 'text-gray-600');
+
+  // Pre-fill mileage out if already set
+  const moInput = document.getElementById('svcCard-mileageOut');
+  moInput.value = job.mileageOut || (job.mileageIn || '');
+
+  // Wire mileage-out input to live-update the preview
+  moInput.oninput = () => {
+    const val = +moInput.value || 0;
+    const row = document.getElementById('svcCard-mileageOutRow');
+    const valEl = document.getElementById('svcCard-mileageOutVal');
+    if (val > 0) {
+      row.style.removeProperty('display');
+      valEl.textContent = val.toLocaleString() + ' km';
+    } else {
+      row.style.setProperty('display','none','important');
+    }
+  };
+  moInput.oninput(); // trigger once with existing value
+
+  // Next service
+  const nextBox = document.getElementById('svcCard-nextSvcBox');
+  if (job.nextServiceMileage) {
+    document.getElementById('svcCard-nextSvcKm').textContent = job.nextServiceMileage.toLocaleString() + ' km';
+    document.getElementById('svcCard-nextSvcLub').textContent = job.nextServiceLubricant || 'Next oil service';
+    nextBox.style.removeProperty('display');
+  } else {
+    nextBox.style.setProperty('display','none','important');
+  }
+
+  // Work done
+  const workItems = [
+    ...services.map(sv => '<div class="flex items-center gap-2"><i class="fas fa-wrench text-blue-400 flex-shrink-0"></i><span>' + sv.serviceName + (sv.quantity > 1 ? ' ×' + sv.quantity : '') + '</span></div>'),
+    ...parts.map(p  => '<div class="flex items-center gap-2"><i class="fas fa-cog text-gray-400 flex-shrink-0"></i><span>' + p.partName + ' ×' + p.quantity + '</span></div>')
+  ];
+  document.getElementById('svcCard-workDone').innerHTML =
+    workItems.length ? workItems.join('') : '<p class="text-gray-400 italic">No services/parts recorded</p>';
+}
+
+function _buildServiceCardText(mileageOut) {
+  if (!_svcCardData) return '';
+  const { job, customer, vehicle, parts, services } = _svcCardData;
+  const NL = '\n', LINE = '─'.repeat(48);
+  let t = '';
+  t += '   AUTOFIX GMS — DIGITAL SERVICE CARD' + NL;
+  t += LINE + NL;
+  t += 'Job Card:   ' + (job.jobCardNumber || '—') + NL;
+  t += 'Date:       ' + fmtDate(job.updatedAt || job.createdAt) + NL;
+  t += LINE + NL;
+  t += 'Customer:   ' + (customer?.name  || '—') + NL;
+  t += 'Phone:      ' + (customer?.phone || '—') + NL;
+  t += 'Vehicle:    ' + (vehicle?.registrationNumber || '—') + ' ' + [vehicle?.make, vehicle?.model, vehicle?.year].filter(Boolean).join(' ') + NL;
+  t += 'Technician: ' + (job.assignedTechnician || '—') + NL;
+  t += LINE + NL;
+  t += 'Mileage In:  ' + (job.mileageIn ? job.mileageIn.toLocaleString() + ' km' : '—') + NL;
+  if (mileageOut > 0) t += 'Mileage Out: ' + mileageOut.toLocaleString() + ' km' + NL;
+  t += 'Fuel Level:  ' + (job.fuelLevel || '—') + NL;
+  t += LINE + NL;
+  if (services.length) {
+    t += 'SERVICES PERFORMED:' + NL;
+    services.forEach((sv,i) => { t += '  ' + (i+1) + '. ' + sv.serviceName + (sv.quantity>1?' ×'+sv.quantity:'') + NL; });
+  }
+  if (parts.length) {
+    t += 'PARTS REPLACED:' + NL;
+    parts.forEach((p,i) => { t += '  ' + (i+1) + '. ' + p.partName + ' ×' + p.quantity + NL; });
+  }
+  if (job.nextServiceMileage) {
+    t += LINE + NL;
+    t += '🔔 NEXT SERVICE DUE AT: ' + job.nextServiceMileage.toLocaleString() + ' km' + NL;
+    if (job.nextServiceLubricant) t += '   (' + job.nextServiceLubricant + ')' + NL;
+  }
+  t += LINE + NL;
+  t += 'Thank you for choosing AutoFix GMS!' + NL;
+  t += 'Tel: +255 700 000 000 | info@autofixgms.co.tz' + NL;
+  return t;
+}
+
+function downloadServiceCardPDF() {
+  if (!_svcCardData) return;
+  const { jsPDF } = window.jspdf;
+  const { job, customer, vehicle, parts, services } = _svcCardData;
+  const mileageOut = +document.getElementById('svcCard-mileageOut').value || 0;
+
+  // A5 landscape
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a5' });
+  const pageW = 210, pageH = 148, margin = 14, col2X = pageW / 2 + 4;
+  let y = 0;
+
+  // ── Header band ──────────────────────────────────────────────────
+  doc.setFillColor(29, 78, 216); // blue-700
+  doc.rect(0, 0, pageW, 30, 'F');
+  doc.setTextColor(255,255,255);
+  doc.setFont('helvetica','bold'); doc.setFontSize(16);
+  doc.text('AutoFix GMS', margin, 12);
+  doc.setFont('helvetica','normal'); doc.setFontSize(8);
+  doc.setTextColor(186, 214, 255);
+  doc.text('Garage Management System', margin, 18);
+
+  // Right side of header
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(186,214,255);
+  doc.text('DIGITAL SERVICE CARD', pageW - margin, 10, { align:'right' });
+  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(255,255,255);
+  doc.text(job.jobCardNumber || '—', pageW - margin, 17, { align:'right' });
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(186,214,255);
+  doc.text(fmtDate(job.updatedAt || job.createdAt), pageW - margin, 23, { align:'right' });
+
+  y = 38;
+
+  // ── Left column: Customer / Vehicle / Technician ──────────────────
+  const drawLabel = (lbl, val, cx, cy) => {
+    doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(148,163,184);
+    doc.text(lbl.toUpperCase(), cx, cy);
+    doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(30,41,59);
+    doc.text(val || '—', cx, cy + 5);
+  };
+  const drawSmall = (lbl, val, cx, cy) => {
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(100,116,139);
+    doc.text(lbl + ': ' + (val || '—'), cx, cy);
+  };
+
+  drawLabel('Customer', customer?.name || '—', margin, y);
+  drawSmall('Phone', customer?.phone || '—', margin, y + 9);
+  drawSmall('Email', customer?.email || '—', margin, y + 14);
+  y += 22;
+
+  drawLabel('Vehicle', vehicle?.registrationNumber || '—', margin, y);
+  drawSmall('', [vehicle?.make, vehicle?.model, vehicle?.year].filter(Boolean).join(' '), margin, y + 9);
+  y += 18;
+
+  drawLabel('Technician', job.assignedTechnician || '—', margin, y);
+  y += 14;
+
+  // ── Right column: Mileage & Next Service ─────────────────────────
+  let ry = 38;
+  // Mileage box
+  doc.setFillColor(248,250,252); doc.roundedRect(col2X, ry, pageW - col2X - margin, 28, 2, 2, 'F');
+  doc.setDrawColor(226,232,240); doc.roundedRect(col2X, ry, pageW - col2X - margin, 28, 2, 2, 'S');
+  doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(148,163,184);
+  doc.text('MILEAGE READINGS', col2X + 4, ry + 6);
+  drawSmall('In', job.mileageIn ? job.mileageIn.toLocaleString() + ' km' : '—', col2X + 4, ry + 13);
+  if (mileageOut > 0) drawSmall('Out', mileageOut.toLocaleString() + ' km', col2X + 4, ry + 19);
+  drawSmall('Fuel', job.fuelLevel || '—', col2X + 4, ry + (mileageOut > 0 ? 25 : 19));
+  ry += 32;
+
+  // Next service highlight box
+  if (job.nextServiceMileage) {
+    doc.setFillColor(240, 253, 244); // green-50
+    doc.roundedRect(col2X, ry, pageW - col2X - margin, 38, 3, 3, 'F');
+    doc.setDrawColor(134, 239, 172); // green-300
+    doc.roundedRect(col2X, ry, pageW - col2X - margin, 38, 3, 3, 'S');
+
+    // Bell icon replacement — orange circle
+    doc.setFillColor(34,197,94); doc.circle(col2X + (pageW - col2X - margin)/2, ry + 8, 4, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(255,255,255);
+    doc.text('!', col2X + (pageW - col2X - margin)/2, ry + 10, { align:'center' });
+
+    doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(21,128,61);
+    doc.text('NEXT SERVICE DUE AT', col2X + (pageW - col2X - margin)/2, ry + 17, { align:'center' });
+    doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.setTextColor(21,128,61);
+    doc.text(job.nextServiceMileage.toLocaleString() + ' km', col2X + (pageW - col2X - margin)/2, ry + 28, { align:'center' });
+    if (job.nextServiceLubricant) {
+      doc.setFont('helvetica','normal'); doc.setFontSize(7); doc.setTextColor(22,163,74);
+      doc.text(job.nextServiceLubricant, col2X + (pageW - col2X - margin)/2, ry + 34, { align:'center' });
+    }
+    ry += 42;
+  }
+
+  // ── Services & Parts ──────────────────────────────────────────────
+  y = Math.max(y, 100);
+  doc.setDrawColor(226,232,240); doc.line(margin, y, pageW - margin, y); y += 4;
+  doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(148,163,184);
+  doc.text('SERVICES & PARTS PERFORMED', margin, y); y += 5;
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(51,65,85);
+  const allWork = [
+    ...services.map(sv => '• ' + sv.serviceName + (sv.quantity>1?' ×'+sv.quantity:'')),
+    ...parts.map(p  => '• ' + p.partName + ' ×' + p.quantity)
+  ];
+  if (allWork.length === 0) allWork.push('No services/parts recorded');
+  // Multi-column if many items
+  const half = Math.ceil(allWork.length / 2);
+  allWork.slice(0, half).forEach((item, i) => {
+    doc.text(item, margin, y + i * 5);
+  });
+  allWork.slice(half).forEach((item, i) => {
+    doc.text(item, pageW / 2, y + i * 5);
+  });
+
+  // ── Footer ────────────────────────────────────────────────────────
+  doc.setFillColor(29, 78, 216);
+  doc.rect(0, pageH - 14, pageW, 14, 'F');
+  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(186,214,255);
+  doc.text('Thank you for choosing AutoFix GMS  ·  Tel: +255 700 000 000  ·  info@autofixgms.co.tz', pageW/2, pageH - 6, { align:'center' });
+
+  const filename = 'ServiceCard-' + (job.jobCardNumber||'GMS') + '-' + (vehicle?.registrationNumber||'').replace(/\s/g,'')+'.pdf';
+  doc.save(filename);
+  showToast('✅ ' + filename + ' downloaded');
+}
+
+function shareServiceCardWhatsApp() {
+  if (!_svcCardData) return;
+  const { job, customer, vehicle } = _svcCardData;
+  const mileageOut = +document.getElementById('svcCard-mileageOut').value || 0;
+  const phone = (customer?.phone || '').replace(/\D/g,'');
+
+  let msg = '🔧 *AutoFix GMS — Service Card*\n';
+  msg += '─────────────────────────────\n';
+  msg += '*Job Card:*  ' + (job.jobCardNumber || '—') + '\n';
+  msg += '*Date:*      ' + fmtDate(job.updatedAt || job.createdAt) + '\n';
+  msg += '*Vehicle:*   ' + (vehicle?.registrationNumber || '—') + ' ' + [vehicle?.make,vehicle?.model,vehicle?.year].filter(Boolean).join(' ') + '\n';
+  if (job.mileageIn)  msg += '*Mileage In:*  ' + job.mileageIn.toLocaleString() + ' km\n';
+  if (mileageOut > 0) msg += '*Mileage Out:* ' + mileageOut.toLocaleString() + ' km\n';
+  if (job.fuelLevel)  msg += '*Fuel Level:* ' + job.fuelLevel + '\n';
+  if (job.nextServiceMileage) {
+    msg += '─────────────────────────────\n';
+    msg += '🔔 *NEXT SERVICE DUE AT:* ' + job.nextServiceMileage.toLocaleString() + ' km\n';
+    if (job.nextServiceLubricant) msg += '   _(' + job.nextServiceLubricant + ')_\n';
+  }
+  msg += '─────────────────────────────\n';
+  msg += '_Thank you for choosing AutoFix GMS!_\n';
+  msg += '_📞 +255 700 000 000_';
+
+  const url = 'https://wa.me/' + (phone || '') + '?text=' + encodeURIComponent(msg);
+  window.open(url, '_blank');
+}
+
+function shareServiceCardEmail() {
+  if (!_svcCardData) return;
+  const { job, customer, vehicle } = _svcCardData;
+  const mileageOut = +document.getElementById('svcCard-mileageOut').value || 0;
+  const email = customer?.email || '';
+  const subject = 'Your Service Card — ' + (job.jobCardNumber || 'AutoFix GMS') + ' | ' + (vehicle?.registrationNumber || '');
+  const body = _buildServiceCardText(mileageOut);
+  window.location.href = 'mailto:' + email + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
+}
+
+async function issueServiceCard() {
+  if (!_svcCardData) return;
+  const { job } = _svcCardData;
+  const mileageOut = +document.getElementById('svcCard-mileageOut').value || 0;
+  try {
+    await axios.patch('/api/jobcards/' + job.id + '/service-card', { mileageOut: mileageOut || undefined });
+    showToast('✅ Service card issued & recorded for ' + job.jobCardNumber);
+    closeModal('modal-serviceCard');
+    viewJobDetail(job.id);
+  } catch(e) {
+    showToast('Error issuing service card', 'error');
+  }
+}
+// ═══════════════════════════════════════════════════════════════════
 
 async function confirmReopenJob() {
   const reason = document.getElementById('reopenReasonInput').value.trim();

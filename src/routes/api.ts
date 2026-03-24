@@ -855,6 +855,40 @@ api.delete('/services/:id', (c) => {
   return c.json({ success: true })
 })
 
+// ─── Service Card ─────────────────────────────────────────────────────────────
+// GET /jobcards/:id/service-card — return full data bundle for generating a service card
+api.get('/jobcards/:id/service-card', (c) => {
+  const jId = c.req.param('id')
+  const job = jobCards.find(x => x.id === jId)
+  if (!job) return c.json({ error: 'Not found' }, 404)
+  const customer  = customers.find(x => x.id === job.customerId)
+  const vehicle   = vehicles.find(x => x.id === job.vehicleId)
+  const parts     = partsConsumption.filter(p => p.jobCardId === jId)
+  const services  = jobServices.filter(s => s.jobCardId === jId)
+  return c.json({ job, customer, vehicle, parts, services })
+})
+
+// PATCH /jobcards/:id/service-card — record mileageOut and serviceCardIssuedAt
+api.patch('/jobcards/:id/service-card', async (c) => {
+  const jIdx = jobCards.findIndex(x => x.id === c.req.param('id'))
+  if (jIdx === -1) return c.json({ error: 'Not found' }, 404)
+  const { mileageOut } = await c.req.json<{ mileageOut?: number }>()
+  const ts = now()
+  jobCards[jIdx] = {
+    ...jobCards[jIdx],
+    ...(mileageOut != null ? { mileageOut } : {}),
+    serviceCardIssuedAt: ts,
+    updatedAt: ts,
+  }
+  const jc = jobCards[jIdx]
+  addNotification('service_card', 'success', 'Service Card Issued',
+    `Service card generated for ${jc.jobCardNumber}`,
+    { jobCardId: jc.id, jobCardNumber: jc.jobCardNumber, entityType: 'job' })
+  activityLog.push({ id: 'a' + genId(), jobCardId: jc.id, action: 'SERVICE_CARD_ISSUED',
+    description: 'Digital service card issued to customer', userId: 'u3', userName: 'System', timestamp: ts })
+  return c.json(jobCards[jIdx])
+})
+
 // ─── Invoices ────────────────────────────────────────────────────────────────
 api.get('/invoices', (c) => {
   return c.json(invoices.map(inv => {

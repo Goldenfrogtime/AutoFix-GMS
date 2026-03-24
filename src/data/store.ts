@@ -233,9 +233,11 @@ export interface JobCard {
   inspectionNotes?: string
   status: JobCardStatus
   mileageIn?: number           // odometer reading at intake (km)
+  mileageOut?: number          // odometer reading at handover (km) — for service card
   fuelLevel?: string           // fuel level at intake: 'Empty'|'1/4'|'1/2'|'3/4'|'Full'
   nextServiceMileage?: number  // calculated: mileageIn + lubricant mileageInterval
   nextServiceLubricant?: string // name of lubricant that triggered the next service calc
+  serviceCardIssuedAt?: string  // ISO timestamp when a service card was last generated
   technicianAssignedAt?: string // ISO timestamp — when a technician was first/last assigned
   statusTimeline?: StatusTimelineEntry[]  // per-status time tracking
   completedAt?: string         // ISO timestamp — when status reached COMPLETED
