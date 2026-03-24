@@ -485,6 +485,66 @@ api.patch('/jobcards/:id/status', async (c) => {
   return c.json(jobCards[idx])
 })
 
+// ─── Reopen a Job Card ───────────────────────────────────────────────────────
+// Allowed from: RELEASED, COMPLETED, INVOICED
+// Sets status back to REPAIR_IN_PROGRESS, records reason, increments reopenCount
+api.post('/jobcards/:id/reopen', async (c) => {
+  const idx = jobCards.findIndex(x => x.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const jc = jobCards[idx]
+
+  const REOPENABLE = ['RELEASED', 'COMPLETED', 'INVOICED']
+  if (!REOPENABLE.includes(jc.status)) {
+    return c.json({ error: `Job card cannot be reopened from status: ${jc.status}. Only RELEASED, COMPLETED, or INVOICED jobs can be reopened.` }, 400)
+  }
+
+  const { reason } = await c.req.json<{ reason: string }>()
+  if (!reason || !reason.trim()) {
+    return c.json({ error: 'A reason is required to reopen a job card' }, 400)
+  }
+
+  const ts = now()
+  const prevStatus = jc.status
+  const newStatus: JobCardStatus = 'REPAIR_IN_PROGRESS'
+
+  // ── Timeline: close current open entry, open new REPAIR_IN_PROGRESS entry ──
+  const timeline: StatusTimelineEntry[] = jc.statusTimeline ? [...jc.statusTimeline] : []
+  const openEntry = timeline.findLast ? timeline.findLast(e => !e.exitedAt) : [...timeline].reverse().find(e => !e.exitedAt)
+  if (openEntry) closeTimelineEntry(openEntry, ts)
+  timeline.push(openTimelineEntry(jc, newStatus, ts))
+
+  jobCards[idx] = {
+    ...jc,
+    status: newStatus,
+    statusTimeline: timeline,
+    reopenCount: (jc.reopenCount || 0) + 1,
+    reopenedAt: ts,
+    reopenReason: reason.trim(),
+    updatedAt: ts,
+  }
+
+  // ── Activity log ────────────────────────────────────────────────────────────
+  activityLog.push({
+    id: 'a' + genId(),
+    jobCardId: jc.id,
+    action: 'STATUS_CHANGE',
+    description: `Job card reopened from ${prevStatus} → REPAIR_IN_PROGRESS. Reason: ${reason.trim()}`,
+    userId: 'system',
+    userName: 'System',
+    timestamp: ts,
+  })
+
+  // ── Notification ────────────────────────────────────────────────────────────
+  addNotification(
+    'job_status', 'warning',
+    `Job Card Reopened – ${jc.jobCardNumber}`,
+    `Moved from ${prevStatus} back to Repair In Progress. Reason: ${reason.trim()}`,
+    { jobCardId: jc.id, jobCardNumber: jc.jobCardNumber }
+  )
+
+  return c.json(jobCards[idx])
+})
+
 api.put('/jobcards/:id', async (c) => {
   const idx = jobCards.findIndex(x => x.id === c.req.param('id'))
   if (idx === -1) return c.json({ error: 'Not found' }, 404)

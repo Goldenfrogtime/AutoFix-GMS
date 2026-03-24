@@ -2471,6 +2471,43 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
   </div>
 </div>
 
+<!-- Reopen Job Card Modal -->
+<div id="modal-reopenJob" class="modal-overlay hidden">
+  <div class="modal-box" style="--mw:460px">
+    <div class="flex items-center justify-between mb-5">
+      <div>
+        <h3 class="text-xl font-bold text-gray-900"><i class="fas fa-folder-open text-amber-500 mr-2"></i>Reopen Job Card</h3>
+        <p class="text-sm text-gray-500 mt-1">This will move the job back to <strong>Repair In Progress</strong></p>
+      </div>
+      <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-reopenJob')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-5 flex items-start gap-3">
+      <i class="fas fa-exclamation-triangle text-amber-500 mt-0.5 flex-shrink-0"></i>
+      <div class="text-sm text-amber-800">
+        <p class="font-semibold mb-1">Reopening this job card will:</p>
+        <ul class="list-disc list-inside space-y-0.5 text-amber-700">
+          <li>Reset status to <strong>Repair In Progress</strong></li>
+          <li>Allow adding new services, parts and updating details</li>
+          <li>Keep all existing invoices, PFIs and history intact</li>
+          <li>Log the reopen event in the activity timeline</li>
+        </ul>
+      </div>
+    </div>
+    <div class="mb-5">
+      <label class="form-label mb-1">Reason for Reopening <span class="text-red-500">*</span></label>
+      <textarea id="reopenReasonInput" class="input-field w-full" rows="3"
+        placeholder="e.g. Customer reported brake noise after release — needs further inspection…"></textarea>
+      <p class="text-xs text-gray-400 mt-1" id="reopenReasonError" style="display:none;color:#dc2626">Please provide a reason before reopening.</p>
+    </div>
+    <div class="flex gap-3">
+      <button class="btn-secondary flex-1" onclick="closeModal('modal-reopenJob')">Cancel</button>
+      <button class="flex-1 font-semibold rounded-xl px-4 py-2.5 text-sm transition-all bg-amber-500 hover:bg-amber-600 text-white flex items-center justify-center gap-2" id="reopenJobBtn" onclick="confirmReopenJob()">
+        <i class="fas fa-folder-open"></i> Reopen Job Card
+      </button>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ ADD CATALOGUE PART MODAL ═══ -->
 <div id="modal-addCatPart" class="modal-overlay hidden">
   <div class="modal-box" style="--mw:560px">
@@ -3761,7 +3798,10 @@ async function loadDashboard() {
         </div>
       </div>
       <div class="text-right">
-        \${statusBadge(j.status)}
+        <div class="flex items-center justify-end gap-1.5 flex-wrap">
+          \${statusBadge(j.status)}
+          \${j.reopenCount ? '<span class="text-xs font-semibold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded"><i class="fas fa-folder-open mr-0.5"></i>Reopened</span>' : ''}
+        </div>
         <p class="text-xs text-gray-400 mt-1">\${fmtDate(j.updatedAt)}</p>
       </div>
     </div>
@@ -3878,12 +3918,16 @@ function renderJobCards(jobs) {
         <span class="tag \${j.category==='Insurance'?'bg-blue-100 text-blue-700':'bg-gray-100 text-gray-600'}">\${j.category}</span>
       </td>
       <td class="px-4 py-3 text-sm text-gray-600">\${j.insurer||'—'}</td>
-      <td class="px-4 py-3">\${statusBadge(j.status)}</td>
+      <td class="px-4 py-3">
+        <div class="flex items-center gap-1.5 flex-wrap">\${statusBadge(j.status)}\${j.reopenCount ? '<span class="text-xs font-semibold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded whitespace-nowrap"><i class="fas fa-folder-open mr-0.5"></i>Reopened</span>' : ''}</div>
+      </td>
       <td class="px-4 py-3 text-xs text-gray-500">\${fmtDate(j.updatedAt)}</td>
       <td class="px-4 py-3">
         <div class="flex gap-2" onclick="event.stopPropagation()">
           <button class="text-blue-500 hover:text-blue-700 text-sm" onclick="viewJobDetail('\${j.id}')" title="View"><i class="fas fa-eye"></i></button>
-          <button class="text-amber-500 hover:text-amber-700 text-sm" onclick="showStatusModal('\${j.id}','\${j.status}')" title="Update Status"><i class="fas fa-exchange-alt"></i></button>
+          \${['RELEASED','COMPLETED','INVOICED'].includes(j.status)
+            ? \`<button class="text-amber-500 hover:text-amber-700 text-sm" onclick="showReopenModal('\${j.id}')" title="Reopen Job"><i class="fas fa-folder-open"></i></button>\`
+            : \`<button class="text-amber-500 hover:text-amber-700 text-sm" onclick="showStatusModal('\${j.id}','\${j.status}')" title="Update Status"><i class="fas fa-exchange-alt"></i></button>\`}
         </div>
       </td>
     </tr>
@@ -3913,9 +3957,13 @@ async function viewJobDetail(id) {
   
   const canMakeInvoice = j.status === 'COMPLETED' && !j.invoice;
   const canMakePFI = !j.pfi;
+  const canReopen = ['RELEASED', 'COMPLETED', 'INVOICED'].includes(j.status);
+  const isReopened = (j.reopenCount || 0) > 0;
   
   document.getElementById('jobDetailActions').innerHTML = \`
-    <button class="btn-secondary text-sm" onclick="showStatusModal('\${j.id}','\${j.status}')"><i class="fas fa-exchange-alt"></i> Update Status</button>
+    \${canReopen
+      ? \`<button class="text-sm font-semibold rounded-xl px-3 py-2 transition-all bg-amber-100 hover:bg-amber-200 text-amber-700 border border-amber-300 flex items-center gap-1.5" onclick="showReopenModal('\${j.id}')"><i class="fas fa-folder-open"></i> Reopen Job</button>\`
+      : \`<button class="btn-secondary text-sm" onclick="showStatusModal('\${j.id}','\${j.status}')"><i class="fas fa-exchange-alt"></i> Update Status</button>\`}
     \${canMakePFI ? \`<button class="btn-secondary text-sm" onclick="showPFIModal('\${j.id}','\${j.category}')"><i class="fas fa-file-invoice"></i> Create PFI</button>\` : ''}
     \${canMakeInvoice ? \`<button class="btn-primary text-sm" onclick="showInvoiceModal('\${j.id}',\${j.pfi?.labourCost||0},\${j.parts?.reduce((s,p)=>s+p.totalCost,0)||0})"><i class="fas fa-receipt"></i> Generate Invoice</button>\` : ''}
   \`;
@@ -3941,6 +3989,15 @@ async function viewJobDetail(id) {
   }
   
   document.getElementById('jobDetailContent').innerHTML = \`
+    \${isReopened ? \`
+    <div class="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4">
+      <i class="fas fa-folder-open text-amber-500 mt-0.5 flex-shrink-0"></i>
+      <div class="flex-1 min-w-0">
+        <p class="text-sm font-semibold text-amber-800">Reopened Job \${j.reopenCount > 1 ? '(' + j.reopenCount + ' times)' : ''}</p>
+        <p class="text-xs text-amber-700 mt-0.5">\${j.reopenReason || ''}</p>
+        <p class="text-xs text-amber-500 mt-0.5">Last reopened: \${fmtDate(j.reopenedAt)}</p>
+      </div>
+    </div>\` : ''}
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
       <!-- Main Info -->
       <div class="lg:col-span-2 space-y-4">
@@ -5401,6 +5458,43 @@ async function updateJobStatus(jobId, status) {
   if (activePage === 'page-jobdetail') viewJobDetail(jobId);
   else loadJobCards();
   showToast('Status updated to ' + STATUS_CONFIG[status]?.label);
+}
+
+// ── Reopen Job Card ──────────────────────────────────────────────────────────
+let _reopenJobId = null;
+
+function showReopenModal(jobId) {
+  _reopenJobId = jobId;
+  document.getElementById('reopenReasonInput').value = '';
+  document.getElementById('reopenReasonError').style.display = 'none';
+  openModal('modal-reopenJob');
+}
+
+async function confirmReopenJob() {
+  const reason = document.getElementById('reopenReasonInput').value.trim();
+  if (!reason) {
+    document.getElementById('reopenReasonError').style.display = 'block';
+    document.getElementById('reopenReasonInput').focus();
+    return;
+  }
+  document.getElementById('reopenReasonError').style.display = 'none';
+  const btn = document.getElementById('reopenJobBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Reopening…';
+  try {
+    await axios.post('/api/jobcards/' + _reopenJobId + '/reopen', { reason });
+    closeModal('modal-reopenJob');
+    showToast('✔ Job card reopened — status set to Repair In Progress', 'success');
+    viewJobDetail(_reopenJobId);
+    // Refresh job list in background
+    loadJobCards();
+  } catch (err) {
+    const msg = err.response?.data?.error || err.message;
+    showToast('Error: ' + msg, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-folder-open"></i> Reopen Job Card';
+  }
 }
 
 // New Job Modal

@@ -240,6 +240,9 @@ export interface JobCard {
   statusTimeline?: StatusTimelineEntry[]  // per-status time tracking
   completedAt?: string         // ISO timestamp — when status reached COMPLETED
   totalTATMins?: number        // working minutes from RECEIVED → COMPLETED
+  reopenCount?: number         // how many times this job has been reopened (0 = never)
+  reopenedAt?: string          // ISO timestamp of the most recent reopen
+  reopenReason?: string        // reason given for the most recent reopen
   createdAt: string
   updatedAt: string
 }
