@@ -7699,7 +7699,7 @@ async function downloadInvoice(invId) {
     // Fetch full job detail (services + parts + customer + vehicle)
     const { data: job } = await axios.get('/api/jobcards/' + inv.jobCardId);
     const doc = buildInvoiceDoc(inv, job);
-    const filename = inv.invoiceNumber.replace(/\//g, '-') + '-' + (job.customer?.name || 'Customer').replace(/\s+/g, '_') + '.pdf';
+    const filename = inv.invoiceNumber.split('/').join('-') + '-' + (job.customer?.name || 'Customer').split(' ').join('_') + '.pdf';
     doc.save(filename);
     showToast('✅ ' + filename + ' downloaded');
   } catch(e) {
@@ -7970,21 +7970,19 @@ function buildInvoiceDoc(inv, job) {
     y += 4;
   }
 
-  // ── Paid watermark diagonal across centre ───────────────────────────────────
+  // ── Paid / Overdue watermark diagonal across centre ──────────────────────────
   if (inv.status === 'Paid') {
-    doc.setGState(new doc.GState({ opacity: 0.07 }));
-    doc.setTextColor(22, 163, 74);
+    doc.setTextColor(200, 240, 210);  // very light green — no GState needed
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(72);
     doc.text('PAID', pageW / 2, 200, { align: 'center', angle: 45 });
-    doc.setGState(new doc.GState({ opacity: 1 }));
+    doc.setTextColor(30, 41, 59);     // restore normal text colour
   } else if (inv.status === 'Overdue') {
-    doc.setGState(new doc.GState({ opacity: 0.06 }));
-    doc.setTextColor(220, 38, 38);
+    doc.setTextColor(255, 200, 200);  // very light red
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(72);
     doc.text('OVERDUE', pageW / 2, 200, { align: 'center', angle: 45 });
-    doc.setGState(new doc.GState({ opacity: 1 }));
+    doc.setTextColor(30, 41, 59);     // restore
   }
 
   // ── Footer ──────────────────────────────────────────────────────────────────
