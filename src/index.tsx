@@ -4139,12 +4139,23 @@ async function viewJobDetail(id) {
               </div>
               <div class="border-t border-gray-100 pt-2 mb-3"></div>
             \` : ''}
-            <div class="space-y-2 text-sm">
-              <div class="flex justify-between"><span class="text-gray-400">Labour</span><span class="font-semibold">\${fmt(j.pfi.labourCost)}</span></div>
-              <div class="flex justify-between"><span class="text-gray-400">Parts Total</span><span class="font-semibold">\${fmt(j.pfi.partsCost)}</span></div>
-              \${(j.pfi.discountAmount||0) > 0 ? '<div class="flex justify-between text-green-600"><span class="flex items-center gap-1"><i class="fas fa-tag text-xs"></i>Discount' + (j.pfi.discountReason ? ' <span class=\\'text-xs text-green-500\\'>('+j.pfi.discountReason+')</span>' : '') + '</span><span class="font-semibold">− '+fmt(j.pfi.discountAmount)+'</span></div>' : ''}
-              <div class="flex justify-between border-t pt-2 font-bold"><span>Total Estimate</span><span class="text-blue-600">\${fmt(j.pfi.totalEstimate)}</span></div>
-            </div>
+            \${(function(){
+              // Always compute from live services + parts — never from stale PFI snapshot
+              const _liveSvcCost  = (j.services||[]).reduce(function(s,sv){return s+sv.totalCost;},0);
+              const _livePartCost = (j.parts||[]).reduce(function(s,p){return s+p.totalCost;},0);
+              const _liveBillable = _liveSvcCost + _livePartCost;
+              const _labour       = j.pfi.labourCost || 0;
+              const _subtotal     = _labour + _liveBillable;
+              const _disc         = j.pfi.discountAmount || 0;
+              const _discReason   = j.pfi.discountReason || '';
+              const _total        = Math.max(0, _subtotal - _disc);
+              return \`<div class="space-y-2 text-sm">
+                <div class="flex justify-between"><span class="text-gray-400">Labour</span><span class="font-semibold">\${fmt(_labour)}</span></div>
+                <div class="flex justify-between"><span class="text-gray-400">Services + Parts</span><span class="font-semibold">\${fmt(_liveBillable)}</span></div>
+                \${_disc > 0 ? '<div class=\\"flex justify-between text-green-600\\"><span class=\\"flex items-center gap-1\\"><i class=\\"fas fa-tag text-xs\\"></i>Discount'+(_discReason ? ' <span class=\\"text-xs text-green-500\\">('+_discReason+')</span>' : '')+'</span><span class=\\"font-semibold\\">− '+fmt(_disc)+'</span></div>' : ''}
+                <div class="flex justify-between border-t pt-2 font-bold"><span>Total Estimate</span><span class="text-blue-600">\${fmt(_total)}</span></div>
+              </div>\`;
+            })()}
             <div class="mt-3 flex items-center justify-between">
               <span class="badge" style="background:\${PFI_STATUS_CONFIG[j.pfi.status]?.bg};color:\${PFI_STATUS_CONFIG[j.pfi.status]?.text}">\${j.pfi.status}</span>
               <button class="text-xs text-blue-600 hover:underline font-semibold" onclick="showSendPFIModal('\${j.pfi.id}')"><i class="fas fa-paper-plane mr-1"></i>Send / View</button>
@@ -4156,13 +4167,26 @@ async function viewJobDetail(id) {
           <div class="card p-5 border-2 border-green-200">
             <h4 class="font-bold text-gray-800 mb-4"><i class="fas fa-receipt text-green-500 mr-2"></i>Invoice</h4>
             <p class="text-xs text-gray-400 mb-2">\${j.invoice.invoiceNumber}</p>
-            <div class="space-y-2 text-sm">
-              <div class="flex justify-between"><span class="text-gray-400">Labour</span><span>\${fmt(j.invoice.labourCost)}</span></div>
-              <div class="flex justify-between"><span class="text-gray-400">Parts</span><span>\${fmt(j.invoice.partsCost)}</span></div>
-              \${(j.invoice.discountAmount||0) > 0 ? '<div class="flex justify-between text-green-600"><span class="flex items-center gap-1"><i class="fas fa-tag text-xs"></i>Discount' + (j.invoice.discountReason ? ' <span class=\\'text-xs text-green-500\\'>('+j.invoice.discountReason+')</span>' : '') + '</span><span class="font-semibold">− '+fmt(j.invoice.discountAmount)+'</span></div>' : ''}
-              <div class="flex justify-between"><span class="text-gray-400">Tax (18%)</span><span>\${fmt(j.invoice.tax)}</span></div>
-              <div class="flex justify-between border-t pt-2 font-bold text-green-600"><span>Total</span><span>\${fmt(j.invoice.totalAmount)}</span></div>
-            </div>
+            \${(function(){
+              // Always compute from live services + parts — never from stale Invoice snapshot
+              const _liveSvcCost  = (j.services||[]).reduce(function(s,sv){return s+sv.totalCost;},0);
+              const _livePartCost = (j.parts||[]).reduce(function(s,p){return s+p.totalCost;},0);
+              const _liveBillable = _liveSvcCost + _livePartCost;
+              const _labour       = j.invoice.labourCost || 0;
+              const _subtotal     = _labour + _liveBillable;
+              const _disc         = j.invoice.discountAmount || 0;
+              const _discReason   = j.invoice.discountReason || '';
+              const _afterDisc    = Math.max(0, _subtotal - _disc);
+              const _tax          = Math.round(_afterDisc * 0.18);
+              const _total        = _afterDisc + _tax;
+              return \`<div class="space-y-2 text-sm">
+                <div class="flex justify-between"><span class="text-gray-400">Labour</span><span>\${fmt(_labour)}</span></div>
+                <div class="flex justify-between"><span class="text-gray-400">Services + Parts</span><span>\${fmt(_liveBillable)}</span></div>
+                \${_disc > 0 ? '<div class=\\"flex justify-between text-green-600\\"><span class=\\"flex items-center gap-1\\"><i class=\\"fas fa-tag text-xs\\"></i>Discount'+(_discReason ? ' <span class=\\"text-xs text-green-500\\">('+_discReason+')</span>' : '')+'</span><span class=\\"font-semibold\\">− '+fmt(_disc)+'</span></div>' : ''}
+                <div class="flex justify-between"><span class="text-gray-400">Tax (18%)</span><span>\${fmt(_tax)}</span></div>
+                <div class="flex justify-between border-t pt-2 font-bold text-green-600"><span>Total</span><span>\${fmt(_total)}</span></div>
+              </div>\`;
+            })()}
             \${j.invoice.dueDate ? \`<p class="text-xs text-gray-400 mt-2">Due: \${j.invoice.dueDate}</p>\` : ''}
             \${j.invoice.paidAt ? \`<p class="text-xs text-green-600 mt-1"><i class="fas fa-check-circle mr-1"></i>Paid: \${fmtDate(j.invoice.paidAt)}</p>\` : ''}
             \${j.invoice.paymentMethod ? \`<p class="text-xs text-gray-500 mt-0.5"><i class="fas fa-credit-card mr-1"></i>\${j.invoice.paymentMethod}\${j.invoice.paymentReference ? ' · ' + j.invoice.paymentReference : ''}</p>\` : ''}

@@ -150,6 +150,60 @@ function addNotification(
   return n
 }
 
+// ─── Sync PFI + Invoice after parts/services change ─────────────────────────
+// Called whenever services or parts are added or removed from a job.
+// Recalculates the live parts/services totals and updates:
+//   • the job's PFI (partsCost, totalEstimate) — preserving discount & labour
+//   • the job's Invoice (partsCost, tax, totalAmount) — only if not yet Paid
+function syncJobFinancials(jobCardId: string) {
+  const liveParts    = partsConsumption.filter(p => p.jobCardId === jobCardId)
+  const liveServices = jobServices.filter(s => s.jobCardId === jobCardId)
+  const livePartsCost    = liveParts.reduce((s, p) => s + p.totalCost, 0)
+  const liveServicesCost = liveServices.reduce((s, sv) => s + sv.totalCost, 0)
+  const liveBillable = livePartsCost + liveServicesCost  // = partsCost in PFI/Invoice
+
+  // ── Update PFI ──────────────────────────────────────────────────────────────
+  const pfiIdx = pfis.findIndex(p => p.jobCardId === jobCardId)
+  if (pfiIdx !== -1) {
+    const pfi = pfis[pfiIdx]
+    const subtotal = (pfi.labourCost || 0) + liveBillable
+    let discountAmount = 0
+    if (pfi.discountType === 'percentage' && pfi.discountValue) {
+      discountAmount = Math.round(subtotal * Math.min(pfi.discountValue, 100) / 100)
+    } else if (pfi.discountType === 'fixed' && pfi.discountValue) {
+      discountAmount = Math.min(Math.round(pfi.discountValue), subtotal)
+    } else {
+      discountAmount = pfi.discountAmount || 0
+    }
+    pfis[pfiIdx] = {
+      ...pfi,
+      partsCost:     liveBillable,
+      discountAmount,
+      totalEstimate: Math.max(0, subtotal - discountAmount),
+    }
+  }
+
+  // ── Update Invoice (only if not fully Paid) ─────────────────────────────────
+  const invIdx = invoices.findIndex(inv => inv.jobCardId === jobCardId)
+  if (invIdx !== -1) {
+    const inv = invoices[invIdx]
+    if (inv.status !== 'Paid') {
+      const subtotal = (inv.labourCost || 0) + liveBillable
+      const discountAmount = inv.discountAmount || 0
+      const afterDiscount  = Math.max(0, subtotal - discountAmount)
+      const tax            = Math.round(afterDiscount * 0.18)
+      const totalAmount    = afterDiscount + tax
+      invoices[invIdx] = {
+        ...inv,
+        partsCost:  liveBillable,
+        tax,
+        totalAmount,
+        updatedAt:  now(),
+      }
+    }
+  }
+}
+
 // ─── Dashboard ──────────────────────────────────────────────────────────────
 api.get('/dashboard', (c) => {
   const active = jobCards.filter(j => !['COMPLETED', 'INVOICED', 'RELEASED'].includes(j.status)).length
@@ -551,13 +605,16 @@ api.post('/jobcards/:id/parts', async (c) => {
   const body = await c.req.json<Omit<PartConsumption, 'id' | 'jobCardId'>>()
   const newPart: PartConsumption = { ...body, id: 'pc' + genId(), jobCardId: c.req.param('id') }
   partsConsumption.push(newPart)
+  syncJobFinancials(c.req.param('id'))
   return c.json(newPart, 201)
 })
 
 api.delete('/parts/:id', (c) => {
   const idx = partsConsumption.findIndex(x => x.id === c.req.param('id'))
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const deletedJobCardId = partsConsumption[idx].jobCardId
   partsConsumption.splice(idx, 1)
+  syncJobFinancials(deletedJobCardId)
   return c.json({ success: true })
 })
 
@@ -587,13 +644,16 @@ api.post('/jobcards/:id/services', async (c) => {
     }
   }
 
+  syncJobFinancials(c.req.param('id'))
   return c.json(newSvc, 201)
 })
 
 api.delete('/services/:id', (c) => {
   const idx = jobServices.findIndex(x => x.id === c.req.param('id'))
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const deletedJobCardId = jobServices[idx].jobCardId
   jobServices.splice(idx, 1)
+  syncJobFinancials(deletedJobCardId)
   return c.json({ success: true })
 })
 
@@ -607,8 +667,8 @@ api.get('/invoices', (c) => {
 })
 
 api.post('/jobcards/:id/invoice', async (c) => {
+  const jobCardId = c.req.param('id')
   const body = await c.req.json<Omit<Invoice, 'id' | 'jobCardId' | 'invoiceNumber' | 'issuedAt'>>()
-  const invNum = 'INV-' + new Date().getFullYear() + '-' + String(invoices.length + 1).padStart(3, '0')
   // Default due date: 30 days from today
   const dueDate = body.dueDate || (() => {
     const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().slice(0, 10)
@@ -624,10 +684,39 @@ api.post('/jobcards/:id/invoice', async (c) => {
     }
   }
   const totalAmount = body.totalAmount ?? Math.max(0, subtotal - discountAmount + (body.tax || 0))
+  const jIdx = jobCards.findIndex(x => x.id === jobCardId)
+
+  // ── UPSERT: update existing invoice if one already exists for this job ──────
+  const existingIdx = invoices.findIndex(x => x.jobCardId === jobCardId)
+  if (existingIdx !== -1) {
+    const existing = invoices[existingIdx]
+    // Preserve payment info — only update amounts, discount, tax, status if not yet paid
+    const isPaid = existing.status === 'Paid'
+    invoices[existingIdx] = {
+      ...existing,
+      labourCost:     body.labourCost    ?? existing.labourCost,
+      partsCost:      body.partsCost     ?? existing.partsCost,
+      discountType:   body.discountType  ?? existing.discountType,
+      discountValue:  body.discountValue ?? existing.discountValue,
+      discountAmount,
+      discountReason: body.discountReason ?? existing.discountReason,
+      tax:            body.tax           ?? existing.tax,
+      totalAmount,
+      dueDate:        body.dueDate       ?? existing.dueDate,
+      // Only update status if invoice is not already paid
+      status:         isPaid ? existing.status : (body.status as any ?? existing.status),
+      updatedAt:      now(),
+    }
+    if (jIdx !== -1) { jobCards[jIdx].status = 'INVOICED'; jobCards[jIdx].updatedAt = now() }
+    return c.json(invoices[existingIdx], 200)
+  }
+
+  // ── CREATE: no existing invoice for this job — create new ───────────────────
+  const invNum = 'INV-' + new Date().getFullYear() + '-' + String(invoices.length + 1).padStart(3, '0')
   const newInv: Invoice = {
     ...body,
     id: 'i' + genId(),
-    jobCardId: c.req.param('id'),
+    jobCardId,
     invoiceNumber: invNum,
     discountAmount,
     totalAmount,
@@ -635,7 +724,6 @@ api.post('/jobcards/:id/invoice', async (c) => {
     dueDate
   }
   invoices.push(newInv)
-  const jIdx = jobCards.findIndex(x => x.id === c.req.param('id'))
   if (jIdx !== -1) { jobCards[jIdx].status = 'INVOICED'; jobCards[jIdx].updatedAt = now() }
   const jc = jobCards[jIdx]
   if (jc) addNotification('invoice_created', 'success', 'Invoice Generated',
