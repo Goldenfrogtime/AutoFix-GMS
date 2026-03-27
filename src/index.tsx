@@ -10113,7 +10113,8 @@ function renderFleetTable(data, filter) {
       : 'bg-gray-100 text-gray-600';
     var canPay = fi.status !== 'Paid';
     var paid = fi.amountPaid || 0;
-    return '<tr class="table-row border-b border-gray-50 cursor-pointer hover:bg-blue-50/30 transition-colors" onclick="showFleetDetail(\'' + fi.id + '\', event)">' +
+    var fid = fi.id;
+    return '<tr class="table-row border-b border-gray-50 cursor-pointer hover:bg-blue-50/30 transition-colors" data-fi-id="' + fid + '" onclick="showFleetDetail(this.dataset.fiId, event)">' +
       '<td class="px-4 py-3 font-bold text-blue-600 text-sm">' + fi.fleetInvoiceNumber + '</td>' +
       '<td class="px-4 py-3 text-sm font-medium text-gray-700">' + (fi.customerName || '—') + '</td>' +
       '<td class="px-4 py-3 text-sm text-gray-600"><span class="inline-flex items-center gap-1 text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-semibold"><i class="fas fa-layer-group"></i>' + (fi.lineItems?.length || 0) + ' jobs</span></td>' +
@@ -10122,9 +10123,9 @@ function renderFleetTable(data, filter) {
       '<td class="px-4 py-3">' + (paid > 0 ? '<span class="font-semibold ' + (fi.status === 'Paid' ? 'text-green-600' : 'text-amber-600') + '">' + fmt(paid) + '</span>' : '<span class="text-gray-300 text-xs">—</span>') + '</td>' +
       '<td class="px-4 py-3"><span class="badge ' + statusClass + '">' + fi.status + '</span></td>' +
       '<td class="px-4 py-3" onclick="event.stopPropagation()">' +
-        '<div class="flex items-center gap-1.5">' +
-          (canPay ? '<button class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition-colors" onclick="showFleetPayModal(\'' + fi.id + '\')"><i class="fas fa-money-bill-wave mr-1"></i>' + (fi.status === 'Partially Paid' ? 'Pay Balance' : 'Record Payment') + '</button>' : '') +
-          '<button class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors" onclick="downloadFleetInvoicePDF(\'' + fi.id + '\')"><i class="fas fa-file-pdf mr-1"></i>PDF</button>' +
+        '<div class="flex items-center gap-1.5" data-fi-id="' + fid + '">' +
+          (canPay ? '<button class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition-colors" data-fi-id="' + fid + '" onclick="showFleetPayModal(this.dataset.fiId)"><i class="fas fa-money-bill-wave mr-1"></i>' + (fi.status === 'Partially Paid' ? 'Pay Balance' : 'Record Payment') + '</button>' : '') +
+          '<button class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors" data-fi-id="' + fid + '" onclick="downloadFleetInvoicePDF(this.dataset.fiId)"><i class="fas fa-file-pdf mr-1"></i>PDF</button>' +
         '</div>' +
       '</td>' +
     '</tr>';
@@ -10428,7 +10429,7 @@ function fiRenderCustomers(list) {
     var isSelected = _fiSelectedCustomer && _fiSelectedCustomer.id === c.id;
     return '<div class="flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ' +
       (isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-100 hover:border-blue-300 hover:bg-gray-50') +
-      '" onclick="fiSelectCustomer(\'' + c.id + '\')">' +
+      '" data-cust-id="' + c.id + '" onclick="fiSelectCustomer(this.dataset.custId)">' +
       '<div class="w-9 h-9 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">' + (c.name || '?')[0].toUpperCase() + '</div>' +
       '<div class="flex-1 min-w-0"><p class="font-semibold text-gray-800 text-sm truncate">' + c.name + '</p><p class="text-xs text-gray-400">' + (c.phone || '—') + '</p></div>' +
       (isSelected ? '<i class="fas fa-check-circle text-blue-500"></i>' : '') +
@@ -10487,7 +10488,7 @@ function fiRenderJobs() {
     var checked = _fiSelectedJobs.some(function(s) { return s.jobCardId === j.jobCardId; });
     return '<label class="flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ' +
       (checked ? 'border-blue-500 bg-blue-50' : 'border-gray-100 hover:border-blue-200') +
-      '" onclick="fiToggleJob(\'' + j.jobCardId + '\')">' +
+      '" data-job-id="' + j.jobCardId + '" onclick="fiToggleJob(this.dataset.jobId)">' +
       '<div class="mt-0.5 w-5 h-5 rounded flex items-center justify-center flex-shrink-0 border-2 ' + (checked ? 'bg-blue-500 border-blue-500' : 'border-gray-300') + '">' +
         (checked ? '<i class="fas fa-check text-white text-xs"></i>' : '') +
       '</div>' +
