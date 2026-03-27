@@ -8359,7 +8359,7 @@ function buildPFITextPreview(detail) {
   const _taxAmt2     = pfi.tax != null ? pfi.tax : Math.round(pfi.totalEstimate * 0.18);
   const _grandTotal2 = pfi.totalAmount != null ? pfi.totalAmount : pfi.totalEstimate + _taxAmt2;
   t += '  Total Estimate: ' + fmt(pfi.totalEstimate) + NL;
-  t += '  Tax/VAT (18%):  ' + fmt(_taxAmt2) + NL;
+  t += '  Tax/VAT' + (_taxAmt2 > 0 ? ' (18%)' : '') + ':  ' + fmt(_taxAmt2) + NL;
   t += '  ' + dash25 + NL;
   t += '  GRAND TOTAL:    ' + fmt(_grandTotal2) + NL;
   if (pfi.notes) t += NL + 'Notes: ' + pfi.notes + NL;
@@ -8447,8 +8447,8 @@ async function showSendPFIModal(pfiId) {
       <div><span class="text-gray-500">Labour:</span> <strong>\${fmt(pfi.labourCost)}</strong></div>
       <div><span class="text-gray-500">Services+Parts:</span> <strong>\${fmt(pfi.partsCost)}</strong></div>
       <div><span class="text-gray-500">Total Estimate:</span> <strong>\${fmt(pfi.totalEstimate)}</strong></div>
-      <div><span class="text-gray-500">Tax / VAT (18%):</span> <strong class="text-orange-600">\${fmt(pfi.tax||Math.round(pfi.totalEstimate*0.18))}</strong></div>
-      <div><span class="text-gray-500">Grand Total:</span> <strong class="text-blue-700">\${fmt(pfi.totalAmount||(pfi.totalEstimate+Math.round(pfi.totalEstimate*0.18)))}</strong></div>
+      <div><span class="text-gray-500">Tax / VAT\${(pfi.tax||0) > 0 ? ' (18%)' : ''}:</span> <strong class="text-orange-600">\${fmt(pfi.tax||0)}</strong></div>
+      <div><span class="text-gray-500">Grand Total:</span> <strong class="text-blue-700">\${fmt(pfi.totalAmount||(pfi.totalEstimate+(pfi.tax||0)))}</strong></div>
     </div>
     \${servicesBreakdownHtml}
     \${partsBreakdownHtml}
@@ -8493,8 +8493,8 @@ Summary:
   Labour Cost:    \${fmt(pfi.labourCost)}
   Services+Parts: \${fmt(pfi.partsCost)}
   Total Estimate: \${fmt(pfi.totalEstimate)}
-  Tax/VAT (18%):  \${fmt(pfi.tax||Math.round(pfi.totalEstimate*0.18))}
-  Grand Total:    \${fmt(pfi.totalAmount||(pfi.totalEstimate+Math.round(pfi.totalEstimate*0.18)))}
+  Tax/VAT\${(pfi.tax||0) > 0 ? ' (18%)' : ''}:  \${fmt(pfi.tax||0)}
+  Grand Total:    \${fmt(pfi.totalAmount||(pfi.totalEstimate+(pfi.tax||0)))}
 
 \${pfi.notes ? 'Notes: ' + pfi.notes + '\\n\\n' : ''}\${closingLine}
 
@@ -8610,8 +8610,8 @@ function renderClaims(pfis) {
           <div class="flex justify-between text-sm mb-1"><span class="text-gray-500">Parts Total</span><span class="font-semibold">\${fmt(pfi.partsCost)}</span></div>
           \${(pfi.discountAmount||0) > 0 ? \`<div class="flex justify-between text-sm mb-1 text-green-600"><span class="flex items-center gap-1"><i class="fas fa-tag text-xs"></i>Discount\${pfi.discountReason ? ' <span class="text-xs">('+pfi.discountReason+')</span>' : ''}</span><span class="font-semibold">− \${fmt(pfi.discountAmount)}</span></div>\` : ''}
           <div class="flex justify-between text-sm border-t pt-1 mt-1 text-gray-500"><span>Total Estimate</span><span class="font-medium">\${fmt(pfi.totalEstimate)}</span></div>
-          <div class="flex justify-between text-sm text-orange-600"><span class="flex items-center gap-1"><i class="fas fa-percent text-xs"></i>Tax / VAT (18%)</span><span class="font-semibold">\${fmt(pfi.tax||Math.round(pfi.totalEstimate*0.18))}</span></div>
-          <div class="flex justify-between text-sm font-bold border-t pt-2"><span>Grand Total</span><span class="text-blue-600">\${fmt(pfi.totalAmount||(pfi.totalEstimate+Math.round(pfi.totalEstimate*0.18)))}</span></div>
+          <div class="flex justify-between text-sm text-orange-600"><span class="flex items-center gap-1"><i class="fas fa-percent text-xs"></i>Tax / VAT\${(pfi.tax||0) > 0 ? ' (18%)' : ''}</span><span class="font-semibold">\${fmt(pfi.tax||0)}</span></div>
+          <div class="flex justify-between text-sm font-bold border-t pt-2"><span>Grand Total</span><span class="text-blue-600">\${fmt(pfi.totalAmount||(pfi.totalEstimate+(pfi.tax||0)))}</span></div>
         </div>
         \${pfi.notes ? \`<p class="text-xs text-gray-500 mb-3 italic">"\${pfi.notes}"</p>\` : ''}
         \${pfi.sentAt ? \`<p class="text-xs text-green-600 mb-2"><i class="fas fa-check-circle mr-1"></i>Sent to <strong>\${pfi.sentTo||'customer'}</strong> on \${new Date(pfi.sentAt).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})}</p>\` : ''}
