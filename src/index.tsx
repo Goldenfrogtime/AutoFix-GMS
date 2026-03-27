@@ -7,8 +7,13 @@ app.use('/api/*', cors())
 app.route('/api', api)
 
 // ─── Main HTML Shell ─────────────────────────────────────────────────────────
-app.get('/', (c) => c.html(shell()))
-app.get('*', (c) => c.html(shell()))
+// no-store ensures browser always fetches fresh JS (prevents stale-cache errors)
+const htmlHandler = (c: any) => {
+  c.header('Cache-Control', 'no-store, must-revalidate')
+  return c.html(shell())
+}
+app.get('/', htmlHandler)
+app.get('*', htmlHandler)
 
 function shell() {
   return `<!DOCTYPE html>

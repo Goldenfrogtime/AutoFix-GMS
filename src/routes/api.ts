@@ -991,6 +991,7 @@ api.post('/jobcards/:id/invoice', async (c) => {
     invoiceNumber: invNum,
     discountAmount,
     totalAmount,
+    status: (body.status as any) || 'Issued',   // always default to 'Issued' if not provided
     issuedAt: now(),
     dueDate
   }
@@ -1037,7 +1038,8 @@ api.patch('/invoices/:id/status', async (c) => {
   const totalAmountPaid = newPayments.reduce((s, p) => s + p.amount, 0)
 
   // Auto-determine status if not explicitly set
-  let newStatus = (body.status as any) || prev.status
+  // Note: prev.status may be undefined for legacy invoices — default to 'Issued'
+  let newStatus = (body.status as any) || prev.status || 'Issued'
   if (body.paymentMethod && newPaymentAmount > 0) {
     if (totalAmountPaid >= prev.totalAmount) {
       newStatus = 'Paid'
