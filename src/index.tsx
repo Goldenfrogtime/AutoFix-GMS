@@ -8564,13 +8564,15 @@ async function submitPayInvoice() {
 
     closeModal('modal-payInvoice');
     showToast(isFullyPaid ? 'Invoice fully paid via ' + method + '!' : 'Partial payment of ' + fmt(amount) + ' recorded', 'success');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check mr-1.5"></i> Record Payment';
 
-    // Sync all finance-related views
-    syncFinance();
-    if (_piJobId) loadJobDetail(_piJobId);
+    // Sync all finance-related views (non-blocking — don't let UI refresh mask success)
+    try { syncFinance(); } catch(_) {}
+    if (_piJobId) { try { viewJobDetail(_piJobId); } catch(_) {} }
   } catch(e) {
-    showToast('Could not record payment', 'error');
-  } finally {
+    console.error('submitPayInvoice error:', e);
+    showToast('Could not record payment: ' + (e?.response?.data?.error || e?.message || 'Unknown error'), 'error');
     btn.disabled = false;
     btn.innerHTML = '<i class="fas fa-check mr-1.5"></i> Record Payment';
   }
