@@ -4,13 +4,14 @@ import {
   invoices, servicePackages, users, activityLog, sessions,
   oilServiceProducts, catalogueParts, carWashPackages, addOnServices, appointments,
   jobServices, expenses, notifications, lubricantProducts, vendors, gatePasses,
+  fleetInvoices,
   ROLE_PERMISSIONS,
   type Customer, type Vehicle, type JobCard, type PFI,
   type PartConsumption, type ServicePackage, type User, type Invoice,
   type CataloguePart, type CarWashPackage, type AddOnService, type Appointment,
   type JobService, type Expense, type Notification, type NotificationType, type NotificationPriority,
   type LubricantProduct, type Permission, type StatusTimelineEntry, type JobCardStatus, type Vendor,
-  type GatePass
+  type GatePass, type FleetInvoice, type FleetInvoiceLineItem
 } from '../data/store'
 import { save } from '../data/persist'
 
@@ -2434,6 +2435,253 @@ api.patch('/gate-passes/:id', async (c) => {
   const body = await c.req.json<Partial<GatePass>>()
   gatePasses[idx] = { ...gatePasses[idx], ...body, id: gatePasses[idx].id, updatedAt: now() }
   return c.json(gatePasses[idx])
+})
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── Fleet Invoices ───────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Helper: build a line-item snapshot for one job card
+function buildFleetLineItem(jobId: string): FleetInvoiceLineItem | null {
+  const job = jobCards.find(j => j.id === jobId)
+  if (!job) return null
+  const vehicle  = vehicles.find(v => v.id === job.vehicleId)
+  const svcItems = jobServices.filter(s => s.jobCardId === jobId)
+  const partItems = partsConsumption.filter(p => p.jobCardId === jobId)
+
+  const labourCost   = invoices.find(i => i.jobCardId === jobId)?.labourCost ?? 0
+  const servicesCost = svcItems.reduce((s, sv) => s + (sv.totalCost ?? 0), 0)
+  const partsCost    = partItems.reduce((s, p) => s + (p.totalCost ?? 0), 0)
+  const subtotal     = labourCost + servicesCost + partsCost
+
+  const vReg = vehicle?.registrationNumber || ''
+  const vDesc = [vehicle?.make, vehicle?.model, vReg].filter(Boolean).join(' ')
+  const description = `${job.damageDescription || 'Service'} – ${vDesc}`
+
+  return {
+    jobCardId:   job.id,
+    jobCardNumber: job.jobCardNumber,
+    description,
+    labourCost,
+    servicesCost,
+    partsCost,
+    subtotal,
+    services: svcItems.map(sv => ({
+      name:      sv.serviceName,
+      qty:       sv.quantity ?? 1,
+      unitPrice: Math.round((sv.totalCost ?? 0) / (sv.quantity || 1)),
+      total:     sv.totalCost ?? 0,
+    })),
+    parts: partItems.map(p => ({
+      name:      p.partName,
+      qty:       p.quantity,
+      unitPrice: p.unitPrice,
+      total:     p.totalCost,
+    })),
+  }
+}
+
+// GET /fleet-invoices — list all fleet invoices
+api.get('/fleet-invoices', (c) => {
+  return c.json(fleetInvoices)
+})
+
+// GET /fleet-invoices/eligible-jobs/:customerId
+// Returns INVOICED job cards for a customer that are NOT yet in a fleet invoice,
+// and whose individual invoice has NOT been fully paid yet.
+api.get('/fleet-invoices/eligible-jobs/:customerId', (c) => {
+  const customerId = c.req.param('customerId')
+  // Collect job IDs already in a fleet invoice
+  const usedJobIds = new Set(fleetInvoices.flatMap(fi => fi.lineItems.map(li => li.jobCardId)))
+
+  const eligible = jobCards
+    .filter(j =>
+      j.customerId === customerId &&
+      j.status === 'INVOICED' &&
+      !usedJobIds.has(j.id)
+    )
+    .map(j => {
+      const inv     = invoices.find(i => i.jobCardId === j.id)
+      const vehicle = vehicles.find(v => v.id === j.vehicleId)
+      const li      = buildFleetLineItem(j.id)
+      return {
+        jobCardId:     j.id,
+        jobCardNumber: j.jobCardNumber,
+        status:        j.status,
+        description:   j.damageDescription || '',
+        vehicleReg:    vehicle?.registrationNumber || '',
+        vehicleMake:   vehicle?.make || '',
+        vehicleModel:  vehicle?.model || '',
+        invoiceNumber: inv?.invoiceNumber || '',
+        invoiceStatus: inv?.status || 'Issued',
+        labourCost:    li?.labourCost ?? 0,
+        servicesCost:  li?.servicesCost ?? 0,
+        partsCost:     li?.partsCost ?? 0,
+        subtotal:      li?.subtotal ?? 0,
+        createdAt:     j.createdAt,
+      }
+    })
+
+  return c.json(eligible)
+})
+
+// GET /fleet-invoices/:id
+api.get('/fleet-invoices/:id', (c) => {
+  const fi = fleetInvoices.find(f => f.id === c.req.param('id'))
+  if (!fi) return c.json({ error: 'Not found' }, 404)
+  return c.json(fi)
+})
+
+// POST /fleet-invoices — create a new fleet invoice
+api.post('/fleet-invoices', async (c) => {
+  const body = await c.req.json<{
+    customerId: string
+    jobCardIds: string[]
+    discountType?: 'fixed' | 'percentage'
+    discountValue?: number
+    discountReason?: string
+    dueDate?: string
+    notes?: string
+  }>()
+
+  if (!body.customerId) return c.json({ error: 'customerId required' }, 400)
+  if (!Array.isArray(body.jobCardIds) || body.jobCardIds.length < 2)
+    return c.json({ error: 'At least 2 job cards required for a fleet invoice' }, 400)
+
+  // Validate no job is already in a fleet invoice
+  const usedJobIds = new Set(fleetInvoices.flatMap(fi => fi.lineItems.map(li => li.jobCardId)))
+  const alreadyUsed = body.jobCardIds.filter(id => usedJobIds.has(id))
+  if (alreadyUsed.length > 0)
+    return c.json({ error: `Job cards already in a fleet invoice: ${alreadyUsed.join(', ')}` }, 400)
+
+  const customer = customers.find(c2 => c2.id === body.customerId)
+  if (!customer) return c.json({ error: 'Customer not found' }, 404)
+
+  // Build line items
+  const lineItems: FleetInvoiceLineItem[] = []
+  for (const jid of body.jobCardIds) {
+    const li = buildFleetLineItem(jid)
+    if (!li) return c.json({ error: `Job card not found: ${jid}` }, 404)
+    lineItems.push(li)
+  }
+
+  // Calculate totals
+  const subtotal = lineItems.reduce((s, li) => s + li.subtotal, 0)
+  let discountAmount = 0
+  if (body.discountValue && body.discountType) {
+    if (body.discountType === 'percentage') {
+      discountAmount = Math.round(subtotal * Math.min(body.discountValue, 100) / 100)
+    } else {
+      discountAmount = Math.min(Math.round(body.discountValue), subtotal)
+    }
+  }
+  const afterDiscount = Math.max(0, subtotal - discountAmount)
+  const tax           = Math.round(afterDiscount * 0.18)
+  const totalAmount   = afterDiscount + tax
+
+  const ts  = now()
+  const num = 'FLEET-INV-' + new Date().getFullYear() + '-' + String(fleetInvoices.length + 1).padStart(3, '0')
+  const dueDate = body.dueDate || (() => {
+    const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().slice(0, 10)
+  })()
+
+  const newFI: FleetInvoice = {
+    id: 'fi' + genId(),
+    fleetInvoiceNumber: num,
+    customerId: body.customerId,
+    customerName: customer.name,
+    customerPhone: customer.phone,
+    customerEmail: customer.email,
+    lineItems,
+    subtotal,
+    discountType:   body.discountType,
+    discountValue:  body.discountValue,
+    discountAmount,
+    discountReason: body.discountReason,
+    tax,
+    totalAmount,
+    status:    'Issued',
+    issuedAt:  ts,
+    dueDate,
+    amountPaid: 0,
+    payments:   [],
+    notes:      body.notes,
+  }
+
+  fleetInvoices.push(newFI)
+  addNotification('invoice_created', 'success', 'Fleet Invoice Created',
+    `${num} issued for ${customer.name} — ${lineItems.length} jobs, TZS ${totalAmount.toLocaleString()}`,
+    { entityId: newFI.id, entityType: 'fleet_invoice' })
+
+  return c.json(newFI, 201)
+})
+
+// PATCH /fleet-invoices/:id/status — record payment (same logic as regular invoices)
+api.patch('/fleet-invoices/:id/status', async (c) => {
+  const idx = fleetInvoices.findIndex(f => f.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+
+  const body = await c.req.json<{
+    status?: string
+    paymentMethod?: string
+    paymentReference?: string
+    amountPaid?: number
+    paidAt?: string
+    dueDate?: string
+  }>()
+
+  const prev = fleetInvoices[idx]
+  const newPayments = prev.payments ? [...prev.payments] : []
+  const newPaymentAmount = body.amountPaid ?? 0
+
+  if (body.paymentMethod && newPaymentAmount > 0) {
+    newPayments.push({
+      id: 'pay-' + prev.id + '-' + Date.now(),
+      amount: newPaymentAmount,
+      method: body.paymentMethod as any,
+      reference: body.paymentReference,
+      paidAt: body.paidAt || now(),
+    })
+  }
+
+  const totalAmountPaid = newPayments.reduce((s, p) => s + p.amount, 0)
+  let newStatus = (body.status as any) || prev.status || 'Issued'
+  if (body.paymentMethod && newPaymentAmount > 0) {
+    if (totalAmountPaid >= prev.totalAmount) newStatus = 'Paid'
+    else if (totalAmountPaid > 0)            newStatus = 'Partially Paid'
+  }
+
+  fleetInvoices[idx] = {
+    ...prev,
+    status: newStatus,
+    ...(body.dueDate ? { dueDate: body.dueDate } : {}),
+    ...(body.paymentMethod ? { paymentMethod: body.paymentMethod as any, paymentReference: body.paymentReference } : {}),
+    amountPaid: totalAmountPaid,
+    payments:   newPayments,
+    paidAt: newStatus === 'Paid' ? (body.paidAt || now()) : (prev.paidAt || undefined),
+  }
+
+  if (newStatus === 'Paid' && prev.status !== 'Paid') {
+    addNotification('invoice_paid', 'success', 'Fleet Invoice Paid',
+      `${prev.fleetInvoiceNumber} – TZS ${prev.totalAmount.toLocaleString()} received via ${body.paymentMethod || 'payment'} from ${prev.customerName}`,
+      { entityId: prev.id, entityType: 'fleet_invoice' })
+  } else if (newStatus === 'Partially Paid') {
+    addNotification('invoice_paid', 'info', 'Partial Fleet Payment',
+      `${prev.fleetInvoiceNumber} – TZS ${totalAmountPaid.toLocaleString()} of TZS ${prev.totalAmount.toLocaleString()} received`,
+      { entityId: prev.id, entityType: 'fleet_invoice' })
+  }
+
+  return c.json(fleetInvoices[idx])
+})
+
+// DELETE /fleet-invoices/:id — void/delete a fleet invoice
+api.delete('/fleet-invoices/:id', async (c) => {
+  const idx = fleetInvoices.findIndex(f => f.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const fi = fleetInvoices[idx]
+  if (fi.status === 'Paid') return c.json({ error: 'Cannot delete a paid fleet invoice' }, 400)
+  fleetInvoices.splice(idx, 1)
+  return c.json({ success: true })
 })
 
 export default api

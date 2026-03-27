@@ -885,6 +885,58 @@ export interface Notification {
 
 export const notifications: Notification[] = []
 
+// ─── Fleet Invoices ──────────────────────────────────────────────────────────
+// A single consolidated invoice covering multiple job cards for one customer.
+
+export interface FleetInvoiceLineItem {
+  jobCardId: string
+  jobCardNumber: string
+  description: string          // e.g. "Full Service – Land Cruiser T677AQQ"
+  labourCost: number
+  partsCost: number
+  servicesCost: number         // from jobServices
+  subtotal: number             // labourCost + partsCost + servicesCost
+  // Detail snapshots for PDF rendering
+  services: { name: string; qty: number; unitPrice: number; total: number }[]
+  parts:    { name: string; qty: number; unitPrice: number; total: number }[]
+}
+
+export interface FleetInvoice {
+  id: string
+  fleetInvoiceNumber: string       // FLEET-INV-2026-001
+  customerId: string
+  customerName: string
+  customerPhone?: string
+  customerEmail?: string
+  lineItems: FleetInvoiceLineItem[]
+  // Totals
+  subtotal: number                 // sum of all line item subtotals
+  discountType?: 'fixed' | 'percentage'
+  discountValue?: number
+  discountAmount: number
+  discountReason?: string
+  tax: number                      // 18% of (subtotal − discount)
+  totalAmount: number
+  // Payment tracking (same ledger as Invoice)
+  status: InvoiceStatus
+  issuedAt: string
+  dueDate?: string
+  paidAt?: string
+  paymentMethod?: PaymentMethod
+  paymentReference?: string
+  amountPaid?: number
+  payments?: {
+    id: string
+    amount: number
+    method: PaymentMethod
+    reference?: string
+    paidAt: string
+  }[]
+  notes?: string
+}
+
+export const fleetInvoices: FleetInvoice[] = []
+
 // ─── Persistence — load saved data on startup ─────────────────────────────────
 // This must be the last statement in the module so all arrays are declared first.
 import { load as _loadPersistedData } from './persist.js'

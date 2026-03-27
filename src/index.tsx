@@ -766,52 +766,151 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         </div>
       </div>
 
-      <!-- Filter tabs -->
-      <div class="flex flex-wrap gap-2 mb-4">
-        <button id="invTab-all" onclick="invFilterBy('all')"
-          class="inv-tab-btn px-4 py-1.5 rounded-full text-sm font-semibold border-2 border-indigo-500 bg-indigo-500 text-white transition-all">
-          All
+      <!-- Section toggle: Regular Invoices ↔ Fleet Invoices -->
+      <div class="flex items-center gap-1 mb-5 p-1 bg-gray-100 rounded-xl w-fit">
+        <button id="invSection-regular" onclick="invSectionSwitch('regular')"
+          class="px-5 py-2 rounded-lg text-sm font-semibold transition-all bg-white text-blue-700 shadow-sm">
+          <i class="fas fa-file-invoice mr-1.5"></i>Regular Invoices
         </button>
-        <button id="invTab-Paid" onclick="invFilterBy('Paid')"
-          class="inv-tab-btn px-4 py-1.5 rounded-full text-sm font-semibold border-2 border-gray-200 text-gray-600 hover:border-green-400 transition-all">
-          Paid
-        </button>
-        <button id="invTab-outstanding" onclick="invFilterBy('outstanding')"
-          class="inv-tab-btn px-4 py-1.5 rounded-full text-sm font-semibold border-2 border-gray-200 text-gray-600 hover:border-amber-400 transition-all">
-          Outstanding
-        </button>
-        <button id="invTab-Overdue" onclick="invFilterBy('Overdue')"
-          class="inv-tab-btn px-4 py-1.5 rounded-full text-sm font-semibold border-2 border-gray-200 text-gray-600 hover:border-red-400 transition-all">
-          Overdue
-        </button>
-        <button id="invTab-Partially Paid" onclick="invFilterBy('Partially Paid')"
-          class="inv-tab-btn px-4 py-1.5 rounded-full text-sm font-semibold border-2 border-gray-200 text-gray-600 hover:border-orange-400 transition-all">
-          Partially Paid
-        </button>
-        <button id="invTab-Draft" onclick="invFilterBy('Draft')"
-          class="inv-tab-btn px-4 py-1.5 rounded-full text-sm font-semibold border-2 border-gray-200 text-gray-600 hover:border-gray-400 transition-all">
-          Draft
+        <button id="invSection-fleet" onclick="invSectionSwitch('fleet')"
+          class="px-5 py-2 rounded-lg text-sm font-semibold transition-all text-gray-500 hover:text-gray-700">
+          <i class="fas fa-truck mr-1.5"></i>Fleet Invoices
         </button>
       </div>
 
-      <!-- Table -->
-      <div class="card overflow-hidden">
-        <div class="table-scroll">
-        <table class="w-full text-sm" style="min-width:600px">
-          <thead><tr class="border-b border-gray-100 bg-gray-50">
-            <th class="text-left px-4 py-3 font-semibold text-gray-600">Invoice #</th>
-            <th class="text-left px-4 py-3 font-semibold text-gray-600">Job Card</th>
-            <th class="text-left px-4 py-3 font-semibold text-gray-600">Customer</th>
-            <th class="text-left px-4 py-3 font-semibold text-gray-600">Total</th>
-            <th class="text-left px-4 py-3 font-semibold text-gray-600">Due Date</th>
-            <th class="text-left px-4 py-3 font-semibold text-gray-600">Paid At</th>
-            <th class="text-left px-4 py-3 font-semibold text-gray-600">Payment Method</th>
-            <th class="text-left px-4 py-3 font-semibold text-gray-600">Amount Paid</th>
-            <th class="text-left px-4 py-3 font-semibold text-gray-600">Status</th>
-            <th class="text-left px-4 py-3 font-semibold text-gray-600">Actions</th>
-          </tr></thead>
-          <tbody id="invoicesTable"></tbody>
-        </table>
+      <!-- ── REGULAR INVOICES ── -->
+      <div id="invPane-regular">
+        <!-- Filter tabs -->
+        <div class="flex flex-wrap gap-2 mb-4">
+          <button id="invTab-all" onclick="invFilterBy('all')"
+            class="inv-tab-btn px-4 py-1.5 rounded-full text-sm font-semibold border-2 border-indigo-500 bg-indigo-500 text-white transition-all">
+            All
+          </button>
+          <button id="invTab-Paid" onclick="invFilterBy('Paid')"
+            class="inv-tab-btn px-4 py-1.5 rounded-full text-sm font-semibold border-2 border-gray-200 text-gray-600 hover:border-green-400 transition-all">
+            Paid
+          </button>
+          <button id="invTab-outstanding" onclick="invFilterBy('outstanding')"
+            class="inv-tab-btn px-4 py-1.5 rounded-full text-sm font-semibold border-2 border-gray-200 text-gray-600 hover:border-amber-400 transition-all">
+            Outstanding
+          </button>
+          <button id="invTab-Overdue" onclick="invFilterBy('Overdue')"
+            class="inv-tab-btn px-4 py-1.5 rounded-full text-sm font-semibold border-2 border-gray-200 text-gray-600 hover:border-red-400 transition-all">
+            Overdue
+          </button>
+          <button id="invTab-Partially Paid" onclick="invFilterBy('Partially Paid')"
+            class="inv-tab-btn px-4 py-1.5 rounded-full text-sm font-semibold border-2 border-gray-200 text-gray-600 hover:border-orange-400 transition-all">
+            Partially Paid
+          </button>
+          <button id="invTab-Draft" onclick="invFilterBy('Draft')"
+            class="inv-tab-btn px-4 py-1.5 rounded-full text-sm font-semibold border-2 border-gray-200 text-gray-600 hover:border-gray-400 transition-all">
+            Draft
+          </button>
+        </div>
+        <!-- Table -->
+        <div class="card overflow-hidden">
+          <div class="table-scroll">
+          <table class="w-full text-sm" style="min-width:600px">
+            <thead><tr class="border-b border-gray-100 bg-gray-50">
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Invoice #</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Job Card</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Customer</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Total</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Due Date</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Paid At</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Payment Method</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Amount Paid</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Status</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Actions</th>
+            </tr></thead>
+            <tbody id="invoicesTable"></tbody>
+          </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── FLEET INVOICES ── -->
+      <div id="invPane-fleet" class="hidden">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <p class="text-sm text-gray-500">Consolidated invoices combining multiple job cards for fleet/corporate customers.</p>
+          </div>
+          <button onclick="openFleetInvoiceModal()" class="btn-primary flex items-center gap-2">
+            <i class="fas fa-plus"></i> New Fleet Invoice
+          </button>
+        </div>
+
+        <!-- Fleet stats -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5" id="fleetInvStats">
+          <div class="card p-3 flex items-center gap-3">
+            <div class="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+              <i class="fas fa-truck text-blue-600 text-sm"></i>
+            </div>
+            <div>
+              <p class="text-xs text-gray-400">Total Fleet</p>
+              <p class="text-lg font-bold text-blue-700" id="fleetStatTotal">—</p>
+            </div>
+          </div>
+          <div class="card p-3 flex items-center gap-3">
+            <div class="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+              <i class="fas fa-check-circle text-green-600 text-sm"></i>
+            </div>
+            <div>
+              <p class="text-xs text-gray-400">Paid</p>
+              <p class="text-lg font-bold text-green-600" id="fleetStatPaid">—</p>
+            </div>
+          </div>
+          <div class="card p-3 flex items-center gap-3">
+            <div class="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+              <i class="fas fa-clock text-amber-600 text-sm"></i>
+            </div>
+            <div>
+              <p class="text-xs text-gray-400">Outstanding</p>
+              <p class="text-lg font-bold text-amber-600" id="fleetStatOutstanding">—</p>
+            </div>
+          </div>
+          <div class="card p-3 flex items-center gap-3">
+            <div class="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center flex-shrink-0">
+              <i class="fas fa-layer-group text-indigo-600 text-sm"></i>
+            </div>
+            <div>
+              <p class="text-xs text-gray-400">Total Jobs Billed</p>
+              <p class="text-lg font-bold text-indigo-600" id="fleetStatJobs">—</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Fleet filter tabs -->
+        <div class="flex flex-wrap gap-2 mb-4">
+          <button id="fiTab-all" onclick="fleetFilterBy('all')"
+            class="fi-tab-btn px-4 py-1.5 rounded-full text-sm font-semibold border-2 border-blue-500 bg-blue-500 text-white transition-all">All</button>
+          <button id="fiTab-Issued" onclick="fleetFilterBy('Issued')"
+            class="fi-tab-btn px-4 py-1.5 rounded-full text-sm font-semibold border-2 border-gray-200 text-gray-600 hover:border-gray-400 transition-all">Issued</button>
+          <button id="fiTab-Paid" onclick="fleetFilterBy('Paid')"
+            class="fi-tab-btn px-4 py-1.5 rounded-full text-sm font-semibold border-2 border-gray-200 text-gray-600 hover:border-green-400 transition-all">Paid</button>
+          <button id="fiTab-Partially Paid" onclick="fleetFilterBy('Partially Paid')"
+            class="fi-tab-btn px-4 py-1.5 rounded-full text-sm font-semibold border-2 border-gray-200 text-gray-600 hover:border-orange-400 transition-all">Partially Paid</button>
+          <button id="fiTab-Overdue" onclick="fleetFilterBy('Overdue')"
+            class="fi-tab-btn px-4 py-1.5 rounded-full text-sm font-semibold border-2 border-gray-200 text-gray-600 hover:border-red-400 transition-all">Overdue</button>
+        </div>
+
+        <!-- Fleet table -->
+        <div class="card overflow-hidden">
+          <div class="table-scroll">
+          <table class="w-full text-sm" style="min-width:700px">
+            <thead><tr class="border-b border-gray-100 bg-gray-50">
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Fleet Invoice #</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Customer</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Jobs</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Total</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Due Date</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Amount Paid</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Status</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Actions</th>
+            </tr></thead>
+            <tbody id="fleetInvoicesTable"></tbody>
+          </table>
+          </div>
         </div>
       </div>
     </div>
@@ -3666,6 +3765,190 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       </table>
     </div>
     <p class="text-xs text-gray-400 text-center mt-3"><i class="fas fa-info-circle mr-1"></i>Click a job card row or the <i class="fas fa-external-link-alt text-[10px]"></i> button to open the full job detail.</p>
+  </div>
+</div>
+
+<!-- ═══ FLEET INVOICE — Create Modal (3-step) ═══ -->
+<div id="modal-fleetInvoice" class="modal-overlay hidden">
+  <div class="modal-box" style="--mw:680px">
+    <!-- Header -->
+    <div class="flex items-start justify-between mb-4">
+      <div>
+        <div class="flex items-center gap-2 mb-1">
+          <div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center">
+            <i class="fas fa-truck text-blue-600 text-sm"></i>
+          </div>
+          <h3 class="text-lg font-bold text-gray-900">New Fleet Invoice</h3>
+        </div>
+        <!-- Step indicator -->
+        <div class="flex items-center gap-1 mt-2" id="fi-steps">
+          <span id="fi-step-dot-1" class="w-2 h-2 rounded-full bg-blue-500"></span>
+          <span class="w-6 h-0.5 bg-gray-200" id="fi-step-line-1"></span>
+          <span id="fi-step-dot-2" class="w-2 h-2 rounded-full bg-gray-300"></span>
+          <span class="w-6 h-0.5 bg-gray-200" id="fi-step-line-2"></span>
+          <span id="fi-step-dot-3" class="w-2 h-2 rounded-full bg-gray-300"></span>
+          <span class="text-xs text-gray-400 ml-2" id="fi-step-label">Step 1 of 3 — Select Customer</span>
+        </div>
+      </div>
+      <button onclick="closeModal('modal-fleetInvoice')" class="text-gray-400 hover:text-gray-600 text-xl"><i class="fas fa-times"></i></button>
+    </div>
+
+    <!-- STEP 1 — Customer picker -->
+    <div id="fi-pane-1">
+      <p class="text-sm text-gray-500 mb-3">Choose the fleet / corporate customer to bill:</p>
+      <input class="form-input mb-3" id="fi-cust-search" placeholder="Search customer name…" oninput="fiFilterCustomers()" autocomplete="off"/>
+      <div class="space-y-2 max-h-72 overflow-y-auto" id="fi-cust-list">
+        <p class="text-sm text-gray-400 text-center py-6"><i class="fas fa-spinner fa-spin mr-1"></i>Loading customers…</p>
+      </div>
+      <div class="flex justify-end mt-5">
+        <button class="btn-secondary mr-2" onclick="closeModal('modal-fleetInvoice')">Cancel</button>
+        <button class="btn-primary" id="fi-next-1" onclick="fiGoStep2()" disabled>Next: Select Jobs <i class="fas fa-arrow-right ml-1.5"></i></button>
+      </div>
+    </div>
+
+    <!-- STEP 2 — Job selection -->
+    <div id="fi-pane-2" class="hidden">
+      <div class="flex items-center gap-3 mb-4 p-3 bg-blue-50 rounded-xl border border-blue-100">
+        <div class="w-9 h-9 rounded-full bg-blue-200 flex items-center justify-center text-blue-700 font-bold text-sm flex-shrink-0" id="fi-cust-avatar">—</div>
+        <div>
+          <p class="font-semibold text-gray-800" id="fi-cust-name-show">—</p>
+          <p class="text-xs text-gray-500" id="fi-cust-phone-show">—</p>
+        </div>
+        <button class="ml-auto text-xs text-blue-600 hover:underline" onclick="fiGoStep1()"><i class="fas fa-pencil-alt mr-1"></i>Change</button>
+      </div>
+      <p class="text-sm text-gray-500 mb-3">Select at least <strong>2 job cards</strong> to include. Only <span class="text-blue-600 font-semibold">INVOICED</span> jobs not yet in a fleet invoice are shown.</p>
+      <div id="fi-jobs-list" class="space-y-2 max-h-64 overflow-y-auto">
+        <p class="text-sm text-gray-400 text-center py-6"><i class="fas fa-spinner fa-spin mr-1"></i>Loading jobs…</p>
+      </div>
+      <div id="fi-jobs-empty" class="hidden text-center py-8">
+        <i class="fas fa-inbox text-3xl text-gray-300 mb-2 block"></i>
+        <p class="text-sm text-gray-400">No eligible job cards found for this customer.</p>
+        <p class="text-xs text-gray-400 mt-1">Jobs must be in <strong>INVOICED</strong> status and not already in a fleet invoice.</p>
+      </div>
+      <!-- Selection summary -->
+      <div id="fi-sel-summary" class="hidden mt-3 p-3 bg-indigo-50 rounded-xl border border-indigo-100 text-sm">
+        <span class="font-semibold text-indigo-700" id="fi-sel-count">0 jobs selected</span>
+        <span class="text-gray-500 ml-2">· Subtotal: <strong id="fi-sel-subtotal">TZS 0</strong></span>
+      </div>
+      <div class="flex justify-between mt-5">
+        <button class="btn-secondary" onclick="fiGoStep1()"><i class="fas fa-arrow-left mr-1.5"></i>Back</button>
+        <button class="btn-primary" id="fi-next-2" onclick="fiGoStep3()" disabled>Review Invoice <i class="fas fa-arrow-right ml-1.5"></i></button>
+      </div>
+    </div>
+
+    <!-- STEP 3 — Review & confirm -->
+    <div id="fi-pane-3" class="hidden">
+      <!-- Line items -->
+      <div class="mb-4">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Job Cards Included</p>
+        <div id="fi-review-items" class="space-y-2 max-h-48 overflow-y-auto"></div>
+      </div>
+      <!-- Totals -->
+      <div class="bg-gray-50 rounded-xl border border-gray-100 p-4 mb-4 space-y-2 text-sm" id="fi-review-totals"></div>
+      <!-- Optional discount -->
+      <div class="mb-4">
+        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Fleet Discount <span class="text-gray-400 font-normal">(optional)</span></p>
+        <div class="flex gap-2">
+          <select class="form-input flex-1" id="fi-disc-type" onchange="fiCalcTotals()">
+            <option value="">No discount</option>
+            <option value="percentage">Percentage (%)</option>
+            <option value="fixed">Fixed Amount (TZS)</option>
+          </select>
+          <input type="number" class="form-input w-32" id="fi-disc-value" placeholder="0" oninput="fiCalcTotals()" min="0"/>
+        </div>
+        <input type="text" class="form-input mt-2" id="fi-disc-reason" placeholder="Discount reason (optional)"/>
+      </div>
+      <!-- Due date & notes -->
+      <div class="grid grid-cols-2 gap-3 mb-4">
+        <div>
+          <label class="form-label">Due Date</label>
+          <input type="date" class="form-input" id="fi-due-date"/>
+        </div>
+        <div>
+          <label class="form-label">Notes <span class="text-gray-400 font-normal text-xs">(optional)</span></label>
+          <input type="text" class="form-input" id="fi-notes" placeholder="e.g. Fleet account #FA-001"/>
+        </div>
+      </div>
+      <div class="flex justify-between mt-5">
+        <button class="btn-secondary" onclick="fiGoStep2()"><i class="fas fa-arrow-left mr-1.5"></i>Back</button>
+        <button class="btn-primary" id="fi-submit" onclick="fiSubmit()">
+          <i class="fas fa-file-invoice mr-1.5"></i> Create Fleet Invoice
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ FLEET INVOICE — Detail Modal ═══ -->
+<div id="modal-fleetDetail" class="modal-overlay hidden">
+  <div class="modal-box" style="--mw:740px">
+    <div class="flex items-start justify-between mb-5">
+      <div>
+        <div class="flex items-center gap-2 mb-0.5">
+          <div class="w-7 h-7 rounded-lg bg-blue-100 flex items-center justify-center">
+            <i class="fas fa-truck text-blue-600 text-xs"></i>
+          </div>
+          <h3 class="text-lg font-bold text-gray-900" id="fid-number">Fleet Invoice</h3>
+        </div>
+        <p class="text-sm text-gray-400 ml-9" id="fid-subtitle"></p>
+      </div>
+      <button onclick="closeModal('modal-fleetDetail')" class="text-gray-400 hover:text-gray-600 text-xl"><i class="fas fa-times"></i></button>
+    </div>
+
+    <!-- Status bar -->
+    <div class="flex items-center gap-3 mb-5 p-3 rounded-xl bg-gray-50 border border-gray-100">
+      <span id="fid-status-badge" class="badge text-sm px-3 py-1"></span>
+      <div class="flex-1">
+        <div class="flex justify-between text-xs text-gray-400 mb-1">
+          <span>Payment progress</span>
+          <span id="fid-progress-label"></span>
+        </div>
+        <div class="w-full bg-gray-200 rounded-full h-2">
+          <div id="fid-progress-bar" class="h-2 rounded-full transition-all" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Customer & date strip -->
+    <div class="grid grid-cols-3 gap-4 mb-5 text-sm">
+      <div><p class="text-xs text-gray-400 mb-0.5">Customer</p><p class="font-semibold text-gray-700" id="fid-customer">—</p></div>
+      <div><p class="text-xs text-gray-400 mb-0.5">Issued</p><p class="font-semibold text-gray-700" id="fid-issued">—</p></div>
+      <div><p class="text-xs text-gray-400 mb-0.5">Due Date</p><p class="font-semibold text-gray-700" id="fid-due">—</p></div>
+    </div>
+
+    <!-- Line items (per job card) -->
+    <div class="mb-4">
+      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Job Cards</p>
+      <div id="fid-line-items" class="space-y-2 max-h-52 overflow-y-auto"></div>
+    </div>
+
+    <!-- Totals -->
+    <div class="bg-gray-50 rounded-xl border border-gray-100 p-4 mb-4 space-y-1.5 text-sm" id="fid-totals"></div>
+
+    <!-- Notes -->
+    <div id="fid-notes-row" class="hidden mb-4 text-sm">
+      <p class="text-xs text-gray-400 mb-0.5">Notes</p>
+      <p class="text-gray-600" id="fid-notes-val"></p>
+    </div>
+
+    <!-- Payment history -->
+    <div id="fid-payment-section" class="hidden mb-4">
+      <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Payment History</p>
+      <div id="fid-payment-list" class="space-y-1.5"></div>
+    </div>
+
+    <!-- Action buttons -->
+    <div class="flex gap-3 pt-2 border-t border-gray-100">
+      <button id="fid-pay-btn" onclick="fidPay()" class="btn-primary flex-1">
+        <i class="fas fa-money-bill-wave mr-1.5"></i> Record Payment
+      </button>
+      <button onclick="downloadFleetInvoicePDF(_fidId)" class="btn-secondary flex items-center gap-1.5">
+        <i class="fas fa-file-pdf text-red-500"></i> PDF
+      </button>
+      <button id="fid-delete-btn" onclick="fidDelete()" class="px-3 py-2 rounded-xl text-red-600 hover:bg-red-50 transition-colors text-sm font-semibold border border-red-200">
+        <i class="fas fa-trash"></i>
+      </button>
+    </div>
   </div>
 </div>
 
@@ -9749,6 +10032,767 @@ async function deleteCarWash(id, name) {
   allCarWash = allCarWash.filter(p => p.id !== id);
   renderCarWashGrid(allCarWash);
   showToast('Package deleted');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ═══ FLEET INVOICES ═══════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════════
+
+var allFleetInvoices = [];
+var _fiSelectedCustomer = null;   // { id, name, phone }
+var _fiSelectedJobs = [];         // array of eligible job objects that are checked
+var _fiEligibleJobs = [];         // full eligible list for current customer
+var _fidId = null;                // currently open detail modal fleet invoice id
+var _fiCurrentFilter = 'all';
+
+// ── Section switcher (Regular ↔ Fleet) ───────────────────────────────────────
+function invSectionSwitch(section) {
+  var isFleet = section === 'fleet';
+  document.getElementById('invPane-regular').classList.toggle('hidden', isFleet);
+  document.getElementById('invPane-fleet').classList.toggle('hidden', !isFleet);
+  var reg = document.getElementById('invSection-regular');
+  var flt = document.getElementById('invSection-fleet');
+  if (isFleet) {
+    reg.className = 'px-5 py-2 rounded-lg text-sm font-semibold transition-all text-gray-500 hover:text-gray-700';
+    flt.className = 'px-5 py-2 rounded-lg text-sm font-semibold transition-all bg-white text-blue-700 shadow-sm';
+    loadFleetInvoices();
+  } else {
+    reg.className = 'px-5 py-2 rounded-lg text-sm font-semibold transition-all bg-white text-blue-700 shadow-sm';
+    flt.className = 'px-5 py-2 rounded-lg text-sm font-semibold transition-all text-gray-500 hover:text-gray-700';
+  }
+}
+
+// ── Load & render fleet invoices ──────────────────────────────────────────────
+async function loadFleetInvoices() {
+  try {
+    const { data } = await axios.get('/api/fleet-invoices');
+    allFleetInvoices = data;
+    renderFleetTable(allFleetInvoices, _fiCurrentFilter);
+    // Update stats
+    const total       = data.length;
+    const paid        = data.filter(f => f.status === 'Paid').length;
+    const outstanding = data.filter(f => f.status !== 'Paid').length;
+    const totalJobs   = data.reduce((s, f) => s + (f.lineItems?.length || 0), 0);
+    const el = (id, v) => { var e = document.getElementById(id); if (e) e.textContent = v; };
+    el('fleetStatTotal', total);
+    el('fleetStatPaid', paid);
+    el('fleetStatOutstanding', outstanding);
+    el('fleetStatJobs', totalJobs);
+  } catch(e) {
+    showToast('Could not load fleet invoices', 'error');
+  }
+}
+
+function fleetFilterBy(filter) {
+  _fiCurrentFilter = filter;
+  document.querySelectorAll('.fi-tab-btn').forEach(function(b) {
+    var tabId = b.id.replace('fiTab-', '');
+    var isActive = tabId === filter;
+    var colorMap = { all:'blue', Issued:'gray', Paid:'green', 'Partially Paid':'orange', Overdue:'red' };
+    var c = colorMap[tabId] || 'blue';
+    b.className = isActive
+      ? 'fi-tab-btn px-4 py-1.5 rounded-full text-sm font-semibold border-2 border-' + c + '-500 bg-' + c + '-500 text-white transition-all'
+      : 'fi-tab-btn px-4 py-1.5 rounded-full text-sm font-semibold border-2 border-gray-200 text-gray-600 hover:border-' + c + '-400 transition-all';
+  });
+  renderFleetTable(allFleetInvoices, filter);
+}
+
+function renderFleetTable(data, filter) {
+  var filtered = filter === 'all' ? data : data.filter(function(f) { return f.status === filter; });
+  filtered = filtered.slice().sort(function(a, b) { return new Date(b.issuedAt).getTime() - new Date(a.issuedAt).getTime(); });
+  var tbody = document.getElementById('fleetInvoicesTable');
+  if (!tbody) return;
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-12 text-gray-400"><i class="fas fa-truck text-3xl mb-3 block"></i>No fleet invoices' + (filter !== 'all' ? ' with status ' + filter : '') + '</td></tr>';
+    return;
+  }
+  tbody.innerHTML = filtered.map(function(fi) {
+    var statusClass = fi.status === 'Paid' ? 'bg-green-100 text-green-700'
+      : fi.status === 'Partially Paid' ? 'bg-amber-100 text-amber-700'
+      : fi.status === 'Overdue' ? 'bg-red-100 text-red-700'
+      : 'bg-gray-100 text-gray-600';
+    var canPay = fi.status !== 'Paid';
+    var paid = fi.amountPaid || 0;
+    return '<tr class="table-row border-b border-gray-50 cursor-pointer hover:bg-blue-50/30 transition-colors" onclick="showFleetDetail(\'' + fi.id + '\', event)">' +
+      '<td class="px-4 py-3 font-bold text-blue-600 text-sm">' + fi.fleetInvoiceNumber + '</td>' +
+      '<td class="px-4 py-3 text-sm font-medium text-gray-700">' + (fi.customerName || '—') + '</td>' +
+      '<td class="px-4 py-3 text-sm text-gray-600"><span class="inline-flex items-center gap-1 text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full font-semibold"><i class="fas fa-layer-group"></i>' + (fi.lineItems?.length || 0) + ' jobs</span></td>' +
+      '<td class="px-4 py-3 font-bold text-gray-800">' + fmt(fi.totalAmount) + '</td>' +
+      '<td class="px-4 py-3 text-xs text-gray-400">' + (fi.dueDate || '—') + '</td>' +
+      '<td class="px-4 py-3">' + (paid > 0 ? '<span class="font-semibold ' + (fi.status === 'Paid' ? 'text-green-600' : 'text-amber-600') + '">' + fmt(paid) + '</span>' : '<span class="text-gray-300 text-xs">—</span>') + '</td>' +
+      '<td class="px-4 py-3"><span class="badge ' + statusClass + '">' + fi.status + '</span></td>' +
+      '<td class="px-4 py-3" onclick="event.stopPropagation()">' +
+        '<div class="flex items-center gap-1.5">' +
+          (canPay ? '<button class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 transition-colors" onclick="showFleetPayModal(\'' + fi.id + '\')"><i class="fas fa-money-bill-wave mr-1"></i>' + (fi.status === 'Partially Paid' ? 'Pay Balance' : 'Record Payment') + '</button>' : '') +
+          '<button class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors" onclick="downloadFleetInvoicePDF(\'' + fi.id + '\')"><i class="fas fa-file-pdf mr-1"></i>PDF</button>' +
+        '</div>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+// ── Fleet Invoice Detail Modal ────────────────────────────────────────────────
+function showFleetDetail(id, event) {
+  if (event && event.target.closest('button')) return;
+  var fi = allFleetInvoices.find(function(f) { return f.id === id; });
+  if (!fi) return;
+  _fidId = id;
+
+  var fmt2 = function(n) { return 'TZS ' + Number(n || 0).toLocaleString(); };
+  var fmtDt = function(s) { return s ? new Date(s).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }) : '—'; };
+  var fmtTs = function(s) { return s ? new Date(s).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—'; };
+
+  document.getElementById('fid-number').textContent   = fi.fleetInvoiceNumber;
+  document.getElementById('fid-subtitle').textContent = fi.customerName + (fi.lineItems?.length ? ' · ' + fi.lineItems.length + ' job cards' : '');
+  document.getElementById('fid-customer').textContent = fi.customerName;
+  document.getElementById('fid-issued').textContent   = fmtDt(fi.issuedAt);
+  document.getElementById('fid-due').textContent      = fi.dueDate || '—';
+
+  // Status badge + progress bar
+  var total = fi.totalAmount || 0;
+  var paid  = fi.amountPaid  || 0;
+  var pct   = total > 0 ? Math.min(100, Math.round(paid / total * 100)) : (fi.status === 'Paid' ? 100 : 0);
+  var badge = document.getElementById('fid-status-badge');
+  badge.textContent = fi.status;
+  badge.className = 'badge text-sm px-3 py-1 ' + (fi.status === 'Paid' ? 'bg-green-100 text-green-700' : fi.status === 'Partially Paid' ? 'bg-amber-100 text-amber-700' : fi.status === 'Overdue' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600');
+  var bar = document.getElementById('fid-progress-bar');
+  bar.style.width = pct + '%';
+  bar.className = 'h-2 rounded-full transition-all ' + (fi.status === 'Paid' ? 'bg-green-500' : fi.status === 'Overdue' ? 'bg-red-500' : fi.status === 'Partially Paid' ? 'bg-amber-500' : 'bg-gray-300');
+  document.getElementById('fid-progress-label').textContent = fmt2(paid) + ' / ' + fmt2(total);
+
+  // Line items
+  document.getElementById('fid-line-items').innerHTML = (fi.lineItems || []).map(function(li) {
+    return '<div class="bg-white border border-gray-100 rounded-xl p-3">' +
+      '<div class="flex items-center justify-between mb-1">' +
+        '<span class="font-semibold text-gray-700 text-sm"><i class="fas fa-id-card text-blue-400 mr-1.5"></i>' + li.jobCardNumber + '</span>' +
+        '<span class="font-bold text-gray-800 text-sm">' + fmt2(li.subtotal) + '</span>' +
+      '</div>' +
+      '<p class="text-xs text-gray-400 mb-2">' + (li.description || '') + '</p>' +
+      '<div class="grid grid-cols-3 gap-2 text-xs text-gray-500">' +
+        '<span><i class="fas fa-wrench mr-0.5 text-gray-300"></i>Labour: ' + fmt2(li.labourCost) + '</span>' +
+        '<span><i class="fas fa-cogs mr-0.5 text-gray-300"></i>Services: ' + fmt2(li.servicesCost) + '</span>' +
+        '<span><i class="fas fa-box mr-0.5 text-gray-300"></i>Parts: ' + fmt2(li.partsCost) + '</span>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+
+  // Totals
+  var discHtml = (fi.discountAmount || 0) > 0
+    ? '<div class="flex justify-between text-green-600"><span class="flex items-center gap-1"><i class="fas fa-tag text-xs"></i>Discount' + (fi.discountReason ? ' <span class="text-xs text-green-500">(' + fi.discountReason + ')</span>' : '') + '</span><span class="font-semibold">− ' + fmt2(fi.discountAmount) + '</span></div>' : '';
+  document.getElementById('fid-totals').innerHTML =
+    '<div class="flex justify-between text-gray-500"><span>Subtotal</span><span>' + fmt2(fi.subtotal) + '</span></div>' +
+    discHtml +
+    '<div class="flex justify-between text-gray-500"><span>Tax / VAT (18%)</span><span>' + fmt2(fi.tax) + '</span></div>' +
+    '<div class="flex justify-between border-t border-gray-200 pt-2 font-bold text-gray-800"><span>Total</span><span class="text-green-600">' + fmt2(fi.totalAmount) + '</span></div>';
+
+  // Notes
+  var notesRow = document.getElementById('fid-notes-row');
+  if (fi.notes) {
+    document.getElementById('fid-notes-val').textContent = fi.notes;
+    notesRow.classList.remove('hidden');
+  } else {
+    notesRow.classList.add('hidden');
+  }
+
+  // Payment history
+  var paySection = document.getElementById('fid-payment-section');
+  var payList    = document.getElementById('fid-payment-list');
+  var payments   = fi.payments || [];
+  var methodIcon = function(m) { return m === 'Mobile Money' ? 'fa-mobile-alt' : m === 'Bank' ? 'fa-university' : m === 'Lipa Number' ? 'fa-hashtag' : m === 'Cash' ? 'fa-money-bill-wave' : 'fa-credit-card'; };
+  var methodColor = function(m) { return m === 'Mobile Money' ? 'text-green-600' : m === 'Bank' ? 'text-blue-600' : m === 'Lipa Number' ? 'text-purple-600' : m === 'Cash' ? 'text-orange-600' : 'text-gray-500'; };
+  if (payments.length) {
+    paySection.classList.remove('hidden');
+    payList.innerHTML = payments.map(function(p) {
+      return '<div class="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">' +
+        '<div class="flex items-center gap-2"><i class="fas ' + methodIcon(p.method) + ' ' + methodColor(p.method) + ' text-sm"></i>' +
+        '<div><div class="text-sm font-bold text-gray-800">' + fmt2(p.amount) + ' <span class="text-xs text-gray-400 font-normal">via ' + p.method + (p.reference ? ' · ' + p.reference : '') + '</span></div>' +
+        '<div class="text-xs text-gray-400">' + fmtTs(p.paidAt) + '</div></div></div>' +
+        '</div>';
+    }).join('');
+    if (fi.status !== 'Paid') {
+      payList.innerHTML += '<div class="flex justify-between items-center px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-sm"><span class="font-semibold text-amber-700">Balance remaining</span><span class="font-bold text-amber-700">' + fmt2(total - paid) + '</span></div>';
+    }
+  } else {
+    paySection.classList.add('hidden');
+  }
+
+  // Pay button
+  var payBtn = document.getElementById('fid-pay-btn');
+  if (fi.status !== 'Paid') {
+    payBtn.classList.remove('hidden');
+    payBtn.innerHTML = '<i class="fas fa-money-bill-wave mr-1.5"></i>' + (fi.status === 'Partially Paid' ? 'Pay Balance' : 'Record Payment');
+  } else {
+    payBtn.classList.add('hidden');
+  }
+
+  // Delete button only when not Paid
+  document.getElementById('fid-delete-btn').style.display = fi.status === 'Paid' ? 'none' : '';
+
+  openModal('modal-fleetDetail');
+}
+
+function fidPay() {
+  closeModal('modal-fleetDetail');
+  if (_fidId) showFleetPayModal(_fidId);
+}
+
+async function fidDelete() {
+  var fi = allFleetInvoices.find(function(f) { return f.id === _fidId; });
+  if (!fi || !confirm('Delete ' + fi.fleetInvoiceNumber + '? This cannot be undone.')) return;
+  try {
+    await axios.delete('/api/fleet-invoices/' + _fidId);
+    allFleetInvoices = allFleetInvoices.filter(function(f) { return f.id !== _fidId; });
+    closeModal('modal-fleetDetail');
+    renderFleetTable(allFleetInvoices, _fiCurrentFilter);
+    loadFleetInvoices(); // refresh stats
+    showToast('Fleet invoice deleted', 'success');
+  } catch(e) {
+    showToast('Could not delete: ' + (e?.response?.data?.error || e.message), 'error');
+  }
+}
+
+// ── Fleet Pay Modal (reuses the payInvoice modal with fleet mode) ─────────────
+var _fiPayId = null;
+
+async function showFleetPayModal(fiId) {
+  _fiPayId = fiId;
+  var fi = allFleetInvoices.find(function(f) { return f.id === fiId; });
+  if (!fi) return;
+
+  // Reuse the existing payInvoice modal DOM — just swap its target
+  document.getElementById('pi-inv-id').value = '';           // clear regular inv field
+  document.getElementById('pi-subtitle').textContent = fi.fleetInvoiceNumber + ' · ' + fi.customerName;
+
+  var alreadyPaid = fi.amountPaid || 0;
+  var balance     = fi.totalAmount - alreadyPaid;
+  document.getElementById('pi-total').textContent       = fmt(fi.totalAmount);
+  document.getElementById('pi-already-paid').textContent = alreadyPaid > 0 ? fmt(alreadyPaid) : 'TZS 0';
+  document.getElementById('pi-balance').textContent     = fmt(balance);
+  document.getElementById('pi-method').value = '';
+  document.querySelectorAll('.pi-method-btn').forEach(function(b) {
+    b.className = 'pi-method-btn flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 border-gray-200 hover:border-green-400 transition-all text-sm font-semibold text-gray-600';
+    var icon = b.querySelector('i'); if (icon) icon.className = icon.className.replace(/text-\w+-500/, 'text-gray-400');
+  });
+  document.getElementById('pi-amount').value    = balance > 0 ? balance : fi.totalAmount;
+  document.getElementById('pi-reference').value = '';
+
+  // Payment history
+  var historyBox  = document.getElementById('pi-history-box');
+  var historyList = document.getElementById('pi-history-list');
+  var payments    = fi.payments || [];
+  if (payments.length) {
+    historyBox.classList.remove('hidden');
+    var mIcon = function(m) { return m === 'Mobile Money' ? 'fa-mobile-alt' : m === 'Bank' ? 'fa-university' : m === 'Cash' ? 'fa-money-bill-wave' : 'fa-hashtag'; };
+    historyList.innerHTML = payments.map(function(p) {
+      return '<div class="flex items-center justify-between py-1 border-b border-gray-50">' +
+        '<span class="text-gray-500"><i class="fas ' + mIcon(p.method) + ' mr-1"></i>' + p.method + (p.reference ? ' · ' + p.reference : '') + '</span>' +
+        '<span class="font-semibold text-gray-700">' + fmt(p.amount) + '</span>' +
+        '<span class="text-gray-400">' + (p.paidAt ? new Date(p.paidAt).toLocaleDateString('en-GB', {day:'numeric',month:'short'}) : '') + '</span>' +
+        '</div>';
+    }).join('');
+  } else {
+    historyBox.classList.add('hidden');
+  }
+
+  // Mark the modal as fleet-mode so submitPayInvoice routes correctly
+  document.getElementById('pi-inv-id').setAttribute('data-fleet', fiId);
+  piUpdateBalance();
+  openModal('modal-payInvoice');
+}
+
+// ── Override submitPayInvoice to handle fleet-mode ────────────────────────────
+// We store the fleet invoice id in data-fleet attribute on pi-inv-id.
+// The original submitPayInvoice checks pi-inv-id.value (regular invoice id).
+// We patch it here to handle both cases.
+var _origSubmitPayInvoice = null;
+document.addEventListener('DOMContentLoaded', function() {
+  // Nothing needed — we replace inline below
+});
+
+async function submitPayInvoice() {
+  var fiId    = document.getElementById('pi-inv-id').getAttribute('data-fleet') || '';
+  var invId   = document.getElementById('pi-inv-id').value;
+  var method  = document.getElementById('pi-method').value;
+  var amount  = parseFloat(document.getElementById('pi-amount').value) || 0;
+  var reference = document.getElementById('pi-reference').value.trim();
+
+  if (!method) { showToast('Please select a payment method', 'error'); return; }
+  if (!amount || amount <= 0) { showToast('Please enter the amount received', 'error'); return; }
+
+  var btn = document.getElementById('pi-submit');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i>Processing…';
+
+  try {
+    if (fiId) {
+      // ── Fleet invoice payment ──────────────────────────────────────────────
+      var resp = await axios.patch('/api/fleet-invoices/' + fiId + '/status', {
+        paymentMethod: method,
+        paymentReference: reference || undefined,
+        amountPaid: amount,
+        paidAt: new Date().toISOString(),
+      });
+      var fi   = resp.data;
+      var total = fi.totalAmount || 0;
+      var prevPaid = (allFleetInvoices.find(function(f) { return f.id === fiId; })?.amountPaid || 0);
+      var isFullyPaid = (prevPaid + amount) >= total;
+
+      // Update in-memory list
+      var idx = allFleetInvoices.findIndex(function(f) { return f.id === fiId; });
+      if (idx !== -1) allFleetInvoices[idx] = fi;
+
+      closeModal('modal-payInvoice');
+      document.getElementById('pi-inv-id').removeAttribute('data-fleet');
+      showToast(isFullyPaid ? 'Fleet invoice fully paid via ' + method + '!' : 'Partial payment of ' + fmt(amount) + ' recorded', 'success');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-check mr-1.5"></i> Record Payment';
+
+      renderFleetTable(allFleetInvoices, _fiCurrentFilter);
+      try { loadFleetInvoices(); } catch(_) {}
+
+    } else {
+      // ── Regular invoice payment (original logic) ───────────────────────────
+      await axios.patch('/api/invoices/' + invId + '/status', {
+        paymentMethod: method,
+        paymentReference: reference || undefined,
+        amountPaid: amount,
+        paidAt: new Date().toISOString(),
+      });
+      var inv = allInvoices.find(function(i) { return i.id === invId; });
+      var total2 = inv ? inv.totalAmount : 0;
+      var alreadyPaid2 = inv ? (inv.amountPaid || 0) : 0;
+      var isFullyPaid2 = (alreadyPaid2 + amount) >= total2;
+
+      closeModal('modal-payInvoice');
+      showToast(isFullyPaid2 ? 'Invoice fully paid via ' + method + '!' : 'Partial payment of ' + fmt(amount) + ' recorded', 'success');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-check mr-1.5"></i> Record Payment';
+
+      try { syncFinance(); } catch(_) {}
+      if (_piJobId) { try { viewJobDetail(_piJobId); } catch(_) {} }
+    }
+  } catch(e) {
+    console.error('submitPayInvoice error:', e);
+    showToast('Could not record payment: ' + (e?.response?.data?.error || e?.message || 'Unknown error'), 'error');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check mr-1.5"></i> Record Payment';
+  }
+}
+
+// ── Fleet Invoice Creation Modal (3 steps) ────────────────────────────────────
+function openFleetInvoiceModal() {
+  _fiSelectedCustomer = null;
+  _fiSelectedJobs     = [];
+  _fiEligibleJobs     = [];
+  fiGoStep1();
+  openModal('modal-fleetInvoice');
+}
+
+function fiSetStepUI(step) {
+  [1,2,3].forEach(function(n) {
+    var dot = document.getElementById('fi-step-dot-' + n);
+    if (!dot) return;
+    dot.className = n <= step ? 'w-2 h-2 rounded-full bg-blue-500' : 'w-2 h-2 rounded-full bg-gray-300';
+    if (n < 3) {
+      var line = document.getElementById('fi-step-line-' + n);
+      if (line) line.className = n < step ? 'w-6 h-0.5 bg-blue-400' : 'w-6 h-0.5 bg-gray-200';
+    }
+  });
+  var labels = ['', 'Step 1 of 3 — Select Customer', 'Step 2 of 3 — Select Job Cards', 'Step 3 of 3 — Review & Confirm'];
+  var lbl = document.getElementById('fi-step-label');
+  if (lbl) lbl.textContent = labels[step] || '';
+}
+
+function fiShowPane(n) {
+  [1,2,3].forEach(function(i) {
+    var p = document.getElementById('fi-pane-' + i);
+    if (p) p.classList.toggle('hidden', i !== n);
+  });
+  fiSetStepUI(n);
+}
+
+// STEP 1: customer picker
+function fiGoStep1() {
+  fiShowPane(1);
+  document.getElementById('fi-cust-search').value = '';
+  fiRenderCustomers(allCustomers);
+}
+
+function fiRenderCustomers(list) {
+  var el = document.getElementById('fi-cust-list');
+  if (!list || !list.length) {
+    el.innerHTML = '<p class="text-sm text-gray-400 text-center py-4">No customers found.</p>';
+    return;
+  }
+  el.innerHTML = list.map(function(c) {
+    var isSelected = _fiSelectedCustomer && _fiSelectedCustomer.id === c.id;
+    return '<div class="flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ' +
+      (isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-100 hover:border-blue-300 hover:bg-gray-50') +
+      '" onclick="fiSelectCustomer(\'' + c.id + '\')">' +
+      '<div class="w-9 h-9 rounded-full bg-gradient-to-br from-blue-400 to-indigo-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">' + (c.name || '?')[0].toUpperCase() + '</div>' +
+      '<div class="flex-1 min-w-0"><p class="font-semibold text-gray-800 text-sm truncate">' + c.name + '</p><p class="text-xs text-gray-400">' + (c.phone || '—') + '</p></div>' +
+      (isSelected ? '<i class="fas fa-check-circle text-blue-500"></i>' : '') +
+      '</div>';
+  }).join('');
+}
+
+function fiFilterCustomers() {
+  var q = (document.getElementById('fi-cust-search').value || '').toLowerCase();
+  var filtered = q ? allCustomers.filter(function(c) { return (c.name || '').toLowerCase().includes(q) || (c.phone || '').includes(q); }) : allCustomers;
+  fiRenderCustomers(filtered);
+}
+
+function fiSelectCustomer(custId) {
+  var c = allCustomers.find(function(x) { return x.id === custId; });
+  if (!c) return;
+  _fiSelectedCustomer = c;
+  fiRenderCustomers(allCustomers);
+  document.getElementById('fi-next-1').disabled = false;
+}
+
+// STEP 2: job selection
+async function fiGoStep2() {
+  if (!_fiSelectedCustomer) return;
+  fiShowPane(2);
+  document.getElementById('fi-cust-avatar').textContent = _fiSelectedCustomer.name[0].toUpperCase();
+  document.getElementById('fi-cust-name-show').textContent  = _fiSelectedCustomer.name;
+  document.getElementById('fi-cust-phone-show').textContent = _fiSelectedCustomer.phone || '—';
+  document.getElementById('fi-jobs-list').innerHTML = '<p class="text-sm text-gray-400 text-center py-6"><i class="fas fa-spinner fa-spin mr-1"></i>Loading eligible jobs…</p>';
+  document.getElementById('fi-jobs-empty').classList.add('hidden');
+  document.getElementById('fi-next-2').disabled = true;
+
+  try {
+    var { data } = await axios.get('/api/fleet-invoices/eligible-jobs/' + _fiSelectedCustomer.id);
+    _fiEligibleJobs = data;
+    _fiSelectedJobs = [];
+    fiRenderJobs();
+  } catch(e) {
+    showToast('Could not load eligible jobs', 'error');
+  }
+}
+
+function fiRenderJobs() {
+  var el    = document.getElementById('fi-jobs-list');
+  var empty = document.getElementById('fi-jobs-empty');
+  if (!_fiEligibleJobs.length) {
+    el.innerHTML = '';
+    el.classList.add('hidden');
+    empty.classList.remove('hidden');
+    fiUpdateJobSummary();
+    return;
+  }
+  el.classList.remove('hidden');
+  empty.classList.add('hidden');
+  el.innerHTML = _fiEligibleJobs.map(function(j) {
+    var checked = _fiSelectedJobs.some(function(s) { return s.jobCardId === j.jobCardId; });
+    return '<label class="flex items-start gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ' +
+      (checked ? 'border-blue-500 bg-blue-50' : 'border-gray-100 hover:border-blue-200') +
+      '" onclick="fiToggleJob(\'' + j.jobCardId + '\')">' +
+      '<div class="mt-0.5 w-5 h-5 rounded flex items-center justify-center flex-shrink-0 border-2 ' + (checked ? 'bg-blue-500 border-blue-500' : 'border-gray-300') + '">' +
+        (checked ? '<i class="fas fa-check text-white text-xs"></i>' : '') +
+      '</div>' +
+      '<div class="flex-1 min-w-0">' +
+        '<div class="flex items-center justify-between">' +
+          '<span class="font-semibold text-gray-800 text-sm">' + j.jobCardNumber + '</span>' +
+          '<span class="font-bold text-gray-700 text-sm">' + fmt(j.subtotal) + '</span>' +
+        '</div>' +
+        '<p class="text-xs text-gray-400 mt-0.5 truncate">' + (j.vehicleMake || '') + ' ' + (j.vehicleModel || '') + ' · ' + (j.vehicleReg || '') + '</p>' +
+        '<p class="text-xs text-gray-500 mt-0.5 truncate">' + (j.description || '') + '</p>' +
+        '<div class="flex items-center gap-3 mt-1 text-xs text-gray-400">' +
+          '<span><i class="fas fa-wrench mr-0.5"></i>Labour: ' + fmt(j.labourCost) + '</span>' +
+          '<span><i class="fas fa-cogs mr-0.5"></i>Svcs: ' + fmt(j.servicesCost) + '</span>' +
+          '<span><i class="fas fa-box mr-0.5"></i>Parts: ' + fmt(j.partsCost) + '</span>' +
+        '</div>' +
+      '</div>' +
+    '</label>';
+  }).join('');
+  fiUpdateJobSummary();
+}
+
+function fiToggleJob(jobCardId) {
+  var job  = _fiEligibleJobs.find(function(j) { return j.jobCardId === jobCardId; });
+  var idx  = _fiSelectedJobs.findIndex(function(s) { return s.jobCardId === jobCardId; });
+  if (idx === -1) { if (job) _fiSelectedJobs.push(job); }
+  else            { _fiSelectedJobs.splice(idx, 1); }
+  fiRenderJobs();
+}
+
+function fiUpdateJobSummary() {
+  var count   = _fiSelectedJobs.length;
+  var subtotal = _fiSelectedJobs.reduce(function(s, j) { return s + (j.subtotal || 0); }, 0);
+  var summary = document.getElementById('fi-sel-summary');
+  var btn     = document.getElementById('fi-next-2');
+  if (count >= 2) {
+    summary.classList.remove('hidden');
+    document.getElementById('fi-sel-count').textContent    = count + ' job' + (count !== 1 ? 's' : '') + ' selected';
+    document.getElementById('fi-sel-subtotal').textContent = fmt(subtotal);
+    btn.disabled = false;
+  } else {
+    summary.classList.toggle('hidden', count === 0);
+    if (count === 1) {
+      summary.classList.remove('hidden');
+      document.getElementById('fi-sel-count').textContent    = '1 job selected (need at least 2)';
+      document.getElementById('fi-sel-subtotal').textContent = fmt(subtotal);
+    }
+    btn.disabled = true;
+  }
+}
+
+// STEP 3: review
+function fiGoStep3() {
+  if (_fiSelectedJobs.length < 2) return;
+  fiShowPane(3);
+
+  // Render line-item cards
+  document.getElementById('fi-review-items').innerHTML = _fiSelectedJobs.map(function(j) {
+    return '<div class="flex items-center justify-between p-3 bg-white border border-gray-100 rounded-xl">' +
+      '<div><p class="font-semibold text-gray-800 text-sm">' + j.jobCardNumber + '</p>' +
+      '<p class="text-xs text-gray-400">' + (j.vehicleMake || '') + ' ' + (j.vehicleModel || '') + ' ' + (j.vehicleReg || '') + '</p></div>' +
+      '<span class="font-bold text-gray-700">' + fmt(j.subtotal) + '</span>' +
+      '</div>';
+  }).join('');
+
+  // Set default due date (30 days from today)
+  var d = new Date(); d.setDate(d.getDate() + 30);
+  document.getElementById('fi-due-date').value = d.toISOString().slice(0,10);
+
+  // Reset discount
+  document.getElementById('fi-disc-type').value  = '';
+  document.getElementById('fi-disc-value').value = '';
+  document.getElementById('fi-disc-reason').value = '';
+  document.getElementById('fi-notes').value = '';
+
+  fiCalcTotals();
+}
+
+function fiCalcTotals() {
+  var subtotal = _fiSelectedJobs.reduce(function(s, j) { return s + (j.subtotal || 0); }, 0);
+  var discType  = document.getElementById('fi-disc-type').value;
+  var discValue = parseFloat(document.getElementById('fi-disc-value').value) || 0;
+  var discAmt   = 0;
+  if (discType === 'percentage') discAmt = Math.round(subtotal * Math.min(discValue, 100) / 100);
+  else if (discType === 'fixed') discAmt = Math.min(Math.round(discValue), subtotal);
+  var afterDisc = Math.max(0, subtotal - discAmt);
+  var tax       = Math.round(afterDisc * 0.18);
+  var total     = afterDisc + tax;
+
+  var discLine = discAmt > 0
+    ? '<div class="flex justify-between text-green-600"><span><i class="fas fa-tag text-xs mr-1"></i>Discount</span><span class="font-semibold">− ' + fmt(discAmt) + '</span></div>'
+    : '';
+  document.getElementById('fi-review-totals').innerHTML =
+    '<div class="flex justify-between text-gray-600"><span>Subtotal (' + _fiSelectedJobs.length + ' jobs)</span><span>' + fmt(subtotal) + '</span></div>' +
+    discLine +
+    '<div class="flex justify-between text-gray-600"><span>Tax / VAT (18%)</span><span>' + fmt(tax) + '</span></div>' +
+    '<div class="flex justify-between font-bold text-gray-800 border-t border-gray-200 pt-2"><span>Grand Total</span><span class="text-green-600 text-base">' + fmt(total) + '</span></div>';
+}
+
+async function fiSubmit() {
+  var btn = document.getElementById('fi-submit');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1.5"></i>Creating…';
+
+  try {
+    var discType  = document.getElementById('fi-disc-type').value || undefined;
+    var discValue = parseFloat(document.getElementById('fi-disc-value').value) || undefined;
+    var payload = {
+      customerId:    _fiSelectedCustomer.id,
+      jobCardIds:    _fiSelectedJobs.map(function(j) { return j.jobCardId; }),
+      discountType:  discType,
+      discountValue: discValue,
+      discountReason: document.getElementById('fi-disc-reason').value.trim() || undefined,
+      dueDate:       document.getElementById('fi-due-date').value || undefined,
+      notes:         document.getElementById('fi-notes').value.trim() || undefined,
+    };
+    var { data: newFI } = await axios.post('/api/fleet-invoices', payload);
+    allFleetInvoices.push(newFI);
+    closeModal('modal-fleetInvoice');
+    renderFleetTable(allFleetInvoices, _fiCurrentFilter);
+    loadFleetInvoices();
+    showToast(newFI.fleetInvoiceNumber + ' created successfully!', 'success');
+    // Auto-open the detail modal
+    setTimeout(function() { showFleetDetail(newFI.id, null); }, 300);
+  } catch(e) {
+    showToast('Could not create fleet invoice: ' + (e?.response?.data?.error || e?.message || 'Unknown'), 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-file-invoice mr-1.5"></i> Create Fleet Invoice';
+  }
+}
+
+// ── Fleet Invoice PDF ─────────────────────────────────────────────────────────
+async function downloadFleetInvoicePDF(fiId) {
+  var fi = allFleetInvoices.find(function(f) { return f.id === fiId; });
+  if (!fi) { showToast('Fleet invoice not found', 'error'); return; }
+
+  if (typeof window.jspdf === 'undefined' && typeof window.jsPDF === 'undefined') {
+    showToast('PDF library not loaded yet — try again in a moment', 'error'); return;
+  }
+  var jsPDFClass = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
+  var doc = new jsPDFClass({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+
+  var pw = 210, ph = 297;
+  var ml = 15, mr = 15, mt = 15;
+  var cw = pw - ml - mr;
+  var y = mt;
+  var fmt2 = function(n) { return 'TZS ' + Number(n || 0).toLocaleString(); };
+  var fmtDt = function(s) { return s ? new Date(s).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }) : '—'; };
+
+  // ── Header band ──────────────────────────────────────────────────────────────
+  doc.setFillColor(30, 64, 175); // blue-800
+  doc.rect(0, 0, pw, 28, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.text('AUTOFIX GMS', ml, 12);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Fleet Consolidated Invoice', ml, 19);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.text(fi.fleetInvoiceNumber, pw - mr, 12, { align: 'right' });
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Issued: ' + fmtDt(fi.issuedAt) + (fi.dueDate ? '   Due: ' + fi.dueDate : ''), pw - mr, 19, { align: 'right' });
+  y = 36;
+
+  // ── Customer block ───────────────────────────────────────────────────────────
+  doc.setTextColor(30, 64, 175);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
+  doc.text('BILLED TO', ml, y);
+  y += 5;
+  doc.setTextColor(30, 30, 30);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text(fi.customerName, ml, y); y += 5;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  if (fi.customerPhone) { doc.text('Phone: ' + fi.customerPhone, ml, y); y += 4; }
+  if (fi.customerEmail) { doc.text('Email: ' + fi.customerEmail, ml, y); y += 4; }
+  y += 4;
+
+  // ── Separator ────────────────────────────────────────────────────────────────
+  doc.setDrawColor(220, 220, 220);
+  doc.line(ml, y, pw - mr, y); y += 5;
+
+  // ── Line items (one section per job card) ─────────────────────────────────
+  var lineItems = fi.lineItems || [];
+  for (var i = 0; i < lineItems.length; i++) {
+    var li = lineItems[i];
+    if (y > ph - 50) { doc.addPage(); y = mt; }
+
+    // Job card header
+    doc.setFillColor(239, 246, 255); // blue-50
+    doc.roundedRect(ml, y, cw, 8, 1, 1, 'F');
+    doc.setTextColor(30, 64, 175);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(9);
+    doc.text(li.jobCardNumber, ml + 3, y + 5.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(80, 80, 80);
+    doc.setFontSize(8);
+    var descTrunc = (li.description || '').substring(0, 60);
+    doc.text(descTrunc, ml + 35, y + 5.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(30, 30, 30);
+    doc.text(fmt2(li.subtotal), pw - mr, y + 5.5, { align: 'right' });
+    y += 10;
+
+    // Services
+    if (li.services && li.services.length) {
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(100, 100, 100);
+      doc.setFontSize(7.5);
+      doc.text('Services', ml + 4, y); y += 4;
+      li.services.forEach(function(sv) {
+        if (y > ph - 30) { doc.addPage(); y = mt; }
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(60, 60, 60);
+        doc.setFontSize(8);
+        doc.text('• ' + (sv.name || '').substring(0,40), ml + 6, y);
+        doc.text('x' + sv.qty, ml + 120, y);
+        doc.text(fmt2(sv.total), pw - mr, y, { align: 'right' });
+        y += 4.5;
+      });
+    }
+    // Parts
+    if (li.parts && li.parts.length) {
+      doc.setFont('helvetica', 'italic');
+      doc.setTextColor(100, 100, 100);
+      doc.setFontSize(7.5);
+      doc.text('Parts', ml + 4, y); y += 4;
+      li.parts.forEach(function(p) {
+        if (y > ph - 30) { doc.addPage(); y = mt; }
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(60, 60, 60);
+        doc.setFontSize(8);
+        doc.text('• ' + (p.name || '').substring(0,40), ml + 6, y);
+        doc.text('x' + p.qty, ml + 120, y);
+        doc.text(fmt2(p.total), pw - mr, y, { align: 'right' });
+        y += 4.5;
+      });
+    }
+    // Labour
+    if (li.labourCost > 0) {
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(60, 60, 60);
+      doc.setFontSize(8);
+      doc.text('• Labour', ml + 6, y);
+      doc.text(fmt2(li.labourCost), pw - mr, y, { align: 'right' });
+      y += 4.5;
+    }
+    doc.setDrawColor(230, 230, 230);
+    doc.line(ml, y, pw - mr, y); y += 4;
+  }
+
+  // ── Totals block ─────────────────────────────────────────────────────────────
+  if (y > ph - 40) { doc.addPage(); y = mt; }
+  y += 2;
+  var totalsX = pw - mr - 60;
+  var drawTotalRow = function(label, val, bold, color) {
+    doc.setFont('helvetica', bold ? 'bold' : 'normal');
+    doc.setTextColor.apply(doc, color || [60, 60, 60]);
+    doc.setFontSize(9);
+    doc.text(label, totalsX, y);
+    doc.text(val, pw - mr, y, { align: 'right' });
+    y += 5.5;
+  };
+  drawTotalRow('Subtotal', fmt2(fi.subtotal));
+  if ((fi.discountAmount || 0) > 0) drawTotalRow('Discount' + (fi.discountReason ? ' (' + fi.discountReason + ')' : ''), '− ' + fmt2(fi.discountAmount), false, [22, 163, 74]);
+  drawTotalRow('Tax / VAT (18%)', fmt2(fi.tax));
+  doc.setDrawColor(30, 64, 175);
+  doc.line(totalsX, y, pw - mr, y); y += 2;
+  drawTotalRow('TOTAL', fmt2(fi.totalAmount), true, [30, 64, 175]);
+
+  // Status
+  var statusColor = fi.status === 'Paid' ? [22,163,74] : fi.status === 'Overdue' ? [220,38,38] : [30,64,175];
+  doc.setFillColor.apply(doc, statusColor);
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(8);
+  var statusW = 22, statusH = 7;
+  doc.roundedRect(pw - mr - statusW, y + 1, statusW, statusH, 1.5, 1.5, 'F');
+  doc.text(fi.status.toUpperCase(), pw - mr - statusW / 2, y + 5.8, { align: 'center' });
+  y += 12;
+
+  // Notes
+  if (fi.notes) {
+    doc.setTextColor(100, 100, 100);
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(8);
+    doc.text('Notes: ' + fi.notes, ml, y);
+    y += 6;
+  }
+
+  // Footer
+  doc.setTextColor(180, 180, 180);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7);
+  doc.text('Generated by AutoFix GMS · ' + new Date().toLocaleString('en-GB'), ml, ph - 8);
+  doc.text('Page 1', pw - mr, ph - 8, { align: 'right' });
+
+  doc.save(fi.fleetInvoiceNumber + '.pdf');
+  showToast(fi.fleetInvoiceNumber + ' PDF downloaded!', 'success');
 }
 
 // ═══ ANALYTICS ═══
