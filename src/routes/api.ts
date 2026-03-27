@@ -2058,9 +2058,38 @@ api.post('/appointments/:id/convert', async (c) => {
     notes: apt.notes || '',
     createdAt: now(), updatedAt: now()
   }
+  const ts = now()
   jobCards.push(newJob)
-  activityLog.push({ id: 'a' + genId(), jobCardId: newJob.id, action: 'JOB_CREATED', description: `Job card created from appointment #${apt.id}`, userId: 'u3', userName: 'System', timestamp: now() })
-  appointments[idx] = { ...apt, status: 'In Progress', jobCardId: newJob.id, updatedAt: now() }
+  const cust = customers.find(x => x.id === newJob.customerId)
+  const veh  = vehicles.find(x => x.id === newJob.vehicleId)
+  activityLog.push({ id: 'a' + genId(), jobCardId: newJob.id, action: 'JOB_CREATED', description: `Job card created from appointment #${apt.id}`, userId: 'u3', userName: 'System', timestamp: ts })
+  addNotification('job_created', 'info', 'New Job Card Created',
+    `${num} opened for ${cust?.name || 'customer'} – ${veh?.make || ''} ${veh?.model || ''} (${veh?.registrationNumber || ''})`,
+    { jobCardId: newJob.id, jobCardNumber: num })
+
+  // ── Auto-create Entry Gate Pass (same as manual job card creation) ──────────
+  const gpNum = 'GMS-GP-' + new Date().getFullYear() + '-' + String(gatePasses.length + 1).padStart(3, '0')
+  const entryGP: GatePass = {
+    id: 'gp' + genId(),
+    passNumber: gpNum,
+    jobCardId: newJob.id,
+    jobCardNumber: num,
+    vehicleReg: veh?.registrationNumber || '',
+    vehicleMake: veh?.make,
+    vehicleModel: veh?.model,
+    vehicleYear: veh?.year,
+    vehicleColor: veh?.color,
+    customerName: cust?.name || '',
+    customerPhone: cust?.phone,
+    entryTime: ts,
+    status: 'Active',
+    createdAt: ts,
+    updatedAt: ts,
+  }
+  gatePasses.push(entryGP)
+  activityLog.push({ id: 'a' + genId(), jobCardId: newJob.id, action: 'GATE_PASS_ENTRY', description: `Entry Gate Pass ${gpNum} issued (from appointment)`, userId: 'u3', userName: 'System', timestamp: ts })
+
+  appointments[idx] = { ...apt, status: 'In Progress', jobCardId: newJob.id, updatedAt: ts }
   return c.json({ jobCard: newJob, appointment: appointments[idx] }, 201)
 })
 
