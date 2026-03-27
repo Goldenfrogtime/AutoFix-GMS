@@ -4850,9 +4850,12 @@ async function viewJobDetail(id) {
                 <div class="flex justify-between border-t pt-2 font-bold"><span>Grand Total</span><span class="text-blue-600">\${fmt(_grandTotal)}</span></div>
               </div>\`;
             })()}
-            <div class="mt-3 flex items-center justify-between">
+            <div class="mt-3 flex items-center justify-between gap-2">
               <span class="badge" style="background:\${PFI_STATUS_CONFIG[j.pfi.status]?.bg};color:\${PFI_STATUS_CONFIG[j.pfi.status]?.text}">\${j.pfi.status}</span>
-              <button class="text-xs text-blue-600 hover:underline font-semibold" onclick="showSendPFIModal('\${j.pfi.id}')"><i class="fas fa-paper-plane mr-1"></i>Send / View</button>
+              <div class="flex items-center gap-2">
+                \${!j.invoice ? '<button class=\\"text-xs text-amber-600 hover:underline font-semibold\\" onclick=\\"showEditPFIModal(\\'' + j.pfi.id + '\\')\\" ><i class=\\"fas fa-edit mr-1\\"></i>Edit</button>' : ''}
+                <button class="text-xs text-blue-600 hover:underline font-semibold" onclick="showSendPFIModal('\${j.pfi.id}')"><i class="fas fa-paper-plane mr-1"></i>Send / View</button>
+              </div>
             </div>
           </div>
         \` : ''}
@@ -5457,6 +5460,240 @@ function pfiCalcTotal() {
     if (discAmt)   discAmt.textContent = '— TZS 0';
     if (preview)   preview.textContent = '';
   }
+}
+
+// ── Edit PFI Modal ────────────────────────────────────────────────────────────
+// Opens the same form as showPFIModal but pre-fills with existing PFI values
+// and PATCHes instead of POSTing on submit.
+async function showEditPFIModal(pfiId) {
+  // Fetch full PFI detail (pfi + job + parts + services)
+  const { data: detail } = await axios.get('/api/pfi/' + pfiId + '/detail');
+  const { pfi, job } = detail;
+  const parts    = detail.parts    || [];
+  const services = detail.services || [];
+  const isInsurance = job?.category === 'Insurance';
+
+  const totalPartsCost    = parts.reduce((s, p) => s + p.totalCost, 0);
+  const totalServicesCost = services.reduce((s, sv) => s + sv.totalCost, 0);
+  const totalBillable     = totalPartsCost + totalServicesCost;
+
+  // ── Services breakdown HTML ──
+  let servicesHtml = '';
+  if (services.length) {
+    const catIcon = cat =>
+      cat === 'Service Package' ? 'fa-box-open' :
+      cat === 'Oil Service'     ? 'fa-oil-can'  :
+      cat === 'Car Wash'        ? 'fa-car'       : 'fa-plus-circle';
+    const sRows = services.map(sv =>
+      '<tr class="border-b border-gray-50 last:border-0">' +
+        '<td class="px-3 py-2">' +
+          '<span class="inline-flex items-center gap-1.5">' +
+            '<i class="fas ' + catIcon(sv.category) + ' text-xs text-gray-400"></i>' +
+            '<span class="font-medium text-gray-700">' + sv.serviceName + '</span>' +
+          '</span>' +
+          (sv.notes ? '<p class="text-xs text-gray-400 mt-0.5 pl-4">' + sv.notes + '</p>' : '') +
+        '</td>' +
+        '<td class="px-3 py-2 text-center text-gray-600">' + sv.quantity + '</td>' +
+        '<td class="px-3 py-2 text-right text-gray-600">' + fmt(sv.unitCost) + '</td>' +
+        '<td class="px-3 py-2 text-right font-semibold text-gray-800">' + fmt(sv.totalCost) + '</td>' +
+      '</tr>'
+    ).join('');
+    servicesHtml =
+      '<div class="mb-3">' +
+        '<p class="form-label mb-2">Services <span class="text-gray-400 font-normal text-xs">(from job card)</span></p>' +
+        '<div class="border border-gray-200 rounded-xl overflow-hidden">' +
+          '<table class="w-full text-xs">' +
+            '<thead><tr class="bg-gray-50 border-b border-gray-100">' +
+              '<th class="text-left px-3 py-2 font-semibold text-gray-500">Service</th>' +
+              '<th class="text-center px-3 py-2 font-semibold text-gray-500">Qty</th>' +
+              '<th class="text-right px-3 py-2 font-semibold text-gray-500">Unit</th>' +
+              '<th class="text-right px-3 py-2 font-semibold text-gray-500">Total</th>' +
+            '</tr></thead>' +
+            '<tbody>' + sRows + '</tbody>' +
+            '<tfoot><tr class="bg-purple-50">' +
+              '<td colspan="3" class="px-3 py-2 text-right font-bold text-gray-600 text-xs">Services Total:</td>' +
+              '<td class="px-3 py-2 text-right font-bold text-purple-700">' + fmt(totalServicesCost) + '</td>' +
+            '</tr></tfoot>' +
+          '</table>' +
+        '</div>' +
+      '</div>';
+  }
+
+  // ── Parts breakdown HTML ──
+  let partsHtml = '';
+  if (parts.length) {
+    const rows = parts.map(p =>
+      '<tr class="border-b border-gray-50 last:border-0">' +
+        '<td class="px-3 py-2 font-medium text-gray-700">' + p.partName + '</td>' +
+        '<td class="px-3 py-2 text-center text-gray-600">' + p.quantity + '</td>' +
+        '<td class="px-3 py-2 text-right text-gray-600">' + fmt(p.unitCost) + '</td>' +
+        '<td class="px-3 py-2 text-right font-semibold text-gray-800">' + fmt(p.totalCost) + '</td>' +
+      '</tr>'
+    ).join('');
+    partsHtml =
+      '<div class="mb-3">' +
+        '<p class="form-label mb-2">Parts Consumed <span class="text-gray-400 font-normal text-xs">(from job card)</span></p>' +
+        '<div class="border border-gray-200 rounded-xl overflow-hidden">' +
+          '<table class="w-full text-xs">' +
+            '<thead><tr class="bg-gray-50 border-b border-gray-100">' +
+              '<th class="text-left px-3 py-2 font-semibold text-gray-500">Part</th>' +
+              '<th class="text-center px-3 py-2 font-semibold text-gray-500">Qty</th>' +
+              '<th class="text-right px-3 py-2 font-semibold text-gray-500">Unit Cost</th>' +
+              '<th class="text-right px-3 py-2 font-semibold text-gray-500">Total</th>' +
+            '</tr></thead>' +
+            '<tbody>' + rows + '</tbody>' +
+            '<tfoot><tr class="bg-blue-50">' +
+              '<td colspan="3" class="px-3 py-2 text-right font-bold text-gray-600 text-xs">Parts Total:</td>' +
+              '<td class="px-3 py-2 text-right font-bold text-blue-700">' + fmt(totalPartsCost) + '</td>' +
+            '</tr></tfoot>' +
+          '</table>' +
+        '</div>' +
+      '</div>';
+  }
+
+  if (!parts.length && !services.length) {
+    partsHtml =
+      '<div class="mb-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700 flex items-center gap-2">' +
+      '<i class="fas fa-info-circle"></i> No services or parts added yet.' +
+      '</div>';
+  }
+
+  // Determine existing discount type from stored PFI
+  const existingDiscType   = pfi.discountType  || 'fixed';
+  const existingDiscValue  = pfi.discountValue  || 0;
+  const existingDiscReason = pfi.discountReason || '';
+  const existingHasVAT     = (pfi.tax || 0) > 0;
+
+  openModal('modal-statusUpdate');
+  setModalWidth('#modal-statusUpdate', 640);
+  var _editPrivateBanner = isInsurance ? '' :
+    '<div class="flex items-center gap-2 mb-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">' +
+    '<i class="fas fa-user-circle"></i> Private / Individual job – PFI will go directly to the customer</div>';
+  var _editVatBg    = existingHasVAT ? '#f97316' : '#d1d5db';
+  var _editVatXform = existingHasVAT ? 'translateX(20px)' : 'translateX(0)';
+  var _editNotesPlaceholder = isInsurance ? 'Additional notes for insurer…' : 'Additional notes for customer…';
+  document.getElementById('statusUpdateContent').innerHTML =
+    '<div class="flex items-center gap-2 mb-3">' +
+      '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-700">' +
+        '<i class="fas fa-edit"></i> Editing PFI' +
+      '</span>' +
+      '<span class="text-xs text-gray-400">' + (job?.jobCardNumber || '') + '</span>' +
+    '</div>' +
+    _editPrivateBanner +
+    servicesHtml +
+    partsHtml +
+    '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">' +
+      '<div>' +
+        '<label class="form-label">Labour Cost (TZS)</label>' +
+        '<input class="form-input" type="number" id="pfi-labour" required min="0" value="' + (pfi.labourCost || 0) + '"/>' +
+      '</div>' +
+      '<div>' +
+        '<label class="form-label">Services + Parts Cost (TZS) <span class="text-gray-400 font-normal text-xs">auto-filled</span></label>' +
+        '<input class="form-input" type="number" id="pfi-parts" required min="0" value="' + totalBillable + '"/>' +
+      '</div>' +
+    '</div>' +
+    '<div class="mb-3 p-3 bg-green-50 border border-green-200 rounded-xl">' +
+      '<div class="flex items-center justify-between mb-2">' +
+        '<label class="text-sm font-semibold text-green-800"><i class="fas fa-tag mr-1.5 text-green-500"></i>Discount <span class="font-normal text-green-600 text-xs">(optional)</span></label>' +
+        '<div class="flex items-center gap-1">' +
+          '<button type="button" id="pfi-disc-type-fixed" onclick="pfiSetDiscountType(&apos;fixed&apos;)" class="px-2.5 py-1 text-xs font-semibold rounded-lg border border-green-300 bg-white text-green-700 hover:bg-green-100 transition-all">TZS</button>' +
+          '<button type="button" id="pfi-disc-type-pct" onclick="pfiSetDiscountType(&apos;percentage&apos;)" class="px-2.5 py-1 text-xs font-semibold rounded-lg border border-transparent bg-transparent text-green-600 hover:bg-green-100 transition-all">%</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="grid grid-cols-2 gap-2">' +
+        '<div>' +
+          '<div class="relative">' +
+            '<span id="pfi-disc-prefix" class="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-gray-500 font-semibold">TZS</span>' +
+            '<input class="form-input pl-11" type="number" id="pfi-disc-value" min="0" placeholder="0" value="' + (existingDiscValue || '') + '" oninput="pfiCalcTotal()"/>' +
+          '</div>' +
+          '<p class="text-xs text-green-600 mt-1" id="pfi-disc-preview"></p>' +
+        '</div>' +
+        '<div>' +
+          '<input class="form-input" type="text" id="pfi-disc-reason" placeholder="Reason (e.g. Loyal customer)" maxlength="80" value="' + existingDiscReason + '"/>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="mb-3 flex items-center justify-between px-3 py-2.5 bg-orange-50 border border-orange-200 rounded-xl">' +
+      '<label class="flex items-center gap-2 text-sm font-semibold text-orange-800 cursor-pointer select-none" for="pfi-vat-toggle">' +
+        '<i class="fas fa-percent text-orange-500"></i>Apply VAT (18%)' +
+        '<span class="text-xs font-normal text-orange-600">(optional)</span>' +
+      '</label>' +
+      '<button type="button" id="pfi-vat-toggle" role="switch" aria-checked="' + existingHasVAT + '"' +
+        ' onclick="pfiToggleVAT()"' +
+        ' class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none"' +
+        ' style="background:' + _editVatBg + '">' +
+        '<span class="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow ring-0 transition-transform duration-200" id="pfi-vat-knob" style="transform:' + _editVatXform + '"></span>' +
+      '</button>' +
+    '</div>' +
+    '<div class="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-xl">' +
+      '<div class="space-y-1 text-sm">' +
+        '<div class="flex justify-between text-gray-500"><span>Subtotal</span><span id="pfi-subtotal-display" class="font-medium text-gray-700"></span></div>' +
+        '<div class="flex justify-between text-green-600" id="pfi-disc-line" style="display:none!important"><span><i class="fas fa-tag mr-1 text-xs"></i>Discount</span><span id="pfi-disc-amount-display" class="font-semibold">— TZS 0</span></div>' +
+        '<div class="flex justify-between text-gray-600 border-t border-blue-200 pt-1 mt-1"><span>Total Estimate (before tax)</span><span id="pfi-total-display" class="font-medium text-gray-700"></span></div>' +
+        '<div class="flex justify-between text-orange-600" id="pfi-tax-row" style="display:none"><span><i class="fas fa-percent mr-1 text-xs"></i>Tax / VAT (18%)</span><span id="pfi-tax-display" class="font-semibold"></span></div>' +
+        '<div class="flex justify-between font-bold text-gray-800 border-t border-blue-200 pt-1 mt-1"><span id="pfi-grand-label">Grand Total</span><span id="pfi-grand-total-display" class="text-blue-700 text-base"></span></div>' +
+      '</div>' +
+    '</div>' +
+    '<input type="hidden" id="pfi-total"/>' +
+    '<div class="mb-5">' +
+      '<label class="form-label">Notes</label>' +
+      '<textarea class="form-input" id="pfi-notes" rows="2" placeholder="' + _editNotesPlaceholder + '">' + (pfi.notes || '') + '</textarea>' +
+    '</div>' +
+    '<div class="flex gap-3">' +
+      '<button class="btn-secondary flex-1" onclick="closeModal(&apos;modal-statusUpdate&apos;)">Cancel</button>' +
+      '<button class="btn-primary flex-1" id="pfi-submit"><i class="fas fa-save mr-1"></i> Save Changes</button>' +
+    '</div>';
+
+  // Initialise state — pick up existing discount type and VAT setting
+  window._pfiDiscType = existingDiscType;
+  window._pfiVAT      = existingHasVAT;
+  pfiSetDiscountType(existingDiscType);
+  // pfiSetDiscountType calls pfiCalcTotal, but we need to ensure VAT row is correct
+  pfiCalcTotal();
+  document.getElementById('pfi-labour').oninput = pfiCalcTotal;
+  document.getElementById('pfi-parts').oninput  = pfiCalcTotal;
+
+  document.getElementById('pfi-submit').onclick = async () => {
+    const l = +document.getElementById('pfi-labour').value || 0;
+    const p = +document.getElementById('pfi-parts').value  || 0;
+    const discType   = window._pfiDiscType;
+    const discValue  = +document.getElementById('pfi-disc-value').value || 0;
+    const discReason = document.getElementById('pfi-disc-reason').value.trim();
+    const subtotal   = l + p;
+    let discountAmount = 0;
+    if (discType === 'percentage' && discValue > 0) {
+      discountAmount = Math.round(subtotal * Math.min(discValue, 100) / 100);
+    } else if (discType === 'fixed' && discValue > 0) {
+      discountAmount = Math.min(Math.round(discValue), subtotal);
+    }
+    const totalEstimate = Math.max(0, subtotal - discountAmount);
+    const applyVAT      = !!(window._pfiVAT);
+    const tax           = applyVAT ? Math.round(totalEstimate * 0.18) : 0;
+    const totalAmount   = totalEstimate + tax;
+
+    try {
+      await axios.patch('/api/pfi/' + pfiId, {
+        labourCost:     l,
+        partsCost:      p,
+        discountType:   discValue > 0 ? discType : undefined,
+        discountValue:  discValue > 0 ? discValue : undefined,
+        discountAmount,
+        discountReason: discReason || undefined,
+        totalEstimate,
+        tax,
+        totalAmount,
+        notes: document.getElementById('pfi-notes').value
+      });
+      closeModal('modal-statusUpdate');
+      // If we're on the job detail page, refresh it
+      if (job?.id) viewJobDetail(job.id);
+      // If the send modal was open before, refresh it
+      if (typeof loadPFIs === 'function') loadPFIs();
+      showToast('PFI updated successfully', 'success');
+    } catch(err) {
+      showToast('Could not save PFI changes', 'error');
+    }
+  };
 }
 
 // Invoice Modal
@@ -8641,6 +8878,10 @@ function renderClaims(pfis) {
               <i class="fas fa-paper-plane mr-1"></i>\${pfi.sentAt ? 'Resend' : 'Send to Customer'}
             </button>
           </div>
+          \${!_pfiHasInvoice(pfi.jobCardId) ? \`
+          <button class="w-full mt-1 px-3 py-2 text-xs font-semibold rounded-xl border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors flex items-center justify-center gap-1.5" onclick="closeModal('modal-sendPFI');showEditPFIModal('\${pfi.id}')">
+            <i class="fas fa-edit"></i> Edit PFI
+          </button>\` : ''}
         </div>
       </div>
     \`;
