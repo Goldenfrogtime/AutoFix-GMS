@@ -4838,14 +4838,15 @@ async function viewJobDetail(id) {
               const _disc         = j.pfi.discountAmount || 0;
               const _discReason   = j.pfi.discountReason || '';
               const _total        = Math.max(0, _subtotal - _disc);
-              const _tax        = Math.round(_total * 0.18);
+              // Use stored tax from PFI — do NOT recalculate; user may have set it to 0
+              const _tax        = typeof j.pfi.tax === 'number' ? j.pfi.tax : Math.round(_total * 0.18);
               const _grandTotal = _total + _tax;
               return \`<div class="space-y-2 text-sm">
                 <div class="flex justify-between"><span class="text-gray-400">Labour</span><span class="font-semibold">\${fmt(_labour)}</span></div>
                 <div class="flex justify-between"><span class="text-gray-400">Services + Parts</span><span class="font-semibold">\${fmt(_liveBillable)}</span></div>
                 \${_disc > 0 ? '<div class=\\"flex justify-between text-green-600\\"><span class=\\"flex items-center gap-1\\"><i class=\\"fas fa-tag text-xs\\"></i>Discount'+(_discReason ? ' <span class=\\"text-xs text-green-500\\">('+_discReason+')</span>' : '')+'</span><span class=\\"font-semibold\\">− '+fmt(_disc)+'</span></div>' : ''}
                 <div class="flex justify-between border-t pt-1 mt-1 text-gray-500"><span>Total Estimate</span><span class="font-medium">\${fmt(_total)}</span></div>
-                <div class="flex justify-between text-orange-600"><span class="flex items-center gap-1"><i class="fas fa-percent text-xs"></i>Tax / VAT (18%)</span><span class="font-semibold">\${fmt(_tax)}</span></div>
+                <div class="flex justify-between text-orange-600"><span class="flex items-center gap-1"><i class="fas fa-percent text-xs"></i>Tax / VAT\${_tax > 0 ? ' (18%)' : ''}</span><span class="font-semibold">\${fmt(_tax)}</span></div>
                 <div class="flex justify-between border-t pt-2 font-bold"><span>Grand Total</span><span class="text-blue-600">\${fmt(_grandTotal)}</span></div>
               </div>\`;
             })()}
@@ -4870,13 +4871,14 @@ async function viewJobDetail(id) {
               const _disc         = j.invoice.discountAmount || 0;
               const _discReason   = j.invoice.discountReason || '';
               const _afterDisc    = Math.max(0, _subtotal - _disc);
-              const _tax          = Math.round(_afterDisc * 0.18);
+              // Use stored tax from Invoice — do NOT recalculate; user may have set it to 0
+              const _tax          = typeof j.invoice.tax === 'number' ? j.invoice.tax : Math.round(_afterDisc * 0.18);
               const _total        = _afterDisc + _tax;
               return \`<div class="space-y-2 text-sm">
                 <div class="flex justify-between"><span class="text-gray-400">Labour</span><span>\${fmt(_labour)}</span></div>
                 <div class="flex justify-between"><span class="text-gray-400">Services + Parts</span><span>\${fmt(_liveBillable)}</span></div>
                 \${_disc > 0 ? '<div class=\\"flex justify-between text-green-600\\"><span class=\\"flex items-center gap-1\\"><i class=\\"fas fa-tag text-xs\\"></i>Discount'+(_discReason ? ' <span class=\\"text-xs text-green-500\\">('+_discReason+')</span>' : '')+'</span><span class=\\"font-semibold\\">− '+fmt(_disc)+'</span></div>' : ''}
-                <div class="flex justify-between"><span class="text-gray-400">Tax (18%)</span><span>\${fmt(_tax)}</span></div>
+                <div class="flex justify-between"><span class="text-gray-400">Tax / VAT\${_tax > 0 ? ' (18%)' : ''}</span><span>\${fmt(_tax)}</span></div>
                 <div class="flex justify-between border-t pt-2 font-bold text-green-600"><span>Total</span><span>\${fmt(_total)}</span></div>
               </div>\`;
             })()}
