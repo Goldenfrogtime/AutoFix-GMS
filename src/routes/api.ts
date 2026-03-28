@@ -1993,7 +1993,7 @@ api.get('/appointments', (c) => {
   }))
   if (date)   list = list.filter(a => a.date === date)
   if (status) list = list.filter(a => a.status === status)
-  return c.json(list.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time)))
+  return c.json(list.sort((a, b) => ((a.date||'') + (a.time||'')).localeCompare((b.date||'') + (b.time||''))))
 })
 
 api.get('/appointments/:id', (c) => {
