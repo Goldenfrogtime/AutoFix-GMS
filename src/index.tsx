@@ -11470,10 +11470,10 @@ async function redeemSubscription(subId, jobCardId, jobCardNumber) {
 async function showManagePlansModal() {
   const { data: plans } = await axios.get('/api/subscription-plans');
   const [{ data: oilProds }, { data: cwPkgs }, { data: spkgs }, { data: addons }] = await Promise.all([
-    axios.get('/api/oil-service-products'),
-    axios.get('/api/carwash-packages'),
+    axios.get('/api/catalogue/oil'),
+    axios.get('/api/catalogue/carwash'),
     axios.get('/api/packages'),
-    axios.get('/api/add-on-services'),
+    axios.get('/api/catalogue/addons'),
   ]);
   // Build service options grouped by type
   const svcOptions = [
