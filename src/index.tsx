@@ -1315,7 +1315,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         <button class="parts-cat-tab" data-type="Grease"                onclick="setLubTypeTab('Grease',this)">Grease</button>
       </div>
       <!-- Stats row -->
-      <div class="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-5" id="lubStats"></div>
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-5" id="lubStats"></div>
       <!-- Table -->
       <div class="card overflow-hidden">
         <div class="table-scroll">
@@ -12470,13 +12470,18 @@ function renderLubricantsStats(list) {
   const outOfStock = list.filter(function(l) { return (l.stockQuantity || 0) === 0; }).length;
   const avgMargin = list.reduce(function(s, l) { return s + l.margin; }, 0) / list.length;
   const bestMargin = Math.max.apply(null, list.map(function(l) { return l.margin; }));
+  const stockCostValue  = list.reduce(function(s, l) { return s + (l.buyingPrice  || 0) * (l.stockQuantity || 0); }, 0);
+  const stockRetailValue = list.reduce(function(s, l) { return s + (l.sellingPrice || 0) * (l.stockQuantity || 0); }, 0);
+  const potentialProfit  = stockRetailValue - stockCostValue;
   el.innerHTML = [
-    { label:'Total Products', value: list.length,          icon:'fa-tint',        color:'#2563eb' },
-    { label:'Types',          value: types.length,         icon:'fa-layer-group', color:'#7c3aed' },
-    { label:'Avg Margin',     value:'TZS '+fmt(Math.round(avgMargin)), icon:'fa-chart-line', color:'#16a34a' },
-    { label:'Best Margin',    value:'TZS '+fmt(bestMargin), icon:'fa-trophy',      color:'#d97706' },
-    { label:'In Stock',       value: totalStock+' units',  icon:'fa-boxes',       color:'#0891b2' },
-    { label:'Out of Stock',   value: outOfStock,           icon:'fa-exclamation-circle', color:'#dc2626' },
+    { label:'Total Products',      value: list.length,                              icon:'fa-tint',               color:'#2563eb' },
+    { label:'Types',               value: types.length,                             icon:'fa-layer-group',        color:'#7c3aed' },
+    { label:'In Stock',            value: totalStock + ' units',                    icon:'fa-boxes',              color:'#0891b2' },
+    { label:'Out of Stock',        value: outOfStock,                               icon:'fa-exclamation-circle', color:'#dc2626' },
+    { label:'Stock Cost Value',    value: 'TZS ' + fmt(stockCostValue),             icon:'fa-dollar-sign',        color:'#b45309', sub:'at buying price' },
+    { label:'Stock Retail Value',  value: 'TZS ' + fmt(stockRetailValue),           icon:'fa-tags',               color:'#16a34a', sub:'at selling price' },
+    { label:'Potential Profit',    value: 'TZS ' + fmt(potentialProfit),            icon:'fa-chart-line',         color:'#7c3aed', sub:'if all stock sold' },
+    { label:'Avg Margin',          value: 'TZS ' + fmt(Math.round(avgMargin)),      icon:'fa-percentage',         color:'#d97706', sub:'per unit' },
   ].map(function(s) {
     return '<div class="card p-4 border-l-4" style="border-color:'+s.color+'">' +
       '<div class="flex items-center gap-3 mb-1">' +
@@ -12484,6 +12489,7 @@ function renderLubricantsStats(list) {
         '<p class="text-xs text-gray-500 font-semibold uppercase">'+s.label+'</p>' +
       '</div>' +
       '<p class="text-xl font-bold text-gray-900">'+s.value+'</p>' +
+      (s.sub ? '<p class="text-xs text-gray-400 mt-0.5">'+s.sub+'</p>' : '') +
     '</div>';
   }).join('');
 }
