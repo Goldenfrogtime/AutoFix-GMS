@@ -2328,9 +2328,11 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
           <label class="form-label">Service Type <span class="text-red-500">*</span></label>
           <select class="form-input" id="apt-serviceType" required>
             <option value="">Select service…</option>
-            <option>Oil Change</option><option>Minor Service</option><option>Major Service</option>
-            <option>Brake Service</option><option>Tyre Service</option><option>Diagnosis</option>
-            <option>Car Wash</option><option>Body Repair</option><option>Electrical</option><option>Other</option>
+            <option>Service</option>
+            <option>Car Wash</option>
+            <option>Body Works</option>
+            <option>Check-up</option>
+            <option>Other</option>
           </select>
         </div>
         <div>
