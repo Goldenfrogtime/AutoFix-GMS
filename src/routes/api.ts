@@ -5,13 +5,16 @@ import {
   oilServiceProducts, catalogueParts, carWashPackages, addOnServices, appointments,
   jobServices, expenses, notifications, lubricantProducts, vendors, gatePasses,
   fleetInvoices,
+  subscriptionPlans,
+  customerSubscriptions,
   ROLE_PERMISSIONS,
   type Customer, type Vehicle, type JobCard, type PFI,
   type PartConsumption, type ServicePackage, type User, type Invoice,
   type CataloguePart, type CarWashPackage, type AddOnService, type Appointment,
   type JobService, type Expense, type Notification, type NotificationType, type NotificationPriority,
   type LubricantProduct, type Permission, type StatusTimelineEntry, type JobCardStatus, type Vendor,
-  type GatePass, type FleetInvoice, type FleetInvoiceLineItem
+  type GatePass, type FleetInvoice, type FleetInvoiceLineItem,
+  type SubscriptionPlan, type CustomerSubscription, type SubscriptionStatus
 } from '../data/store'
 import { save } from '../data/persist'
 
@@ -671,7 +674,8 @@ api.patch('/pfi/:id', async (c) => {
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
   const body = await c.req.json<Partial<PFI>>()
   const merged = { ...pfis[idx], ...body }
-  // Recalculate discountAmount and totalEstimate if discount fields are updated
+  // Recalculate discountAmount and totalEstimate if any cost/discount field changed.
+  // Tax is accepted directly from the body if supplied; otherwise keep existing value.
   if (body.discountType !== undefined || body.discountValue !== undefined || body.labourCost !== undefined || body.partsCost !== undefined) {
     const subtotal = (merged.labourCost || 0) + (merged.partsCost || 0)
     let discountAmount = 0
@@ -681,8 +685,14 @@ api.patch('/pfi/:id', async (c) => {
       discountAmount = Math.min(Math.round(merged.discountValue), subtotal)
     }
     merged.discountAmount = discountAmount
-    merged.totalEstimate = Math.max(0, subtotal - discountAmount)
-    merged.tax         = Math.round(merged.totalEstimate * 0.18)
+    merged.totalEstimate  = Math.max(0, subtotal - discountAmount)
+    // Use the tax value from the request body if explicitly provided (allows 0);
+    // otherwise fall back to the existing stored tax.
+    merged.tax        = (body.tax !== undefined) ? body.tax : merged.tax
+    merged.totalAmount = merged.totalEstimate + merged.tax
+  } else if (body.tax !== undefined) {
+    // Tax-only update (e.g. toggling VAT on/off without changing costs)
+    merged.tax        = body.tax
     merged.totalAmount = merged.totalEstimate + merged.tax
   }
   pfis[idx] = merged
@@ -2682,6 +2692,367 @@ api.delete('/fleet-invoices/:id', async (c) => {
   if (fi.status === 'Paid') return c.json({ error: 'Cannot delete a paid fleet invoice' }, 400)
   fleetInvoices.splice(idx, 1)
   return c.json({ success: true })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SUBSCRIPTION PLANS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// GET /subscription-plans — list all plans
+api.get('/subscription-plans', (c) => {
+  return c.json(subscriptionPlans)
+})
+
+// POST /subscription-plans — create a new plan
+api.post('/subscription-plans', async (c) => {
+  const body = await c.req.json<Omit<SubscriptionPlan, 'id' | 'createdAt'>>()
+  if (!body.serviceName || !body.billingCycle || !body.visitsPerCycle || !body.cyclePrice) {
+    return c.json({ error: 'serviceName, billingCycle, visitsPerCycle and cyclePrice are required' }, 400)
+  }
+  const plan: SubscriptionPlan = {
+    ...body,
+    id: 'splan' + genId(),
+    isActive: body.isActive !== false,
+    createdAt: now(),
+  }
+  subscriptionPlans.push(plan)
+  save()
+  return c.json(plan, 201)
+})
+
+// PATCH /subscription-plans/:id — update a plan
+api.patch('/subscription-plans/:id', async (c) => {
+  const idx = subscriptionPlans.findIndex(p => p.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const body = await c.req.json<Partial<SubscriptionPlan>>()
+  subscriptionPlans[idx] = { ...subscriptionPlans[idx], ...body }
+  save()
+  return c.json(subscriptionPlans[idx])
+})
+
+// DELETE /subscription-plans/:id — soft-deactivate a plan
+api.delete('/subscription-plans/:id', (c) => {
+  const idx = subscriptionPlans.findIndex(p => p.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  // Only deactivate if no active subscriptions reference it
+  const inUse = customerSubscriptions.some(s => s.planId === c.req.param('id') && s.status === 'Active')
+  if (inUse) return c.json({ error: 'Cannot delete a plan with active subscribers' }, 400)
+  subscriptionPlans[idx].isActive = false
+  save()
+  return c.json({ success: true })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// CUSTOMER SUBSCRIPTIONS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// GET /subscriptions — list all (optionally filter by customerId, status)
+api.get('/subscriptions', (c) => {
+  const { customerId, status, vehicleId } = c.req.query() as Record<string, string>
+  let list = [...customerSubscriptions]
+  if (customerId) list = list.filter(s => s.customerId === customerId)
+  if (vehicleId)  list = list.filter(s => s.vehicleId  === vehicleId)
+  if (status)     list = list.filter(s => s.status     === status)
+  // Enrich with customer + vehicle names
+  return c.json(list.map(s => ({
+    ...s,
+    customerName: customers.find(c2 => c2.id === s.customerId)?.name ?? '',
+    vehicleReg:   s.vehicleId ? (vehicles.find(v => v.id === s.vehicleId)?.registrationNumber ?? '') : '',
+  })))
+})
+
+// GET /subscriptions/stats — dashboard stats
+api.get('/subscriptions/stats', (c) => {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const in7Days = new Date(today); in7Days.setDate(today.getDate() + 7)
+  const in3Days = new Date(today); in3Days.setDate(today.getDate() + 3)
+
+  const active   = customerSubscriptions.filter(s => s.status === 'Active')
+  const renewing = active.filter(s => {
+    if (!s.renewalDate) return false
+    const rd = new Date(s.renewalDate); rd.setHours(0,0,0,0)
+    return rd >= today && rd <= in7Days
+  })
+  const overdue  = customerSubscriptions.filter(s => s.paymentStatus === 'Overdue')
+  const pending  = customerSubscriptions.filter(s => s.paymentStatus === 'Pending' && s.status === 'Active')
+  const expiredPacks = active.filter(s => s.billingCycle === 'visit_pack' && s.visitsUsed >= s.visitsAllowed)
+
+  // Reminders: renewalDate within 3 days, not yet paid, reminder not sent today
+  const reminders = active.filter(s => {
+    if (s.paymentStatus === 'Paid') return false
+    if (!s.renewalDate) return false
+    const rd = new Date(s.renewalDate); rd.setHours(0,0,0,0)
+    return rd >= today && rd <= in3Days
+  })
+
+  return c.json({
+    totalActive: active.length,
+    renewingIn7Days: renewing.length,
+    pendingPayment: pending.length + overdue.length,
+    overdueCount: overdue.length,
+    exhaustedPacks: expiredPacks.length,
+    reminders: reminders.map(s => ({
+      id: s.id,
+      customerId: s.customerId,
+      customerName: customers.find(c2 => c2.id === s.customerId)?.name ?? '',
+      serviceName: s.serviceName,
+      renewalDate: s.renewalDate,
+      daysUntilRenewal: s.renewalDate
+        ? Math.ceil((new Date(s.renewalDate).getTime() - today.getTime()) / 86400000)
+        : null,
+    }))
+  })
+})
+
+// GET /subscriptions/:id — single subscription detail
+api.get('/subscriptions/:id', (c) => {
+  const sub = customerSubscriptions.find(s => s.id === c.req.param('id'))
+  if (!sub) return c.json({ error: 'Not found' }, 404)
+  const customer = customers.find(c2 => c2.id === sub.customerId)
+  const vehicle  = sub.vehicleId ? vehicles.find(v => v.id === sub.vehicleId) : undefined
+  return c.json({ ...sub, customer, vehicle })
+})
+
+// POST /subscriptions — enroll a customer in a plan
+api.post('/subscriptions', async (c) => {
+  const body = await c.req.json<{
+    customerId: string
+    vehicleId?: string
+    planId: string
+    startDate?: string
+    notes?: string
+  }>()
+  if (!body.customerId || !body.planId) {
+    return c.json({ error: 'customerId and planId are required' }, 400)
+  }
+  const plan = subscriptionPlans.find(p => p.id === body.planId)
+  if (!plan) return c.json({ error: 'Plan not found' }, 404)
+  if (!plan.isActive) return c.json({ error: 'Plan is no longer active' }, 400)
+
+  const startDate = body.startDate || new Date().toISOString().slice(0, 10)
+
+  // Calculate renewalDate only for monthly cycle
+  let renewalDate: string | undefined
+  if (plan.billingCycle === 'monthly') {
+    const d = new Date(startDate)
+    d.setMonth(d.getMonth() + 1)
+    renewalDate = d.toISOString().slice(0, 10)
+  }
+
+  // Generate subscription invoice number
+  const subInvCount = invoices.filter(i => i.invoiceType === 'subscription').length + 1
+  const subInvNumber = 'SUB-' + new Date().getFullYear() + '-' + String(subInvCount).padStart(3, '0')
+
+  // Create subscription invoice in the existing invoices array
+  const subInvoice: Invoice = {
+    id: 'sinv' + genId(),
+    jobCardId: '',              // subscription invoices have no job card
+    invoiceNumber: subInvNumber,
+    invoiceType: 'subscription',
+    subscriptionId: '',         // will be filled after sub is created
+    labourCost: 0,
+    partsCost: 0,
+    tax: 0,
+    totalAmount: plan.cyclePrice,
+    status: 'Issued',
+    issuedAt: new Date().toISOString(),
+    dueDate: renewalDate,
+  }
+
+  const sub: CustomerSubscription = {
+    id: 'sub' + genId(),
+    customerId: body.customerId,
+    vehicleId: body.vehicleId,
+    planId: body.planId,
+    serviceName: plan.serviceName,
+    serviceType: plan.serviceType,
+    billingCycle: plan.billingCycle,
+    visitsPerCycle: plan.visitsPerCycle,
+    cyclePrice: plan.cyclePrice,
+    status: 'Active',
+    startDate,
+    renewalDate,
+    visitsAllowed: plan.visitsPerCycle,
+    visitsUsed: 0,
+    invoiceId: subInvoice.id,
+    subInvoiceNumber: subInvNumber,
+    paymentStatus: 'Pending',
+    usageLog: [],
+    notes: body.notes,
+    createdAt: now(),
+    updatedAt: now(),
+  }
+
+  subInvoice.subscriptionId = sub.id
+  invoices.push(subInvoice)
+  customerSubscriptions.push(sub)
+  save()
+
+  // Notification
+  const customer = customers.find(c2 => c2.id === body.customerId)
+  addNotification('general', 'success', 'Subscription Enrolled',
+    `${customer?.name ?? 'Customer'} enrolled in ${plan.serviceName} (${plan.billingCycle === 'monthly' ? 'Monthly' : `Pack of ${plan.visitsPerCycle}`})`,
+    { entityId: sub.id, entityType: 'subscription' })
+
+  return c.json({ subscription: sub, invoice: subInvoice }, 201)
+})
+
+// PATCH /subscriptions/:id — update status, payment, notes
+api.patch('/subscriptions/:id', async (c) => {
+  const idx = customerSubscriptions.findIndex(s => s.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const body = await c.req.json<Partial<CustomerSubscription>>()
+  customerSubscriptions[idx] = { ...customerSubscriptions[idx], ...body, updatedAt: now() }
+  save()
+  return c.json(customerSubscriptions[idx])
+})
+
+// POST /subscriptions/:id/redeem — consume one visit credit
+api.post('/subscriptions/:id/redeem', async (c) => {
+  const idx = customerSubscriptions.findIndex(s => s.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Subscription not found' }, 404)
+  const sub = customerSubscriptions[idx]
+  if (sub.status !== 'Active') return c.json({ error: 'Subscription is not active' }, 400)
+  if (sub.visitsUsed >= sub.visitsAllowed) return c.json({ error: 'No visits remaining in this subscription' }, 400)
+
+  const body = await c.req.json<{ jobCardId: string; jobCardNumber: string; note?: string }>()
+  if (!body.jobCardId || !body.jobCardNumber) {
+    return c.json({ error: 'jobCardId and jobCardNumber are required' }, 400)
+  }
+
+  sub.visitsUsed++
+  sub.usageLog.push({
+    id: 'ulog' + genId(),
+    jobCardId: body.jobCardId,
+    jobCardNumber: body.jobCardNumber,
+    redeemedAt: new Date().toISOString(),
+    note: body.note,
+  })
+
+  // Auto-expire visit packs when exhausted
+  if (sub.billingCycle === 'visit_pack' && sub.visitsUsed >= sub.visitsAllowed) {
+    sub.status = 'Expired'
+    addNotification('general', 'warning', 'Visit Pack Exhausted',
+      `${sub.serviceName} pack for ${customers.find(c2 => c2.id === sub.customerId)?.name ?? 'customer'} has been fully used.`,
+      { entityId: sub.id, entityType: 'subscription' })
+  }
+
+  sub.updatedAt = now()
+  customerSubscriptions[idx] = sub
+  save()
+  return c.json({ subscription: sub, visitsRemaining: sub.visitsAllowed - sub.visitsUsed })
+})
+
+// POST /subscriptions/:id/renew — start a new cycle (reset visits, new invoice)
+api.post('/subscriptions/:id/renew', async (c) => {
+  const idx = customerSubscriptions.findIndex(s => s.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const sub = customerSubscriptions[idx]
+
+  // Generate new renewal invoice
+  const subInvCount = invoices.filter(i => i.invoiceType === 'subscription').length + 1
+  const subInvNumber = 'SUB-' + new Date().getFullYear() + '-' + String(subInvCount).padStart(3, '0')
+
+  // New renewalDate = old renewalDate + 1 month (or today + 1 month for visit packs)
+  let newRenewalDate: string | undefined
+  if (sub.billingCycle === 'monthly') {
+    const base = sub.renewalDate ? new Date(sub.renewalDate) : new Date()
+    base.setMonth(base.getMonth() + 1)
+    newRenewalDate = base.toISOString().slice(0, 10)
+  }
+
+  const renewInvoice: Invoice = {
+    id: 'sinv' + genId(),
+    jobCardId: '',
+    invoiceNumber: subInvNumber,
+    invoiceType: 'subscription',
+    subscriptionId: sub.id,
+    labourCost: 0,
+    partsCost: 0,
+    tax: 0,
+    totalAmount: sub.cyclePrice,
+    status: 'Issued',
+    issuedAt: new Date().toISOString(),
+    dueDate: newRenewalDate,
+  }
+  invoices.push(renewInvoice)
+
+  // Reset cycle
+  customerSubscriptions[idx] = {
+    ...sub,
+    status: 'Active',
+    visitsUsed: 0,
+    visitsAllowed: sub.visitsPerCycle,
+    renewalDate: newRenewalDate,
+    invoiceId: renewInvoice.id,
+    subInvoiceNumber: subInvNumber,
+    paymentStatus: 'Pending',
+    reminderSentAt: undefined,
+    updatedAt: now(),
+  }
+  save()
+
+  const customer = customers.find(c2 => c2.id === sub.customerId)
+  addNotification('general', 'info', 'Subscription Renewed',
+    `${sub.serviceName} for ${customer?.name ?? 'customer'} has been renewed (${subInvNumber}).`,
+    { entityId: sub.id, entityType: 'subscription' })
+
+  return c.json({ subscription: customerSubscriptions[idx], invoice: renewInvoice })
+})
+
+// POST /subscriptions/:id/mark-paid — mark current cycle invoice as paid
+api.post('/subscriptions/:id/mark-paid', async (c) => {
+  const idx = customerSubscriptions.findIndex(s => s.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const body = await c.req.json<{ paymentMethod?: string; paymentReference?: string }>()
+  const sub = customerSubscriptions[idx]
+
+  // Update subscription invoice status
+  if (sub.invoiceId) {
+    const invIdx = invoices.findIndex(i => i.id === sub.invoiceId)
+    if (invIdx !== -1) {
+      invoices[invIdx] = {
+        ...invoices[invIdx],
+        status: 'Paid',
+        paidAt: new Date().toISOString(),
+        paymentMethod: (body.paymentMethod as any) ?? invoices[invIdx].paymentMethod,
+        paymentReference: body.paymentReference ?? invoices[invIdx].paymentReference,
+        amountPaid: sub.cyclePrice,
+      }
+    }
+  }
+
+  customerSubscriptions[idx] = { ...sub, paymentStatus: 'Paid', updatedAt: now() }
+  save()
+  return c.json(customerSubscriptions[idx])
+})
+
+// GET /customers/:id/subscriptions — subscriptions for a specific customer
+api.get('/customers/:id/subscriptions', (c) => {
+  const customerId = c.req.param('id')
+  const subs = customerSubscriptions
+    .filter(s => s.customerId === customerId)
+    .map(s => ({
+      ...s,
+      vehicleReg: s.vehicleId ? (vehicles.find(v => v.id === s.vehicleId)?.registrationNumber ?? '') : '',
+      vehicleMake: s.vehicleId ? (vehicles.find(v => v.id === s.vehicleId)?.make ?? '') : '',
+      vehicleModel: s.vehicleId ? (vehicles.find(v => v.id === s.vehicleId)?.model ?? '') : '',
+    }))
+  return c.json(subs)
+})
+
+// GET /jobcards/:id/active-subscriptions — used by job card to show redemption banner
+api.get('/jobcards/:id/active-subscriptions', (c) => {
+  const jc = jobCards.find(j => j.id === c.req.param('id'))
+  if (!jc) return c.json([])
+  const active = customerSubscriptions.filter(s =>
+    s.customerId === jc.customerId &&
+    s.status === 'Active' &&
+    s.visitsUsed < s.visitsAllowed &&
+    (!s.vehicleId || s.vehicleId === jc.vehicleId)
+  )
+  return c.json(active)
 })
 
 export default api

@@ -285,6 +285,8 @@ export interface Invoice {
   id: string
   jobCardId: string
   invoiceNumber: string
+  invoiceType?: 'standard' | 'subscription'   // subscription invoices get SUB-YYYY-NNN numbering
+  subscriptionId?: string                      // links to CustomerSubscription when invoiceType='subscription'
   labourCost: number
   partsCost: number
   discountType?: 'fixed' | 'percentage'  // carried from PFI
@@ -936,6 +938,82 @@ export interface FleetInvoice {
 }
 
 export const fleetInvoices: FleetInvoice[] = []
+
+// ─── Subscription Plans & Customer Subscriptions ─────────────────────────────
+
+export type SubscriptionServiceType = 'oil_change' | 'car_wash' | 'service_package' | 'add_on'
+export type SubscriptionBillingCycle = 'monthly' | 'visit_pack'
+export type SubscriptionStatus = 'Active' | 'Paused' | 'Expired' | 'Cancelled'
+
+/**
+ * SubscriptionPlan — a reusable template created by staff.
+ * One plan per service type / billing cycle combination.
+ * e.g. "Oil Change – Monthly", "Car Wash – Pack of 5"
+ */
+export interface SubscriptionPlan {
+  id: string
+  serviceType: SubscriptionServiceType
+  serviceId: string          // id of the linked catalogue item (OilServiceProduct, CarWashPackage, etc.)
+  serviceName: string        // denormalized for display
+  billingCycle: SubscriptionBillingCycle
+  visitsPerCycle: number     // 1 for monthly single-visit; N for visit packs
+  cyclePrice: number         // TZS per month or per pack
+  description?: string
+  isActive: boolean          // can be soft-disabled
+  createdAt: string
+}
+
+export interface SubscriptionUsageEntry {
+  id: string
+  jobCardId: string
+  jobCardNumber: string
+  redeemedAt: string         // ISO timestamp
+  note?: string
+}
+
+/**
+ * CustomerSubscription — one instance per customer + plan enrollment.
+ * Tracks credits, usage log, renewal dates and payment status.
+ */
+export interface CustomerSubscription {
+  id: string
+  customerId: string
+  vehicleId?: string         // optional — can be customer-wide
+  planId: string
+
+  // Snapshot of plan values at enrollment time (immutable after creation)
+  serviceName: string
+  serviceType: SubscriptionServiceType
+  billingCycle: SubscriptionBillingCycle
+  visitsPerCycle: number
+  cyclePrice: number
+
+  status: SubscriptionStatus
+  startDate: string          // ISO date
+  renewalDate?: string       // ISO date — null for visit packs (no expiry until pack exhausted)
+
+  // Credits
+  visitsAllowed: number      // = visitsPerCycle at enrollment / renewal
+  visitsUsed: number         // incremented on each redemption
+
+  // Payment
+  invoiceId?: string         // subscription invoice (current cycle)
+  subInvoiceNumber?: string  // e.g. SUB-2026-001
+  paymentStatus: 'Paid' | 'Pending' | 'Overdue'
+
+  // Reminder tracking
+  reminderSentAt?: string
+
+  // Usage ledger
+  usageLog: SubscriptionUsageEntry[]
+
+  notes?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export const subscriptionPlans: SubscriptionPlan[] = []
+export const customerSubscriptions: CustomerSubscription[] = []
 
 // ─── Persistence — load saved data on startup ─────────────────────────────────
 // This must be the last statement in the module so all arrays are declared first.

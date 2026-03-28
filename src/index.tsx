@@ -275,6 +275,9 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
     <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('add-ons')" data-perm="addons.view">
       <i class="fas fa-wrench w-5 text-center"></i> Add-on Services
     </a>
+    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('subscriptions')" data-perm="packages.view">
+      <i class="fas fa-sync-alt w-5 text-center"></i> Subscriptions
+    </a>
     <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('analytics')" data-perm="analytics.view">
       <i class="fas fa-chart-bar w-5 text-center"></i> Analytics
     </a>
@@ -474,6 +477,14 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
               <button class="text-red-600 text-xs font-semibold hover:underline" onclick="showPage('expenses')">View All →</button>
             </div>
             <div id="dashExpenseSnapshot"><p class="text-gray-400 text-sm text-center py-4">Loading…</p></div>
+          </div>
+          <!-- Subscription Widget -->
+          <div class="card p-5" id="dash-sub-widget">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="font-bold text-gray-800 flex items-center gap-2"><i class="fas fa-sync-alt text-violet-500"></i>Subscriptions</h3>
+              <button class="text-violet-600 text-xs font-semibold hover:underline" onclick="showPage('subscriptions')">View All →</button>
+            </div>
+            <div id="dashSubStats"><p class="text-gray-400 text-sm text-center py-4">Loading…</p></div>
           </div>
         </div>
       </div>
@@ -925,6 +936,68 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         <button class="btn-primary" onclick="showNewPackageModal()"><i class="fas fa-plus"></i> New Package</button>
       </div>
       <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5" id="packagesGrid"></div>
+    </div>
+
+    <!-- ═══ SUBSCRIPTIONS ═══ -->
+    <div id="page-subscriptions" class="page">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-900 flex items-center gap-2"><i class="fas fa-sync-alt text-violet-500"></i>Subscriptions</h2>
+          <p class="text-gray-500 text-sm mt-1">Manage customer service subscriptions, plans and renewals</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button class="btn-secondary flex items-center gap-2 text-sm" onclick="showPage('subscriptions')" id="sub-refresh-btn"><i class="fas fa-refresh"></i>Refresh</button>
+          <button class="btn-primary flex items-center gap-2" onclick="showManagePlansModal()" data-perm="packages.manage"><i class="fas fa-cog"></i>Manage Plans</button>
+        </div>
+      </div>
+      <!-- Stats Row -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6" id="subPageStats">
+        <div class="card p-4 text-center"><p class="text-2xl font-bold text-green-600" id="subStat-active">—</p><p class="text-xs text-gray-500 mt-1"><i class="fas fa-check-circle text-green-400 mr-1"></i>Active</p></div>
+        <div class="card p-4 text-center"><p class="text-2xl font-bold text-violet-600" id="subStat-renewing">—</p><p class="text-xs text-gray-500 mt-1"><i class="fas fa-calendar-alt text-violet-400 mr-1"></i>Renewing (7d)</p></div>
+        <div class="card p-4 text-center"><p class="text-2xl font-bold text-amber-600" id="subStat-pending">—</p><p class="text-xs text-gray-500 mt-1"><i class="fas fa-clock text-amber-400 mr-1"></i>Pending Payment</p></div>
+        <div class="card p-4 text-center"><p class="text-2xl font-bold text-red-600" id="subStat-overdue">—</p><p class="text-xs text-gray-500 mt-1"><i class="fas fa-exclamation-circle text-red-400 mr-1"></i>Overdue</p></div>
+      </div>
+      <!-- Filters + Search -->
+      <div class="card p-4 mb-5">
+        <div class="flex flex-wrap items-center gap-3">
+          <div class="flex gap-1" id="sub-status-filters">
+            <button class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white" onclick="setSubFilter('all',this)">All</button>
+            <button class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white text-gray-600 border border-gray-200 hover:bg-gray-50" onclick="setSubFilter('Active',this)">Active</button>
+            <button class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white text-gray-600 border border-gray-200 hover:bg-gray-50" onclick="setSubFilter('Paused',this)">Paused</button>
+            <button class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white text-gray-600 border border-gray-200 hover:bg-gray-50" onclick="setSubFilter('Expired',this)">Expired</button>
+            <button class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-white text-gray-600 border border-gray-200 hover:bg-gray-50" onclick="setSubFilter('Cancelled',this)">Cancelled</button>
+          </div>
+          <input type="text" id="sub-search" placeholder="Search customer or service…" class="form-input flex-1 min-w-48 text-sm py-1.5" oninput="renderSubsTable()"/>
+        </div>
+      </div>
+      <!-- Table -->
+      <div class="card overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead class="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Customer</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Service / Plan</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Vehicle</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Usage</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Renewal</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Price</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Status</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Payment</th>
+                <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="subsTableBody"><tr><td colspan="9" class="text-center py-8 text-gray-400">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+      <!-- Reminder Panel -->
+      <div id="sub-reminder-panel" class="mt-5" style="display:none">
+        <div class="card p-5 border-l-4 border-amber-400">
+          <div class="flex items-center gap-2 mb-3"><i class="fas fa-bell text-amber-500"></i><h4 class="font-bold text-gray-800">Upcoming Renewal Reminders</h4></div>
+          <div id="sub-reminder-list"></div>
+        </div>
+      </div>
     </div>
 
     <!-- ═══ ANALYTICS ═══ -->
@@ -4302,6 +4375,7 @@ function showPage(page) {
   if (page === 'claims') loadClaims();
   if (page === 'invoices') loadInvoices();
   if (page === 'packages') loadPackages();
+  if (page === 'subscriptions') loadSubscriptionsPage();
   if (page === 'analytics') loadAnalytics();
   if (page === 'finance') loadFinance();
   if (page === 'users') loadUsers();
@@ -4391,6 +4465,42 @@ async function loadDashboard() {
   _loadDashExpenseSnapshot();
   // Load finance summary cards (async, non-blocking)
   loadFinanceSummaryCards();
+  // Load subscription widget (async, non-blocking)
+  _loadDashSubWidget();
+}
+
+async function _loadDashSubWidget() {
+  try {
+    const { data: stats } = await axios.get('/api/subscriptions/stats');
+    const el = document.getElementById('dashSubStats');
+    if (!el) return;
+    const remHtml = stats.reminders.length > 0
+      ? stats.reminders.slice(0,3).map(function(r) {
+          const svcShort = r.serviceName.length > 18 ? r.serviceName.slice(0,18)+'…' : r.serviceName;
+          const dayStr = r.daysUntilRenewal === 0 ? 'Today' : r.daysUntilRenewal + 'd';
+          return '<div class="flex items-center justify-between py-1.5 text-xs border-b border-violet-100 last:border-0">' +
+            '<span class="text-gray-700 font-medium">' + r.customerName + '</span>' +
+            '<span class="text-amber-600 font-semibold">' + svcShort + '</span>' +
+            '<span class="text-red-500 font-bold">' + dayStr + '</span></div>';
+        }).join('')
+      : '<p class="text-xs text-gray-400 text-center py-1">No upcoming renewals</p>';
+    const renewHtml = stats.renewingIn7Days > 0
+      ? '<div class="flex items-center gap-2 mb-2 px-3 py-2 bg-violet-50 rounded-xl text-xs">' +
+        '<i class="fas fa-calendar-alt text-violet-400"></i>' +
+        '<span class="text-violet-700 font-semibold">' + stats.renewingIn7Days + ' renewal' + (stats.renewingIn7Days>1?'s':'') + ' in next 7 days</span></div>'
+      : '';
+    const dueHtml = stats.reminders.length > 0
+      ? '<div class="mb-1"><p class="text-xs font-semibold text-gray-600 mb-1.5"><i class="fas fa-bell text-amber-400 mr-1"></i>Due Soon</p>' + remHtml + '</div>'
+      : '';
+    el.innerHTML =
+      '<div class="grid grid-cols-2 gap-2 mb-3">' +
+        '<div class="bg-green-50 rounded-xl p-2.5 text-center"><p class="text-xl font-bold text-green-600">' + stats.totalActive + '</p><p class="text-xs text-gray-500">Active</p></div>' +
+        '<div class="bg-amber-50 rounded-xl p-2.5 text-center"><p class="text-xl font-bold text-amber-600">' + stats.pendingPayment + '</p><p class="text-xs text-gray-500">Pending Pay</p></div>' +
+      '</div>' + renewHtml + dueHtml;
+  } catch(e) {
+    const el = document.getElementById('dashSubStats');
+    if (el) el.innerHTML = '<p class="text-xs text-gray-400 text-center py-2">Unable to load</p>';
+  }
 }
 
 async function _loadDashExpenseSnapshot() {
@@ -4513,6 +4623,9 @@ async function viewJobDetail(id) {
   // Fetch gate pass for this job (best-effort)
   let _gpDetail = null;
   try { const r = await axios.get('/api/gate-passes/by-job/' + id); _gpDetail = r.data; } catch(e) {}
+  // Fetch active subscriptions for this job's customer
+  let _activeSubs = [];
+  try { const sr = await axios.get('/api/jobcards/' + id + '/active-subscriptions'); _activeSubs = sr.data || []; } catch(e) {}
   showPage('jobdetail');
   document.getElementById('jobDetailTitle').textContent = j.jobCardNumber;
   document.getElementById('jobDetailSub').textContent = (j.vehicle?.make||'') + ' ' + (j.vehicle?.model||'') + ' · ' + (j.vehicle?.registrationNumber||'') + ' · ' + (j.customer?.name||'');
@@ -4552,7 +4665,27 @@ async function viewJobDetail(id) {
          : 'bg-green-50 border-green-200';
   }
   
+  // Build subscription redemption banner
+  const _subBannerHtml = _activeSubs.length > 0 ? (function() {
+    const _items = _activeSubs.map(function(s) {
+      const _left = s.visitsAllowed - s.visitsUsed;
+      return '<div class="flex items-center justify-between py-2 border-b border-violet-100 last:border-0">' +
+        '<div><span class="font-semibold text-sm text-violet-800">' + s.serviceName + '</span>' +
+        '<span class="text-xs text-violet-600 ml-2">' + (s.billingCycle==='monthly'?'Monthly':'Visit Pack') + '</span>' +
+        (s.vehicleReg ? '<span class="text-xs text-gray-400 ml-1"><i class="fas fa-car mr-0.5"></i>' + s.vehicleReg + '</span>' : '') +
+        '</div><div class="flex items-center gap-2">' +
+        '<span class="text-xs font-semibold text-violet-700">' + _left + ' visit' + (_left!==1?'s':'') + ' left</span>' +
+        '<button class="text-xs px-2.5 py-1 rounded-lg bg-violet-600 text-white hover:bg-violet-700 font-semibold transition-colors" onclick="redeemSubscription(&apos;' + s.id + '&apos;,&apos;' + id + '&apos;,&apos;' + j.jobCardNumber + '&apos;)">' +
+        '<i class="fas fa-ticket-alt mr-1"></i>Redeem</button></div></div>';
+    }).join('');
+    return '<div class="bg-violet-50 border border-violet-200 rounded-xl px-4 py-3 mb-4">' +
+      '<div class="flex items-center gap-2 mb-2"><i class="fas fa-sync-alt text-violet-500"></i>' +
+      '<p class="text-sm font-semibold text-violet-800">Active Subscription' + (_activeSubs.length>1?'s':'') + ' Available</p>' +
+      '<span class="text-xs bg-violet-200 text-violet-700 px-1.5 py-0.5 rounded-full font-bold">' + _activeSubs.length + '</span></div>' +
+      _items + '</div>';
+  })() : '';
   document.getElementById('jobDetailContent').innerHTML = \`
+    \${_subBannerHtml}
     \${isReopened ? \`
     <div class="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4">
       <i class="fas fa-folder-open text-amber-500 mt-0.5 flex-shrink-0"></i>
@@ -7270,50 +7403,229 @@ function filterCustomers(q) {
 }
 
 
-async function viewCustomerDetail(id) {
-  const { data: c } = await axios.get('/api/customers/' + id);
+async function viewCustomerDetail(id, initialTab) {
+  const [{ data: c }, { data: subs }] = await Promise.all([
+    axios.get('/api/customers/' + id),
+    axios.get('/api/customers/' + id + '/subscriptions'),
+  ]);
+  setModalWidth('#modal-statusUpdate', 680);
   openModal('modal-statusUpdate');
   const isCorp = c.customerType === 'Corporate';
   const grad = isCorp ? 'linear-gradient(135deg,#6366f1,#8b5cf6)' : 'linear-gradient(135deg,#3b82f6,#2563eb)';
   const initials = isCorp ? '<i class="fas fa-building"></i>' : c.name.charAt(0).toUpperCase();
-  const corpHtml = isCorp ? \`
-    <div class="bg-purple-50 border border-purple-100 rounded-xl p-4 mb-4 text-sm">
-      <p class="text-xs text-purple-500 font-semibold uppercase tracking-wide mb-2">Corporate Details</p>
-      \${c.companyName ? \`<div class="flex gap-2 mb-1.5"><i class="fas fa-building text-purple-400 w-4 mt-0.5"></i><span class="font-semibold">\${c.companyName}</span></div>\` : ''}
-      \${c.contactPerson ? \`<div class="flex gap-2 mb-1.5"><i class="fas fa-user-tie text-purple-400 w-4 mt-0.5"></i><span>Contact: <strong>\${c.contactPerson}</strong></span></div>\` : ''}
-      \${c.taxPin ? \`<div class="flex gap-2"><i class="fas fa-receipt text-purple-400 w-4 mt-0.5"></i><span>TIN: <strong>\${c.taxPin}</strong></span></div>\` : ''}
-    </div>\` : '';
   const typeBadge = isCorp
     ? '<span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700"><i class="fas fa-building text-xs mr-1"></i>Corporate</span>'
     : '<span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700"><i class="fas fa-user text-xs mr-1"></i>Individual</span>';
-  const vehHtml = c.vehicles?.map(v => \`<div class="flex items-center gap-2 py-2 border-b border-gray-100 text-sm"><i class="fas fa-car text-blue-400"></i><span class="font-medium">\${v.registrationNumber}</span><span class="text-gray-500">\${v.make} \${v.model} \${v.year}</span></div>\`).join('') || '<p class="text-gray-400 text-sm">No vehicles registered</p>';
-  document.getElementById('statusUpdateContent').innerHTML = \`
-    <div class="flex items-center gap-4 mb-5">
-      <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-white text-xl font-bold" style="background:\${grad}">\${initials}</div>
-      <div>
-        <div class="flex items-center gap-2 flex-wrap">
-          <h3 class="text-xl font-bold">\${c.name}</h3>
-          \${typeBadge}
-        </div>
-        <p class="text-gray-500 text-sm mt-0.5">\${c.phone} · \${c.email||'—'}</p>
-        \${c.whatsapp ? \`<p class="text-green-600 text-xs mt-0.5 font-medium"><i class="fab fa-whatsapp mr-1"></i>\${c.whatsapp}</p>\` : ''}
-      </div>
-    </div>
-    \${corpHtml}
-    <div class="bg-gray-50 rounded-xl p-4 mb-4 text-sm space-y-2">
-      <div class="flex gap-2"><i class="fas fa-map-marker-alt text-gray-400 w-4 mt-0.5"></i><span>\${c.address||'—'}</span></div>
-      \${c.idNumber ? \`<div class="flex gap-2"><i class="fas fa-id-card text-gray-400 w-4 mt-0.5"></i><span>\${c.idNumber}</span></div>\` : ''}
-    </div>
-    <div class="grid grid-cols-2 gap-3 mb-4">
-      <div class="bg-blue-50 rounded-xl p-3 text-center"><p class="text-2xl font-bold text-blue-600">\${c.vehicles?.length||0}</p><p class="text-xs text-gray-500">Vehicles</p></div>
-      <div class="bg-green-50 rounded-xl p-3 text-center"><p class="text-2xl font-bold text-green-600">\${c.jobs?.length||0}</p><p class="text-xs text-gray-500">Job Cards</p></div>
-    </div>
-    <div class="mb-4">
-      <p class="font-semibold text-gray-700 text-sm mb-2">Vehicles</p>
-      \${vehHtml}
-    </div>
-    <button class="btn-secondary w-full" onclick="closeModal('modal-statusUpdate')">Close</button>
-  \`;
+  const activeSubs = subs.filter(s => s.status === 'Active');
+  const subBadge = activeSubs.length
+    ? '<span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700"><i class="fas fa-sync-alt text-xs mr-1"></i>' + activeSubs.length + ' Sub' + (activeSubs.length > 1 ? 's' : '') + '</span>'
+    : '';
+
+  // ── Details tab ──────────────────────────────────────────────────────────
+  const corpHtml = isCorp
+    ? '<div class="bg-purple-50 border border-purple-100 rounded-xl p-4 mb-4 text-sm">'
+      + '<p class="text-xs text-purple-500 font-semibold uppercase tracking-wide mb-2">Corporate Details</p>'
+      + (c.companyName ? '<div class="flex gap-2 mb-1.5"><i class="fas fa-building text-purple-400 w-4 mt-0.5"></i><span class="font-semibold">' + c.companyName + '</span></div>' : '')
+      + (c.contactPerson ? '<div class="flex gap-2 mb-1.5"><i class="fas fa-user-tie text-purple-400 w-4 mt-0.5"></i><span>Contact: <strong>' + c.contactPerson + '</strong></span></div>' : '')
+      + (c.taxPin ? '<div class="flex gap-2"><i class="fas fa-receipt text-purple-400 w-4 mt-0.5"></i><span>TIN: <strong>' + c.taxPin + '</strong></span></div>' : '')
+      + '</div>'
+    : '';
+  const vehHtml = (c.vehicles || []).map(v => '<div class="flex items-center gap-2 py-2 border-b border-gray-100 text-sm"><i class="fas fa-car text-blue-400"></i><span class="font-medium">' + v.registrationNumber + '</span><span class="text-gray-500">' + v.make + ' ' + v.model + ' ' + v.year + '</span></div>').join('') || '<p class="text-gray-400 text-sm">No vehicles registered</p>';
+  const detailsHtml = corpHtml
+    + '<div class="bg-gray-50 rounded-xl p-4 mb-4 text-sm space-y-2">'
+    + '<div class="flex gap-2"><i class="fas fa-map-marker-alt text-gray-400 w-4 mt-0.5"></i><span>' + (c.address||'—') + '</span></div>'
+    + (c.idNumber ? '<div class="flex gap-2"><i class="fas fa-id-card text-gray-400 w-4 mt-0.5"></i><span>' + c.idNumber + '</span></div>' : '')
+    + '</div>'
+    + '<div class="grid grid-cols-2 gap-3 mb-4">'
+    + '<div class="bg-blue-50 rounded-xl p-3 text-center"><p class="text-2xl font-bold text-blue-600">' + (c.vehicles||[]).length + '</p><p class="text-xs text-gray-500">Vehicles</p></div>'
+    + '<div class="bg-green-50 rounded-xl p-3 text-center"><p class="text-2xl font-bold text-green-600">' + (c.jobs||[]).length + '</p><p class="text-xs text-gray-500">Job Cards</p></div>'
+    + '</div>'
+    + '<div class="mb-2"><p class="font-semibold text-gray-700 text-sm mb-2">Vehicles</p>' + vehHtml + '</div>';
+
+  // ── Subscriptions tab ────────────────────────────────────────────────────
+  const _sBadge = function(s) {
+    const m = {Active:'bg-green-100 text-green-700',Paused:'bg-yellow-100 text-yellow-700',Expired:'bg-gray-100 text-gray-500',Cancelled:'bg-red-100 text-red-600'};
+    return '<span class="text-xs font-semibold px-2 py-0.5 rounded-full ' + (m[s]||'bg-gray-100 text-gray-500') + '">' + s + '</span>';
+  };
+  const _pBadge = function(p) {
+    const m = {Paid:'bg-green-100 text-green-700',Pending:'bg-yellow-100 text-yellow-700',Overdue:'bg-red-100 text-red-600'};
+    return '<span class="text-xs font-semibold px-2 py-0.5 rounded-full ' + (m[p]||'bg-gray-100 text-gray-500') + '">' + p + '</span>';
+  };
+  const subsHtml = subs.length === 0
+    ? '<div class="text-center py-8 text-gray-400"><i class="fas fa-sync-alt text-3xl mb-3 block opacity-30"></i><p class="text-sm font-medium">No subscriptions yet</p><p class="text-xs mt-1">Click &quot;Add Subscription&quot; to enroll</p></div>'
+    : subs.map(function(s) {
+        const pct = s.visitsAllowed > 0 ? Math.round((s.visitsUsed / s.visitsAllowed) * 100) : 0;
+        const bar = pct >= 100 ? 'bg-red-400' : pct >= 75 ? 'bg-yellow-400' : 'bg-green-400';
+        const ren = s.billingCycle === 'monthly' && s.renewalDate ? 'Renews ' + fmtDate(s.renewalDate) : s.billingCycle === 'visit_pack' ? 'Visit Pack' : '—';
+        const vstr = s.vehicleReg ? '<i class="fas fa-car mr-1"></i>' + s.vehicleReg : 'All Vehicles';
+        const cycleLabel = s.billingCycle === 'monthly' ? 'Monthly' : 'Pack of ' + s.visitsPerCycle;
+        const markPaidBtn = (s.status==='Active' && s.paymentStatus!=='Paid')
+          ? '<button class="text-xs px-3 py-1.5 rounded-lg bg-green-600 text-white hover:bg-green-700 font-semibold" onclick="custSubMarkPaid(&apos;' + s.id + '&apos;,&apos;' + id + '&apos;)"><i class="fas fa-check mr-1"></i>Mark Paid</button>' : '';
+        const renewBtn = (s.status==='Expired' || (s.billingCycle==='visit_pack' && s.visitsUsed>=s.visitsAllowed))
+          ? '<button class="text-xs px-3 py-1.5 rounded-lg bg-violet-600 text-white hover:bg-violet-700 font-semibold" onclick="custSubRenew(&apos;' + s.id + '&apos;,&apos;' + id + '&apos;)"><i class="fas fa-redo mr-1"></i>Renew</button>' : '';
+        const pauseBtn = s.status==='Active'
+          ? '<button class="text-xs px-3 py-1.5 rounded-lg bg-yellow-50 text-yellow-700 border border-yellow-200 hover:bg-yellow-100 font-semibold" onclick="custSubPause(&apos;' + s.id + '&apos;,&apos;' + s.status + '&apos;,&apos;' + id + '&apos;)"><i class="fas fa-pause mr-1"></i>Pause</button>'
+          : s.status==='Paused'
+          ? '<button class="text-xs px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100 font-semibold" onclick="custSubPause(&apos;' + s.id + '&apos;,&apos;' + s.status + '&apos;,&apos;' + id + '&apos;)"><i class="fas fa-play mr-1"></i>Resume</button>' : '';
+        const cancelBtn = s.status!=='Cancelled'
+          ? '<button class="text-xs px-3 py-1.5 rounded-lg bg-red-50 text-red-600 border border-red-100 hover:bg-red-100 font-semibold" onclick="custSubCancel(&apos;' + s.id + '&apos;,&apos;' + id + '&apos;)"><i class="fas fa-times mr-1"></i>Cancel</button>' : '';
+        return '<div class="border border-gray-200 rounded-xl p-4 mb-3 bg-white hover:shadow-sm transition-shadow">'
+          + '<div class="flex items-start justify-between mb-2">'
+          + '<div><p class="font-semibold text-gray-800 text-sm">' + s.serviceName + '</p>'
+          + '<div class="flex items-center gap-2 mt-0.5 text-xs text-gray-400"><span>' + vstr + '</span><span>' + cycleLabel + '</span></div>'
+          + '</div>'
+          + '<div class="flex flex-col items-end gap-1">' + _sBadge(s.status) + _pBadge(s.paymentStatus) + '</div>'
+          + '</div>'
+          + '<div class="mb-2">'
+          + '<div class="flex justify-between text-xs text-gray-500 mb-1"><span><i class="fas fa-ticket-alt mr-1 text-violet-400"></i>Visits</span><span class="font-semibold">' + s.visitsUsed + '/' + s.visitsAllowed + '</span></div>'
+          + '<div class="w-full bg-gray-100 rounded-full h-2"><div class="' + bar + ' h-2 rounded-full" style="width:' + Math.min(pct,100) + '%"></div></div>'
+          + '</div>'
+          + '<div class="flex items-center justify-between text-xs text-gray-500 mb-3">'
+          + '<span><i class="fas fa-calendar mr-1"></i>' + ren + '</span>'
+          + '<span class="font-semibold text-violet-600">' + fmt2(s.cyclePrice) + '/cycle</span>'
+          + '</div>'
+          + '<div class="flex gap-2 flex-wrap">'
+          + markPaidBtn + renewBtn + pauseBtn
+          + '<button class="text-xs px-3 py-1.5 rounded-lg bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100 font-semibold" onclick="custSubShowLog(&apos;' + s.id + '&apos;)"><i class="fas fa-history mr-1"></i>History (' + (s.usageLog||[]).length + ')</button>'
+          + cancelBtn
+          + '</div></div>';
+      }).join('');
+
+  const subCountBadge = activeSubs.length
+    ? '<span class="ml-1 text-xs bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full">' + activeSubs.length + '</span>'
+    : '';
+  document.getElementById('statusUpdateContent').innerHTML =
+    '<div class="flex items-center gap-4 mb-4">'
+    + '<div class="w-14 h-14 rounded-2xl flex items-center justify-center text-white text-xl font-bold flex-shrink-0" style="background:' + grad + '">' + initials + '</div>'
+    + '<div class="flex-1 min-w-0">'
+    + '<div class="flex items-center gap-2 flex-wrap"><h3 class="text-xl font-bold">' + c.name + '</h3>' + typeBadge + subBadge + '</div>'
+    + '<p class="text-gray-500 text-sm mt-0.5">' + c.phone + ' &middot; ' + (c.email||'—') + '</p>'
+    + (c.whatsapp ? '<p class="text-green-600 text-xs mt-0.5 font-medium"><i class="fab fa-whatsapp mr-1"></i>' + c.whatsapp + '</p>' : '')
+    + '</div></div>'
+    + '<div class="flex gap-1 mb-4 border-b border-gray-200">'
+    + '<button id="cdTab-details" onclick="custDetailTab(&apos;details&apos;,&apos;' + id + '&apos;)" class="px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-blue-500 text-blue-600 -mb-px"><i class="fas fa-user mr-1.5"></i>Details</button>'
+    + '<button id="cdTab-subscriptions" onclick="custDetailTab(&apos;subscriptions&apos;,&apos;' + id + '&apos;)" class="px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-transparent text-gray-500 hover:text-gray-700 -mb-px"><i class="fas fa-sync-alt mr-1.5"></i>Subscriptions' + subCountBadge + '</button>'
+    + '</div>'
+    + '<div id="cdPanel-details">' + detailsHtml + '</div>'
+    + '<div id="cdPanel-subscriptions" style="display:none">'
+    + '<div class="flex items-center justify-between mb-3">'
+    + '<p class="text-sm font-semibold text-gray-700">Subscriptions (' + subs.length + ')</p>'
+    + '<button class="btn-primary text-xs px-3 py-1.5" onclick="showAddSubModal(&apos;' + id + '&apos;)"><i class="fas fa-plus mr-1"></i>Add Subscription</button>'
+    + '</div>'
+    + '<div id="custSubs-list" class="max-h-80 overflow-y-auto pr-1">' + subsHtml + '</div>'
+    + '</div>'
+    + '<button class="btn-secondary w-full mt-3" onclick="closeModal(&apos;modal-statusUpdate&apos;)">Close</button>';
+
+  if (initialTab === 'subscriptions') custDetailTab('subscriptions', id);
+}
+
+function custDetailTab(tab, customerId) {
+  ['details','subscriptions'].forEach(t => {
+    const btn = document.getElementById('cdTab-' + t);
+    const panel = document.getElementById('cdPanel-' + t);
+    if (!btn || !panel) return;
+    if (t === tab) {
+      btn.className = 'px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-blue-500 text-blue-600 -mb-px';
+      panel.style.display = '';
+    } else {
+      btn.className = 'px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 border-transparent text-gray-500 hover:text-gray-700 -mb-px';
+      panel.style.display = 'none';
+    }
+  });
+}
+
+async function custSubMarkPaid(subId, customerId) {
+  try { await axios.post('/api/subscriptions/' + subId + '/mark-paid', {}); showToast('Payment recorded', 'success'); viewCustomerDetail(customerId, 'subscriptions'); }
+  catch(e) { showToast('Failed to record payment', 'error'); }
+}
+async function custSubRenew(subId, customerId) {
+  try { await axios.post('/api/subscriptions/' + subId + '/renew', {}); showToast('Renewed & invoice generated', 'success'); viewCustomerDetail(customerId, 'subscriptions'); }
+  catch(e) { showToast(e?.response?.data?.error || 'Failed to renew', 'error'); }
+}
+async function custSubPause(subId, currentStatus, customerId) {
+  const ns = currentStatus === 'Active' ? 'Paused' : 'Active';
+  try { await axios.patch('/api/subscriptions/' + subId, { status: ns }); showToast('Subscription ' + (ns==='Paused'?'paused':'resumed'), 'success'); viewCustomerDetail(customerId, 'subscriptions'); }
+  catch(e) { showToast('Failed to update', 'error'); }
+}
+async function custSubCancel(subId, customerId) {
+  if (!confirm('Cancel this subscription? This cannot be undone.')) return;
+  try { await axios.patch('/api/subscriptions/' + subId, { status: 'Cancelled' }); showToast('Subscription cancelled', 'info'); viewCustomerDetail(customerId, 'subscriptions'); }
+  catch(e) { showToast('Failed to cancel', 'error'); }
+}
+function custSubShowLog(subId) {
+  axios.get('/api/subscriptions/' + subId).then(({ data: sub }) => {
+    const log = sub.usageLog || [];
+    const html = log.length === 0
+      ? '<p class="text-gray-400 text-sm text-center py-4">No visits redeemed yet</p>'
+      : log.map(function(e) {
+          return '<div class="flex items-center justify-between py-2 border-b border-gray-100 text-sm"><div><i class="fas fa-tools text-blue-400 mr-2"></i><span class="font-medium">' + e.jobCardNumber + '</span>' + (e.note ? ' <span class="text-gray-400 text-xs">— ' + e.note + '</span>' : '') + '</div><span class="text-xs text-gray-400">' + fmtDate(e.redeemedAt) + '</span></div>';
+        }).join('');
+    const panel = document.createElement('div');
+    panel.className = 'fixed inset-0 z-[200] flex items-center justify-center';
+    panel.innerHTML = '<div class="absolute inset-0 bg-black/40" onclick="this.parentElement.remove()"></div>'
+      + '<div class="relative bg-white rounded-2xl shadow-2xl p-5 w-full max-w-md max-h-[70vh] overflow-y-auto">'
+      + '<div class="flex justify-between items-center mb-3"><h4 class="font-bold text-gray-800">Usage History — ' + sub.serviceName + '</h4><button onclick="this.closest(&apos;.fixed&apos;).remove()" class="text-gray-400 hover:text-gray-600 text-xl"><i class="fas fa-times"></i></button></div>'
+      + '<p class="text-xs text-gray-500 mb-3">' + sub.visitsUsed + ' visit' + (sub.visitsUsed!==1?'s':'') + ' used of ' + sub.visitsAllowed + '</p>' + html + '</div>';
+    document.body.appendChild(panel);
+  });
+}
+
+async function showAddSubModal(customerId) {
+  const [{ data: plans }, { data: custData }] = await Promise.all([
+    axios.get('/api/subscription-plans'),
+    axios.get('/api/customers/' + customerId),
+  ]);
+  const actPlans = plans.filter(p => p.isActive);
+  const vehicles = custData.vehicles || [];
+  const plansHtml = actPlans.length === 0
+    ? '<option disabled>No active plans — create plans in Subscriptions page first</option>'
+    : actPlans.map(function(p) {
+        return '<option value="' + p.id + '" data-price="' + p.cyclePrice + '" data-visits="' + p.visitsPerCycle + '" data-cycle="' + p.billingCycle + '">' + p.serviceName + ' — ' + (p.billingCycle==='monthly'?'Monthly':'Pack of '+p.visitsPerCycle) + ' — ' + fmt2(p.cyclePrice) + '</option>';
+      }).join('');
+  const vehOptsHtml = vehicles.map(function(v) {
+    return '<option value="' + v.id + '">' + v.registrationNumber + ' (' + v.make + ' ' + v.model + ')</option>';
+  }).join('');
+  const el = document.createElement('div');
+  el.className = 'fixed inset-0 z-[200] flex items-center justify-center';
+  el.id = 'modal-addSub';
+  el.innerHTML = '<div class="absolute inset-0 bg-black/40" onclick="document.getElementById(&apos;modal-addSub&apos;).remove()"></div>'
+    + '<div class="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md">'
+    + '<div class="flex justify-between items-center mb-4"><h4 class="font-bold text-gray-800 text-lg"><i class="fas fa-sync-alt text-violet-500 mr-2"></i>Add Subscription</h4><button onclick="document.getElementById(&apos;modal-addSub&apos;).remove()" class="text-gray-400 hover:text-gray-600 text-xl"><i class="fas fa-times"></i></button></div>'
+    + '<div class="mb-3"><label class="form-label">Plan <span class="text-red-500">*</span></label><select class="form-input" id="addSub-planId" onchange="addSubPlanChange()">' + plansHtml + '</select></div>'
+    + '<div class="mb-3 p-3 bg-violet-50 border border-violet-100 rounded-xl text-sm" id="addSub-summary"><p class="text-violet-700 font-semibold" id="addSub-sumName">—</p><p class="text-gray-500 text-xs mt-0.5" id="addSub-sumDetail">Select a plan</p></div>'
+    + '<div class="mb-3"><label class="form-label">Vehicle <span class="text-gray-400 text-xs">(optional)</span></label><select class="form-input" id="addSub-vehicleId"><option value="">All Vehicles (Customer-Wide)</option>' + vehOptsHtml + '</select></div>'
+    + '<div class="mb-3"><label class="form-label">Start Date</label><input type="date" class="form-input" id="addSub-startDate" value="' + new Date().toISOString().slice(0,10) + '"/></div>'
+    + '<div class="mb-4"><label class="form-label">Notes <span class="text-gray-400 text-xs">(optional)</span></label><textarea class="form-input" id="addSub-notes" rows="2" placeholder="Any notes\u2026"></textarea></div>'
+    + '<div class="flex gap-3"><button class="btn-secondary flex-1" onclick="document.getElementById(&apos;modal-addSub&apos;).remove()">Cancel</button><button class="btn-primary flex-1" id="addSub-submit"><i class="fas fa-check mr-1"></i>Enroll &amp; Generate Invoice</button></div>'
+    + '</div>';
+  document.body.appendChild(el);
+  addSubPlanChange();
+  document.getElementById('addSub-submit').onclick = async () => {
+    const planId = document.getElementById('addSub-planId').value;
+    const vehicleId = document.getElementById('addSub-vehicleId').value || undefined;
+    const startDate = document.getElementById('addSub-startDate').value;
+    const notes = document.getElementById('addSub-notes').value.trim() || undefined;
+    if (!planId) { showToast('Please select a plan', 'error'); return; }
+    try {
+      await axios.post('/api/subscriptions', { customerId, vehicleId, planId, startDate, notes });
+      document.getElementById('modal-addSub').remove();
+      showToast('Subscribed & invoice generated!', 'success');
+      viewCustomerDetail(customerId, 'subscriptions');
+    } catch(e) { showToast(e?.response?.data?.error || 'Failed to enroll', 'error'); }
+  };
+}
+
+function addSubPlanChange() {
+  const sel = document.getElementById('addSub-planId');
+  if (!sel || !sel.options[sel.selectedIndex]) return;
+  const opt = sel.options[sel.selectedIndex];
+  const price = opt.dataset.price; const visits = opt.dataset.visits; const cycle = opt.dataset.cycle;
+  const name = opt.text.split(' — ')[0];
+  const sn = document.getElementById('addSub-sumName'); const sd = document.getElementById('addSub-sumDetail');
+  if (sn) sn.textContent = name || '—';
+  if (sd && price) sd.textContent = cycle === 'monthly'
+    ? 'Monthly \u00b7 ' + visits + ' visit(s)/month \u00b7 TZS ' + Number(price).toLocaleString() + '/month'
+    : 'Visit Pack \u00b7 ' + visits + ' visits \u00b7 TZS ' + Number(price).toLocaleString() + ' per pack';
 }
 
 
@@ -9201,7 +9513,10 @@ function _renderInvoicesTable(data, filter) {
     const rowHighlight = inv.status === 'Overdue' ? 'bg-red-50/40' : inv.status === 'Partially Paid' ? 'bg-amber-50/30' : '';
     return \`
     <tr class="table-row border-b border-gray-50 \${rowHighlight} cursor-pointer" onclick="showInvoiceDetail('\${inv.id}', event)">
-      <td class="px-4 py-3 font-bold text-blue-600 text-sm">\${inv.invoiceNumber}</td>
+      <td class="px-4 py-3 text-sm">
+        <span class="font-bold \${inv.invoiceType==='subscription' ? 'text-violet-600' : 'text-blue-600'}">\${inv.invoiceNumber}</span>
+        \${inv.invoiceType==='subscription' ? '<span class="ml-1.5 inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700"><i class="fas fa-sync-alt"></i> SUB</span>' : ''}
+      </td>
       <td class="px-4 py-3 text-sm font-medium text-gray-700">\${inv.jobCardNumber||'—'}</td>
       <td class="px-4 py-3 text-sm text-gray-600">\${inv.customerName||'—'}</td>
       <td class="px-4 py-3 font-bold text-gray-800">
@@ -11037,6 +11352,212 @@ async function downloadFleetInvoicePDF(fiId) {
 
   doc.save(fi.fleetInvoiceNumber + '.pdf');
   showToast(fi.fleetInvoiceNumber + ' PDF downloaded!', 'success');
+}
+
+// ═══ SUBSCRIPTIONS PAGE ═══════════════════════════════════════════════════
+let _subsAll = [];
+let _subFilter = 'all';
+
+async function loadSubscriptionsPage() {
+  try {
+    const [{ data: subs }, { data: stats }] = await Promise.all([
+      axios.get('/api/subscriptions'),
+      axios.get('/api/subscriptions/stats'),
+    ]);
+    _subsAll = subs;
+    // Update stat counters
+    const sa = document.getElementById('subStat-active'); if (sa) sa.textContent = stats.totalActive;
+    const sr = document.getElementById('subStat-renewing'); if (sr) sr.textContent = stats.renewingIn7Days;
+    const sp = document.getElementById('subStat-pending'); if (sp) sp.textContent = stats.pendingPayment;
+    const so = document.getElementById('subStat-overdue'); if (so) so.textContent = stats.overdueCount;
+    // Reminder panel
+    const rp = document.getElementById('sub-reminder-panel');
+    const rl = document.getElementById('sub-reminder-list');
+    if (rp && rl) {
+      if (stats.reminders.length > 0) {
+        rp.style.display = '';
+        rl.innerHTML = stats.reminders.map(function(r) {
+          const urgencyClass = r.daysUntilRenewal <= 1 ? 'text-red-600' : 'text-amber-600';
+          const dueLabel = r.daysUntilRenewal === 0 ? 'Due Today' : 'Due in ' + r.daysUntilRenewal + ' day' + (r.daysUntilRenewal !== 1 ? 's' : '');
+          return '<div class="flex items-center justify-between py-2 border-b border-amber-100 last:border-0 text-sm">'
+            + '<div><span class="font-semibold text-gray-800">' + r.customerName + '</span>'
+            + '<span class="text-gray-500 ml-2 text-xs">' + r.serviceName + '</span></div>'
+            + '<div class="flex items-center gap-2">'
+            + '<span class="text-xs font-semibold ' + urgencyClass + '">' + dueLabel + '</span>'
+            + '<span class="text-xs text-gray-400">' + fmtDate(r.renewalDate) + '</span>'
+            + '</div></div>';
+        }).join('');
+      } else {
+        rp.style.display = 'none';
+      }
+    }
+    renderSubsTable();
+  } catch(e) {
+    console.error('loadSubscriptionsPage error', e);
+  }
+}
+
+function setSubFilter(status, btn) {
+  _subFilter = status;
+  document.querySelectorAll('#sub-status-filters button').forEach(b => {
+    b.className = 'px-3 py-1.5 text-xs font-semibold rounded-lg bg-white text-gray-600 border border-gray-200 hover:bg-gray-50';
+  });
+  if (btn) btn.className = 'px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white';
+  renderSubsTable();
+}
+
+function renderSubsTable() {
+  const q = (document.getElementById('sub-search')?.value || '').toLowerCase();
+  let rows = _subsAll;
+  if (_subFilter !== 'all') rows = rows.filter(s => s.status === _subFilter);
+  if (q) rows = rows.filter(s =>
+    (s.customerName || '').toLowerCase().includes(q) ||
+    (s.serviceName || '').toLowerCase().includes(q) ||
+    (s.vehicleReg || '').toLowerCase().includes(q)
+  );
+  const sBadge = function(s) {
+    const m = {Active:'bg-green-100 text-green-700',Paused:'bg-yellow-100 text-yellow-700',Expired:'bg-gray-100 text-gray-500',Cancelled:'bg-red-100 text-red-600'};
+    return '<span class="text-xs font-semibold px-2 py-0.5 rounded-full ' + (m[s]||'bg-gray-100 text-gray-500') + '">' + s + '</span>';
+  };
+  const pBadge = function(p) {
+    const m = {Paid:'bg-green-100 text-green-700',Pending:'bg-yellow-100 text-yellow-700',Overdue:'bg-red-100 text-red-600'};
+    return '<span class="text-xs font-semibold px-2 py-0.5 rounded-full ' + (m[p]||'bg-gray-100 text-gray-500') + '">' + p + '</span>';
+  };
+  const tbody = document.getElementById('subsTableBody');
+  if (!tbody) return;
+  if (rows.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" class="text-center py-10 text-gray-400"><i class="fas fa-sync-alt text-3xl mb-3 block opacity-30"></i><p>No subscriptions found</p></td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(function(s) {
+    const pct = s.visitsAllowed > 0 ? Math.min(100, Math.round(s.visitsUsed / s.visitsAllowed * 100)) : 0;
+    const barCol = pct >= 100 ? 'bg-red-400' : pct >= 75 ? 'bg-yellow-400' : 'bg-green-400';
+    const ren = s.billingCycle === 'monthly' && s.renewalDate ? fmtDate(s.renewalDate) : s.billingCycle === 'visit_pack' ? 'No expiry' : '—';
+    const cycleLabel = s.billingCycle === 'monthly' ? 'Monthly' : 'Pack of ' + s.visitsPerCycle;
+    const markPaidBtn = (s.status === 'Active' && s.paymentStatus !== 'Paid')
+      ? '<button class="text-xs px-2.5 py-1 rounded-lg bg-green-50 text-green-700 hover:bg-green-100 font-semibold border border-green-200" onclick="custSubMarkPaid(&apos;' + s.id + '&apos;,&apos;' + s.customerId + '&apos;);loadSubscriptionsPage()"><i class="fas fa-check mr-1"></i>Paid</button>' : '';
+    const renewBtn = (s.status === 'Expired' || (s.billingCycle === 'visit_pack' && s.visitsUsed >= s.visitsAllowed))
+      ? '<button class="text-xs px-2.5 py-1 rounded-lg bg-violet-50 text-violet-700 hover:bg-violet-100 font-semibold border border-violet-200" onclick="custSubRenew(&apos;' + s.id + '&apos;,&apos;' + s.customerId + '&apos;);loadSubscriptionsPage()"><i class="fas fa-redo mr-1"></i>Renew</button>' : '';
+    const invNumSpan = s.subInvoiceNumber
+      ? '<span class="text-xs text-violet-500 font-mono">' + s.subInvoiceNumber + '</span>' : '';
+    return '<tr class="table-row border-b border-gray-50 hover:bg-violet-50/30 cursor-pointer" onclick="viewCustomerDetail(&apos;' + s.customerId + '&apos;,&apos;subscriptions&apos;)">'
+      + '<td class="px-4 py-3"><p class="font-semibold text-gray-800 text-sm">' + s.customerName + '</p><p class="text-xs text-gray-400">Since ' + fmtDate(s.startDate) + '</p></td>'
+      + '<td class="px-4 py-3"><p class="font-medium text-gray-700 text-sm">' + s.serviceName + '</p><p class="text-xs text-gray-400">' + cycleLabel + '</p></td>'
+      + '<td class="px-4 py-3 text-sm text-gray-500">' + (s.vehicleReg || '<span class="text-gray-300">All vehicles</span>') + '</td>'
+      + '<td class="px-4 py-3"><div class="flex items-center gap-2"><div class="w-16 bg-gray-100 rounded-full h-1.5"><div class="' + barCol + ' h-1.5 rounded-full" style="width:' + pct + '%"></div></div><span class="text-xs font-semibold text-gray-600">' + s.visitsUsed + '/' + s.visitsAllowed + '</span></div></td>'
+      + '<td class="px-4 py-3 text-xs text-gray-500">' + ren + '</td>'
+      + '<td class="px-4 py-3 text-sm font-semibold text-violet-600">' + fmt2(s.cyclePrice) + '</td>'
+      + '<td class="px-4 py-3">' + sBadge(s.status) + '</td>'
+      + '<td class="px-4 py-3">' + pBadge(s.paymentStatus) + '</td>'
+      + '<td class="px-4 py-3" onclick="event.stopPropagation()"><div class="flex items-center gap-1.5 flex-wrap">' + markPaidBtn + renewBtn + invNumSpan + '</div></td>'
+      + '</tr>';
+  }).join('');
+}
+
+async function redeemSubscription(subId, jobCardId, jobCardNumber) {
+  if (!confirm('Redeem one visit credit for job ' + jobCardNumber + '?')) return;
+  try {
+    const { data } = await axios.post('/api/subscriptions/' + subId + '/redeem', { jobCardId, jobCardNumber });
+    const left = data.visitsRemaining;
+    showToast('\u2705 Subscription redeemed \u2014 ' + left + ' visit' + (left!==1?'s':'') + ' remaining', 'success');
+    viewJobDetail(jobCardId);
+  } catch(e) {
+    showToast(e?.response?.data?.error || 'Redemption failed', 'error');
+  }
+}
+
+async function showManagePlansModal() {
+  const { data: plans } = await axios.get('/api/subscription-plans');
+  const [{ data: oilProds }, { data: cwPkgs }, { data: spkgs }, { data: addons }] = await Promise.all([
+    axios.get('/api/oil-service-products'),
+    axios.get('/api/carwash-packages'),
+    axios.get('/api/packages'),
+    axios.get('/api/add-on-services'),
+  ]);
+  // Build service options grouped by type
+  const svcOptions = [
+    ...spkgs.map(function(p) { return '<option value="' + p.id + '" data-type="service_package">' + p.packageName + ' (Service Package)</option>'; }),
+    ...cwPkgs.filter(function(p) { return p.type !== 'Monthly'; }).map(function(p) { return '<option value="' + p.id + '" data-type="car_wash">' + p.name + ' (Car Wash)</option>'; }),
+    ...addons.map(function(p) { return '<option value="' + p.id + '" data-type="add_on">' + p.name + ' (Add-on)</option>'; }),
+  ].join('');
+
+  const planRows = plans.length === 0
+    ? '<tr><td colspan="5" class="text-center py-6 text-gray-400 text-sm">No plans yet \u2014 create one below</td></tr>'
+    : plans.map(function(p) {
+        const statusClass = p.isActive ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500';
+        const cycleText = p.billingCycle === 'monthly' ? 'Monthly' : 'Pack of ' + p.visitsPerCycle;
+        return '<tr class="border-b border-gray-100">'
+          + '<td class="px-3 py-2 text-sm font-medium">' + p.serviceName + '</td>'
+          + '<td class="px-3 py-2 text-xs text-gray-500">' + cycleText + '</td>'
+          + '<td class="px-3 py-2 text-sm font-semibold text-violet-600">' + fmt2(p.cyclePrice) + '</td>'
+          + '<td class="px-3 py-2"><span class="text-xs px-2 py-0.5 rounded-full ' + statusClass + '">' + (p.isActive ? 'Active' : 'Inactive') + '</span></td>'
+          + '<td class="px-3 py-2"><button class="text-xs text-red-500 hover:text-red-700" onclick="deactivatePlan(&apos;' + p.id + '&apos;)"><i class="fas fa-trash"></i></button></td>'
+          + '</tr>';
+      }).join('');
+
+  const el = document.createElement('div');
+  el.className = 'fixed inset-0 z-[200] flex items-center justify-center';
+  el.id = 'modal-managePlans';
+  el.innerHTML = '<div class="absolute inset-0 bg-black/40" onclick="document.getElementById(&apos;modal-managePlans&apos;).remove()"></div>'
+    + '<div class="relative bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">'
+    + '<div class="flex justify-between items-center mb-4">'
+    + '<h4 class="font-bold text-gray-800 text-lg"><i class="fas fa-cog text-violet-500 mr-2"></i>Manage Subscription Plans</h4>'
+    + '<button onclick="document.getElementById(&apos;modal-managePlans&apos;).remove()" class="text-gray-400 hover:text-gray-600 text-xl"><i class="fas fa-times"></i></button>'
+    + '</div>'
+    + '<div class="mb-5">'
+    + '<p class="text-sm font-semibold text-gray-700 mb-2">Existing Plans (' + plans.length + ')</p>'
+    + '<div class="border border-gray-200 rounded-xl overflow-hidden">'
+    + '<table class="w-full text-sm"><thead class="bg-gray-50"><tr>'
+    + '<th class="px-3 py-2 text-left text-xs font-semibold text-gray-500">Service</th>'
+    + '<th class="px-3 py-2 text-left text-xs font-semibold text-gray-500">Cycle</th>'
+    + '<th class="px-3 py-2 text-left text-xs font-semibold text-gray-500">Price</th>'
+    + '<th class="px-3 py-2 text-left text-xs font-semibold text-gray-500">Status</th>'
+    + '<th class="px-3 py-2"></th>'
+    + '</tr></thead><tbody>' + planRows + '</tbody></table>'
+    + '</div></div>'
+    + '<div class="border-t border-gray-200 pt-4">'
+    + '<p class="text-sm font-semibold text-gray-700 mb-3"><i class="fas fa-plus text-violet-500 mr-1"></i>Create New Plan</p>'
+    + '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">'
+    + '<div><label class="form-label">Service</label><select class="form-input" id="np-serviceId">' + svcOptions + '</select></div>'
+    + '<div><label class="form-label">Plan Name</label><input class="form-input" type="text" id="np-name" placeholder="e.g. Monthly Oil Change"/></div>'
+    + '<div><label class="form-label">Billing Cycle</label><select class="form-input" id="np-cycle"><option value="monthly">Monthly</option><option value="visit_pack">Visit Pack</option></select></div>'
+    + '<div><label class="form-label">Visits per Cycle</label><input class="form-input" type="number" id="np-visits" min="1" value="1"/></div>'
+    + '<div><label class="form-label">Price per Cycle (TZS)</label><input class="form-input" type="number" id="np-price" min="0" placeholder="e.g. 120000"/></div>'
+    + '<div><label class="form-label">Description (optional)</label><input class="form-input" type="text" id="np-desc" placeholder="Brief description"/></div>'
+    + '</div>'
+    + '<div class="flex gap-3 mt-4">'
+    + '<button class="btn-secondary flex-1" onclick="document.getElementById(&apos;modal-managePlans&apos;).remove()">Close</button>'
+    + '<button class="btn-primary flex-1" id="np-submit"><i class="fas fa-plus mr-1"></i>Create Plan</button>'
+    + '</div></div></div>';
+  document.body.appendChild(el);
+
+  document.getElementById('np-submit').onclick = async () => {
+    const sel = document.getElementById('np-serviceId');
+    const serviceId = sel.value;
+    const serviceType = sel.options[sel.selectedIndex]?.dataset?.type || 'service_package';
+    const serviceName = document.getElementById('np-name').value.trim();
+    const billingCycle = document.getElementById('np-cycle').value;
+    const visitsPerCycle = parseInt(document.getElementById('np-visits').value) || 1;
+    const cyclePrice = parseInt(document.getElementById('np-price').value) || 0;
+    const description = document.getElementById('np-desc').value.trim();
+    if (!serviceName || !cyclePrice) { showToast('Plan name and price are required', 'error'); return; }
+    try {
+      await axios.post('/api/subscription-plans', { serviceType, serviceId, serviceName, billingCycle, visitsPerCycle, cyclePrice, description, isActive: true });
+      showToast('Plan created!', 'success');
+      document.getElementById('modal-managePlans').remove();
+      loadSubscriptionsPage();
+    } catch(e) { showToast(e?.response?.data?.error || 'Failed', 'error'); }
+  };
+}
+
+async function deactivatePlan(planId) {
+  if (!confirm('Deactivate this plan? Existing subscriptions will continue to work.')) return;
+  try {
+    await axios.delete('/api/subscription-plans/' + planId);
+    showToast('Plan deactivated', 'info');
+    document.getElementById('modal-managePlans')?.remove();
+    showManagePlansModal();
+  } catch(e) { showToast(e?.response?.data?.error || 'Cannot deactivate', 'error'); }
 }
 
 // ═══ ANALYTICS ═══
