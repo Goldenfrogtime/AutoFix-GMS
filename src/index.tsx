@@ -4290,24 +4290,26 @@ function toSentenceCase(str) {
 // Phone: normalise to "+255 7XX XXX XXX"
 function formatPhone(raw) {
   if (!raw) return '';
-  var d = raw.trim().replace(/[\s\-\(\)]/g, '');
+  // Strip spaces, dashes, parentheses using split/join to avoid regex escape issues
+  var d = raw.trim().split(' ').join('').split('-').join('').split('(').join('').split(')').join('');
   // Strip leading country code variants: +255, 255, 0
   if (d.startsWith('+255'))      d = d.slice(4);
   else if (d.startsWith('255'))  d = d.slice(3);
   else if (d.startsWith('0'))    d = d.slice(1);
   // Must be 9 digits now (7XXXXXXXX)
-  if (d.length !== 9 || !/^\d+$/.test(d)) return raw.trim(); // return as-is if format unrecognised
+  if (d.length !== 9) return raw.trim(); // return as-is if format unrecognised
+  for (var _i = 0; _i < d.length; _i++) { if (d[_i] < '0' || d[_i] > '9') return raw.trim(); }
   return '+255 ' + d.slice(0,3) + ' ' + d.slice(3,6) + ' ' + d.slice(6);
 }
 // Plate: "t877aqq" / "T877AQQ" / "t877 aqq" → "T 877 AQQ"
 function formatPlate(raw) {
   if (!raw) return '';
-  var s = raw.trim().toUpperCase().replace(/\s+/g, '');
+  var s = raw.trim().toUpperCase().split(' ').join('');
   // Pattern: 1 letter + 3 digits + 3 letters  e.g. T877AQQ
-  var m = s.match(/^([A-Z])(\d{3})([A-Z]{3})$/);
+  var m = s.match(/^([A-Z])([0-9]{3})([A-Z]{3})$/);
   if (m) return m[1] + ' ' + m[2] + ' ' + m[3];
   // Pattern: 2 letters + 3 digits + 3 letters (some plates)
-  var m2 = s.match(/^([A-Z]{2})(\d{3})([A-Z]{3})$/);
+  var m2 = s.match(/^([A-Z]{2})([0-9]{3})([A-Z]{3})$/);
   if (m2) return m2[1] + ' ' + m2[2] + ' ' + m2[3];
   // Fallback: just uppercase with original spacing
   return raw.trim().toUpperCase();
