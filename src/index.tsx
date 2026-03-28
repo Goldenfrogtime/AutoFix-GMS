@@ -12473,25 +12473,113 @@ function renderLubricantsStats(list) {
   const stockCostValue  = list.reduce(function(s, l) { return s + (l.buyingPrice  || 0) * (l.stockQuantity || 0); }, 0);
   const stockRetailValue = list.reduce(function(s, l) { return s + (l.sellingPrice || 0) * (l.stockQuantity || 0); }, 0);
   const potentialProfit  = stockRetailValue - stockCostValue;
-  el.innerHTML = [
-    { label:'Total Products',      value: list.length,                              icon:'fa-tint',               color:'#2563eb' },
-    { label:'Types',               value: types.length,                             icon:'fa-layer-group',        color:'#7c3aed' },
-    { label:'In Stock',            value: totalStock + ' units',                    icon:'fa-boxes',              color:'#0891b2' },
-    { label:'Out of Stock',        value: outOfStock,                               icon:'fa-exclamation-circle', color:'#dc2626' },
-    { label:'Stock Cost Value',    value: 'TZS ' + fmt(stockCostValue),             icon:'fa-dollar-sign',        color:'#b45309', sub:'at buying price' },
-    { label:'Stock Retail Value',  value: 'TZS ' + fmt(stockRetailValue),           icon:'fa-tags',               color:'#16a34a', sub:'at selling price' },
-    { label:'Potential Profit',    value: 'TZS ' + fmt(potentialProfit),            icon:'fa-chart-line',         color:'#7c3aed', sub:'if all stock sold' },
-    { label:'Avg Margin',          value: 'TZS ' + fmt(Math.round(avgMargin)),      icon:'fa-percentage',         color:'#d97706', sub:'per unit' },
-  ].map(function(s) {
-    return '<div class="card p-4 border-l-4" style="border-color:'+s.color+'">' +
-      '<div class="flex items-center gap-3 mb-1">' +
-        '<i class="fas '+s.icon+' text-sm" style="color:'+s.color+'"></i>' +
-        '<p class="text-xs text-gray-500 font-semibold uppercase">'+s.label+'</p>' +
+  const lowStock = list.filter(function(l) { return (l.stockQuantity||0) > 0 && (l.stockQuantity||0) <= 5; }).length;
+  var cards = [
+    { label:'Total Products',     value: list.length,                         icon:'fa-tint',               color:'#2563eb', clickable:false, sub:'' },
+    { label:'Types',              value: types.length,                        icon:'fa-layer-group',         color:'#7c3aed', clickable:false, sub:'' },
+    { label:'In Stock',           value: totalStock + ' units',               icon:'fa-boxes',               color:'#0891b2', clickable:false, sub:'' },
+    { label:'Out of Stock',       value: outOfStock,                          icon:'fa-exclamation-circle',  color:'#dc2626', clickable:true,  sub: lowStock ? lowStock + ' low stock' : '' },
+    { label:'Stock Cost Value',   value: 'TZS ' + fmt(stockCostValue),       icon:'fa-dollar-sign',         color:'#b45309', clickable:false, sub:'at buying price' },
+    { label:'Stock Retail Value', value: 'TZS ' + fmt(stockRetailValue),     icon:'fa-tags',                color:'#16a34a', clickable:false, sub:'at selling price' },
+    { label:'Potential Profit',   value: 'TZS ' + fmt(potentialProfit),      icon:'fa-chart-line',          color:'#7c3aed', clickable:false, sub:'if all stock sold' },
+    { label:'Avg Margin',         value: 'TZS ' + fmt(Math.round(avgMargin)),icon:'fa-percentage',          color:'#d97706', clickable:false, sub:'per unit' },
+  ];
+  el.innerHTML = cards.map(function(s) {
+    var clickAttr = s.clickable ? ' onclick="showStockAlertPanel()" title="View stock alerts"' : '';
+    var extraClass = s.clickable ? ' cursor-pointer hover:shadow-md transition-all hover:scale-[1.02] group' : '';
+    var subColor = s.clickable && s.sub ? 'color:#d97706' : 'color:#9ca3af';
+    return '<div class="card p-4 border-l-4' + extraClass + '" style="border-color:' + s.color + '"' + clickAttr + '>' +
+      '<div class="flex items-center justify-between mb-1">' +
+        '<div class="flex items-center gap-2">' +
+          '<i class="fas ' + s.icon + ' text-sm" style="color:' + s.color + '"></i>' +
+          '<p class="text-xs text-gray-500 font-semibold uppercase">' + s.label + '</p>' +
+        '</div>' +
+        (s.clickable ? '<i class="fas fa-chevron-right text-xs text-gray-300 group-hover:text-red-400 transition-colors"></i>' : '') +
       '</div>' +
-      '<p class="text-xl font-bold text-gray-900">'+s.value+'</p>' +
-      (s.sub ? '<p class="text-xs text-gray-400 mt-0.5">'+s.sub+'</p>' : '') +
+      '<p class="text-xl font-bold text-gray-900">' + s.value + '</p>' +
+      (s.sub ? '<p class="text-xs mt-0.5" style="' + subColor + '">' + s.sub + '</p>' : '') +
     '</div>';
   }).join('');
+  window._lubCurrentList = list;
+}
+
+function showStockAlertPanel() {
+  var list = window._lubCurrentList || allLubricants;
+  var outItems  = list.filter(function(l) { return (l.stockQuantity||0) === 0; });
+  var lowItems  = list.filter(function(l) { return (l.stockQuantity||0) > 0 && (l.stockQuantity||0) <= 5; });
+  var okItems   = list.filter(function(l) { return (l.stockQuantity||0) > 5; });
+
+  function makeRow(l, badgeHtml) {
+    return '<div class="flex items-center justify-between py-2.5 border-b border-gray-100 last:border-0">' +
+      '<div class="flex-1 min-w-0">' +
+        '<p class="text-sm font-semibold text-gray-800 truncate">' + l.description + '</p>' +
+        '<p class="text-xs text-gray-400 mt-0.5">' +
+          '<span class="mr-2"><i class="fas fa-tag mr-1"></i>' + l.brand + '</span>' +
+          '<span><i class="fas fa-flask mr-1"></i>' + l.lubricantType + '</span>' +
+          (l.viscosity ? '<span class="ml-2 font-mono">' + l.viscosity + '</span>' : '') +
+        '</p>' +
+      '</div>' +
+      '<div class="flex items-center gap-3 ml-3 flex-shrink-0">' +
+        '<div class="text-right">' +
+          '<p class="text-xs text-gray-500">Buy: ' + fmt(l.buyingPrice) + '</p>' +
+          '<p class="text-xs text-gray-500">Sell: ' + fmt(l.sellingPrice) + '</p>' +
+        '</div>' +
+        badgeHtml +
+      '</div>' +
+    '</div>';
+  }
+
+  var outHtml = outItems.length
+    ? outItems.map(function(l) {
+        return makeRow(l, '<span class="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-red-100 text-red-600 min-w-[64px] justify-center"><i class="fas fa-times-circle text-xs"></i>Out</span>');
+      }).join('')
+    : '<p class="text-sm text-gray-400 text-center py-4"><i class="fas fa-check-circle text-green-400 mr-1"></i>No out-of-stock items</p>';
+
+  var lowHtml = lowItems.length
+    ? lowItems.map(function(l) {
+        return makeRow(l, '<span class="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 min-w-[64px] justify-center"><i class="fas fa-exclamation-triangle text-xs"></i>' + l.stockQuantity + ' left</span>');
+      }).join('')
+    : '<p class="text-sm text-gray-400 text-center py-4"><i class="fas fa-check-circle text-green-400 mr-1"></i>No low-stock items</p>';
+
+  var panel = document.createElement('div');
+  panel.id = 'stockAlertPanel';
+  panel.className = 'fixed inset-0 z-[200] flex items-end sm:items-center justify-center';
+  panel.innerHTML =
+    '<div class="absolute inset-0 bg-black/40" onclick="document.getElementById(&apos;stockAlertPanel&apos;).remove()"></div>' +
+    '<div class="relative bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[85vh] flex flex-col">' +
+      // Header
+      '<div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">' +
+        '<div>' +
+          '<h3 class="font-bold text-gray-900 text-lg"><i class="fas fa-exclamation-circle text-red-500 mr-2"></i>Stock Alerts</h3>' +
+          '<p class="text-xs text-gray-400 mt-0.5">' + (outItems.length + lowItems.length) + ' product(s) need attention</p>' +
+        '</div>' +
+        '<button onclick="document.getElementById(&apos;stockAlertPanel&apos;).remove()" class="w-8 h-8 rounded-lg bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500"><i class="fas fa-times text-sm"></i></button>' +
+      '</div>' +
+      // Summary badges
+      '<div class="flex gap-3 px-5 py-3 border-b border-gray-100">' +
+        '<span class="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-red-100 text-red-600"><i class="fas fa-times-circle"></i>Out of stock: ' + outItems.length + '</span>' +
+        '<span class="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-amber-100 text-amber-700"><i class="fas fa-exclamation-triangle"></i>Low stock (≤5): ' + lowItems.length + '</span>' +
+        '<span class="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full bg-green-100 text-green-700"><i class="fas fa-check-circle"></i>OK: ' + okItems.length + '</span>' +
+      '</div>' +
+      // Scrollable body
+      '<div class="overflow-y-auto flex-1 px-5 py-2">' +
+        // Out of stock section
+        (outItems.length ? '<div class="mb-4">' +
+          '<p class="text-xs font-bold text-red-600 uppercase tracking-wide py-2 sticky top-0 bg-white"><i class="fas fa-times-circle mr-1"></i>Out of Stock (' + outItems.length + ')</p>' +
+          outHtml +
+        '</div>' : '') +
+        // Low stock section
+        '<div class="mb-2">' +
+          '<p class="text-xs font-bold text-amber-600 uppercase tracking-wide py-2 sticky top-0 bg-white"><i class="fas fa-exclamation-triangle mr-1"></i>Low Stock — 1 to 5 units (' + lowItems.length + ')</p>' +
+          lowHtml +
+        '</div>' +
+      '</div>' +
+      // Footer
+      '<div class="px-5 py-3 border-t border-gray-100">' +
+        '<p class="text-xs text-gray-400 text-center">Click the restock <i class="fas fa-plus mx-1 text-green-600"></i> button on any row in the table to add stock</p>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(panel);
 }
 
 function renderLubricantsTable(list) {
