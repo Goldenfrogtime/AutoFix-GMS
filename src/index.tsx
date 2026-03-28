@@ -4272,6 +4272,80 @@ const ROLE_CONFIG = {
 function fmt(n) { return 'TZS ' + Number(n).toLocaleString('en-TZ'); }
 function fmt2(n) { return 'TZS ' + Number(n||0).toLocaleString(); }
 function fmtDate(d) { return d ? new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '—'; }
+
+// ═══ INPUT FORMATTERS ═══
+// Title Case: "john doe" → "John Doe"
+function toTitleCase(str) {
+  if (!str) return '';
+  return str.trim().replace(/\w\S*/g, function(w) {
+    return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+  });
+}
+// Sentence Case: "hello world" → "Hello world"
+function toSentenceCase(str) {
+  if (!str) return '';
+  var s = str.trim();
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+// Phone: normalise to "+255 7XX XXX XXX"
+function formatPhone(raw) {
+  if (!raw) return '';
+  var d = raw.trim().replace(/[\s\-\(\)]/g, '');
+  // Strip leading country code variants: +255, 255, 0
+  if (d.startsWith('+255'))      d = d.slice(4);
+  else if (d.startsWith('255'))  d = d.slice(3);
+  else if (d.startsWith('0'))    d = d.slice(1);
+  // Must be 9 digits now (7XXXXXXXX)
+  if (d.length !== 9 || !/^\d+$/.test(d)) return raw.trim(); // return as-is if format unrecognised
+  return '+255 ' + d.slice(0,3) + ' ' + d.slice(3,6) + ' ' + d.slice(6);
+}
+// Plate: "t877aqq" / "T877AQQ" / "t877 aqq" → "T 877 AQQ"
+function formatPlate(raw) {
+  if (!raw) return '';
+  var s = raw.trim().toUpperCase().replace(/\s+/g, '');
+  // Pattern: 1 letter + 3 digits + 3 letters  e.g. T877AQQ
+  var m = s.match(/^([A-Z])(\d{3})([A-Z]{3})$/);
+  if (m) return m[1] + ' ' + m[2] + ' ' + m[3];
+  // Pattern: 2 letters + 3 digits + 3 letters (some plates)
+  var m2 = s.match(/^([A-Z]{2})(\d{3})([A-Z]{3})$/);
+  if (m2) return m2[1] + ' ' + m2[2] + ' ' + m2[3];
+  // Fallback: just uppercase with original spacing
+  return raw.trim().toUpperCase();
+}
+// Helper: apply formatter on blur for a field id
+function _fmtBlur(id, fn) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.addEventListener('blur', function() { el.value = fn(el.value); });
+}
+// Attach all form formatters (called once DOM is ready)
+function attachInputFormatters() {
+  // ── New Customer ──
+  _fmtBlur('cust-name',    toTitleCase);
+  _fmtBlur('cust-contact', toTitleCase);
+  _fmtBlur('cust-company', toTitleCase);
+  _fmtBlur('cust-phone',   formatPhone);
+  _fmtBlur('cust-whatsapp',formatPhone);
+  _fmtBlur('cust-email',   function(v){ return v.trim().toLowerCase(); });
+  _fmtBlur('cust-address', toSentenceCase);
+  // ── New Vehicle ──
+  _fmtBlur('veh-reg',    formatPlate);
+  _fmtBlur('veh-make',   toTitleCase);
+  _fmtBlur('veh-model',  toTitleCase);
+  _fmtBlur('veh-insurer',toTitleCase);
+  // ── Vehicle Detail inline edit ──
+  _fmtBlur('vd-edit-reg',    formatPlate);
+  _fmtBlur('vd-edit-make',   toTitleCase);
+  _fmtBlur('vd-edit-model',  toTitleCase);
+  _fmtBlur('vd-edit-insurer',toTitleCase);
+  // ── New Job Card ──
+  _fmtBlur('job-insurer',  toTitleCase);
+  _fmtBlur('job-assessor', toTitleCase);
+  _fmtBlur('job-damage',   toSentenceCase);
+  _fmtBlur('job-notes',    toSentenceCase);
+  // ── Appointment ──
+  _fmtBlur('apt-notes', toSentenceCase);
+}
 function fmtDateTime(d) {
   if (!d) return '—';
   const dt = new Date(d);
@@ -7281,14 +7355,14 @@ async function submitNewJob(e) {
     vehicleId: document.getElementById('job-vehicleId').value,
     assignedTechnician: document.getElementById('job-technician').value,
     category: cat,
-    damageDescription: document.getElementById('job-damage').value,
-    inspectionNotes: document.getElementById('job-notes').value,
+    damageDescription: toSentenceCase(document.getElementById('job-damage').value),
+    inspectionNotes:   toSentenceCase(document.getElementById('job-notes').value),
     mileageIn: parseInt(mileageVal),
     fuelLevel: fuelVal,
     ...(cat === 'Insurance' ? {
-      claimReference: document.getElementById('job-claimRef').value,
-      insurer: document.getElementById('job-insurer').value,
-      assessor: document.getElementById('job-assessor').value,
+      claimReference: document.getElementById('job-claimRef').value.trim().toUpperCase(),
+      insurer:        toTitleCase(document.getElementById('job-insurer').value),
+      assessor:       toTitleCase(document.getElementById('job-assessor').value),
     } : {})
   };
   const { data } = await axios.post('/api/jobcards', payload);
@@ -7661,20 +7735,20 @@ function selectCustType(type) {
 async function submitNewCustomer(e) {
   e.preventDefault();
   const type = document.getElementById('cust-type').value;
-  const whatsappVal = document.getElementById('cust-whatsapp').value.trim();
+  const whatsappVal = formatPhone(document.getElementById('cust-whatsapp').value.trim());
   const payload = {
-    name: document.getElementById('cust-name').value,
-    phone: document.getElementById('cust-phone').value,
-    whatsapp: whatsappVal || undefined,
-    email: document.getElementById('cust-email').value,
-    address: document.getElementById('cust-address').value,
-    idNumber: document.getElementById('cust-id').value,
+    name:         toTitleCase(document.getElementById('cust-name').value),
+    phone:        formatPhone(document.getElementById('cust-phone').value),
+    whatsapp:     whatsappVal || undefined,
+    email:        document.getElementById('cust-email').value.trim().toLowerCase(),
+    address:      toSentenceCase(document.getElementById('cust-address').value),
+    idNumber:     document.getElementById('cust-id').value.trim(),
     customerType: type,
   };
   if (type === 'Corporate') {
-    payload.companyName = document.getElementById('cust-company').value;
-    payload.contactPerson = document.getElementById('cust-contact').value;
-    payload.taxPin = document.getElementById('cust-taxpin').value;
+    payload.companyName   = toTitleCase(document.getElementById('cust-company').value);
+    payload.contactPerson = toTitleCase(document.getElementById('cust-contact').value);
+    payload.taxPin        = document.getElementById('cust-taxpin').value.trim();
   }
   await axios.post('/api/customers', payload);
   closeModal('modal-newCustomer');
@@ -7897,13 +7971,13 @@ function vdCancelEdit() { vdSetEditMode(false); }
 async function vdSave() {
   const id = document.getElementById('vd-id').value;
   const customerId = document.getElementById('vd-edit-owner').value;
-  const reg  = document.getElementById('vd-edit-reg').value.trim().toUpperCase();
-  const make = document.getElementById('vd-edit-make').value.trim().toUpperCase();
-  const model= document.getElementById('vd-edit-model').value.trim().toUpperCase();
+  const reg  = formatPlate(document.getElementById('vd-edit-reg').value.trim());
+  const make = toTitleCase(document.getElementById('vd-edit-make').value.trim());
+  const model= toTitleCase(document.getElementById('vd-edit-model').value.trim());
   const year = parseInt(document.getElementById('vd-edit-year').value) || 0;
-  const insurer = document.getElementById('vd-edit-insurer').value.trim();
-  const vin  = document.getElementById('vd-edit-vin').value.trim();
-  const engineNumber = document.getElementById('vd-edit-engine').value.trim();
+  const insurer = toTitleCase(document.getElementById('vd-edit-insurer').value.trim());
+  const vin  = document.getElementById('vd-edit-vin').value.trim().toUpperCase();
+  const engineNumber = document.getElementById('vd-edit-engine').value.trim().toUpperCase();
 
   if (!reg)  { showToast('Registration number is required', 'error'); return; }
   if (!make) { showToast('Make is required', 'error'); return; }
@@ -8030,7 +8104,16 @@ async function submitNewVehicle(e) {
   e.preventDefault();
   const custId = document.getElementById('veh-customerId').value;
   if (!custId) { showToast('Please select a customer first', 'error'); return; }
-  const payload = { customerId: custId, registrationNumber:document.getElementById('veh-reg').value, make:document.getElementById('veh-make').value, model:document.getElementById('veh-model').value, year:+document.getElementById('veh-year').value, vin:document.getElementById('veh-vin').value, engineNumber:document.getElementById('veh-engine').value, insurer:document.getElementById('veh-insurer').value };
+  const payload = {
+    customerId:         custId,
+    registrationNumber: formatPlate(document.getElementById('veh-reg').value),
+    make:               toTitleCase(document.getElementById('veh-make').value),
+    model:              toTitleCase(document.getElementById('veh-model').value),
+    year:               +document.getElementById('veh-year').value,
+    vin:                document.getElementById('veh-vin').value.trim().toUpperCase(),
+    engineNumber:       document.getElementById('veh-engine').value.trim().toUpperCase(),
+    insurer:            toTitleCase(document.getElementById('veh-insurer').value),
+  };
   await axios.post('/api/vehicles', payload);
   closeModal('modal-newVehicle');
   document.getElementById('newVehicleForm').reset();
@@ -8319,7 +8402,7 @@ async function submitAppointment(e) {
     time:               document.getElementById('apt-time').value,
     estimatedDuration:  +document.getElementById('apt-duration').value,
     assignedTechnician: document.getElementById('apt-technician').value,
-    notes:              document.getElementById('apt-notes').value,
+    notes:              toSentenceCase(document.getElementById('apt-notes').value),
   };
   if (id) {
     await axios.put('/api/appointments/' + id, payload);
@@ -10868,7 +10951,7 @@ async function showFleetPayModal(fiId) {
 // We patch it here to handle both cases.
 var _origSubmitPayInvoice = null;
 document.addEventListener('DOMContentLoaded', function() {
-  // Nothing needed — we replace inline below
+  attachInputFormatters();
 });
 
 async function submitPayInvoice() {
