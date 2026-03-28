@@ -1861,19 +1861,19 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
             <input type="hidden" id="veh-customerId" required/>
           </div>
         </div>
-        <div><label class="form-label">Registration Number</label><input class="form-input" id="veh-reg" required placeholder="T123 ABC"/></div>
+        <div><label class="form-label">Registration Number <span class="text-red-500">*</span></label><input class="form-input" id="veh-reg" required placeholder="T123 ABC"/></div>
       </div>
       <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
-        <div><label class="form-label">Make</label><input class="form-input" id="veh-make" required placeholder="Toyota"/></div>
-        <div><label class="form-label">Model</label><input class="form-input" id="veh-model" required placeholder="Corolla"/></div>
-        <div><label class="form-label">Year</label><input class="form-input" type="number" id="veh-year" required min="1990" max="2030" placeholder="2022"/></div>
+        <div><label class="form-label">Make <span class="text-red-500">*</span></label><input class="form-input" id="veh-make" required placeholder="Toyota"/></div>
+        <div><label class="form-label">Model <span class="text-red-500">*</span></label><input class="form-input" id="veh-model" required placeholder="Corolla"/></div>
+        <div><label class="form-label">Year <span class="text-red-500">*</span></label><input class="form-input" type="number" id="veh-year" required min="1990" max="2030" placeholder="2022"/></div>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-        <div><label class="form-label">VIN / Chassis Number</label><input class="form-input" id="veh-vin" placeholder="17-character VIN / Chassis Number"/></div>
-        <div><label class="form-label">Engine Number</label><input class="form-input" id="veh-engine" placeholder="Engine number"/></div>
+        <div><label class="form-label">VIN / Chassis Number <span class="text-red-500">*</span></label><input class="form-input" id="veh-vin" required placeholder="17-character VIN / Chassis Number"/></div>
+        <div><label class="form-label">Engine Number <span class="text-red-500">*</span></label><input class="form-input" id="veh-engine" required placeholder="Engine number"/></div>
       </div>
       <div class="grid grid-cols-1 gap-4 mb-6">
-        <div><label class="form-label">Insurance Company</label><input class="form-input" id="veh-insurer" placeholder="Jubilee Insurance"/></div>
+        <div><label class="form-label">Insurance Company <span class="text-gray-400 font-normal text-xs">(optional)</span></label><input class="form-input" id="veh-insurer" placeholder="Jubilee Insurance"/></div>
       </div>
       <div class="flex gap-3 justify-end">
         <button type="button" class="btn-secondary" onclick="closeModal('modal-newVehicle')">Cancel</button>
