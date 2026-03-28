@@ -1993,7 +1993,11 @@ api.get('/appointments', (c) => {
   }))
   if (date)   list = list.filter(a => a.date === date)
   if (status) list = list.filter(a => a.status === status)
-  return c.json(list.sort((a, b) => ((a.date||'') + (a.time||'')).localeCompare((b.date||'') + (b.time||''))))
+  return c.json(list.sort((a, b) => {
+    const ka = String((a.date||'') + (a.time||''));
+    const kb = String((b.date||'') + (b.time||''));
+    return ka.localeCompare(kb);
+  }))
 })
 
 api.get('/appointments/:id', (c) => {
@@ -2128,7 +2132,7 @@ api.get('/expenses', (c) => {
   if (status)    list = list.filter(e => e.status === status)
   if (dateFrom)  list = list.filter(e => e.date >= dateFrom)
   if (dateTo)    list = list.filter(e => e.date <= dateTo)
-  return c.json(list.sort((a, b) => b.date.localeCompare(a.date)))
+  return c.json(list.sort((a, b) => String(b.date||'').localeCompare(String(a.date||''))))
 })
 
 // GET /expenses/summary — totals by category, status breakdown, monthly trend
