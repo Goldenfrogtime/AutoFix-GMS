@@ -4268,6 +4268,7 @@ const ROLE_CONFIG = {
 
 // ═══ UTILS ═══
 function fmt(n) { return 'TZS ' + Number(n).toLocaleString('en-TZ'); }
+function fmt2(n) { return 'TZS ' + Number(n||0).toLocaleString(); }
 function fmtDate(d) { return d ? new Date(d).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}) : '—'; }
 function fmtDateTime(d) {
   if (!d) return '—';
