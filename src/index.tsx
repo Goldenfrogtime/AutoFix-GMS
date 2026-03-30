@@ -4535,13 +4535,13 @@ async function loadDashboard() {
     { label:'Work In Progress', value:data.inProgress, icon:'fa-tools', g1:'#16a34a', g2:'#22c55e' },
     { label:'Monthly Revenue', value:fmt(data.totalRevenue), icon:'fa-coins', g1:'#7c3aed', g2:'#8b5cf6' }
   ];
-  document.getElementById('dashStats').innerHTML = stats.map(s => \`
-    <div class="stat-card \${s.clickable ? 'cursor-pointer hover:scale-105 transition-transform' : ''}" style="--g1:\${s.g1};--g2:\${s.g2}" \${s.clickable ? 'onclick="showPage(\'jobcards\');loadJobCards().then(()=>{document.getElementById(\'jobStatusFilter\').value=\'PENDING_APPROVAL\';filterJobCards()})"' : ''}>
+  document.getElementById('dashStats').innerHTML = stats.map((s, i) => \`
+    <div class="stat-card \${s.clickable ? 'cursor-pointer hover:scale-105 transition-transform' : ''}" style="--g1:\${s.g1};--g2:\${s.g2}" \${s.clickable ? 'data-stat-click="pending-approval"' : ''}>
       <div class="flex items-start justify-between">
         <div>
           <p class="text-blue-100 text-xs font-semibold uppercase tracking-wide mb-1">\${s.label}</p>
           <p class="text-2xl font-bold">\${s.value}</p>
-          \${s.clickable ? '<p class="text-white/70 text-xs mt-1">Tap to review →</p>' : ''}
+          \${s.clickable ? '<p class="text-white/70 text-xs mt-1">Tap to review \u2192</p>' : ''}
         </div>
         <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
           <i class="fas \${s.icon} text-white"></i>
@@ -4549,6 +4549,16 @@ async function loadDashboard() {
       </div>
     </div>
   \`).join('');
+  // Wire up clickable stat cards after render
+  document.querySelectorAll('[data-stat-click="pending-approval"]').forEach(function(el) {
+    el.addEventListener('click', function() {
+      showPage('jobcards');
+      loadJobCards().then(function() {
+        document.getElementById('jobStatusFilter').value = 'PENDING_APPROVAL';
+        filterJobCards();
+      });
+    });
+  });
   document.getElementById('recentJobsList').innerHTML = data.recentJobs.map(j => \`
     <div class="table-row flex items-center justify-between py-3 border-b border-gray-50 cursor-pointer rounded-lg px-2 hover:bg-blue-50 transition-colors" onclick="viewJobDetail('\${j.id}')">
       <div class="flex items-center gap-3">
@@ -6671,7 +6681,7 @@ function showStatusModal(jobId, currentStatus) {
 
   // Allowed transitions per role for the NEW pipeline
   // Admin/Manager can move anywhere forward; Front Desk & Technician restricted
-  const ROLE_ALLOWED: Record<string, string[]> = {
+  const ROLE_ALLOWED = {
     'Owner':      STATUS_FLOW,
     'Manager':    STATUS_FLOW,
     'Front Desk': ['PRE_HANDOVER','HANDED_OVER'],
