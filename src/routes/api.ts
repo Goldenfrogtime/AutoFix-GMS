@@ -591,6 +591,121 @@ api.patch('/jobcards/:id/approve', async (c) => {
   return c.json(jobCards[idx])
 })
 
+// ─── Preliminary Check (Phase 2) ────────────────────────────────────────────
+// POST /jobcards/:id/preliminary-check
+// Called by Service Advisor after completing the preliminary check + customer signature.
+// Saves check data, advances status APPROVED → PRE_HANDOVER → HANDED_OVER,
+// and auto-generates the Entry Gate Pass.
+api.post('/jobcards/:id/preliminary-check', async (c) => {
+  const idx = jobCards.findIndex(x => x.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const jc = jobCards[idx]
+
+  // Allow from PRE_HANDOVER or APPROVED
+  if (!['PRE_HANDOVER', 'APPROVED'].includes(jc.status)) {
+    return c.json({ error: `Preliminary check can only be completed from PRE_HANDOVER or APPROVED status. Current: ${jc.status}` }, 400)
+  }
+
+  const body = await c.req.json<{
+    spareTyre: string; jack: string; wheelSpanner: string; triangle: string
+    toolbox: string; fireExtinguisher: string
+    fuelLevelCheck: string; mileageAtHandover: number
+    existingDamage: string; vehicleCondition: string
+    valuables: string[]; notes: string
+    serviceAdvisorName: string; serviceAdvisorSignature: string
+    customerName: string; customerSignature: string
+    completedBy: string; completedByName: string
+  }>()
+
+  if (!body.customerSignature) {
+    return c.json({ error: 'Customer signature is required to complete handover' }, 400)
+  }
+  if (!body.serviceAdvisorSignature) {
+    return c.json({ error: 'Service Advisor signature is required' }, 400)
+  }
+
+  const ts = now()
+  const cust = customers.find(x => x.id === jc.customerId)
+  const veh  = vehicles.find(x => x.id === jc.vehicleId)
+
+  // Build preliminary check record
+  const prelimCheck = {
+    spareTyre: body.spareTyre || 'Absent',
+    jack: body.jack || 'Absent',
+    wheelSpanner: body.wheelSpanner || 'Absent',
+    triangle: body.triangle || 'Absent',
+    toolbox: body.toolbox || 'Absent',
+    fireExtinguisher: body.fireExtinguisher || 'Absent',
+    fuelLevelCheck: body.fuelLevelCheck || '',
+    mileageAtHandover: body.mileageAtHandover || 0,
+    existingDamage: body.existingDamage || '',
+    vehicleCondition: body.vehicleCondition || 'Good',
+    valuables: body.valuables || [],
+    notes: body.notes || '',
+    serviceAdvisorName: body.serviceAdvisorName || body.completedByName || '',
+    serviceAdvisorSignature: body.serviceAdvisorSignature,
+    customerName: body.customerName || cust?.name || '',
+    customerSignature: body.customerSignature,
+    completedAt: ts,
+    completedBy: body.completedBy || '',
+    completedByName: body.completedByName || '',
+  }
+
+  // Advance timeline: PRE_HANDOVER → HANDED_OVER
+  const timeline = jc.statusTimeline ? [...jc.statusTimeline] : []
+  const openEntry = timeline.findLast ? timeline.findLast(e => !e.exitedAt) : [...timeline].reverse().find(e => !e.exitedAt)
+  if (openEntry) closeTimelineEntry(openEntry, ts)
+  timeline.push(openTimelineEntry(jc, 'HANDED_OVER', ts))
+
+  // Auto-generate Entry Gate Pass
+  const gpNum = 'GMS-GP-' + new Date().getFullYear() + '-' + String(gatePasses.length + 1).padStart(3, '0')
+  const entryGP: GatePass = {
+    id: 'gp' + genId(),
+    passNumber: gpNum,
+    jobCardId: jc.id,
+    jobCardNumber: jc.jobCardNumber,
+    vehicleReg: veh?.registrationNumber || '',
+    vehicleMake: veh?.make,
+    vehicleModel: veh?.model,
+    vehicleYear: veh?.year,
+    vehicleColor: (veh as any)?.color,
+    customerName: cust?.name || body.customerName || '',
+    customerPhone: cust?.phone,
+    entryTime: ts,
+    status: 'Active',
+    notes: `Entry after preliminary check — SA: ${body.completedByName}`,
+    createdAt: ts,
+    updatedAt: ts,
+  }
+  gatePasses.push(entryGP)
+
+  // Save everything
+  jobCards[idx] = {
+    ...jc,
+    status: 'HANDED_OVER',
+    statusTimeline: timeline,
+    preliminaryCheck: prelimCheck as any,
+    gatePassInId: entryGP.id,
+    // Update mileage from the check form if provided
+    mileageIn: body.mileageAtHandover || jc.mileageIn,
+    fuelLevel: body.fuelLevelCheck || jc.fuelLevel,
+    updatedAt: ts,
+  }
+
+  activityLog.push({
+    id: 'a' + genId(), jobCardId: jc.id,
+    action: 'PRELIMINARY_CHECK',
+    description: `Preliminary check completed by ${body.completedByName}. Customer signed. Gate Pass ${gpNum} issued.`,
+    userId: body.completedBy || 'system', userName: body.completedByName || 'System', timestamp: ts
+  })
+
+  addNotification('job_status', 'success', 'Vehicle Handed Over',
+    `${jc.jobCardNumber} — preliminary check done, customer signed. Gate Pass ${gpNum} issued.`,
+    { jobCardId: jc.id, jobCardNumber: jc.jobCardNumber, entityId: entryGP.id, entityType: 'gate_pass' })
+
+  return c.json({ jobCard: jobCards[idx], gatePass: entryGP })
+})
+
 // ─── Reopen a Job Card ───────────────────────────────────────────────────────
 // Allowed from: RELEASED, COMPLETED, INVOICED, PAID, CLOSED
 // Sets status back to REPAIR_IN_PROGRESS, records reason, increments reopenCount

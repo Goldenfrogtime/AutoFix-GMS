@@ -279,6 +279,34 @@ export interface JobCard {
   cancelledByName?: string
   cancelledAt?: string
   cancelReason?: string
+  // ── Phase 2: Preliminary Check & Signature ─────────────────────────────
+  preliminaryCheck?: {
+    // PDF items (Present / Absent)
+    spareTyre: 'Present' | 'Absent'
+    jack: 'Present' | 'Absent'
+    wheelSpanner: 'Present' | 'Absent'
+    triangle: 'Present' | 'Absent'
+    toolbox: 'Present' | 'Absent'
+    fireExtinguisher: 'Present' | 'Absent'
+    // Suggested additional items
+    fuelLevelCheck: string        // e.g. "Empty", "1/4", "1/2", "3/4", "Full"
+    mileageAtHandover: number     // odometer reading at handover
+    existingDamage: string        // free text
+    vehicleCondition: string      // e.g. "Good", "Fair", "Poor"
+    // Valuable items (up to 5 free-text lines from PDF)
+    valuables: string[]
+    // General notes
+    notes: string
+    // Signatures
+    serviceAdvisorName: string
+    serviceAdvisorSignature: string   // base64 PNG
+    customerName: string
+    customerSignature: string         // base64 PNG
+    completedAt: string               // ISO timestamp
+    completedBy: string               // userId
+    completedByName: string
+  }
+  gatePassInId?: string           // id of the auto-generated entry Gate Pass
   createdAt: string
   updatedAt: string
 }

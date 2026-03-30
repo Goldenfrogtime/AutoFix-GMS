@@ -2888,6 +2888,150 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 </div>
 
 <!-- ═══ APPROVE EXIT GATE PASS MODAL ═══ -->
+<!-- ═══════════════════════════════════════════════════════════
+     PRELIMINARY CHECK MODAL (Phase 2)
+     Service Advisor fills this form before handing over vehicle.
+     Two signature pads: SA + Customer.
+     On submit → HANDED_OVER + Gate Pass IN auto-created.
+═════════════════════════════════════════════════════════════ -->
+<div id="modal-prelimCheck" class="modal-overlay hidden" style="align-items:flex-start;padding-top:20px;padding-bottom:20px">
+  <div class="modal-box" style="max-width:680px;max-height:92vh;overflow-y:auto">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-5 sticky top-0 bg-white pb-3 border-b border-gray-100 z-10">
+      <div>
+        <h3 class="text-xl font-bold text-gray-900"><i class="fas fa-clipboard-check text-purple-600 mr-2"></i>Preliminary Vehicle Check</h3>
+        <p class="text-sm text-gray-400 mt-0.5" id="pc-subtitle">Pre-handover inspection form</p>
+      </div>
+      <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-prelimCheck')"><i class="fas fa-times"></i></button>
+    </div>
+
+    <!-- Vehicle & Customer Summary -->
+    <div class="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-2xl p-4 mb-5">
+      <div class="grid grid-cols-2 gap-3 text-sm">
+        <div><p class="text-gray-400 text-xs font-semibold uppercase">Vehicle</p><p class="font-bold text-gray-800 mt-0.5" id="pc-vehicle">—</p></div>
+        <div><p class="text-gray-400 text-xs font-semibold uppercase">Customer</p><p class="font-bold text-gray-800 mt-0.5" id="pc-customer">—</p></div>
+        <div><p class="text-gray-400 text-xs font-semibold uppercase">Job Card</p><p class="font-mono font-bold text-purple-700 mt-0.5" id="pc-jobcard">—</p></div>
+        <div><p class="text-gray-400 text-xs font-semibold uppercase">Category</p><p class="font-bold text-gray-800 mt-0.5" id="pc-category">—</p></div>
+      </div>
+    </div>
+
+    <!-- Section A: Vehicle Items Checklist (from PDF) -->
+    <div class="mb-5">
+      <h4 class="font-bold text-gray-700 text-sm mb-3 flex items-center gap-2">
+        <span class="w-6 h-6 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-xs font-bold">A</span>
+        Vehicle Items Checklist
+      </h4>
+      <div class="grid grid-cols-2 sm:grid-cols-3 gap-2" id="pc-items-grid">
+        <!-- rendered by JS -->
+      </div>
+    </div>
+
+    <!-- Section B: Valuables -->
+    <div class="mb-5">
+      <h4 class="font-bold text-gray-700 text-sm mb-3 flex items-center gap-2">
+        <span class="w-6 h-6 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-bold">B</span>
+        Valuable Items in Vehicle
+        <span class="text-xs text-gray-400 font-normal">(list any items found)</span>
+      </h4>
+      <div class="space-y-2" id="pc-valuables-list">
+        <div class="flex gap-2"><input type="text" placeholder="e.g. Phone charger, Sunglasses…" class="form-input flex-1 text-sm" data-valuable="1"/><button onclick="pcAddValuable()" class="text-purple-500 hover:text-purple-700 text-lg px-2" title="Add row"><i class="fas fa-plus-circle"></i></button></div>
+      </div>
+    </div>
+
+    <!-- Section C: Vehicle Condition -->
+    <div class="mb-5">
+      <h4 class="font-bold text-gray-700 text-sm mb-3 flex items-center gap-2">
+        <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold">C</span>
+        Vehicle Condition &amp; Readings
+      </h4>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="text-xs font-semibold text-gray-500 uppercase mb-1 block">Mileage (km) <span class="text-red-500">*</span></label>
+          <input type="number" id="pc-mileage" placeholder="e.g. 45230" min="0" class="form-input w-full text-sm" required/>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-gray-500 uppercase mb-1 block">Fuel Level <span class="text-red-500">*</span></label>
+          <select id="pc-fuel" class="form-input w-full text-sm" required>
+            <option value="">Select level…</option>
+            <option>Empty</option><option>1/4</option><option>1/2</option><option>3/4</option><option>Full</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-xs font-semibold text-gray-500 uppercase mb-1 block">Overall Condition</label>
+          <select id="pc-condition" class="form-input w-full text-sm">
+            <option value="Good">Good</option>
+            <option value="Fair">Fair</option>
+            <option value="Poor">Poor</option>
+          </select>
+        </div>
+        <div class="sm:col-span-2">
+          <label class="text-xs font-semibold text-gray-500 uppercase mb-1 block">Existing Damage / Scratches / Dents</label>
+          <textarea id="pc-damage" rows="2" placeholder="Describe any existing damage before service…" class="form-input w-full text-sm"></textarea>
+        </div>
+        <div class="sm:col-span-2">
+          <label class="text-xs font-semibold text-gray-500 uppercase mb-1 block">Additional Notes</label>
+          <textarea id="pc-notes" rows="2" placeholder="Any other observations…" class="form-input w-full text-sm"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section D: Service Advisor Signature -->
+    <div class="mb-5">
+      <h4 class="font-bold text-gray-700 text-sm mb-3 flex items-center gap-2">
+        <span class="w-6 h-6 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-xs font-bold">D</span>
+        Service Advisor Sign-off <span class="text-red-500 text-xs">*</span>
+      </h4>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+        <div>
+          <label class="text-xs font-semibold text-gray-500 uppercase mb-1 block">Service Advisor Name</label>
+          <input type="text" id="pc-sa-name" placeholder="Full name" class="form-input w-full text-sm" readonly/>
+        </div>
+      </div>
+      <div class="border-2 border-dashed border-green-300 rounded-xl bg-green-50 p-3">
+        <p class="text-xs text-gray-400 mb-2 font-semibold">Service Advisor Signature</p>
+        <canvas id="pc-sa-canvas" width="580" height="120" class="w-full rounded-lg bg-white border border-green-200 cursor-crosshair touch-none" style="touch-action:none"></canvas>
+        <div class="flex gap-2 mt-2">
+          <button type="button" onclick="pcClearSig('sa')" class="text-xs text-gray-400 hover:text-red-500 font-semibold"><i class="fas fa-eraser mr-1"></i>Clear</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section E: Customer Signature -->
+    <div class="mb-6">
+      <h4 class="font-bold text-gray-700 text-sm mb-3 flex items-center gap-2">
+        <span class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold">E</span>
+        Customer Acknowledgement &amp; Signature <span class="text-red-500 text-xs">*</span>
+      </h4>
+      <p class="text-xs text-gray-500 mb-3 bg-gray-50 rounded-xl px-4 py-2.5 border border-gray-200">
+        <i class="fas fa-info-circle text-blue-400 mr-1"></i>
+        By signing, the customer acknowledges the items listed above and confirms the vehicle condition is as recorded.
+      </p>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+        <div>
+          <label class="text-xs font-semibold text-gray-500 uppercase mb-1 block">Customer Name <span class="text-red-500">*</span></label>
+          <input type="text" id="pc-cust-name" placeholder="Full name" class="form-input w-full text-sm" required/>
+        </div>
+      </div>
+      <div class="border-2 border-dashed border-indigo-300 rounded-xl bg-indigo-50 p-3">
+        <p class="text-xs text-gray-400 mb-2 font-semibold">Customer Signature <span class="text-red-500">*</span></p>
+        <canvas id="pc-cust-canvas" width="580" height="140" class="w-full rounded-lg bg-white border border-indigo-200 cursor-crosshair touch-none" style="touch-action:none"></canvas>
+        <div class="flex gap-2 mt-2">
+          <button type="button" onclick="pcClearSig('cust')" class="text-xs text-gray-400 hover:text-red-500 font-semibold"><i class="fas fa-eraser mr-1"></i>Clear</button>
+          <span class="text-xs text-gray-400 ml-auto italic">Sign above with finger or mouse</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Submit -->
+    <div class="flex gap-3">
+      <button class="btn-secondary flex-1" onclick="closeModal('modal-prelimCheck')">Cancel</button>
+      <button id="pc-submit-btn" class="btn-primary flex-1 bg-purple-600 hover:bg-purple-700" onclick="submitPrelimCheck()">
+        <i class="fas fa-check-circle mr-2"></i>Complete Handover &amp; Issue Gate Pass
+      </button>
+    </div>
+  </div>
+</div>
+
 <div id="modal-approveGP" class="modal-overlay hidden">
   <div class="modal-box" style="max-width:560px">
     <div class="flex items-center justify-between mb-5">
@@ -4816,12 +4960,12 @@ async function viewJobDetail(id) {
   if (j.status === 'DRAFT' && (isAdminOrManager || isFrontDesk)) {
     actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 border border-blue-300 flex items-center gap-1.5" onclick="submitJobForApproval('\${j.id}')"><i class="fas fa-paper-plane"></i> Submit for Approval</button>\`;
   }
-  if (j.status === 'APPROVED' && (isAdminOrManager || isFrontDesk)) {
-    actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-purple-100 hover:bg-purple-200 text-purple-700 border border-purple-300 flex items-center gap-1.5" onclick="updateJobStatus('\${j.id}','PRE_HANDOVER')"><i class="fas fa-clipboard-check"></i> Start Pre-Handover</button>\`;
+  if ((j.status === 'APPROVED' || j.status === 'PRE_HANDOVER') && (isAdminOrManager || isFrontDesk)) {
+    actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-purple-100 hover:bg-purple-200 text-purple-700 border border-purple-300 flex items-center gap-1.5" onclick="showPrelimCheckModal('\${j.id}')"><i class="fas fa-clipboard-check"></i> \${j.status === 'PRE_HANDOVER' ? 'Complete Preliminary Check' : 'Start Pre-Handover'}</button>\`;
   }
   if (canReopen) {
     actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 transition-all bg-amber-100 hover:bg-amber-200 text-amber-700 border border-amber-300 flex items-center gap-1.5" onclick="showReopenModal('\${j.id}')"><i class="fas fa-folder-open"></i> Reopen Job</button>\`;
-  } else if (!['DRAFT','PENDING_APPROVAL','APPROVED','REJECTED'].includes(j.status)) {
+  } else if (!['DRAFT','PENDING_APPROVAL','APPROVED','REJECTED','PRE_HANDOVER'].includes(j.status)) {
     actionButtons += \`<button class="btn-secondary text-sm" onclick="showStatusModal('\${j.id}','\${j.status}')"><i class="fas fa-exchange-alt"></i> Update Status</button>\`;
   }
   if (canMakePFI) { actionButtons += \`<button class="btn-secondary text-sm" onclick="showPFIModal('\${j.id}','\${j.category}')"><i class="fas fa-file-invoice"></i> Create PFI</button>\`; }
@@ -5100,6 +5244,52 @@ async function viewJobDetail(id) {
               <i class="fas fa-id-card"></i> Issue Service Card
             </button>
           </div>\`}
+        </div>\` : ''}
+
+        <!-- Preliminary Check Summary Card -->
+        \${j.preliminaryCheck ? \`
+        <div class="card p-5 border-l-4 border-purple-400">
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="font-bold text-gray-800 text-sm"><i class="fas fa-clipboard-check text-purple-500 mr-2"></i>Preliminary Check</h4>
+            <span class="badge text-xs bg-purple-100 text-purple-700"><i class="fas fa-check mr-1"></i>Completed</span>
+          </div>
+          <div class="space-y-1.5 text-sm">
+            <div class="flex justify-between"><span class="text-gray-400">Completed At</span><span class="font-semibold text-gray-700">\${fmtDateTime(j.preliminaryCheck.completedAt)}</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">By</span><span class="font-semibold text-gray-700">\${j.preliminaryCheck.completedByName||j.preliminaryCheck.serviceAdvisorName||'—'}</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">Mileage In</span><span class="font-semibold text-gray-700">\${j.preliminaryCheck.mileageAtHandover ? j.preliminaryCheck.mileageAtHandover.toLocaleString() + ' km' : '—'}</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">Fuel Level</span><span class="font-semibold text-gray-700">\${j.preliminaryCheck.fuelLevelCheck||'—'}</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">Condition</span><span class="font-semibold \${j.preliminaryCheck.vehicleCondition==='Good'?'text-green-700':j.preliminaryCheck.vehicleCondition==='Fair'?'text-amber-700':'text-red-700'}">\${j.preliminaryCheck.vehicleCondition||'—'}</span></div>
+            \${j.preliminaryCheck.existingDamage ? \`<div class="flex justify-between items-start gap-2"><span class="text-gray-400 flex-shrink-0">Damage</span><span class="font-semibold text-gray-700 text-right text-xs">\${j.preliminaryCheck.existingDamage}</span></div>\` : ''}
+          </div>
+          <div class="mt-3 pt-3 border-t border-gray-100">
+            <p class="text-xs font-semibold text-gray-400 uppercase mb-2 tracking-wide">Checklist Items</p>
+            <div class="grid grid-cols-2 gap-1">
+              \${['spareTyre','jack','wheelSpanner','triangle','toolbox','fireExtinguisher'].map(function(k){
+                const label = {spareTyre:'Spare Tyre',jack:'Jack',wheelSpanner:'Wheel Spanner',triangle:'Warning Triangle',toolbox:'Toolbox',fireExtinguisher:'Fire Extinguisher'}[k];
+                const present = j.preliminaryCheck[k]==='Present';
+                return '<div class="flex items-center gap-1.5 text-xs"><i class="fas '+(present?'fa-check-circle text-green-500':'fa-times-circle text-red-400')+'"></i><span class="text-gray-600">'+label+'</span></div>';
+              }).join('')}
+            </div>
+          </div>
+          \${(j.preliminaryCheck.valuables && j.preliminaryCheck.valuables.length > 0) ? \`
+          <div class="mt-3 pt-3 border-t border-gray-100">
+            <p class="text-xs font-semibold text-gray-400 uppercase mb-1.5 tracking-wide">Valuables</p>
+            <ul class="space-y-0.5">
+              \${j.preliminaryCheck.valuables.map(function(v){return '<li class="text-xs text-gray-700 flex items-center gap-1.5"><i class="fas fa-tag text-amber-400 text-xs"></i>'+v+'</li>';}).join('')}
+            </ul>
+          </div>\` : ''}
+          \${j.preliminaryCheck.customerSignature ? \`
+          <div class="mt-3 pt-3 border-t border-gray-100 grid grid-cols-2 gap-3">
+            \${j.preliminaryCheck.serviceAdvisorSignature ? \`
+            <div>
+              <p class="text-xs text-gray-400 mb-1 font-semibold">SA Signature</p>
+              <img src="\${j.preliminaryCheck.serviceAdvisorSignature}" alt="SA Sig" class="max-h-10 border border-gray-200 rounded bg-white p-1 w-full object-contain"/>
+            </div>\` : ''}
+            <div>
+              <p class="text-xs text-gray-400 mb-1 font-semibold">Customer Signature</p>
+              <img src="\${j.preliminaryCheck.customerSignature}" alt="Customer Sig" class="max-h-10 border border-gray-200 rounded bg-white p-1 w-full object-contain"/>
+            </div>
+          </div>\` : ''}
         </div>\` : ''}
 
         <!-- Gate Pass Card -->
@@ -6919,6 +7109,272 @@ async function submitApproval(decision) {
 function closePanel(panelId) {
   const panel = document.getElementById(panelId);
   if (panel) { panel.classList.add('hidden'); panel.classList.remove('flex'); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PRELIMINARY CHECK MODAL — Phase 2
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── Checklist items from PDF (Twiga Auto Group Preliminary Check Form) ─────────
+const PRELIM_ITEMS = [
+  // ── From Twiga Preliminary Check Form (PDF) ──
+  { id: 'spareTyre',        label: 'Spare Tyre',       icon: 'fa-circle-notch' },
+  { id: 'jack',             label: 'Jack',             icon: 'fa-tools' },
+  { id: 'wheelSpanner',     label: 'Wheel Spanner',    icon: 'fa-wrench' },
+  { id: 'triangle',         label: 'Warning Triangle', icon: 'fa-exclamation-triangle' },
+  { id: 'toolbox',          label: 'Toolbox',          icon: 'fa-toolbox' },
+  { id: 'fireExtinguisher', label: 'Fire Extinguisher',icon: 'fa-fire-extinguisher' },
+  // ── Suggested additional items (Simple Check / Full Check Up forms) ──
+  { id: 'wiperBlades',      label: 'Wiper Blades',     icon: 'fa-water' },
+  { id: 'firstAidKit',      label: 'First Aid Kit',    icon: 'fa-first-aid' },
+  { id: 'logBook',          label: 'Log Book',         icon: 'fa-book' },
+  { id: 'radioAntenna',     label: 'Radio / Antenna',  icon: 'fa-broadcast-tower' },
+  { id: 'floorMats',        label: 'Floor Mats',       icon: 'fa-th-large' },
+  { id: 'headrests',        label: 'Headrests',        icon: 'fa-chair' },
+  { id: 'seatBelts',        label: 'Seat Belts',       icon: 'fa-shield-alt' },
+  { id: 'sideSkirts',       label: 'Side Skirts / Trims', icon: 'fa-car-side' },
+  { id: 'sunroof',          label: 'Sunroof / Roof Panel', icon: 'fa-sun' },
+  { id: 'hubCaps',          label: 'Hub Caps',         icon: 'fa-circle' },
+];
+
+// ── Signature pad state ─────────────────────────────────────────────────────
+let _pcJobId        = null;
+let _pcSaCanvas     = null, _pcSaCtx     = null, _pcSaDrawing     = false;
+let _pcCustCanvas   = null, _pcCustCtx   = null, _pcCustDrawing   = false;
+
+function pcInitSig(who) {
+  const canvas = document.getElementById('pc-' + who + '-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  ctx.strokeStyle = '#1e293b';
+  ctx.lineWidth   = 2.5;
+  ctx.lineCap     = 'round';
+  ctx.lineJoin    = 'round';
+
+  function getPos(e) {
+    const r = canvas.getBoundingClientRect();
+    const scaleX = canvas.width  / r.width;
+    const scaleY = canvas.height / r.height;
+    const src = e.touches ? e.touches[0] : e;
+    return { x: (src.clientX - r.left) * scaleX, y: (src.clientY - r.top) * scaleY };
+  }
+
+  let drawing = false;
+  function start(e) { e.preventDefault(); drawing = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); }
+  function move(e)  { e.preventDefault(); if (!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); }
+  function stop(e)  { e.preventDefault(); drawing = false; }
+
+  canvas.addEventListener('mousedown',  start);
+  canvas.addEventListener('mousemove',  move);
+  canvas.addEventListener('mouseup',    stop);
+  canvas.addEventListener('mouseleave', stop);
+  canvas.addEventListener('touchstart', start, { passive: false });
+  canvas.addEventListener('touchmove',  move,  { passive: false });
+  canvas.addEventListener('touchend',   stop,  { passive: false });
+
+  if (who === 'sa')   { _pcSaCanvas = canvas;   _pcSaCtx = ctx; }
+  else                { _pcCustCanvas = canvas; _pcCustCtx = ctx; }
+}
+
+function pcClearSig(who) {
+  const canvas = document.getElementById('pc-' + who + '-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+function pcIsEmpty(canvas) {
+  if (!canvas) return true;
+  const ctx = canvas.getContext('2d');
+  const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+  for (let i = 3; i < data.length; i += 4) { if (data[i] > 0) return false; }
+  return true;
+}
+
+function pcGetSig(canvas) {
+  if (!canvas || pcIsEmpty(canvas)) return '';
+  return canvas.toDataURL('image/png');
+}
+
+// ── Valuables rows ──────────────────────────────────────────────────────────
+function pcAddValuable() {
+  const list = document.getElementById('pc-valuables-list');
+  if (!list) return;
+  const idx  = list.querySelectorAll('input[data-valuable]').length + 1;
+  const row  = document.createElement('div');
+  row.className = 'flex gap-2';
+  row.innerHTML = '<input type="text" placeholder="Valuable item ' + idx + '…" class="form-input flex-1 text-sm" data-valuable="' + idx + '"/>' +
+    '<button onclick="this.parentElement.remove()" class="text-gray-400 hover:text-red-500 text-lg px-2" title="Remove"><i class="fas fa-times-circle"></i></button>';
+  list.appendChild(row);
+}
+
+// ── Open the modal ──────────────────────────────────────────────────────────
+async function showPrelimCheckModal(jobId) {
+  _pcJobId = jobId;
+  openModal('modal-prelimCheck');
+
+  // Render checklist items
+  const grid = document.getElementById('pc-items-grid');
+  if (grid) {
+    grid.innerHTML = PRELIM_ITEMS.map(function(item) {
+      return '<label class="flex items-center gap-2.5 p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-purple-50 hover:border-purple-300 cursor-pointer transition-all select-none" style="min-height:44px">' +
+        '<input type="checkbox" id="pc-item-' + item.id + '" data-item-id="' + item.id + '" class="w-4 h-4 accent-purple-600 flex-shrink-0"/>' +
+        '<i class="fas ' + item.icon + ' text-gray-400 text-xs w-4 flex-shrink-0"></i>' +
+        '<span class="text-sm text-gray-700 font-medium leading-tight">' + item.label + '</span>' +
+        '</label>';
+    }).join('');
+  }
+
+  // Reset valuables
+  const valList = document.getElementById('pc-valuables-list');
+  if (valList) {
+    valList.innerHTML = '<div class="flex gap-2"><input type="text" placeholder="e.g. Phone charger, Sunglasses…" class="form-input flex-1 text-sm" data-valuable="1"/><button onclick="pcAddValuable()" class="text-purple-500 hover:text-purple-700 text-lg px-2" title="Add row"><i class="fas fa-plus-circle"></i></button></div>';
+  }
+
+  // Clear signatures
+  pcClearSig('sa');
+  pcClearSig('cust');
+  pcInitSig('sa');
+  pcInitSig('cust');
+
+  // Populate header from job card data
+  try {
+    const { data: job } = await axios.get('/api/jobcards/' + jobId);
+    document.getElementById('pc-subtitle').textContent = job.jobCardNumber + ' · Pre-handover inspection';
+    document.getElementById('pc-jobcard').textContent  = job.jobCardNumber || '—';
+    document.getElementById('pc-category').textContent = job.category || '—';
+
+    // Vehicle info
+    let vehLabel = '—';
+    if (job.vehicleId) {
+      try {
+        const { data: v } = await axios.get('/api/vehicles/' + job.vehicleId);
+        vehLabel = [v.make, v.model, v.registrationNumber].filter(Boolean).join(' · ');
+        // Pre-fill mileage from stored value
+        if (job.mileageIn) document.getElementById('pc-mileage').value = job.mileageIn;
+        if (job.fuelLevel) document.getElementById('pc-fuel').value    = job.fuelLevel;
+      } catch(e) { /* ignore */ }
+    }
+    document.getElementById('pc-vehicle').textContent = vehLabel;
+
+    // Customer info
+    let custLabel = '—';
+    if (job.customerId) {
+      try {
+        const { data: cu } = await axios.get('/api/customers/' + job.customerId);
+        custLabel = cu.name || '—';
+        document.getElementById('pc-cust-name').value = cu.name || '';
+      } catch(e) { /* ignore */ }
+    }
+    document.getElementById('pc-customer').textContent = custLabel;
+
+    // Service Advisor name — use logged-in user
+    const saName = _currentUser?.name || '';
+    document.getElementById('pc-sa-name').value = saName;
+
+    // If already has prelim check data, pre-fill
+    if (job.preliminaryCheck) {
+      const pc = job.preliminaryCheck;
+      PRELIM_ITEMS.forEach(it => {
+        const cb = document.getElementById('pc-item-' + it.id);
+        if (cb) cb.checked = (pc[it.id] === 'Present');
+      });
+      if (pc.mileageAtHandover) document.getElementById('pc-mileage').value = pc.mileageAtHandover;
+      if (pc.fuelLevelCheck)    document.getElementById('pc-fuel').value    = pc.fuelLevelCheck;
+      if (pc.vehicleCondition)  document.getElementById('pc-condition').value = pc.vehicleCondition;
+      if (pc.existingDamage)    document.getElementById('pc-damage').value  = pc.existingDamage;
+      if (pc.notes)             document.getElementById('pc-notes').value   = pc.notes;
+      if (pc.customerName)      document.getElementById('pc-cust-name').value = pc.customerName;
+      // Pre-fill valuables
+      if (pc.valuables && pc.valuables.length > 0) {
+        const vl = document.getElementById('pc-valuables-list');
+        vl.innerHTML = '';
+        pc.valuables.forEach(function(val, i) {
+          const row = document.createElement('div');
+          row.className = 'flex gap-2';
+          row.innerHTML = '<input type="text" value="' + val.replace(/"/g,'&quot;') + '" class="form-input flex-1 text-sm" data-valuable="' + (i+1) + '"/>' +
+            (i === 0
+              ? '<button onclick="pcAddValuable()" class="text-purple-500 hover:text-purple-700 text-lg px-2" title="Add row"><i class="fas fa-plus-circle"></i></button>'
+              : '<button onclick="this.parentElement.remove()" class="text-gray-400 hover:text-red-500 text-lg px-2"><i class="fas fa-times-circle"></i></button>');
+          vl.appendChild(row);
+        });
+      }
+    }
+
+    // If status is APPROVED (not yet PRE_HANDOVER), first advance it
+    if (job.status === 'APPROVED') {
+      await axios.patch('/api/jobcards/' + jobId + '/status', { status: 'PRE_HANDOVER', userId: _currentUser?.id, userName: _currentUser?.name });
+    }
+  } catch(err) {
+    console.error('showPrelimCheckModal fetch error', err);
+  }
+}
+
+// ── Submit preliminary check ────────────────────────────────────────────────
+async function submitPrelimCheck() {
+  const jobId = _pcJobId;
+  if (!jobId) return;
+
+  // Validate required fields
+  const mileage = parseInt(document.getElementById('pc-mileage')?.value || '0', 10);
+  const fuel    = document.getElementById('pc-fuel')?.value || '';
+  if (!mileage) { showToast('Mileage is required', 'error'); return; }
+  if (!fuel)    { showToast('Fuel level is required', 'error'); return; }
+
+  // Customer signature required
+  const custCanvas = document.getElementById('pc-cust-canvas');
+  if (pcIsEmpty(custCanvas)) { showToast('Customer signature is required', 'error'); return; }
+
+  // SA signature required
+  const saCanvas = document.getElementById('pc-sa-canvas');
+  if (pcIsEmpty(saCanvas)) { showToast('Service Advisor signature is required', 'error'); return; }
+
+  // Collect checklist items
+  const itemsPayload = {};
+  PRELIM_ITEMS.forEach(it => {
+    const cb = document.getElementById('pc-item-' + it.id);
+    itemsPayload[it.id] = cb?.checked ? 'Present' : 'Absent';
+  });
+
+  // Collect valuables
+  const valuables = [];
+  document.querySelectorAll('#pc-valuables-list input[data-valuable]').forEach(inp => {
+    const v = inp.value.trim();
+    if (v) valuables.push(v);
+  });
+
+  const custName = document.getElementById('pc-cust-name')?.value?.trim() || '';
+  if (!custName) { showToast('Customer name is required', 'error'); return; }
+
+  const btn = document.getElementById('pc-submit-btn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing…'; }
+
+  try {
+    const payload = {
+      ...itemsPayload,
+      fuelLevelCheck:       fuel,
+      mileageAtHandover:    mileage,
+      existingDamage:       document.getElementById('pc-damage')?.value?.trim()     || '',
+      vehicleCondition:     document.getElementById('pc-condition')?.value          || 'Good',
+      notes:                document.getElementById('pc-notes')?.value?.trim()      || '',
+      valuables,
+      serviceAdvisorName:   document.getElementById('pc-sa-name')?.value?.trim()    || (_currentUser?.name || ''),
+      serviceAdvisorSignature: pcGetSig(saCanvas),
+      customerName:         custName,
+      customerSignature:    pcGetSig(custCanvas),
+      completedBy:          _currentUser?.id   || '',
+      completedByName:      _currentUser?.name || '',
+    };
+
+    await axios.post('/api/jobcards/' + jobId + '/preliminary-check', payload);
+    closeModal('modal-prelimCheck');
+    showToast('Preliminary check completed! Vehicle handed over & Gate Pass IN issued.', 'success');
+    viewJobDetail(jobId);
+  } catch(err) {
+    const msg = err?.response?.data?.error || 'Failed to submit preliminary check';
+    showToast(msg, 'error');
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-check-circle mr-2"></i>Complete Handover & Issue Gate Pass'; }
+  }
 }
 
 // ── Reopen Job Card ──────────────────────────────────────────────────────────
