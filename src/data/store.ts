@@ -3,15 +3,33 @@
 
 export type CustomerStatus = 'active' | 'inactive'
 export type JobCardStatus =
+  // ── New Pipeline (Phase 1+) ──────────────────────────────────────────────
+  | 'DRAFT'                    // created, awaiting admin/manager approval
+  | 'PENDING_APPROVAL'         // submitted for approval
+  | 'APPROVED'                 // approved by Admin/Manager — ready for pre-handover
+  | 'REJECTED'                 // rejected, returned to creator for correction
+  | 'PRE_HANDOVER'             // Service Advisor performing preliminary check
+  | 'HANDED_OVER'              // customer signed, gate pass IN issued
+  | 'INSPECTION'               // under inspection (simple or full check-up)
+  | 'PFI_PENDING'              // PFI generated, awaiting Admin/Manager approval
+  | 'PFI_APPROVED'             // Admin approved PFI, awaiting customer cost approval
+  | 'CUSTOMER_APPROVAL'        // awaiting customer signature on cost
+  | 'PARTS_RELEASED'           // customer approved, parts/lubricants deducted
+  | 'WORK_IN_PROGRESS'         // active repair/service work
+  | 'FINISHED'                 // technician & SA signed off
+  | 'QUALITY_CONTROL'          // QC review by Manager
+  | 'CUSTOMER_SIGNOFF'         // customer final inspection & signature
+  | 'INVOICED'                 // invoice generated
+  | 'PAID'                     // payment received
+  | 'CLOSED'                   // out-gate pass issued, vehicle released
+  // ── Legacy Statuses (kept for historical records) ────────────────────────
   | 'RECEIVED'
-  | 'INSPECTION'
   | 'PFI_PREPARATION'
   | 'AWAITING_INSURER_APPROVAL'
   | 'REPAIR_IN_PROGRESS'
   | 'WAITING_FOR_PARTS'
   | 'QUALITY_CHECK'
   | 'COMPLETED'
-  | 'INVOICED'
   | 'RELEASED'
 
 export type JobCategory = 'Insurance' | 'Private'
@@ -30,6 +48,9 @@ export type Permission =
   | 'jobcards.delete'
   | 'jobcards.change_status'
   | 'jobcards.assign_technician'
+  | 'jobcards.approve'          // approve/reject job cards
+  | 'jobcards.preliminary_check' // perform pre-handover preliminary check
+  | 'jobcards.inspection'       // perform inspection (simple/full)
   // Appointments
   | 'appointments.view'
   | 'appointments.create'
@@ -95,7 +116,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   Owner: [
     // Full access to everything
     'dashboard.view',
-    'jobcards.view','jobcards.create','jobcards.edit','jobcards.delete','jobcards.change_status','jobcards.assign_technician',
+    'jobcards.view','jobcards.create','jobcards.edit','jobcards.delete','jobcards.change_status','jobcards.assign_technician','jobcards.approve','jobcards.preliminary_check','jobcards.inspection',
     'appointments.view','appointments.create','appointments.edit','appointments.delete','appointments.convert',
     'customers.view','customers.create','customers.edit','customers.delete',
     'vehicles.view','vehicles.create','vehicles.edit',
@@ -115,7 +136,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   ],
   Manager: [
     'dashboard.view',
-    'jobcards.view','jobcards.create','jobcards.edit','jobcards.change_status','jobcards.assign_technician',
+    'jobcards.view','jobcards.create','jobcards.edit','jobcards.change_status','jobcards.assign_technician','jobcards.approve','jobcards.preliminary_check','jobcards.inspection',
     'appointments.view','appointments.create','appointments.edit','appointments.delete','appointments.convert',
     'customers.view','customers.create','customers.edit',
     'vehicles.view','vehicles.create','vehicles.edit',
@@ -134,7 +155,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   ],
   'Front Desk': [
     'dashboard.view',
-    'jobcards.view','jobcards.create','jobcards.edit','jobcards.change_status',
+    'jobcards.view','jobcards.create','jobcards.edit','jobcards.change_status','jobcards.preliminary_check',
     'appointments.view','appointments.create','appointments.edit','appointments.convert',
     'customers.view','customers.create','customers.edit',
     'vehicles.view','vehicles.create','vehicles.edit',
@@ -150,7 +171,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   ],
   Technician: [
     'dashboard.view',
-    'jobcards.view','jobcards.change_status',
+    'jobcards.view','jobcards.change_status','jobcards.inspection',
     'appointments.view',
     'customers.view',
     'vehicles.view',
@@ -245,6 +266,19 @@ export interface JobCard {
   reopenCount?: number         // how many times this job has been reopened (0 = never)
   reopenedAt?: string          // ISO timestamp of the most recent reopen
   reopenReason?: string        // reason given for the most recent reopen
+  // ── Phase 1: Approval Workflow ──────────────────────────────────────────
+  approvalNotes?: string        // notes added by approver
+  approvedBy?: string           // userId of approver
+  approvedByName?: string       // name of approver
+  approvedAt?: string           // ISO timestamp of approval
+  rejectedBy?: string           // userId of person who rejected
+  rejectedByName?: string       // name of rejector
+  rejectedAt?: string           // ISO timestamp of rejection
+  rejectionReason?: string      // reason for rejection
+  cancelledBy?: string          // userId of person who cancelled
+  cancelledByName?: string
+  cancelledAt?: string
+  cancelReason?: string
   createdAt: string
   updatedAt: string
 }

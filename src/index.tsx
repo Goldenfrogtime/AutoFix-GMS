@@ -231,6 +231,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
     </a>
     <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('jobcards')" data-perm="jobcards.view">
       <i class="fas fa-clipboard-list w-5 text-center"></i> Job Cards
+      <span id="navApprovalBadge" class="ml-auto hidden text-xs font-bold bg-red-500 text-white rounded-full px-1.5 py-0.5 min-w-[20px] text-center leading-none">0</span>
     </a>
     <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('appointments')" data-perm="appointments.view">
       <i class="fas fa-calendar-check w-5 text-center"></i> Appointments
@@ -590,10 +591,35 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
           </div>
           <select class="form-input flex-1 min-w-[120px] sm:w-auto" id="jobStatusFilter" onchange="filterJobCards()">
             <option value="">All Statuses</option>
-            <option>RECEIVED</option><option>INSPECTION</option><option>PFI_PREPARATION</option>
-            <option>AWAITING_INSURER_APPROVAL</option><option>REPAIR_IN_PROGRESS</option>
-            <option>WAITING_FOR_PARTS</option><option>QUALITY_CHECK</option>
-            <option>COMPLETED</option><option>INVOICED</option><option>RELEASED</option>
+            <optgroup label="Active Pipeline">
+              <option value="PENDING_APPROVAL">Pending Approval</option>
+              <option value="APPROVED">Approved</option>
+              <option value="REJECTED">Rejected</option>
+              <option value="PRE_HANDOVER">Pre-Handover</option>
+              <option value="HANDED_OVER">Handed Over</option>
+              <option value="INSPECTION">Inspection</option>
+              <option value="PFI_PENDING">PFI Pending</option>
+              <option value="PFI_APPROVED">PFI Approved</option>
+              <option value="CUSTOMER_APPROVAL">Customer Approval</option>
+              <option value="PARTS_RELEASED">Parts Released</option>
+              <option value="WORK_IN_PROGRESS">Work In Progress</option>
+              <option value="FINISHED">Finished</option>
+              <option value="QUALITY_CONTROL">Quality Control</option>
+              <option value="CUSTOMER_SIGNOFF">Customer Sign-off</option>
+              <option value="INVOICED">Invoiced</option>
+              <option value="PAID">Paid</option>
+              <option value="CLOSED">Closed</option>
+            </optgroup>
+            <optgroup label="Legacy">
+              <option value="RECEIVED">Received</option>
+              <option value="PFI_PREPARATION">PFI Prep</option>
+              <option value="AWAITING_INSURER_APPROVAL">Awaiting Insurer Approval</option>
+              <option value="REPAIR_IN_PROGRESS">Repair In Progress</option>
+              <option value="WAITING_FOR_PARTS">Waiting For Parts</option>
+              <option value="QUALITY_CHECK">Quality Check</option>
+              <option value="COMPLETED">Completed</option>
+              <option value="RELEASED">Released</option>
+            </optgroup>
           </select>
           <button class="btn-primary flex-shrink-0" onclick="showNewJobModal()"><i class="fas fa-plus"></i> New Job</button>
         </div>
@@ -2704,6 +2730,10 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
   </div>
 </div>
 
+<!-- Approval Review Panel Overlay -->
+<div id="panel-approvalReview" class="fixed inset-0 z-50 bg-black/50 hidden items-center justify-center p-4" style="overflow-y:auto">
+</div>
+
 <!-- Reopen Job Card Modal -->
 <div id="modal-reopenJob" class="modal-overlay hidden">
   <div class="modal-box" style="--mw:460px">
@@ -4237,19 +4267,45 @@ function _updateGPNavBadge() {
 }
 
 const STATUS_CONFIG = {
-  RECEIVED: { label:'Received', color:'#6366f1', bg:'#eef2ff', text:'#4f46e5' },
-  INSPECTION: { label:'Inspection', color:'#f59e0b', bg:'#fffbeb', text:'#d97706' },
-  PFI_PREPARATION: { label:'PFI Prep', color:'#8b5cf6', bg:'#f5f3ff', text:'#7c3aed' },
-  AWAITING_INSURER_APPROVAL: { label:'Awaiting Approval', color:'#f97316', bg:'#fff7ed', text:'#ea580c' },
-  REPAIR_IN_PROGRESS: { label:'In Progress', color:'#3b82f6', bg:'#eff6ff', text:'#2563eb' },
-  WAITING_FOR_PARTS: { label:'Waiting Parts', color:'#ec4899', bg:'#fdf2f8', text:'#db2777' },
-  QUALITY_CHECK: { label:'Quality Check', color:'#14b8a6', bg:'#f0fdfa', text:'#0d9488' },
-  COMPLETED: { label:'Completed', color:'#22c55e', bg:'#f0fdf4', text:'#16a34a' },
-  INVOICED: { label:'Invoiced', color:'#10b981', bg:'#ecfdf5', text:'#059669' },
-  RELEASED: { label:'Released', color:'#64748b', bg:'#f8fafc', text:'#475569' }
+  // ── New Pipeline ─────────────────────────────────────────────────────────
+  DRAFT:                      { label:'Draft',              color:'#94a3b8', bg:'#f8fafc', text:'#64748b' },
+  PENDING_APPROVAL:           { label:'Pending Approval',   color:'#f59e0b', bg:'#fffbeb', text:'#d97706' },
+  APPROVED:                   { label:'Approved',           color:'#22c55e', bg:'#f0fdf4', text:'#16a34a' },
+  REJECTED:                   { label:'Rejected',           color:'#ef4444', bg:'#fef2f2', text:'#dc2626' },
+  PRE_HANDOVER:               { label:'Pre-Handover',       color:'#8b5cf6', bg:'#f5f3ff', text:'#7c3aed' },
+  HANDED_OVER:                { label:'Handed Over',        color:'#6366f1', bg:'#eef2ff', text:'#4f46e5' },
+  INSPECTION:                 { label:'Inspection',         color:'#f59e0b', bg:'#fffbeb', text:'#d97706' },
+  PFI_PENDING:                { label:'PFI Pending',        color:'#ec4899', bg:'#fdf2f8', text:'#db2777' },
+  PFI_APPROVED:               { label:'PFI Approved',       color:'#06b6d4', bg:'#ecfeff', text:'#0891b2' },
+  CUSTOMER_APPROVAL:          { label:'Customer Approval',  color:'#f97316', bg:'#fff7ed', text:'#ea580c' },
+  PARTS_RELEASED:             { label:'Parts Released',     color:'#84cc16', bg:'#f7fee7', text:'#65a30d' },
+  WORK_IN_PROGRESS:           { label:'Work In Progress',   color:'#3b82f6', bg:'#eff6ff', text:'#2563eb' },
+  FINISHED:                   { label:'Finished',           color:'#10b981', bg:'#d1fae5', text:'#059669' },
+  QUALITY_CONTROL:            { label:'Quality Control',    color:'#14b8a6', bg:'#f0fdfa', text:'#0d9488' },
+  CUSTOMER_SIGNOFF:           { label:'Customer Sign-off',  color:'#6366f1', bg:'#eef2ff', text:'#4f46e5' },
+  INVOICED:                   { label:'Invoiced',           color:'#10b981', bg:'#ecfdf5', text:'#059669' },
+  PAID:                       { label:'Paid',               color:'#22c55e', bg:'#f0fdf4', text:'#16a34a' },
+  CLOSED:                     { label:'Closed',             color:'#64748b', bg:'#f8fafc', text:'#475569' },
+  // ── Legacy (historical) ──────────────────────────────────────────────────
+  RECEIVED:                   { label:'Received',           color:'#6366f1', bg:'#eef2ff', text:'#4f46e5' },
+  PFI_PREPARATION:            { label:'PFI Prep',           color:'#8b5cf6', bg:'#f5f3ff', text:'#7c3aed' },
+  AWAITING_INSURER_APPROVAL:  { label:'Awaiting Approval',  color:'#f97316', bg:'#fff7ed', text:'#ea580c' },
+  REPAIR_IN_PROGRESS:         { label:'In Progress',        color:'#3b82f6', bg:'#eff6ff', text:'#2563eb' },
+  WAITING_FOR_PARTS:          { label:'Waiting Parts',      color:'#ec4899', bg:'#fdf2f8', text:'#db2777' },
+  QUALITY_CHECK:              { label:'Quality Check',      color:'#14b8a6', bg:'#f0fdfa', text:'#0d9488' },
+  COMPLETED:                  { label:'Completed',          color:'#22c55e', bg:'#f0fdf4', text:'#16a34a' },
+  RELEASED:                   { label:'Released',           color:'#64748b', bg:'#f8fafc', text:'#475569' }
 };
 
-const STATUS_FLOW = ['RECEIVED','INSPECTION','PFI_PREPARATION','AWAITING_INSURER_APPROVAL','REPAIR_IN_PROGRESS','WAITING_FOR_PARTS','QUALITY_CHECK','COMPLETED','INVOICED','RELEASED'];
+// Active pipeline flow (new workflow)
+const STATUS_FLOW = [
+  'DRAFT','PENDING_APPROVAL','APPROVED','PRE_HANDOVER','HANDED_OVER',
+  'INSPECTION','PFI_PENDING','PFI_APPROVED','CUSTOMER_APPROVAL','PARTS_RELEASED',
+  'WORK_IN_PROGRESS','FINISHED','QUALITY_CONTROL','CUSTOMER_SIGNOFF',
+  'INVOICED','PAID','CLOSED'
+];
+// Legacy statuses shown in filter but not in pipeline stepper
+const STATUS_FLOW_LEGACY = ['RECEIVED','PFI_PREPARATION','AWAITING_INSURER_APPROVAL','REPAIR_IN_PROGRESS','WAITING_FOR_PARTS','QUALITY_CHECK','COMPLETED','RELEASED'];
 
 const PFI_STATUS_CONFIG = {
   Draft:{ bg:'#f8fafc', text:'#64748b', icon:'fa-file' },
@@ -4475,16 +4531,17 @@ async function loadDashboard() {
   document.getElementById('todayDate').textContent = new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   const stats = [
     { label:'Active Jobs', value:data.active, icon:'fa-clipboard-list', g1:'#2563eb', g2:'#3b82f6' },
-    { label:'In Progress', value:data.inProgress, icon:'fa-tools', g1:'#16a34a', g2:'#22c55e' },
-    { label:'Awaiting Approval', value:data.awaitingApproval, icon:'fa-clock', g1:'#d97706', g2:'#f59e0b' },
+    { label:'Pending Approval', value:data.pendingApproval, icon:'fa-hourglass-half', g1:'#d97706', g2:'#f59e0b', clickable: data.pendingApproval > 0 },
+    { label:'Work In Progress', value:data.inProgress, icon:'fa-tools', g1:'#16a34a', g2:'#22c55e' },
     { label:'Monthly Revenue', value:fmt(data.totalRevenue), icon:'fa-coins', g1:'#7c3aed', g2:'#8b5cf6' }
   ];
   document.getElementById('dashStats').innerHTML = stats.map(s => \`
-    <div class="stat-card" style="--g1:\${s.g1};--g2:\${s.g2}">
+    <div class="stat-card \${s.clickable ? 'cursor-pointer hover:scale-105 transition-transform' : ''}" style="--g1:\${s.g1};--g2:\${s.g2}" \${s.clickable ? 'onclick="showPage(\'jobcards\');loadJobCards().then(()=>{document.getElementById(\'jobStatusFilter\').value=\'PENDING_APPROVAL\';filterJobCards()})"' : ''}>
       <div class="flex items-start justify-between">
         <div>
           <p class="text-blue-100 text-xs font-semibold uppercase tracking-wide mb-1">\${s.label}</p>
           <p class="text-2xl font-bold">\${s.value}</p>
+          \${s.clickable ? '<p class="text-white/70 text-xs mt-1">Tap to review →</p>' : ''}
         </div>
         <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
           <i class="fas \${s.icon} text-white"></i>
@@ -4546,6 +4603,14 @@ async function loadDashboard() {
   loadFinanceSummaryCards();
   // Load subscription widget (async, non-blocking)
   _loadDashSubWidget();
+  // Update nav approval badge (Admin/Manager only)
+  try {
+    const navBadge = document.getElementById('navApprovalBadge');
+    if (navBadge && ['Owner','Manager'].includes(currentUser?.role||'') && data.pendingApproval > 0) {
+      navBadge.textContent = data.pendingApproval;
+      navBadge.classList.remove('hidden');
+    } else if (navBadge) { navBadge.classList.add('hidden'); }
+  } catch(e) {}
 }
 
 async function _loadDashSubWidget() {
@@ -4635,13 +4700,23 @@ async function loadJobCards() {
 }
 
 function renderStatusStrips(jobs) {
-  const counts = STATUS_FLOW.reduce((acc, s) => { acc[s] = jobs.filter(j => j.status === s).length; return acc; }, {});
-  document.getElementById('jobStatusStrips').innerHTML = STATUS_FLOW.map(s => \`
+  const allStatuses = [...STATUS_FLOW, ...STATUS_FLOW_LEGACY];
+  const counts = allStatuses.reduce((acc, s) => { acc[s] = jobs.filter(j => j.status === s).length; return acc; }, {});
+  const legacyWithJobs = STATUS_FLOW_LEGACY.filter(s => counts[s] > 0);
+  document.getElementById('jobStatusStrips').innerHTML =
+    STATUS_FLOW.map(s => \`
     <button onclick="document.getElementById('jobStatusFilter').value='\${s}';filterJobCards()" class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80" style="background:\${STATUS_CONFIG[s].bg};color:\${STATUS_CONFIG[s].text}">
       <span class="w-5 h-5 rounded-full bg-white/60 flex items-center justify-center text-xs font-bold">\${counts[s]}</span>
       \${STATUS_CONFIG[s].label}
     </button>
-  \`).join('');
+  \`).join('') +
+    (legacyWithJobs.length ? \`<span class="text-xs text-gray-400 self-center px-1 font-semibold">Legacy:</span>\` +
+      legacyWithJobs.map(s => \`
+      <button onclick="document.getElementById('jobStatusFilter').value='\${s}';filterJobCards()" class="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all hover:opacity-80 opacity-70" style="background:\${STATUS_CONFIG[s].bg};color:\${STATUS_CONFIG[s].text}">
+        <span class="w-5 h-5 rounded-full bg-white/60 flex items-center justify-center text-xs font-bold">\${counts[s]}</span>
+        \${STATUS_CONFIG[s].label}
+      </button>
+    \`).join('') : '');
 }
 
 function renderJobCards(jobs) {
@@ -4672,9 +4747,13 @@ function renderJobCards(jobs) {
       <td class="px-4 py-3">
         <div class="flex gap-2" onclick="event.stopPropagation()">
           <button class="text-blue-500 hover:text-blue-700 text-sm" onclick="viewJobDetail('\${j.id}')" title="View"><i class="fas fa-eye"></i></button>
-          \${['RELEASED','COMPLETED','INVOICED'].includes(j.status)
+          \${['RELEASED','COMPLETED','INVOICED','PAID','CLOSED'].includes(j.status)
             ? \`<button class="text-amber-500 hover:text-amber-700 text-sm" onclick="showReopenModal('\${j.id}')" title="Reopen Job"><i class="fas fa-folder-open"></i></button>\`
-            : \`<button class="text-amber-500 hover:text-amber-700 text-sm" onclick="showStatusModal('\${j.id}','\${j.status}')" title="Update Status"><i class="fas fa-exchange-alt"></i></button>\`}
+            : j.status === 'PENDING_APPROVAL' && ['Owner','Manager'].includes(currentUser?.role||'')
+              ? \`<button class="text-green-600 hover:text-green-800 text-sm" onclick="event.stopPropagation();showApprovalPanel('\${j.id}')" title="Review & Approve"><i class="fas fa-check-circle"></i></button>\`
+              : !['DRAFT','PENDING_APPROVAL','APPROVED','REJECTED'].includes(j.status)
+                ? \`<button class="text-amber-500 hover:text-amber-700 text-sm" onclick="showStatusModal('\${j.id}','\${j.status}')" title="Update Status"><i class="fas fa-exchange-alt"></i></button>\`
+                : ''}
         </div>
       </td>
     </tr>
@@ -4711,18 +4790,35 @@ async function viewJobDetail(id) {
   
   const canMakeInvoice = j.status === 'COMPLETED' && !j.invoice;
   const canMakePFI = !j.pfi;
-  const canReopen = ['RELEASED', 'COMPLETED', 'INVOICED'].includes(j.status);
+  const canReopen = ['RELEASED', 'COMPLETED', 'INVOICED', 'PAID', 'CLOSED'].includes(j.status);
   const isReopened = (j.reopenCount || 0) > 0;
   const canServiceCard = !!(j.mileageIn || j.nextServiceMileage);
-  
-  document.getElementById('jobDetailActions').innerHTML = \`
-    \${canReopen
-      ? \`<button class="text-sm font-semibold rounded-xl px-3 py-2 transition-all bg-amber-100 hover:bg-amber-200 text-amber-700 border border-amber-300 flex items-center gap-1.5" onclick="showReopenModal('\${j.id}')"><i class="fas fa-folder-open"></i> Reopen Job</button>\`
-      : \`<button class="btn-secondary text-sm" onclick="showStatusModal('\${j.id}','\${j.status}')"><i class="fas fa-exchange-alt"></i> Update Status</button>\`}
-    \${canMakePFI ? \`<button class="btn-secondary text-sm" onclick="showPFIModal('\${j.id}','\${j.category}')"><i class="fas fa-file-invoice"></i> Create PFI</button>\` : ''}
-    \${canMakeInvoice ? \`<button class="btn-primary text-sm" onclick="showInvoiceModal('\${j.id}',\${j.pfi?.labourCost||0},\${j.parts?.reduce((s,p)=>s+p.totalCost,0)||0})"><i class="fas fa-receipt"></i> Generate Invoice</button>\` : ''}
-    \${canServiceCard ? \`<button class="text-sm font-semibold rounded-xl px-3 py-2 transition-all bg-green-100 hover:bg-green-200 text-green-700 border border-green-300 flex items-center gap-1.5" onclick="showServiceCardModal('\${j.id}')"><i class="fas fa-id-card"></i> Service Card\${j.serviceCardIssuedAt ? ' <i class=\\"fas fa-check-circle text-green-500 ml-0.5\\" title=\\"Issued: '+fmtDate(j.serviceCardIssuedAt)+'\\"></i>' : ''}</button>\` : ''}
-  \`;
+  const userRole = currentUser?.role || '';
+  const isAdminOrManager = ['Owner','Manager'].includes(userRole);
+  const isFrontDesk = userRole === 'Front Desk';
+  const isTechnician = userRole === 'Technician';
+
+  // Role-gated action buttons for new workflow
+  let actionButtons = '';
+  if (j.status === 'PENDING_APPROVAL' && isAdminOrManager) {
+    actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-green-100 hover:bg-green-200 text-green-700 border border-green-300 flex items-center gap-1.5" onclick="showApprovalPanel('\${j.id}')"><i class="fas fa-check-circle"></i> Review &amp; Approve</button>\`;
+  }
+  if (j.status === 'DRAFT' && (isAdminOrManager || isFrontDesk)) {
+    actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 border border-blue-300 flex items-center gap-1.5" onclick="submitJobForApproval('\${j.id}')"><i class="fas fa-paper-plane"></i> Submit for Approval</button>\`;
+  }
+  if (j.status === 'APPROVED' && (isAdminOrManager || isFrontDesk)) {
+    actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-purple-100 hover:bg-purple-200 text-purple-700 border border-purple-300 flex items-center gap-1.5" onclick="updateJobStatus('\${j.id}','PRE_HANDOVER')"><i class="fas fa-clipboard-check"></i> Start Pre-Handover</button>\`;
+  }
+  if (canReopen) {
+    actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 transition-all bg-amber-100 hover:bg-amber-200 text-amber-700 border border-amber-300 flex items-center gap-1.5" onclick="showReopenModal('\${j.id}')"><i class="fas fa-folder-open"></i> Reopen Job</button>\`;
+  } else if (!['DRAFT','PENDING_APPROVAL','APPROVED','REJECTED'].includes(j.status)) {
+    actionButtons += \`<button class="btn-secondary text-sm" onclick="showStatusModal('\${j.id}','\${j.status}')"><i class="fas fa-exchange-alt"></i> Update Status</button>\`;
+  }
+  if (canMakePFI) { actionButtons += \`<button class="btn-secondary text-sm" onclick="showPFIModal('\${j.id}','\${j.category}')"><i class="fas fa-file-invoice"></i> Create PFI</button>\`; }
+  if (canMakeInvoice) { actionButtons += \`<button class="btn-primary text-sm" onclick="showInvoiceModal('\${j.id}',\${j.pfi?.labourCost||0},\${j.parts?.reduce((s,p)=>s+p.totalCost,0)||0})"><i class="fas fa-receipt"></i> Generate Invoice</button>\`; }
+  if (canServiceCard) { actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 transition-all bg-green-100 hover:bg-green-200 text-green-700 border border-green-300 flex items-center gap-1.5" onclick="showServiceCardModal('\${j.id}')"><i class="fas fa-id-card"></i> Service Card\${j.serviceCardIssuedAt ? ' <i class=\\"fas fa-check-circle text-green-500 ml-0.5\\" title=\\"Issued: '+fmtDate(j.serviceCardIssuedAt)+'\\"></i>' : ''}</button>\`; }
+
+  document.getElementById('jobDetailActions').innerHTML = actionButtons;
   
   const totalPartsCost = j.parts ? j.parts.reduce((s, p) => s + p.totalCost, 0) : 0;
   const totalServicesCost = j.services ? j.services.reduce((s, sv) => s + sv.totalCost, 0) : 0;
@@ -4765,6 +4861,25 @@ async function viewJobDetail(id) {
   })() : '';
   document.getElementById('jobDetailContent').innerHTML = \`
     \${_subBannerHtml}
+    \${j.status === 'REJECTED' ? \`
+    <div class="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4">
+      <i class="fas fa-times-circle text-red-500 mt-0.5 flex-shrink-0"></i>
+      <div class="flex-1 min-w-0">
+        <p class="text-sm font-semibold text-red-800">Job Card Rejected</p>
+        <p class="text-xs text-red-700 mt-0.5">\${j.rejectionReason || 'No reason provided.'}</p>
+        <p class="text-xs text-red-400 mt-0.5">Rejected by \${j.rejectedByName || '—'} · \${fmtDate(j.rejectedAt)}</p>
+        \${(isAdminOrManager || isFrontDesk) ? \`<button class="mt-2 text-xs font-semibold px-3 py-1 rounded-lg bg-red-100 text-red-700 hover:bg-red-200 border border-red-300" onclick="submitJobForApproval('\${j.id}')"><i class="fas fa-paper-plane mr-1"></i>Re-submit for Approval</button>\` : ''}
+      </div>
+    </div>\` : ''}
+    \${j.status === 'PENDING_APPROVAL' ? \`
+    <div class="flex items-start gap-3 bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3 mb-4">
+      <i class="fas fa-clock text-yellow-500 mt-0.5 flex-shrink-0"></i>
+      <div class="flex-1 min-w-0">
+        <p class="text-sm font-semibold text-yellow-800">Awaiting Admin/Manager Approval</p>
+        <p class="text-xs text-yellow-700 mt-0.5">This job card has been submitted and is pending review.</p>
+        \${isAdminOrManager ? \`<button class="mt-2 text-xs font-semibold px-3 py-1 rounded-lg bg-yellow-100 text-yellow-700 hover:bg-yellow-200 border border-yellow-300" onclick="showApprovalPanel('\${j.id}')"><i class="fas fa-search mr-1"></i>Review Now</button>\` : ''}
+      </div>
+    </div>\` : ''}
     \${isReopened ? \`
     <div class="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4">
       <i class="fas fa-folder-open text-amber-500 mt-0.5 flex-shrink-0"></i>
@@ -4779,23 +4894,29 @@ async function viewJobDetail(id) {
       <div class="lg:col-span-2 space-y-4">
         <!-- Status Progress -->
         <div class="card p-5">
-          <h4 class="font-bold text-gray-800 mb-4">Repair Progress</h4>
+          <h4 class="font-bold text-gray-800 mb-4">Job Progress</h4>
           <div class="status-stepper-scroll">
           <div class="flex items-center gap-1" style="min-width:max-content">
-            \${STATUS_FLOW.map((s, i) => {
-              const cur = STATUS_FLOW.indexOf(j.status);
-              const done = i < cur;
-              const active = i === cur;
-              return \`<div class="flex items-center">
-                <div class="flex flex-col items-center">
-                  <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all \${active ? 'bg-blue-600 text-white ring-4 ring-blue-100' : done ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}">\${done ? '<i class="fas fa-check text-xs"></i>' : (i+1)}</div>
-                  <p class="text-xs text-center mt-1 leading-tight max-w-16 \${active?'text-blue-600 font-semibold':done?'text-green-600':'text-gray-400'}">\${STATUS_CONFIG[s].label}</p>
-                </div>
-                \${i < STATUS_FLOW.length-1 ? \`<div class="h-0.5 w-4 mx-0.5 mb-5 \${i < cur ? 'bg-green-400' : 'bg-gray-200'}"></div>\` : ''}
-              </div>\`;
-            }).join('')}
+            \${(() => {
+              const isLegacy = STATUS_FLOW_LEGACY.includes(j.status);
+              const flowToUse = isLegacy ? STATUS_FLOW_LEGACY : STATUS_FLOW;
+              const cur = flowToUse.indexOf(j.status);
+              return flowToUse.map((s, i) => {
+                const done = i < cur;
+                const active = i === cur;
+                const isRejected = s === 'REJECTED' && j.status === 'REJECTED';
+                return \`<div class="flex items-center">
+                  <div class="flex flex-col items-center">
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all \${isRejected ? 'bg-red-500 text-white ring-4 ring-red-100' : active ? 'bg-blue-600 text-white ring-4 ring-blue-100' : done ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}">\${isRejected ? '<i class="fas fa-times text-xs"></i>' : done ? '<i class="fas fa-check text-xs"></i>' : (i+1)}</div>
+                    <p class="text-xs text-center mt-1 leading-tight max-w-16 \${isRejected?'text-red-600 font-semibold':active?'text-blue-600 font-semibold':done?'text-green-600':'text-gray-400'}">\${(STATUS_CONFIG[s]||{label:s}).label}</p>
+                  </div>
+                  \${i < flowToUse.length-1 ? \`<div class="h-0.5 w-4 mx-0.5 mb-5 \${i < cur ? 'bg-green-400' : 'bg-gray-200'}"></div>\` : ''}
+                </div>\`;
+              }).join('');
+            })()}
           </div>
           </div>
+          \${j.approvedBy ? \`<p class="text-xs text-gray-400 mt-3"><i class="fas fa-check-circle text-green-500 mr-1"></i>Approved by \${j.approvedByName||'—'} · \${fmtDate(j.approvedAt)}\${j.approvalNotes ? ' · "'+j.approvalNotes+'"' : ''}</p>\` : ''}
         </div>
         <div class="card p-5">
           <h4 class="font-bold text-gray-800 mb-4">Job Details</h4>
@@ -6541,20 +6662,45 @@ async function removeJobService(jobId, serviceId) {
   showToast('Service removed');
 }
 
-// Status Update Modal
+// Status Update Modal — role-gated transitions
 function showStatusModal(jobId, currentStatus) {
+  const userRole = currentUser?.role || '';
+  const isAdminOrManager = ['Owner','Manager'].includes(userRole);
+  const isFrontDesk = userRole === 'Front Desk';
+  const isTechnician = userRole === 'Technician';
+
+  // Allowed transitions per role for the NEW pipeline
+  // Admin/Manager can move anywhere forward; Front Desk & Technician restricted
+  const ROLE_ALLOWED: Record<string, string[]> = {
+    'Owner':      STATUS_FLOW,
+    'Manager':    STATUS_FLOW,
+    'Front Desk': ['PRE_HANDOVER','HANDED_OVER'],
+    'Technician': ['WORK_IN_PROGRESS','FINISHED'],
+  };
+  const allowed = ROLE_ALLOWED[userRole] || [];
+
+  // Use the right flow (new vs legacy)
+  const isLegacy = STATUS_FLOW_LEGACY.includes(currentStatus);
+  const flowToUse = isLegacy ? STATUS_FLOW_LEGACY : STATUS_FLOW;
+  const currentIdx = flowToUse.indexOf(currentStatus);
+
   openModal('modal-statusUpdate');
-  const currentIdx = STATUS_FLOW.indexOf(currentStatus);
   document.getElementById('statusUpdateContent').innerHTML = \`
     <p class="text-sm text-gray-600 mb-4">Current: \${statusBadge(currentStatus)}</p>
     <div class="space-y-2 mb-5">
-      \${STATUS_FLOW.map((s, i) => {
-        const isCurrentOrPrev = i <= currentIdx;
-        return \`<button class="w-full text-left px-4 py-3 rounded-xl border-2 transition-all \${s === currentStatus ? 'border-blue-500 bg-blue-50' : 'border-gray-100 hover:border-gray-300'} \${isCurrentOrPrev && s !== currentStatus ? 'opacity-40' : ''}" onclick="updateJobStatus('\${jobId}','\${s}')"
-          \${isCurrentOrPrev && s !== currentStatus ? 'disabled' : ''}>
+      \${flowToUse.filter(s => s !== 'DRAFT' && s !== 'PENDING_APPROVAL' && s !== 'APPROVED' && s !== 'REJECTED').map((s, i) => {
+        const idx = flowToUse.indexOf(s);
+        const isPrev = idx < currentIdx;
+        const isCurrent = s === currentStatus;
+        const notAllowed = !allowed.includes(s) && !isCurrent;
+        const disabled = isPrev || notAllowed;
+        return \`<button class="w-full text-left px-4 py-3 rounded-xl border-2 transition-all \${isCurrent ? 'border-blue-500 bg-blue-50' : 'border-gray-100 hover:border-gray-300'} \${disabled ? 'opacity-40 cursor-not-allowed' : ''}"
+          onclick="\${disabled ? '' : \`updateJobStatus('\${jobId}','\${s}')\`}"
+          \${disabled ? 'disabled' : ''}>
           <div class="flex items-center gap-3">
-            <span class="status-pill" style="background:\${STATUS_CONFIG[s].bg};color:\${STATUS_CONFIG[s].text}">\${STATUS_CONFIG[s].label}</span>
-            \${s === currentStatus ? '<span class="ml-auto text-xs text-blue-500 font-semibold">Current</span>' : ''}
+            <span class="status-pill" style="background:\${(STATUS_CONFIG[s]||{}).bg||'#f1f5f9'};color:\${(STATUS_CONFIG[s]||{}).text||'#64748b'}">\${(STATUS_CONFIG[s]||{label:s}).label}</span>
+            \${isCurrent ? '<span class="ml-auto text-xs text-blue-500 font-semibold">Current</span>' : ''}
+            \${notAllowed && !isCurrent ? '<span class="ml-auto text-xs text-gray-400"><i class="fas fa-lock mr-0.5"></i>Restricted</span>' : ''}
           </div>
         </button>\`;
       }).join('')}
@@ -6564,12 +6710,205 @@ function showStatusModal(jobId, currentStatus) {
 }
 
 async function updateJobStatus(jobId, status) {
-  await axios.patch('/api/jobcards/' + jobId + '/status', { status });
-  closeModal('modal-statusUpdate');
-  const activePage = document.querySelector('.page.active')?.id;
-  if (activePage === 'page-jobdetail') viewJobDetail(jobId);
-  else loadJobCards();
-  showToast('Status updated to ' + STATUS_CONFIG[status]?.label);
+  try {
+    await axios.patch('/api/jobcards/' + jobId + '/status', { status, userId: currentUser?.id, userName: currentUser?.name });
+    closeModal('modal-statusUpdate');
+    closePanel('panel-approvalReview');
+    const activePage = document.querySelector('.page.active')?.id;
+    if (activePage === 'page-jobdetail') viewJobDetail(jobId);
+    else loadJobCards();
+    showToast('Status updated to ' + (STATUS_CONFIG[status]?.label || status));
+  } catch(err) {
+    showToast('Error: ' + (err.response?.data?.error || err.message), 'error');
+  }
+}
+
+async function submitJobForApproval(jobId) {
+  try {
+    await axios.patch('/api/jobcards/' + jobId + '/status', { status: 'PENDING_APPROVAL', userId: currentUser?.id, userName: currentUser?.name });
+    const activePage = document.querySelector('.page.active')?.id;
+    if (activePage === 'page-jobdetail') viewJobDetail(jobId);
+    else loadJobCards();
+    showToast('Job card submitted for approval');
+  } catch(err) {
+    showToast('Error: ' + (err.response?.data?.error || err.message), 'error');
+  }
+}
+
+// ── Approval Review Panel (Option B: detailed review) ────────────────────────
+let _approvalJobId = null;
+
+async function showApprovalPanel(jobId) {
+  _approvalJobId = jobId;
+  const panel = document.getElementById('panel-approvalReview');
+  if (!panel) return;
+  panel.innerHTML = \`<div class="flex items-center justify-center py-20"><i class="fas fa-spinner fa-spin text-blue-500 text-2xl"></i></div>\`;
+  panel.classList.remove('hidden');
+  panel.classList.add('flex');
+
+  try {
+    const { data: j } = await axios.get('/api/jobcards/' + jobId);
+    const veh = j.vehicle || {};
+    const cust = j.customer || {};
+    const pfi = j.pfi || null;
+    const parts = j.parts || [];
+    const services = j.services || [];
+    const totalParts = parts.reduce((s, p) => s + p.totalCost, 0);
+    const totalServices = services.reduce((s, sv) => s + sv.totalCost, 0);
+
+    panel.innerHTML = \`
+      <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto m-auto">
+        <!-- Header -->
+        <div class="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+          <div>
+            <h3 class="font-bold text-gray-900 text-lg">Review Job Card</h3>
+            <p class="text-xs text-gray-400">\${j.jobCardNumber} · Submitted for Approval</p>
+          </div>
+          <button onclick="closePanel('panel-approvalReview')" class="p-2 hover:bg-gray-100 rounded-xl transition-colors"><i class="fas fa-times text-gray-400"></i></button>
+        </div>
+        <!-- Content -->
+        <div class="p-6 space-y-5">
+          <!-- Summary Cards -->
+          <div class="grid grid-cols-3 gap-3">
+            <div class="bg-blue-50 rounded-xl p-3 text-center">
+              <p class="text-xs text-blue-400 font-semibold uppercase">Category</p>
+              <p class="font-bold text-blue-700 text-sm mt-1">\${j.category}</p>
+            </div>
+            <div class="bg-purple-50 rounded-xl p-3 text-center">
+              <p class="text-xs text-purple-400 font-semibold uppercase">Services</p>
+              <p class="font-bold text-purple-700 text-sm mt-1">\${services.length}</p>
+            </div>
+            <div class="bg-green-50 rounded-xl p-3 text-center">
+              <p class="text-xs text-green-400 font-semibold uppercase">Parts</p>
+              <p class="font-bold text-green-700 text-sm mt-1">\${parts.length}</p>
+            </div>
+          </div>
+
+          <!-- Customer & Vehicle -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="bg-gray-50 rounded-xl p-4">
+              <p class="text-xs font-bold text-gray-400 uppercase mb-2"><i class="fas fa-user mr-1"></i>Customer</p>
+              <p class="font-semibold text-gray-800">\${cust.name || '—'}</p>
+              <p class="text-xs text-gray-500 mt-0.5"><i class="fas fa-phone mr-1 opacity-50"></i>\${cust.phone || '—'}</p>
+              \${cust.companyName ? \`<p class="text-xs text-gray-500 mt-0.5"><i class="fas fa-building mr-1 opacity-50"></i>\${cust.companyName}</p>\` : ''}
+            </div>
+            <div class="bg-gray-50 rounded-xl p-4">
+              <p class="text-xs font-bold text-gray-400 uppercase mb-2"><i class="fas fa-car mr-1"></i>Vehicle</p>
+              <p class="font-semibold text-gray-800">\${veh.make||''} \${veh.model||''} \${veh.year ? '('+veh.year+')' : ''}</p>
+              <p class="text-xs text-gray-500 mt-0.5"><i class="fas fa-id-badge mr-1 opacity-50"></i>\${veh.registrationNumber||'—'}</p>
+              \${j.insurer ? \`<p class="text-xs text-gray-500 mt-0.5"><i class="fas fa-shield-alt mr-1 opacity-50"></i>\${j.insurer}\${j.claimReference ? ' · '+j.claimReference : ''}</p>\` : ''}
+            </div>
+          </div>
+
+          <!-- Job Info -->
+          <div class="bg-gray-50 rounded-xl p-4">
+            <p class="text-xs font-bold text-gray-400 uppercase mb-2"><i class="fas fa-clipboard mr-1"></i>Job Description</p>
+            <p class="text-sm text-gray-700">\${j.damageDescription || '—'}</p>
+            \${j.inspectionNotes ? \`<p class="text-xs text-gray-500 mt-2"><span class="font-semibold">Notes:</span> \${j.inspectionNotes}</p>\` : ''}
+            <div class="grid grid-cols-2 gap-3 mt-3 text-sm">
+              <div><span class="text-gray-400 text-xs">Technician</span><p class="font-semibold">\${j.technicianName||'—'}</p></div>
+              <div><span class="text-gray-400 text-xs">Created</span><p class="font-semibold">\${fmtDate(j.createdAt)}</p></div>
+              \${j.mileageIn ? \`<div><span class="text-gray-400 text-xs">Mileage In</span><p class="font-semibold">\${j.mileageIn.toLocaleString()} km</p></div>\` : ''}
+              \${j.fuelLevel ? \`<div><span class="text-gray-400 text-xs">Fuel Level</span><p class="font-semibold">\${j.fuelLevel}</p></div>\` : ''}
+            </div>
+          </div>
+
+          <!-- Services & Parts if any -->
+          \${(services.length || parts.length) ? \`
+          <div class="bg-gray-50 rounded-xl p-4">
+            <p class="text-xs font-bold text-gray-400 uppercase mb-2"><i class="fas fa-tools mr-1"></i>Preliminary Services & Parts</p>
+            \${services.length ? \`<div class="space-y-1 mb-2">\${services.map(sv => \`<div class="flex justify-between text-sm"><span class="text-gray-700">\${sv.serviceName}</span><span class="font-semibold">\${fmt(sv.totalCost)}</span></div>\`).join('')}</div>\` : ''}
+            \${parts.length ? \`<div class="space-y-1">\${parts.map(p => \`<div class="flex justify-between text-sm"><span class="text-gray-700">\${p.partName} ×\${p.quantity}</span><span class="font-semibold">\${fmt(p.totalCost)}</span></div>\`).join('')}</div>\` : ''}
+            <div class="border-t border-gray-200 mt-2 pt-2 flex justify-between text-sm font-bold"><span>Subtotal</span><span>\${fmt(totalParts + totalServices)}</span></div>
+          </div>\` : ''}
+
+          <!-- PFI if exists -->
+          \${pfi ? \`
+          <div class="bg-indigo-50 rounded-xl p-4">
+            <p class="text-xs font-bold text-indigo-400 uppercase mb-2"><i class="fas fa-file-invoice mr-1"></i>PFI</p>
+            <div class="grid grid-cols-2 gap-2 text-sm">
+              <div class="flex justify-between"><span class="text-gray-500">Labour</span><span class="font-semibold">\${fmt(pfi.labourCost)}</span></div>
+              <div class="flex justify-between"><span class="text-gray-500">Parts</span><span class="font-semibold">\${fmt(pfi.partsCost)}</span></div>
+              <div class="flex justify-between col-span-2 border-t pt-1 mt-1"><span class="font-bold">Total</span><span class="font-bold text-indigo-700">\${fmt(pfi.totalAmount)}</span></div>
+            </div>
+          </div>\` : ''}
+
+          <!-- Approval Form -->
+          <div class="border border-gray-200 rounded-xl p-4">
+            <p class="text-xs font-bold text-gray-500 uppercase mb-3"><i class="fas fa-pen mr-1"></i>Approval Decision</p>
+            <textarea id="approval-notes" rows="2" placeholder="Approval notes (optional)…" class="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 mb-3"></textarea>
+            <!-- Reject section (initially hidden) -->
+            <div id="rejection-section" class="hidden mb-3">
+              <label class="text-xs font-semibold text-red-600 mb-1 block">Rejection Reason <span class="text-red-500">*</span></label>
+              <textarea id="rejection-reason" rows="2" placeholder="Explain why this is being rejected (required)…" class="w-full border border-red-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-300"></textarea>
+            </div>
+            <div class="flex gap-3 flex-wrap">
+              <button onclick="submitApproval('APPROVED')" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
+                <i class="fas fa-check-circle"></i> Approve
+              </button>
+              <button onclick="toggleRejectionSection()" id="btn-reject-toggle" class="flex-1 bg-red-50 hover:bg-red-100 text-red-700 font-semibold px-4 py-2.5 rounded-xl text-sm border border-red-200 transition-colors flex items-center justify-center gap-2">
+                <i class="fas fa-times-circle"></i> Reject
+              </button>
+              <button onclick="submitApproval('CANCELLED')" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-600 font-semibold px-4 py-2.5 rounded-xl text-sm border border-gray-200 transition-colors flex items-center justify-center gap-2">
+                <i class="fas fa-ban"></i> Cancel Job
+              </button>
+            </div>
+            <div id="rejection-submit-row" class="hidden mt-2">
+              <button onclick="submitApproval('REJECTED')" class="w-full bg-red-600 hover:bg-red-700 text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
+                <i class="fas fa-times-circle"></i> Confirm Rejection
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    \`;
+  } catch(err) {
+    panel.innerHTML = \`<div class="bg-white rounded-2xl shadow-2xl p-8 m-auto"><p class="text-red-500">Error loading job: \${err.message}</p><button onclick="closePanel('panel-approvalReview')" class="btn-secondary mt-4">Close</button></div>\`;
+  }
+}
+
+function toggleRejectionSection() {
+  const sec = document.getElementById('rejection-section');
+  const row = document.getElementById('rejection-submit-row');
+  const btn = document.getElementById('btn-reject-toggle');
+  const isHidden = sec.classList.contains('hidden');
+  sec.classList.toggle('hidden', !isHidden);
+  row.classList.toggle('hidden', !isHidden);
+  if (btn) btn.textContent = isHidden ? '✕ Cancel Reject' : '✕ Reject';
+}
+
+async function submitApproval(decision) {
+  if (!_approvalJobId) return;
+  const notes = (document.getElementById('approval-notes')?.value || '').trim();
+  const reason = (document.getElementById('rejection-reason')?.value || '').trim();
+  if (decision === 'REJECTED' && !reason) {
+    showToast('Please provide a rejection reason', 'error');
+    document.getElementById('rejection-reason')?.focus();
+    return;
+  }
+  try {
+    await axios.patch('/api/jobcards/' + _approvalJobId + '/approve', {
+      decision,
+      notes,
+      reason,
+      userId: currentUser?.id,
+      userName: currentUser?.name
+    });
+    closePanel('panel-approvalReview');
+    const activePage = document.querySelector('.page.active')?.id;
+    if (activePage === 'page-jobdetail') viewJobDetail(_approvalJobId);
+    else loadJobCards();
+    const msgs = { APPROVED: 'Job card approved ✓', REJECTED: 'Job card rejected — returned to creator', CANCELLED: 'Job card cancelled' };
+    showToast(msgs[decision] || 'Done', decision === 'APPROVED' ? 'success' : 'info');
+    _approvalJobId = null;
+  } catch(err) {
+    showToast('Error: ' + (err.response?.data?.error || err.message), 'error');
+  }
+}
+
+function closePanel(panelId) {
+  const panel = document.getElementById(panelId);
+  if (panel) { panel.classList.add('hidden'); panel.classList.remove('flex'); }
 }
 
 // ── Reopen Job Card ──────────────────────────────────────────────────────────
@@ -14668,22 +15007,47 @@ async function loadJobPL(jobId) {
 
 // ─── Time Tracking Panel ──────────────────────────────────────────────────────
 const STATUS_COLORS_TT = {
+  DRAFT:                      { bg:'#f8fafc', text:'#64748b' },
+  PENDING_APPROVAL:           { bg:'#fef3c7', text:'#d97706' },
+  APPROVED:                   { bg:'#dcfce7', text:'#16a34a' },
+  REJECTED:                   { bg:'#fee2e2', text:'#dc2626' },
+  PRE_HANDOVER:               { bg:'#f5f3ff', text:'#7c3aed' },
+  HANDED_OVER:                { bg:'#e0e7ff', text:'#4338ca' },
+  INSPECTION:                 { bg:'#fef3c7', text:'#d97706' },
+  PFI_PENDING:                { bg:'#fdf2f8', text:'#db2777' },
+  PFI_APPROVED:               { bg:'#ecfeff', text:'#0891b2' },
+  CUSTOMER_APPROVAL:          { bg:'#fff7ed', text:'#ea580c' },
+  PARTS_RELEASED:             { bg:'#f7fee7', text:'#65a30d' },
+  WORK_IN_PROGRESS:           { bg:'#dbeafe', text:'#2563eb' },
+  FINISHED:                   { bg:'#d1fae5', text:'#059669' },
+  QUALITY_CONTROL:            { bg:'#f0fdfa', text:'#0d9488' },
+  CUSTOMER_SIGNOFF:           { bg:'#e0e7ff', text:'#4338ca' },
+  INVOICED:                   { bg:'#f5f3ff', text:'#7c3aed' },
+  PAID:                       { bg:'#dcfce7', text:'#15803d' },
+  CLOSED:                     { bg:'#f1f5f9', text:'#475569' },
+  // Legacy
   RECEIVED:                   { bg:'#dbeafe', text:'#1d4ed8' },
-  INSPECTION:                 { bg:'#e0e7ff', text:'#4338ca' },
   PFI_PREPARATION:            { bg:'#fef3c7', text:'#d97706' },
   AWAITING_INSURER_APPROVAL:  { bg:'#fee2e2', text:'#dc2626' },
   REPAIR_IN_PROGRESS:         { bg:'#d1fae5', text:'#059669' },
   WAITING_FOR_PARTS:          { bg:'#ffedd5', text:'#ea580c' },
   QUALITY_CHECK:              { bg:'#f0fdf4', text:'#16a34a' },
   COMPLETED:                  { bg:'#dcfce7', text:'#15803d' },
-  INVOICED:                   { bg:'#f5f3ff', text:'#7c3aed' },
   RELEASED:                   { bg:'#f1f5f9', text:'#475569' }
 };
 const STATUS_LABELS_TT = {
-  RECEIVED:'Received', INSPECTION:'Inspection', PFI_PREPARATION:'PFI Prep',
+  DRAFT:'Draft', PENDING_APPROVAL:'Pending Approval', APPROVED:'Approved',
+  REJECTED:'Rejected', PRE_HANDOVER:'Pre-Handover', HANDED_OVER:'Handed Over',
+  INSPECTION:'Inspection', PFI_PENDING:'PFI Pending', PFI_APPROVED:'PFI Approved',
+  CUSTOMER_APPROVAL:'Customer Approval', PARTS_RELEASED:'Parts Released',
+  WORK_IN_PROGRESS:'Work In Progress', FINISHED:'Finished',
+  QUALITY_CONTROL:'Quality Control', CUSTOMER_SIGNOFF:'Customer Sign-off',
+  INVOICED:'Invoiced', PAID:'Paid', CLOSED:'Closed',
+  // Legacy
+  RECEIVED:'Received', PFI_PREPARATION:'PFI Prep',
   AWAITING_INSURER_APPROVAL:'Insurer Approval', REPAIR_IN_PROGRESS:'Repair',
   WAITING_FOR_PARTS:'Waiting Parts', QUALITY_CHECK:'Quality Check',
-  COMPLETED:'Completed', INVOICED:'Invoiced', RELEASED:'Released'
+  COMPLETED:'Completed', RELEASED:'Released'
 };
 
 async function loadTimeTrack(jobId) {

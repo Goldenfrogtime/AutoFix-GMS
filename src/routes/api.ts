@@ -232,11 +232,13 @@ function syncJobFinancials(jobCardId: string) {
 
 // ─── Dashboard ──────────────────────────────────────────────────────────────
 api.get('/dashboard', (c) => {
-  const active = jobCards.filter(j => !['COMPLETED', 'INVOICED', 'RELEASED'].includes(j.status)).length
-  const inProgress = jobCards.filter(j => j.status === 'REPAIR_IN_PROGRESS').length
-  const awaitingApproval = jobCards.filter(j => j.status === 'AWAITING_INSURER_APPROVAL').length
-  const completed = jobCards.filter(j => j.status === 'COMPLETED').length
-  const readyPickup = jobCards.filter(j => j.status === 'RELEASED').length
+  const DONE_STATUSES = ['COMPLETED', 'INVOICED', 'RELEASED', 'PAID', 'CLOSED']
+  const active = jobCards.filter(j => !DONE_STATUSES.includes(j.status) && j.status !== 'REJECTED').length
+  const pendingApproval = jobCards.filter(j => j.status === 'PENDING_APPROVAL').length
+  const inProgress = jobCards.filter(j => j.status === 'WORK_IN_PROGRESS' || j.status === 'REPAIR_IN_PROGRESS').length
+  const awaitingApproval = jobCards.filter(j => j.status === 'AWAITING_INSURER_APPROVAL' || j.status === 'PFI_PENDING' || j.status === 'CUSTOMER_APPROVAL').length
+  const completed = jobCards.filter(j => j.status === 'COMPLETED' || j.status === 'PAID' || j.status === 'CLOSED').length
+  const readyPickup = jobCards.filter(j => j.status === 'RELEASED' || j.status === 'FINISHED' || j.status === 'CUSTOMER_SIGNOFF').length
   const pendingInvoices = jobCards.filter(j => j.status === 'INVOICED').length
   const totalRevenue = invoices.filter(i => i.status === 'Paid').reduce((sum, i) => sum + i.totalAmount, 0)
   const recentJobs = [...jobCards].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 5).map(j => {
@@ -244,7 +246,7 @@ api.get('/dashboard', (c) => {
     const cu = customers.find(cx => cx.id === j.customerId)
     return { ...j, vehicleReg: v?.registrationNumber, vehicleMake: v?.make, vehicleModel: v?.model, customerName: cu?.name }
   })
-  return c.json({ active, inProgress, awaitingApproval, completed, readyPickup, pendingInvoices, totalRevenue, recentJobs })
+  return c.json({ active, pendingApproval, inProgress, awaitingApproval, completed, readyPickup, pendingInvoices, totalRevenue, recentJobs })
 })
 
 // ─── Customers ──────────────────────────────────────────────────────────────
@@ -412,9 +414,9 @@ api.post('/jobcards', async (c) => {
   const body = await c.req.json<Omit<JobCard, 'id' | 'jobCardNumber' | 'status' | 'createdAt' | 'updatedAt'>>()
   const num = 'GMS-' + new Date().getFullYear() + '-' + String(jobCards.length + 1).padStart(3, '0')
   const ts = now()
-  // Open first timeline entry at RECEIVED
+  // New pipeline: start as DRAFT then auto-advance to PENDING_APPROVAL
   const firstEntry: StatusTimelineEntry = {
-    status: 'RECEIVED',
+    status: 'PENDING_APPROVAL',
     enteredAt: ts,
     technician: body.assignedTechnician || undefined
   }
@@ -424,41 +426,22 @@ api.post('/jobcards', async (c) => {
     ...body,
     id: 'j' + genId(),
     jobCardNumber: num,
-    status: 'RECEIVED',
+    status: 'PENDING_APPROVAL',  // Start directly at PENDING_APPROVAL
     statusTimeline: [firstEntry],
     technicianAssignedAt: techAssignedAt,
     createdAt: ts,
     updatedAt: ts
   }
   jobCards.push(newJob)
-  activityLog.push({ id: 'a' + genId(), jobCardId: newJob.id, action: 'JOB_CREATED', description: 'New job card created', userId: 'u3', userName: 'System', timestamp: ts })
+  activityLog.push({ id: 'a' + genId(), jobCardId: newJob.id, action: 'JOB_CREATED', description: 'New job card created — awaiting approval', userId: 'u3', userName: 'System', timestamp: ts })
   const cust = customers.find(x => x.id === newJob.customerId)
   const veh  = vehicles.find(x => x.id === newJob.vehicleId)
-  addNotification('job_created', 'info', 'New Job Card Created',
-    `${num} opened for ${cust?.name || 'customer'} – ${veh?.make || ''} ${veh?.model || ''} (${veh?.registrationNumber || ''})`,
+  addNotification('job_created', 'warning', 'New Job Card — Approval Required',
+    `${num} created for ${cust?.name || 'customer'} – ${veh?.make || ''} ${veh?.model || ''} (${veh?.registrationNumber || ''}) — awaiting Admin/Manager approval`,
     { jobCardId: newJob.id, jobCardNumber: num })
 
-  // ── Auto-create Entry Gate Pass ─────────────────────────────────────────────
-  const gpNum = 'GMS-GP-' + new Date().getFullYear() + '-' + String(gatePasses.length + 1).padStart(3, '0')
-  const entryGP: GatePass = {
-    id: 'gp' + genId(),
-    passNumber: gpNum,
-    jobCardId: newJob.id,
-    jobCardNumber: num,
-    vehicleReg: veh?.registrationNumber || body.vehicleReg || '',
-    vehicleMake: veh?.make,
-    vehicleModel: veh?.model,
-    vehicleYear: veh?.year,
-    vehicleColor: veh?.color,
-    customerName: cust?.name || '',
-    customerPhone: cust?.phone,
-    entryTime: ts,
-    status: 'Active',
-    createdAt: ts,
-    updatedAt: ts,
-  }
-  gatePasses.push(entryGP)
-  activityLog.push({ id: 'a' + genId(), jobCardId: newJob.id, action: 'GATE_PASS_ENTRY', description: `Entry Gate Pass ${gpNum} issued`, userId: 'u3', userName: 'System', timestamp: ts })
+  // NOTE: Gate Pass IN is no longer auto-created at job creation.
+  // It will be auto-created in Phase 2 after Preliminary Check + Customer Signature.
 
   return c.json(newJob, 201)
 })
@@ -466,9 +449,12 @@ api.post('/jobcards', async (c) => {
 api.patch('/jobcards/:id/status', async (c) => {
   const idx = jobCards.findIndex(x => x.id === c.req.param('id'))
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
-  const { status } = await c.req.json<{ status: string }>()
+  const body = await c.req.json<{ status: string; userId?: string; userName?: string }>()
+  const status = body.status
   const old = jobCards[idx].status
   const ts = now()
+  const userId = body.userId
+  const userName = body.userName
 
   // ── Timeline: close the current open entry, open a new one ──────────────
   const timeline: StatusTimelineEntry[] = jobCards[idx].statusTimeline
@@ -483,10 +469,10 @@ api.patch('/jobcards/:id/status', async (c) => {
   const newEntry = openTimelineEntry(jobCards[idx], status as JobCardStatus, ts)
   timeline.push(newEntry)
 
-  // Compute total TAT when reaching COMPLETED
+  // Compute total TAT when reaching CLOSED or COMPLETED (legacy)
   let completedAt = jobCards[idx].completedAt
   let totalTATMins = jobCards[idx].totalTATMins
-  if (status === 'COMPLETED') {
+  if (status === 'COMPLETED' || status === 'CLOSED') {
     completedAt = ts
     totalTATMins = workingMinutes(jobCards[idx].createdAt, ts)
   }
@@ -499,16 +485,24 @@ api.patch('/jobcards/:id/status', async (c) => {
     totalTATMins,
     updatedAt: ts
   }
-  activityLog.push({ id: 'a' + genId(), jobCardId: jobCards[idx].id, action: 'STATUS_CHANGE', description: `Status changed from ${old} to ${status}`, userId: 'u2', userName: 'System', timestamp: ts })
+  activityLog.push({ id: 'a' + genId(), jobCardId: jobCards[idx].id, action: 'STATUS_CHANGE', description: `Status changed from ${old} to ${status}`, userId: userId || 'u2', userName: userName || 'System', timestamp: ts })
   const jc = jobCards[idx]
   const statusLabels: Record<string, string> = {
-    RECEIVED: 'Received', INSPECTION: 'Under Inspection', PFI_PREPARATION: 'PFI Preparation',
+    DRAFT: 'Draft', PENDING_APPROVAL: 'Pending Approval', APPROVED: 'Approved',
+    REJECTED: 'Rejected', PRE_HANDOVER: 'Pre-Handover', HANDED_OVER: 'Handed Over',
+    INSPECTION: 'Inspection', PFI_PENDING: 'PFI Pending', PFI_APPROVED: 'PFI Approved',
+    CUSTOMER_APPROVAL: 'Customer Approval', PARTS_RELEASED: 'Parts Released',
+    WORK_IN_PROGRESS: 'Work In Progress', FINISHED: 'Finished',
+    QUALITY_CONTROL: 'Quality Control', CUSTOMER_SIGNOFF: 'Customer Sign-off',
+    INVOICED: 'Invoiced', PAID: 'Paid', CLOSED: 'Closed',
+    // Legacy
+    RECEIVED: 'Received', PFI_PREPARATION: 'PFI Preparation',
     AWAITING_INSURER_APPROVAL: 'Awaiting Insurer Approval', REPAIR_IN_PROGRESS: 'Repair In Progress',
     WAITING_FOR_PARTS: 'Waiting for Parts', QUALITY_CHECK: 'Quality Check',
-    COMPLETED: 'Completed', INVOICED: 'Invoiced', RELEASED: 'Released'
+    COMPLETED: 'Completed', RELEASED: 'Released'
   }
-  const isCompleted = status === 'COMPLETED'
-  const isWaiting   = status === 'WAITING_FOR_PARTS' || status === 'AWAITING_INSURER_APPROVAL'
+  const isCompleted = status === 'COMPLETED' || status === 'CLOSED' || status === 'PAID'
+  const isWaiting   = status === 'WAITING_FOR_PARTS' || status === 'CUSTOMER_APPROVAL' || status === 'PFI_PENDING'
   const priority: NotificationPriority = isCompleted ? 'success' : isWaiting ? 'warning' : 'info'
   const type: NotificationType = isCompleted ? 'job_completed' : 'job_status'
   addNotification(type, priority,
@@ -533,17 +527,81 @@ api.patch('/jobcards/:id/status', async (c) => {
   return c.json(jobCards[idx])
 })
 
+// ─── Approve / Reject / Cancel a Job Card ───────────────────────────────────
+// decision: 'APPROVED' | 'REJECTED' | 'CANCELLED'
+// Only Admin/Manager (Owner/Manager role) should call this.
+api.patch('/jobcards/:id/approve', async (c) => {
+  const idx = jobCards.findIndex(x => x.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const jc = jobCards[idx]
+  const { decision, notes, reason, userId, userName } = await c.req.json<{
+    decision: 'APPROVED' | 'REJECTED' | 'CANCELLED'
+    notes?: string
+    reason?: string
+    userId?: string
+    userName?: string
+  }>()
+
+  if (!['APPROVED', 'REJECTED', 'CANCELLED'].includes(decision)) {
+    return c.json({ error: 'Invalid decision. Must be APPROVED, REJECTED, or CANCELLED' }, 400)
+  }
+  if (jc.status !== 'PENDING_APPROVAL') {
+    return c.json({ error: `Job card is not pending approval. Current status: ${jc.status}` }, 400)
+  }
+  if (decision === 'REJECTED' && !reason?.trim()) {
+    return c.json({ error: 'Rejection reason is required' }, 400)
+  }
+
+  const ts = now()
+  const timeline: StatusTimelineEntry[] = jc.statusTimeline ? [...jc.statusTimeline] : []
+  const openEntry = timeline.findLast ? timeline.findLast(e => !e.exitedAt) : [...timeline].reverse().find(e => !e.exitedAt)
+  if (openEntry) closeTimelineEntry(openEntry, ts)
+
+  let newStatus: JobCardStatus
+  let extraFields: Partial<JobCard> = {}
+
+  if (decision === 'APPROVED') {
+    newStatus = 'APPROVED'
+    extraFields = { approvedBy: userId, approvedByName: userName, approvedAt: ts, approvalNotes: notes }
+    const newEntry = openTimelineEntry(jc, newStatus, ts)
+    timeline.push(newEntry)
+    activityLog.push({ id: 'a' + genId(), jobCardId: jc.id, action: 'JOB_APPROVED', description: `Job card approved by ${userName || 'Admin/Manager'}${notes ? ': ' + notes : ''}`, userId: userId || 'system', userName: userName || 'System', timestamp: ts })
+    addNotification('job_status', 'success', 'Job Card Approved ✓',
+      `${jc.jobCardNumber} has been approved by ${userName || 'Admin/Manager'}`,
+      { jobCardId: jc.id, jobCardNumber: jc.jobCardNumber })
+  } else if (decision === 'REJECTED') {
+    newStatus = 'REJECTED'
+    extraFields = { rejectedBy: userId, rejectedByName: userName, rejectedAt: ts, rejectionReason: reason }
+    const newEntry = openTimelineEntry(jc, newStatus, ts)
+    timeline.push(newEntry)
+    activityLog.push({ id: 'a' + genId(), jobCardId: jc.id, action: 'JOB_REJECTED', description: `Job card rejected by ${userName || 'Admin/Manager'}: ${reason}`, userId: userId || 'system', userName: userName || 'System', timestamp: ts })
+    addNotification('job_status', 'warning', 'Job Card Rejected',
+      `${jc.jobCardNumber} was rejected — ${reason}`,
+      { jobCardId: jc.id, jobCardNumber: jc.jobCardNumber })
+  } else {
+    // CANCELLED
+    newStatus = 'REJECTED' // We use REJECTED status but record cancel reason
+    extraFields = { cancelledBy: userId, cancelledByName: userName, cancelledAt: ts, cancelReason: reason || 'Cancelled by Admin/Manager' }
+    const newEntry = openTimelineEntry(jc, newStatus, ts)
+    timeline.push(newEntry)
+    activityLog.push({ id: 'a' + genId(), jobCardId: jc.id, action: 'JOB_CANCELLED', description: `Job card cancelled by ${userName || 'Admin/Manager'}`, userId: userId || 'system', userName: userName || 'System', timestamp: ts })
+  }
+
+  jobCards[idx] = { ...jc, status: newStatus, statusTimeline: timeline, ...extraFields, updatedAt: ts }
+  return c.json(jobCards[idx])
+})
+
 // ─── Reopen a Job Card ───────────────────────────────────────────────────────
-// Allowed from: RELEASED, COMPLETED, INVOICED
+// Allowed from: RELEASED, COMPLETED, INVOICED, PAID, CLOSED
 // Sets status back to REPAIR_IN_PROGRESS, records reason, increments reopenCount
 api.post('/jobcards/:id/reopen', async (c) => {
   const idx = jobCards.findIndex(x => x.id === c.req.param('id'))
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
   const jc = jobCards[idx]
 
-  const REOPENABLE = ['RELEASED', 'COMPLETED', 'INVOICED']
+  const REOPENABLE = ['RELEASED', 'COMPLETED', 'INVOICED', 'PAID', 'CLOSED']
   if (!REOPENABLE.includes(jc.status)) {
-    return c.json({ error: `Job card cannot be reopened from status: ${jc.status}. Only RELEASED, COMPLETED, or INVOICED jobs can be reopened.` }, 400)
+    return c.json({ error: `Job card cannot be reopened from status: ${jc.status}. Only completed/closed jobs can be reopened.` }, 400)
   }
 
   const { reason } = await c.req.json<{ reason: string }>()
@@ -553,9 +611,11 @@ api.post('/jobcards/:id/reopen', async (c) => {
 
   const ts = now()
   const prevStatus = jc.status
-  const newStatus: JobCardStatus = 'REPAIR_IN_PROGRESS'
+  // Reopened jobs go to WORK_IN_PROGRESS (new pipeline)
+  const isLegacy = ['RELEASED','COMPLETED','INVOICED'].includes(prevStatus)
+  const newStatus: JobCardStatus = isLegacy ? 'REPAIR_IN_PROGRESS' : 'WORK_IN_PROGRESS'
 
-  // ── Timeline: close current open entry, open new REPAIR_IN_PROGRESS entry ──
+  // ── Timeline: close current open entry, open new entry ──
   const timeline: StatusTimelineEntry[] = jc.statusTimeline ? [...jc.statusTimeline] : []
   const openEntry = timeline.findLast ? timeline.findLast(e => !e.exitedAt) : [...timeline].reverse().find(e => !e.exitedAt)
   if (openEntry) closeTimelineEntry(openEntry, ts)
@@ -1224,9 +1284,10 @@ api.get('/finance/summary', (c) => {
 
   // ── Pipeline: from open Job Cards that don't yet have an invoice ──────────
   const invoicedJobIds = new Set(allInv.map(i => i.jobCardId))
+  const EARLY_STATUSES = ['DRAFT','PENDING_APPROVAL','APPROVED','REJECTED','PRE_HANDOVER','RECEIVED','INSPECTION','PFI_PREPARATION']
   const pipelineJobs   = jobCards.filter(j =>
     !invoicedJobIds.has(j.id) &&
-    !['RECEIVED','INSPECTION','PFI_PREPARATION'].includes(j.status)
+    !EARLY_STATUSES.includes(j.status)
   )
   // Estimate pipeline value from PFIs or job services
   const pipelineValue = pipelineJobs.reduce((sum, j) => {
@@ -1474,13 +1535,28 @@ api.get('/analytics/tat', (c) => {
 
   // Status labels
   const STATUS_LABELS: Record<string, string> = {
-    RECEIVED: 'Received', INSPECTION: 'Under Inspection', PFI_PREPARATION: 'PFI Preparation',
+    DRAFT: 'Draft', PENDING_APPROVAL: 'Pending Approval', APPROVED: 'Approved',
+    REJECTED: 'Rejected', PRE_HANDOVER: 'Pre-Handover', HANDED_OVER: 'Handed Over',
+    INSPECTION: 'Inspection', PFI_PENDING: 'PFI Pending', PFI_APPROVED: 'PFI Approved',
+    CUSTOMER_APPROVAL: 'Customer Approval', PARTS_RELEASED: 'Parts Released',
+    WORK_IN_PROGRESS: 'Work In Progress', FINISHED: 'Finished',
+    QUALITY_CONTROL: 'Quality Control', CUSTOMER_SIGNOFF: 'Customer Sign-off',
+    INVOICED: 'Invoiced', PAID: 'Paid', CLOSED: 'Closed',
+    // Legacy
+    RECEIVED: 'Received', PFI_PREPARATION: 'PFI Preparation',
     AWAITING_INSURER_APPROVAL: 'Awaiting Insurer Approval', REPAIR_IN_PROGRESS: 'Repair In Progress',
     WAITING_FOR_PARTS: 'Waiting for Parts', QUALITY_CHECK: 'Quality Check',
-    COMPLETED: 'Completed', INVOICED: 'Invoiced', RELEASED: 'Released'
+    COMPLETED: 'Completed', RELEASED: 'Released'
   }
-  const STATUS_FLOW_LIST = ['RECEIVED','INSPECTION','PFI_PREPARATION','AWAITING_INSURER_APPROVAL',
-    'REPAIR_IN_PROGRESS','WAITING_FOR_PARTS','QUALITY_CHECK','COMPLETED','INVOICED','RELEASED']
+  const STATUS_FLOW_LIST = [
+    'DRAFT','PENDING_APPROVAL','APPROVED','PRE_HANDOVER','HANDED_OVER',
+    'INSPECTION','PFI_PENDING','PFI_APPROVED','CUSTOMER_APPROVAL','PARTS_RELEASED',
+    'WORK_IN_PROGRESS','FINISHED','QUALITY_CONTROL','CUSTOMER_SIGNOFF',
+    'INVOICED','PAID','CLOSED',
+    // Legacy
+    'RECEIVED','PFI_PREPARATION','AWAITING_INSURER_APPROVAL','REPAIR_IN_PROGRESS',
+    'WAITING_FOR_PARTS','QUALITY_CHECK','COMPLETED','RELEASED'
+  ]
 
   // Per-status average durations across all job cards (closed entries only)
   const statusTotals: Record<string, { totalMins: number; count: number }> = {}
@@ -1494,8 +1570,9 @@ api.get('/analytics/tat', (c) => {
   const activeJobMins: number[] = []
 
   jobCards.forEach(j => {
-    // TAT for completed jobs
-    if (j.status === 'COMPLETED' || j.status === 'INVOICED' || j.status === 'RELEASED') {
+    // TAT for completed jobs (new pipeline: PAID/CLOSED; legacy: COMPLETED/INVOICED/RELEASED)
+    const DONE_STATUSES = ['COMPLETED', 'INVOICED', 'RELEASED', 'PAID', 'CLOSED']
+    if (DONE_STATUSES.includes(j.status)) {
       if (j.totalTATMins != null) {
         completedTATs.push(j.totalTATMins)
       } else if (j.completedAt) {
