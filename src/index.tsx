@@ -5560,8 +5560,9 @@ async function showPFIModal(jobId, category) {
     </div>
   \`;
 
-  // Initialise discount type state
+  // Initialise discount type state and VAT (off by default for new PFI)
   window._pfiDiscType = 'fixed';
+  window._pfiVAT      = false;
   pfiSetDiscountType('fixed');
 
   // Wire up total calculation and trigger with pre-filled billable cost
@@ -5583,7 +5584,8 @@ async function showPFIModal(jobId, category) {
       discountAmount = Math.min(Math.round(discValue), subtotal);
     }
     const totalEstimate = Math.max(0, subtotal - discountAmount);
-    const tax           = Math.round(totalEstimate * 0.18);
+    const applyVAT      = !!(window._pfiVAT);
+    const tax           = applyVAT ? Math.round(totalEstimate * 0.18) : 0;
     const totalAmount   = totalEstimate + tax;
     const initialStatus = isInsurance ? 'Submitted' : 'Draft';
     await axios.post('/api/jobcards/' + jobId + '/pfi', {
@@ -5631,6 +5633,7 @@ function pfiCalcTotal() {
   const subtotal = l + p;
   const discValue = +document.getElementById('pfi-disc-value')?.value || 0;
   const discType  = window._pfiDiscType || 'fixed';
+  const applyVAT  = !!(window._pfiVAT);
 
   let discountAmount = 0;
   if (discValue > 0) {
@@ -5642,24 +5645,28 @@ function pfiCalcTotal() {
   }
   const total = Math.max(0, subtotal - discountAmount);
 
-  // Update display elements
-  const tax = Math.round(total * 0.18);
+  // VAT only when toggle is ON
+  const tax       = applyVAT ? Math.round(total * 0.18) : 0;
   const grandTotal = total + tax;
 
-  var subEl   = document.getElementById('pfi-subtotal-display');
-  var discLine = document.getElementById('pfi-disc-line');
-  var discAmt  = document.getElementById('pfi-disc-amount-display');
-  var totDisp  = document.getElementById('pfi-total-display');
-  var taxDisp  = document.getElementById('pfi-tax-display');
-  var grandDisp = document.getElementById('pfi-grand-total-display');
-  var preview  = document.getElementById('pfi-disc-preview');
+  var subEl      = document.getElementById('pfi-subtotal-display');
+  var discLine   = document.getElementById('pfi-disc-line');
+  var discAmt    = document.getElementById('pfi-disc-amount-display');
+  var totDisp    = document.getElementById('pfi-total-display');
+  var taxRow     = document.getElementById('pfi-tax-row');
+  var taxDisp    = document.getElementById('pfi-tax-display');
+  var grandDisp  = document.getElementById('pfi-grand-total-display');
+  var preview    = document.getElementById('pfi-disc-preview');
   var hiddenTotal = document.getElementById('pfi-total');
 
-  if (subEl)     subEl.textContent = fmt(subtotal);
-  if (totDisp)   totDisp.textContent = fmt(total);
-  if (taxDisp)   taxDisp.textContent = fmt(tax);
-  if (grandDisp) grandDisp.textContent = fmt(grandTotal);
-  if (hiddenTotal) hiddenTotal.value = String(total);
+  if (subEl)      subEl.textContent  = fmt(subtotal);
+  if (totDisp)    totDisp.textContent = fmt(total);
+  if (taxDisp)    taxDisp.textContent = fmt(tax);
+  if (grandDisp)  grandDisp.textContent = fmt(grandTotal);
+  if (hiddenTotal) hiddenTotal.value  = String(total);
+
+  // Show/hide tax row based on VAT toggle
+  if (taxRow) taxRow.style.display = applyVAT ? '' : 'none';
 
   if (discountAmount > 0) {
     if (discLine)  discLine.style.removeProperty('display');
@@ -5672,6 +5679,20 @@ function pfiCalcTotal() {
     if (discAmt)   discAmt.textContent = '— TZS 0';
     if (preview)   preview.textContent = '';
   }
+}
+
+function pfiToggleVAT() {
+  window._pfiVAT = !window._pfiVAT;
+  var btn  = document.getElementById('pfi-vat-toggle');
+  var knob = document.getElementById('pfi-vat-knob');
+  if (btn) {
+    btn.setAttribute('aria-checked', window._pfiVAT ? 'true' : 'false');
+    btn.style.background = window._pfiVAT ? '#f97316' : '#d1d5db';
+  }
+  if (knob) {
+    knob.style.transform = window._pfiVAT ? 'translateX(20px)' : 'translateX(0px)';
+  }
+  pfiCalcTotal();
 }
 
 // ── Edit PFI Modal ────────────────────────────────────────────────────────────
