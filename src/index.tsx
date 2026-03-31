@@ -8465,7 +8465,7 @@ async function showPrelimCheckModal(jobId) {
     document.getElementById('pc-customer').textContent = custLabel;
 
     // Service Advisor name — use logged-in user
-    const saName = _currentUser?.name || '';
+    const saName = currentUser?.name || '';
     document.getElementById('pc-sa-name').value = saName;
 
     // If already has prelim check data, pre-fill
@@ -8499,7 +8499,7 @@ async function showPrelimCheckModal(jobId) {
 
     // If status is APPROVED (not yet PRE_HANDOVER), first advance it
     if (job.status === 'APPROVED') {
-      await axios.patch('/api/jobcards/' + jobId + '/status', { status: 'PRE_HANDOVER', userId: _currentUser?.id, userName: _currentUser?.name });
+      await axios.patch('/api/jobcards/' + jobId + '/status', { status: 'PRE_HANDOVER', userId: currentUser?.id, userName: currentUser?.name });
     }
   } catch(err) {
     console.error('showPrelimCheckModal fetch error', err);
@@ -8554,12 +8554,12 @@ async function submitPrelimCheck() {
       vehicleCondition:     document.getElementById('pc-condition')?.value          || 'Good',
       notes:                document.getElementById('pc-notes')?.value?.trim()      || '',
       valuables,
-      serviceAdvisorName:   document.getElementById('pc-sa-name')?.value?.trim()    || (_currentUser?.name || ''),
+      serviceAdvisorName:   document.getElementById('pc-sa-name')?.value?.trim()    || (currentUser?.name || ''),
       serviceAdvisorSignature: pcGetSig(saCanvas),
       customerName:         custName,
       customerSignature:    pcGetSig(custCanvas),
-      completedBy:          _currentUser?.id   || '',
-      completedByName:      _currentUser?.name || '',
+      completedBy:          currentUser?.id   || '',
+      completedByName:      currentUser?.name || '',
     };
 
     await axios.post('/api/jobcards/' + jobId + '/preliminary-check', payload);
@@ -8630,8 +8630,8 @@ async function showInspectionModal(jobId) {
       try { const { data: v } = await axios.get('/api/vehicles/' + job.vehicleId); vehLabel = [v.make, v.model, v.registrationNumber].filter(Boolean).join(' · '); } catch(e) {}
     }
     document.getElementById('insp-vehicle').textContent = vehLabel;
-    document.getElementById('insp-tech-name').value = _currentUser?.name || '';
-    document.getElementById('insp-sa-name').value = _currentUser?.name || '';
+    document.getElementById('insp-tech-name').value = currentUser?.name || '';
+    document.getElementById('insp-sa-name').value = currentUser?.name || '';
     // Pre-fill if re-opening
     if (job.inspectionData) {
       const d = job.inspectionData;
@@ -8666,8 +8666,8 @@ async function submitInspection() {
     payload.serviceAdvisorName = document.getElementById('insp-sa-name').value.trim();
     payload.serviceAdvisorSignature = pcGetSig(saCanvas);
     payload.customerApproval = 'Approved';
-    payload.completedBy = _currentUser?.id || '';
-    payload.completedByName = _currentUser?.name || '';
+    payload.completedBy = currentUser?.id || '';
+    payload.completedByName = currentUser?.name || '';
     await axios.post('/api/jobcards/' + jobId + '/complete-inspection', payload);
     closeModal('modal-inspection');
     showToast('Inspection complete! Job moved to PFI Pending.', 'success');
@@ -8728,8 +8728,8 @@ async function submitCustomerApproval() {
       approvalSignature: pcGetSig(canvas),
       approvalNotes: document.getElementById('custappr-notes').value.trim(),
       totalApproved: +(btn?.dataset?.total || 0),
-      recordedBy: _currentUser?.id || '',
-      recordedByName: _currentUser?.name || '',
+      recordedBy: currentUser?.id || '',
+      recordedByName: currentUser?.name || '',
     });
     closeModal('modal-customerApproval');
     showToast('Customer approved! Parts released for repair.', 'success');
@@ -8744,7 +8744,7 @@ async function submitCustomerApproval() {
 // ─── Start Work / Finish Work ─────────────────────────────────────────────────
 async function startWork(jobId) {
   try {
-    await axios.post('/api/jobcards/' + jobId + '/start-work', { userId: _currentUser?.id, userName: _currentUser?.name });
+    await axios.post('/api/jobcards/' + jobId + '/start-work', { userId: currentUser?.id, userName: currentUser?.name });
     showToast('Work started! Status: Work In Progress', 'success');
     viewJobDetail(jobId);
   } catch(err) { showToast('Error: ' + (err?.response?.data?.error || err.message), 'error'); }
@@ -8753,7 +8753,7 @@ async function startWork(jobId) {
 async function finishWork(jobId) {
   if (!confirm('Mark work as finished? This will move the job to Quality Control.')) return;
   try {
-    await axios.post('/api/jobcards/' + jobId + '/finish-work', { userId: _currentUser?.id, userName: _currentUser?.name });
+    await axios.post('/api/jobcards/' + jobId + '/finish-work', { userId: currentUser?.id, userName: currentUser?.name });
     showToast('Work finished! Pending Quality Control.', 'success');
     viewJobDetail(jobId);
   } catch(err) { showToast('Error: ' + (err?.response?.data?.error || err.message), 'error'); }
@@ -8772,7 +8772,7 @@ async function showQCFormModal(jobId) {
   document.querySelectorAll('input[name="qc-cleanWork"]')[0].checked = true;
   document.querySelectorAll('input[name="qc-allWorks"]')[0].checked = true;
   document.getElementById('qc-notes').value = '';
-  document.getElementById('qc-officer-name').value = _currentUser?.name || '';
+  document.getElementById('qc-officer-name').value = currentUser?.name || '';
   try {
     const { data: job } = await axios.get('/api/jobcards/' + jobId);
     document.getElementById('qc-subtitle').textContent = job.jobCardNumber + ' · Quality Control';
@@ -8810,8 +8810,8 @@ async function submitQCForm() {
       technicianSignature: pcGetSig(techCanvas),
       qcOfficerName: document.getElementById('qc-officer-name').value.trim(),
       qcOfficerSignature: pcGetSig(officerCanvas),
-      completedBy: _currentUser?.id || '',
-      completedByName: _currentUser?.name || '',
+      completedBy: currentUser?.id || '',
+      completedByName: currentUser?.name || '',
     });
     closeModal('modal-qcForm');
     showToast('QC passed! Customer sign-off requested.', 'success');
@@ -8874,8 +8874,8 @@ async function submitCustomerSignoff() {
       customerSignature: pcGetSig(canvas),
       signoffNotes: document.getElementById('signoff-notes').value.trim(),
       satisfactionRating: _signoffRating,
-      recordedBy: _currentUser?.id || '',
-      recordedByName: _currentUser?.name || '',
+      recordedBy: currentUser?.id || '',
+      recordedByName: currentUser?.name || '',
     });
     closeModal('modal-customerSignoff');
     const invNum = res.data?.invoice?.invoiceNumber || '';
@@ -8912,8 +8912,8 @@ async function submitMarkPaid() {
     await axios.post('/api/jobcards/' + jobId + '/mark-paid', {
       paymentMethod: document.getElementById('markpaid-method').value,
       paymentRef: document.getElementById('markpaid-ref').value.trim(),
-      userId: _currentUser?.id || '',
-      userName: _currentUser?.name || '',
+      userId: currentUser?.id || '',
+      userName: currentUser?.name || '',
     });
     closeModal('modal-markPaid');
     showToast('Payment recorded! Job status: Paid.', 'success');
@@ -8940,7 +8940,7 @@ async function quickApprovePFI(pfiId, jobId) {
 async function closeJob(jobId) {
   if (!confirm('Close this job? This will set the gate pass to Pending Exit and finalise the record.')) return;
   try {
-    await axios.post('/api/jobcards/' + jobId + '/close', { userId: _currentUser?.id, userName: _currentUser?.name });
+    await axios.post('/api/jobcards/' + jobId + '/close', { userId: currentUser?.id, userName: currentUser?.name });
     showToast('Job closed. Gate pass set to Pending Exit.', 'success');
     viewJobDetail(jobId);
   } catch(err) { showToast('Error: ' + (err?.response?.data?.error || err.message), 'error'); }
@@ -14544,8 +14544,8 @@ async function submitPhotoUpload() {
         fileSize: f.size,
         mimeType: f.type,
         description: description,
-        uploadedBy: _currentUser.id,
-        uploadedByName: _currentUser.name,
+        uploadedBy: currentUser.id,
+        uploadedByName: currentUser.name,
       };
       await axios.post('/api/jobcards/' + _photoUploadJobId + '/photos', payload);
       successCount++;
