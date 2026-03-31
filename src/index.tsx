@@ -5739,9 +5739,11 @@ async function viewJobDetail(id) {
           </div>
           <!-- Category tabs -->
           <div class="flex gap-1.5 mb-4 flex-wrap" id="photo-cat-tabs-\${j.id}">
-            \${[{k:'all',l:'All'},{k:'intake',l:'Intake'},{k:'damage',l:'Damage'},{k:'repair_progress',l:'Progress'},{k:'final',l:'Final'}].map(function(c){
-              return '<button class="text-xs px-2.5 py-1.5 rounded-lg font-semibold border transition-colors ' + (c.k==='all' ? 'bg-pink-600 text-white border-pink-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-pink-50 hover:border-pink-300') + '" onclick="filterJobPhotos(\'' + j.id + '\',\'' + c.k + '\')" data-cat="' + c.k + '">' + c.l + '</button>';
-            }).join('')}
+            <button class="text-xs px-2.5 py-1.5 rounded-lg font-semibold border transition-colors bg-pink-600 text-white border-pink-600" onclick="filterJobPhotos('\${j.id}','all')" data-cat="all">All</button>
+            <button class="text-xs px-2.5 py-1.5 rounded-lg font-semibold border transition-colors bg-white text-gray-600 border-gray-200 hover:bg-pink-50 hover:border-pink-300" onclick="filterJobPhotos('\${j.id}','intake')" data-cat="intake">Intake</button>
+            <button class="text-xs px-2.5 py-1.5 rounded-lg font-semibold border transition-colors bg-white text-gray-600 border-gray-200 hover:bg-pink-50 hover:border-pink-300" onclick="filterJobPhotos('\${j.id}','damage')" data-cat="damage">Damage</button>
+            <button class="text-xs px-2.5 py-1.5 rounded-lg font-semibold border transition-colors bg-white text-gray-600 border-gray-200 hover:bg-pink-50 hover:border-pink-300" onclick="filterJobPhotos('\${j.id}','repair_progress')" data-cat="repair_progress">Progress</button>
+            <button class="text-xs px-2.5 py-1.5 rounded-lg font-semibold border transition-colors bg-white text-gray-600 border-gray-200 hover:bg-pink-50 hover:border-pink-300" onclick="filterJobPhotos('\${j.id}','final')" data-cat="final">Final</button>
           </div>
           <div id="photo-grid-\${j.id}" class="grid grid-cols-3 gap-2">
             <p class="text-xs text-gray-400 col-span-3 text-center py-4"><i class="fas fa-spinner fa-spin mr-1"></i>Loading photos…</p>
@@ -13909,6 +13911,7 @@ async function loadJobPhotos(jobId, category) {
 }
 
 function renderPhotoGrid(jobId, photos, activeCat) {
+  var Q = "'";
   var grid = document.getElementById('photo-grid-' + jobId);
   if (!grid) return;
   if (!photos || photos.length === 0) {
@@ -13923,7 +13926,7 @@ function renderPhotoGrid(jobId, photos, activeCat) {
     var catLabel = PHOTO_CAT_LABELS[p.category] || p.category;
     var catIcon  = PHOTO_CAT_ICONS[p.category]  || 'fa-image';
     return '<div class="relative group rounded-xl overflow-hidden cursor-pointer border-2 border-transparent hover:border-pink-400 transition-all shadow-sm hover:shadow-md aspect-square bg-gray-100" ' +
-      'onclick="openPhotoLightbox(\'' + jobId + '\',\'' + p.id + '\')">' +
+      'onclick="openPhotoLightbox(' + Q + jobId + Q + ',' + Q + p.id + Q + ')">' +
       '<img src="' + p.fileUrl + '" alt="' + (p.description || 'Photo') + '" class="w-full h-full object-cover"/>' +
       '<div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all"></div>' +
       '<div class="absolute bottom-0 left-0 right-0 px-2 py-1.5 bg-gradient-to-t from-black/70 to-transparent">' +
@@ -13934,7 +13937,7 @@ function renderPhotoGrid(jobId, photos, activeCat) {
       '</div>' +
       '<div class="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity">' +
         '<button class="w-6 h-6 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center hover:bg-red-600" ' +
-          'onclick="event.stopPropagation();deleteJobPhoto(\'' + p.id + '\',\'' + jobId + '\')" title="Delete photo">' +
+          'onclick="event.stopPropagation();deleteJobPhoto(' + Q + p.id + Q + ',' + Q + jobId + Q + ')" title="Delete photo">' +
           '<i class="fas fa-trash"></i>' +
         '</button>' +
       '</div>' +
@@ -14382,7 +14385,8 @@ function exportFinanceReport() {
     ['Category','Amount (TZS)'],
     ...Object.entries(_rptData.expByCategory).map(function(e){ return [e[0], e[1]]; }),
   ];
-  var csv = rows.map(function(r){ return r.map(function(c){ return '"' + String(c||'').replace(/"/g,'""') + '"'; }).join(','); }).join('\r\n');
+  var CRLF = String.fromCharCode(13, 10);
+  var csv = rows.map(function(r){ return r.map(function(c){ return '"' + String(c||'').replace(/"/g,'""') + '"'; }).join(','); }).join(CRLF);
   var blob = new Blob([csv], { type:'text/csv' });
   var a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
