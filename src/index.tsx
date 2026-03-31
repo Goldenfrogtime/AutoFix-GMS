@@ -5177,8 +5177,9 @@ function can(perm) {
   return currentPermissions.includes(perm);
 }
 
-// Global axios interceptor: catch 401 responses anywhere in the app
-// and force the user back to the login screen with a clear message
+// Global axios interceptor: catch 401/403 responses anywhere in the app
+// 401 → session expired, force back to login
+// 403 → permission denied, show toast
 axios.interceptors.response.use(
   function(response) { return response; },
   function(error) {
@@ -5202,6 +5203,10 @@ axios.interceptors.response.use(
       errEl.classList.remove('hidden');
       setTimeout(function() { _sessionExpiredShown = false; }, 3000);
     }
+    if (error.response && error.response.status === 403) {
+      var msg = (error.response.data && error.response.data.error) || 'Permission denied';
+      showToast(msg, 'error');
+    }
     return Promise.reject(error);
   }
 );
@@ -5224,7 +5229,12 @@ function updateSidebarUser() {
   var rl = document.getElementById('sidebarUserRole');
   if (av) av.textContent = initials;
   if (nm) nm.textContent = currentUser.name;
-  if (rl) rl.textContent = currentUser.role;
+  // Show role with color pill matching ROLE_CONFIG
+  if (rl) {
+    var rc = ROLE_CONFIG[currentUser.role] || { text: '#94a3b8', bg: '#f1f5f9', icon: 'fa-user' };
+    rl.innerHTML = '<span style="display:inline-flex;align-items:center;gap:4px;padding:1px 7px;border-radius:999px;font-size:10px;font-weight:700;background:' + rc.bg + ';color:' + rc.text + '">'
+      + '<i class="fas ' + rc.icon + '" style="font-size:9px"></i> ' + currentUser.role + '</span>';
+  }
   var dw = document.getElementById('dashWelcome');
   if (dw) dw.textContent = 'Welcome back, ' + currentUser.name.split(' ')[0] + '! Here' + String.fromCharCode(39) + 's what' + String.fromCharCode(39) + 's happening today.';
 }
@@ -14957,11 +14967,11 @@ async function loadMarginByService() {
 
 // Role descriptions for preview
 var ROLE_DESCRIPTIONS = {
-  Owner: 'Full access to all modules, settings and user management',
-  Manager: 'All operations + analytics; cannot delete users or manage settings',
-  'Front Desk': 'Job cards, appointments, customers, vehicles, PFIs, invoices view',
-  Technician: 'View job cards, update job status, view parts and services',
-  Accountant: 'Invoices, expenses, analytics; cannot create job cards or modify customers',
+  Owner:        'Full access to all modules, settings, user management, and financial reports. Can approve jobs, manage users, and configure the system.',
+  Manager:      'Full operations access including job approval, analytics, and expense approval. Cannot delete users or change system settings.',
+  'Front Desk': 'Creates and manages job cards, appointments, customers and vehicles. Can generate PFIs and view invoices. No financial reports or user management.',
+  Technician:   'Views assigned job cards and updates job status (start/finish work, QC). Can view parts, lubricants, and service catalogues. No financial access.',
+  Accountant:   'Manages invoices, expenses, and financial analytics. Cannot create job cards, modify customers, or access user management.',
 };
 
 var PERMISSION_GROUPS = [

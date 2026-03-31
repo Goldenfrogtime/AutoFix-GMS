@@ -42,6 +42,21 @@ api.use('*', async (c, next) => {
   }
 })
 
+// ─── Global Auth Middleware ──────────────────────────────────────────────────
+// All routes except /auth/login require a valid Bearer token.
+// Returns 401 if token is missing/invalid or if the user account is inactive.
+api.use('*', async (c, next) => {
+  const path = new URL(c.req.url).pathname
+  // Allow login endpoint without auth
+  if (path.endsWith('/auth/login')) return next()
+  // All other routes need a valid session
+  const user = getSessionUser(c)
+  if (!user) return c.json({ error: 'Unauthenticated' }, 401)
+  // Attach user to context for downstream handlers
+  ;(c as any).user = user
+  return next()
+})
+
 // ─── Helpers ────────────────────────────────────────────────────────────────
 function genId() {
   return Math.random().toString(36).substring(2, 10)
@@ -126,6 +141,8 @@ function closeTimelineEntry(entry: StatusTimelineEntry, exitTimestamp: string): 
 
 // ─── Auth / RBAC Helpers ─────────────────────────────────────────────────────
 function getSessionUser(c: any): User | null {
+  // Use context-cached user if already resolved by auth middleware
+  if ((c as any).user) return (c as any).user as User
   const auth = c.req.header('Authorization') || ''
   const token = auth.startsWith('Bearer ') ? auth.slice(7) : (c.req.query('_token') || '')
   if (!token) return null
@@ -138,6 +155,15 @@ function can(user: User | null, permission: Permission): boolean {
   if (!user) return false
   const perms = ROLE_PERMISSIONS[user.role] || []
   return perms.includes(permission)
+}
+
+/** Returns 403 JSON if the current user lacks the given permission */
+function requirePerm(c: any, permission: Permission): Response | null {
+  const user = getSessionUser(c)
+  if (!can(user, permission)) {
+    return c.json({ error: 'Permission denied', required: permission }, 403) as any
+  }
+  return null
 }
 
 // Strip password from user before sending to client
@@ -416,6 +442,7 @@ api.put('/customers/:id', async (c) => {
 })
 
 api.delete('/customers/:id', (c) => {
+  const _p = requirePerm(c, 'customers.delete'); if (_p) return _p
   const idx = customers.findIndex(x => x.id === c.req.param('id'))
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
   customers.splice(idx, 1)
@@ -471,6 +498,7 @@ api.put('/vehicles/:id', async (c) => {
 })
 
 api.delete('/vehicles/:id', (c) => {
+  const _p = requirePerm(c, 'vehicles.edit'); if (_p) return _p
   const idx = vehicles.findIndex(x => x.id === c.req.param('id'))
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
   vehicles.splice(idx, 1)
@@ -541,6 +569,7 @@ api.get('/jobcards/:id/timeline', (c) => {
 })
 
 api.post('/jobcards', async (c) => {
+  const _p1 = requirePerm(c, 'jobcards.create'); if (_p1) return _p1
   const body = await c.req.json<Omit<JobCard, 'id' | 'jobCardNumber' | 'status' | 'createdAt' | 'updatedAt'>>()
   const num = 'GMS-' + new Date().getFullYear() + '-' + String(jobCards.length + 1).padStart(3, '0')
   const ts = now()
@@ -672,6 +701,7 @@ api.patch('/jobcards/:id/status', async (c) => {
 // decision: 'APPROVED' | 'REJECTED' | 'CANCELLED'
 // Only Admin/Manager (Owner/Manager role) should call this.
 api.patch('/jobcards/:id/approve', async (c) => {
+  const _p2 = requirePerm(c, 'jobcards.approve'); if (_p2) return _p2
   const idx = jobCards.findIndex(x => x.id === c.req.param('id'))
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
   const jc = jobCards[idx]
@@ -2241,6 +2271,7 @@ api.get('/auth/permissions', (c) => {
 api.get('/users', (c) => c.json(users.map(safeUser)))
 
 api.post('/users', async (c) => {
+  const _p3 = requirePerm(c, 'users.create'); if (_p3) return _p3
   const body = await c.req.json<Omit<User, 'id' | 'createdAt'>>()
   const newUser: User = { ...body, id: 'u' + genId(), createdAt: now() }
   users.push(newUser)
@@ -2248,6 +2279,7 @@ api.post('/users', async (c) => {
 })
 
 api.put('/users/:id', async (c) => {
+  const _p4 = requirePerm(c, 'users.edit'); if (_p4) return _p4
   const idx = users.findIndex(x => x.id === c.req.param('id'))
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
   const body = await c.req.json<Partial<User>>()
@@ -2256,6 +2288,7 @@ api.put('/users/:id', async (c) => {
 })
 
 api.delete('/users/:id', (c) => {
+  const _p5 = requirePerm(c, 'users.delete'); if (_p5) return _p5
   const idx = users.findIndex(x => x.id === c.req.param('id'))
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
   const [removed] = users.splice(idx, 1)
@@ -3076,6 +3109,7 @@ api.patch('/expenses/:id/status', async (c) => {
 
 // DELETE /expenses/:id
 api.delete('/expenses/:id', (c) => {
+  const _p6 = requirePerm(c, 'expenses.delete'); if (_p6) return _p6
   const idx = expenses.findIndex(e => e.id === c.req.param('id'))
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
   expenses.splice(idx, 1)
@@ -4058,6 +4092,7 @@ api.get('/settings', (c) => {
 
 // PATCH /settings — update any subset of garage settings
 api.patch('/settings', async (c) => {
+  const _p7 = requirePerm(c, 'settings.manage'); if (_p7) return _p7
   const body = await c.req.json<Partial<GarageSettings>>()
   // Reject attempts to patch updatedAt directly
   delete (body as any).updatedAt
