@@ -42,6 +42,7 @@ import {
   fleetInvoices,
   subscriptionPlans,
   customerSubscriptions,
+  jobCardPhotos,
 } from './store.js'
 
 // ── Path to the data file ─────────────────────────────────────────────────────
@@ -78,6 +79,7 @@ const PERSIST_KEYS = [
   'fleetInvoices',
   'subscriptionPlans',
   'customerSubscriptions',
+  'jobCardPhotos',
 ] as const
 
 type PersistKey = typeof PERSIST_KEYS[number]
@@ -107,6 +109,7 @@ function getLiveArrays(): Record<PersistKey, unknown[]> {
     fleetInvoices,
     subscriptionPlans,
     customerSubscriptions,
+    jobCardPhotos,
   }
 }
 

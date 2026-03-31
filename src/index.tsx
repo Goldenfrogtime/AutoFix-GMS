@@ -1038,6 +1038,8 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <div class="flex gap-2 mb-5 border-b border-gray-200 overflow-x-auto">
         <button id="analyticsTab-overview" class="analytics-tab-btn px-4 py-2 text-sm font-semibold border-b-2 border-blue-600 text-blue-700 whitespace-nowrap" onclick="switchAnalyticsTab('overview')"><i class="fas fa-chart-bar mr-1.5"></i>Overview</button>
         <button id="analyticsTab-performance" class="analytics-tab-btn px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap" onclick="switchAnalyticsTab('performance')"><i class="fas fa-stopwatch mr-1.5"></i>Performance & TAT</button>
+        <button id="analyticsTab-finance" class="analytics-tab-btn px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap" onclick="switchAnalyticsTab('finance')"><i class="fas fa-file-invoice-dollar mr-1.5"></i>Finance Report</button>
+        <button id="analyticsTab-margin" class="analytics-tab-btn px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap" onclick="switchAnalyticsTab('margin')"><i class="fas fa-percentage mr-1.5"></i>Margin by Service</button>
       </div>
 
       <!-- Overview Tab -->
@@ -1101,7 +1103,96 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 
         <p class="text-xs text-gray-400 text-center mt-2"><i class="fas fa-info-circle mr-1"></i>Working hours: 08:00–18:00, Mon–Sun · Durations calculated from closed status entries</p>
       </div>
-    </div>
+
+      <!-- Finance Report Tab -->
+      <div id="analyticsPane-finance" class="hidden">
+        <div class="flex flex-wrap items-center gap-3 mb-5">
+          <div class="flex items-center gap-2">
+            <label class="text-xs font-semibold text-gray-500 uppercase">From</label>
+            <input type="date" id="rpt-from" class="form-input text-sm py-1.5 px-3"/>
+          </div>
+          <div class="flex items-center gap-2">
+            <label class="text-xs font-semibold text-gray-500 uppercase">To</label>
+            <input type="date" id="rpt-to" class="form-input text-sm py-1.5 px-3"/>
+          </div>
+          <button class="btn-primary text-sm py-1.5" onclick="loadFinanceReport()"><i class="fas fa-sync-alt mr-1"></i>Run Report</button>
+          <button class="btn-secondary text-sm py-1.5" onclick="exportFinanceReport()"><i class="fas fa-download mr-1"></i>Export CSV</button>
+        </div>
+        <!-- P&L Summary cards -->
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-5" id="rpt-kpi-cards">
+          <div class="card p-4 border-l-4 border-green-400">
+            <p class="text-xs text-gray-500 mb-1 font-semibold uppercase">Revenue</p>
+            <p class="text-lg font-bold text-green-700" id="rpt-revenue">—</p>
+            <p class="text-xs text-gray-400" id="rpt-inv-count"></p>
+          </div>
+          <div class="card p-4 border-l-4 border-orange-400">
+            <p class="text-xs text-gray-500 mb-1 font-semibold uppercase">Labour Cost</p>
+            <p class="text-lg font-bold text-orange-700" id="rpt-labour-cost">—</p>
+          </div>
+          <div class="card p-4 border-l-4 border-red-400">
+            <p class="text-xs text-gray-500 mb-1 font-semibold uppercase">Parts Cost</p>
+            <p class="text-lg font-bold text-red-700" id="rpt-parts-cost">—</p>
+          </div>
+          <div class="card p-4 border-l-4 border-blue-400">
+            <p class="text-xs text-gray-500 mb-1 font-semibold uppercase">Total Cost</p>
+            <p class="text-lg font-bold text-blue-700" id="rpt-total-cost">—</p>
+          </div>
+          <div class="card p-4 border-l-4 border-indigo-400">
+            <p class="text-xs text-gray-500 mb-1 font-semibold uppercase">Gross Margin</p>
+            <p class="text-lg font-bold text-indigo-700" id="rpt-margin">—</p>
+            <p class="text-xs text-gray-400" id="rpt-margin-pct"></p>
+          </div>
+          <div class="card p-4 border-l-4 border-amber-400">
+            <p class="text-xs text-gray-500 mb-1 font-semibold uppercase">Unpaid</p>
+            <p class="text-lg font-bold text-amber-700" id="rpt-unpaid">—</p>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-5">
+          <!-- Monthly Revenue Chart -->
+          <div class="card p-5 lg:col-span-2">
+            <h3 class="font-bold text-gray-800 mb-4"><i class="fas fa-chart-line text-blue-500 mr-2"></i>Monthly Revenue</h3>
+            <div style="height:240px"><canvas id="rpt-monthly-chart"></canvas></div>
+          </div>
+          <!-- Revenue by Category -->
+          <div class="card p-5">
+            <h3 class="font-bold text-gray-800 mb-4"><i class="fas fa-chart-pie text-purple-500 mr-2"></i>Revenue by Category</h3>
+            <div style="height:240px"><canvas id="rpt-category-chart"></canvas></div>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-5">
+          <!-- Revenue by Insurer -->
+          <div class="card p-5">
+            <h3 class="font-bold text-gray-800 mb-4"><i class="fas fa-building text-cyan-500 mr-2"></i>Revenue by Insurer</h3>
+            <div id="rpt-insurer-list" class="space-y-2"></div>
+          </div>
+          <!-- Top Technicians -->
+          <div class="card p-5">
+            <h3 class="font-bold text-gray-800 mb-4"><i class="fas fa-user-hard-hat text-teal-500 mr-2"></i>Top Technicians by Revenue</h3>
+            <div id="rpt-tech-list" class="space-y-2"></div>
+          </div>
+        </div>
+        <!-- Expense Breakdown -->
+        <div class="card p-5">
+          <h3 class="font-bold text-gray-800 mb-4"><i class="fas fa-receipt text-red-500 mr-2"></i>Expense Breakdown</h3>
+          <div id="rpt-expense-breakdown" class="grid grid-cols-2 sm:grid-cols-4 gap-3"></div>
+        </div>
+      </div>
+
+      <!-- Margin by Service Tab -->
+      <div id="analyticsPane-margin" class="hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <div class="card p-5">
+            <h3 class="font-bold text-gray-800 mb-4"><i class="fas fa-percentage text-emerald-500 mr-2"></i>Margin by Service Category</h3>
+            <div style="height:260px"><canvas id="marginBySvcChart"></canvas></div>
+          </div>
+          <div class="card p-5">
+            <h3 class="font-bold text-gray-800 mb-4">Service Category Breakdown</h3>
+            <div id="marginBySvcTable" class="space-y-3"></div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- end page-analytics -->
 
     <!-- ═══ FINANCE ═══ -->
     <div id="page-finance" class="page">
@@ -4353,6 +4444,68 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
   </div>
 </div>
 
+<!-- ═══ PHOTO UPLOAD MODAL ═══ -->
+<div id="modal-photoUpload" class="modal-overlay hidden" style="align-items:flex-start;padding-top:20px;padding-bottom:20px">
+  <div class="modal-box" style="--mw:560px">
+    <div class="flex items-center justify-between mb-5">
+      <div>
+        <h3 class="text-lg font-bold text-gray-900"><i class="fas fa-camera text-pink-500 mr-2"></i>Upload Photo</h3>
+        <p class="text-sm text-gray-500 mt-0.5">Add documentation photos to this job card</p>
+      </div>
+      <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-photoUpload')"><i class="fas fa-times"></i></button>
+    </div>
+    <!-- Drop zone -->
+    <label class="block border-2 border-dashed border-pink-300 rounded-2xl p-8 text-center cursor-pointer hover:border-pink-500 hover:bg-pink-50 transition-colors mb-4" id="photo-drop-zone" for="photo-file-input">
+      <i class="fas fa-cloud-upload-alt text-3xl text-pink-400 mb-2 block"></i>
+      <p class="text-sm font-semibold text-gray-700">Click to select or drag & drop</p>
+      <p class="text-xs text-gray-400 mt-1">JPG, PNG, WEBP — max 5 MB per photo</p>
+      <input type="file" id="photo-file-input" accept="image/*" multiple class="hidden" onchange="handlePhotoFileSelect(this)"/>
+    </label>
+    <!-- Preview strip -->
+    <div id="photo-preview-strip" class="hidden flex gap-2 flex-wrap mb-4"></div>
+    <!-- Category -->
+    <div class="mb-4">
+      <label class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Category <span class="text-red-500">*</span></label>
+      <div class="grid grid-cols-2 gap-2" id="photo-category-picker">
+        <button type="button" data-cat="intake" onclick="selectPhotoCategory('intake')" class="photo-cat-btn px-3 py-2.5 rounded-xl border-2 border-blue-500 bg-blue-50 text-blue-700 text-sm font-semibold flex items-center gap-2"><i class="fas fa-car text-blue-500"></i>Intake</button>
+        <button type="button" data-cat="damage" onclick="selectPhotoCategory('damage')" class="photo-cat-btn px-3 py-2.5 rounded-xl border-2 border-transparent bg-gray-50 text-gray-600 text-sm font-semibold flex items-center gap-2 hover:border-orange-300 hover:bg-orange-50 hover:text-orange-700"><i class="fas fa-exclamation-triangle text-orange-400"></i>Damage</button>
+        <button type="button" data-cat="repair_progress" onclick="selectPhotoCategory('repair_progress')" class="photo-cat-btn px-3 py-2.5 rounded-xl border-2 border-transparent bg-gray-50 text-gray-600 text-sm font-semibold flex items-center gap-2 hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"><i class="fas fa-wrench text-violet-400"></i>Repair Progress</button>
+        <button type="button" data-cat="final" onclick="selectPhotoCategory('final')" class="photo-cat-btn px-3 py-2.5 rounded-xl border-2 border-transparent bg-gray-50 text-gray-600 text-sm font-semibold flex items-center gap-2 hover:border-green-300 hover:bg-green-50 hover:text-green-700"><i class="fas fa-check-circle text-green-400"></i>Final</button>
+      </div>
+    </div>
+    <!-- Description -->
+    <div class="mb-5">
+      <label class="block text-xs font-semibold text-gray-500 uppercase mb-1.5">Description / Notes</label>
+      <textarea id="photo-description" rows="2" class="form-input w-full text-sm" placeholder="Describe what is shown in the photo…"></textarea>
+    </div>
+    <!-- Error -->
+    <p id="photo-upload-error" class="text-red-600 text-sm mb-3 hidden"></p>
+    <!-- Actions -->
+    <div class="flex gap-3">
+      <button class="btn-secondary flex-1" onclick="closeModal('modal-photoUpload')">Cancel</button>
+      <button id="btn-submit-photo" class="btn-primary flex-1" onclick="submitPhotoUpload()"><i class="fas fa-upload mr-1.5"></i>Upload</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ PHOTO LIGHTBOX ═══ -->
+<div id="modal-photoLightbox" class="modal-overlay hidden" style="background:rgba(0,0,0,0.92)" onclick="if(event.target===this)closeModal('modal-photoLightbox')">
+  <div style="max-width:92vw;max-height:92vh;position:relative;display:flex;flex-direction:column;align-items:center">
+    <button class="absolute top-0 right-0 text-white text-2xl z-10 p-2 hover:text-gray-300" onclick="closeModal('modal-photoLightbox')"><i class="fas fa-times"></i></button>
+    <img id="lightbox-img" src="" alt="" style="max-width:88vw;max-height:80vh;object-fit:contain;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.5)"/>
+    <div class="mt-3 flex items-center justify-between w-full px-4" style="max-width:88vw">
+      <div>
+        <p class="text-white font-semibold text-sm" id="lightbox-filename"></p>
+        <p class="text-gray-400 text-xs mt-0.5" id="lightbox-meta"></p>
+      </div>
+      <div class="flex gap-2">
+        <a id="lightbox-download" href="#" download class="px-3 py-1.5 rounded-lg bg-white/20 text-white text-xs font-semibold hover:bg-white/30 transition"><i class="fas fa-download mr-1"></i>Download</a>
+        <button id="lightbox-delete" class="px-3 py-1.5 rounded-lg bg-red-500/80 text-white text-xs font-semibold hover:bg-red-600 transition" onclick="confirmDeletePhoto()"><i class="fas fa-trash mr-1"></i>Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ FLEET INVOICE — Create Modal (3-step) ═══ -->
 <div id="modal-fleetInvoice" class="modal-overlay hidden">
   <div class="modal-box" style="--mw:680px">
@@ -5578,6 +5731,22 @@ async function viewJobDetail(id) {
             \`).join('') : '<p class="text-gray-400 text-sm text-center py-4"><i class="fas fa-history text-2xl mb-2 block opacity-30"></i>No activity yet</p>'}
           </div>
         </div>
+        <!-- Photo Documentation -->
+        <div class="card p-5" id="photoCard-\${j.id}">
+          <div class="flex items-center justify-between mb-4">
+            <h4 class="font-bold text-gray-800"><i class="fas fa-camera text-pink-500 mr-2"></i>Photo Documentation</h4>
+            <button class="btn-secondary text-xs" onclick="showPhotoUploadModal('\${j.id}')"><i class="fas fa-upload mr-1"></i>Upload Photo</button>
+          </div>
+          <!-- Category tabs -->
+          <div class="flex gap-1.5 mb-4 flex-wrap" id="photo-cat-tabs-\${j.id}">
+            \${[{k:'all',l:'All'},{k:'intake',l:'Intake'},{k:'damage',l:'Damage'},{k:'repair_progress',l:'Progress'},{k:'final',l:'Final'}].map(function(c){
+              return '<button class="text-xs px-2.5 py-1.5 rounded-lg font-semibold border transition-colors ' + (c.k==='all' ? 'bg-pink-600 text-white border-pink-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-pink-50 hover:border-pink-300') + '" onclick="filterJobPhotos(\'' + j.id + '\',\'' + c.k + '\')" data-cat="' + c.k + '">' + c.l + '</button>';
+            }).join('')}
+          </div>
+          <div id="photo-grid-\${j.id}" class="grid grid-cols-3 gap-2">
+            <p class="text-xs text-gray-400 col-span-3 text-center py-4"><i class="fas fa-spinner fa-spin mr-1"></i>Loading photos…</p>
+          </div>
+        </div>
       </div>
       <!-- Sidebar -->
       <div class="space-y-5">
@@ -5871,6 +6040,17 @@ async function viewJobDetail(id) {
           </div>
         </div>
 
+        <!-- Job Notifications -->
+        <div class="card p-5 border-l-4 border-sky-400" id="jobNotifCard-\${j.id}">
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="font-bold text-gray-800 text-sm"><i class="fas fa-bell text-sky-500 mr-2"></i>Notifications</h4>
+            <button onclick="loadJobNotifications('\${j.id}')" class="text-xs text-sky-500 hover:text-sky-700 font-semibold" title="Refresh"><i class="fas fa-sync-alt"></i></button>
+          </div>
+          <div id="jobNotifContent-\${j.id}">
+            <p class="text-xs text-gray-400 text-center py-3"><i class="fas fa-spinner fa-spin mr-1"></i>Loading…</p>
+          </div>
+        </div>
+
         <!-- PFI -->
         \${j.pfi ? \`
           <div class="card p-5">
@@ -5985,6 +6165,10 @@ async function viewJobDetail(id) {
   }
   // Load time tracking panel
   loadTimeTrack(j.id);
+  // Load photo grid
+  loadJobPhotos(j.id, 'all');
+  // Load job notifications
+  loadJobNotifications(j.id);
 }
 
 // Parts Modal
@@ -13434,12 +13618,14 @@ function switchAnalyticsTab(tab) {
     activeBtn.classList.add('border-blue-600','text-blue-700');
   }
   // Show/hide panes
-  ['overview','performance'].forEach(function(p) {
+  ['overview','performance','finance','margin'].forEach(function(p) {
     var el = document.getElementById('analyticsPane-' + p);
     if (el) el.classList.toggle('hidden', p !== tab);
   });
-  // Load TAT data when switching to performance tab
+  // Load data for specific tabs
   if (tab === 'performance') loadTATAnalytics();
+  if (tab === 'finance') loadFinanceReport();
+  if (tab === 'margin') loadMarginByService();
 }
 
 async function loadTATAnalytics() {
@@ -13673,6 +13859,603 @@ function techDetailOpenJob(jobId) {
   closeModal('modal-techDetail');
   // viewJobDetail fetches from API directly — no need to wait for allJobCards
   viewJobDetail(jobId);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── PHASE 4: Photo Documentation ────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+var _photoUploadJobId = null;
+var _photoUploadCategory = 'intake';
+var _photoUploadFiles = [];
+var _lightboxPhotoId = null;
+var _lightboxJobId = null;
+
+var PHOTO_CAT_LABELS = { intake:'Intake', damage:'Damage', repair_progress:'Progress', final:'Final' };
+var PHOTO_CAT_COLORS = { intake:'#3b82f6', damage:'#f59e0b', repair_progress:'#8b5cf6', final:'#22c55e' };
+var PHOTO_CAT_ICONS  = { intake:'fa-car', damage:'fa-exclamation-triangle', repair_progress:'fa-wrench', final:'fa-check-circle' };
+
+async function loadJobPhotos(jobId, category) {
+  var grid = document.getElementById('photo-grid-' + jobId);
+  if (!grid) return;
+  grid.innerHTML = '<p class="text-xs text-gray-400 col-span-3 text-center py-4"><i class="fas fa-spinner fa-spin mr-1"></i>Loading…</p>';
+  try {
+    var url = '/api/jobcards/' + jobId + '/photos';
+    if (category && category !== 'all') url += '?category=' + category;
+    var { data } = await axios.get(url);
+    renderPhotoGrid(jobId, data, category || 'all');
+    // Update tab counts
+    try {
+      var { data: stats } = await axios.get('/api/jobcards/' + jobId + '/photos/stats');
+      var tabContainer = document.getElementById('photo-cat-tabs-' + jobId);
+      if (tabContainer) {
+        var total = Object.values(stats).reduce(function(s,v){ return s+(v||0); }, 0);
+        tabContainer.querySelectorAll('[data-cat]').forEach(function(btn) {
+          var cat = btn.getAttribute('data-cat');
+          var cnt = cat === 'all' ? total : (stats[cat] || 0);
+          btn.querySelector('.photo-cnt') && btn.querySelector('.photo-cnt').remove();
+          if (cnt > 0) {
+            var badge = document.createElement('span');
+            badge.className = 'photo-cnt ml-1 text-[10px] bg-white/60 px-1.5 py-0.5 rounded-full font-bold';
+            badge.textContent = cnt;
+            btn.appendChild(badge);
+          }
+        });
+      }
+    } catch(e2) {}
+  } catch(e) {
+    grid.innerHTML = '<p class="text-xs text-red-400 col-span-3 text-center py-4">Failed to load photos</p>';
+  }
+}
+
+function renderPhotoGrid(jobId, photos, activeCat) {
+  var grid = document.getElementById('photo-grid-' + jobId);
+  if (!grid) return;
+  if (!photos || photos.length === 0) {
+    var empty = activeCat === 'all'
+      ? 'No photos uploaded yet. Click <strong>Upload Photo</strong> to add the first one.'
+      : 'No ' + (PHOTO_CAT_LABELS[activeCat] || activeCat) + ' photos yet.';
+    grid.innerHTML = '<p class="text-xs text-gray-400 col-span-3 text-center py-8"><i class="fas fa-images text-3xl mb-2 block opacity-20"></i>' + empty + '</p>';
+    return;
+  }
+  grid.innerHTML = photos.map(function(p) {
+    var catColor = PHOTO_CAT_COLORS[p.category] || '#64748b';
+    var catLabel = PHOTO_CAT_LABELS[p.category] || p.category;
+    var catIcon  = PHOTO_CAT_ICONS[p.category]  || 'fa-image';
+    return '<div class="relative group rounded-xl overflow-hidden cursor-pointer border-2 border-transparent hover:border-pink-400 transition-all shadow-sm hover:shadow-md aspect-square bg-gray-100" ' +
+      'onclick="openPhotoLightbox(\'' + jobId + '\',\'' + p.id + '\')">' +
+      '<img src="' + p.fileUrl + '" alt="' + (p.description || 'Photo') + '" class="w-full h-full object-cover"/>' +
+      '<div class="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all"></div>' +
+      '<div class="absolute bottom-0 left-0 right-0 px-2 py-1.5 bg-gradient-to-t from-black/70 to-transparent">' +
+        '<div class="flex items-center gap-1">' +
+          '<i class="fas ' + catIcon + ' text-[9px]" style="color:' + catColor + '"></i>' +
+          '<span class="text-[10px] text-white font-semibold leading-tight truncate">' + catLabel + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity">' +
+        '<button class="w-6 h-6 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center hover:bg-red-600" ' +
+          'onclick="event.stopPropagation();deleteJobPhoto(\'' + p.id + '\',\'' + jobId + '\')" title="Delete photo">' +
+          '<i class="fas fa-trash"></i>' +
+        '</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function filterJobPhotos(jobId, category) {
+  // Update tab styles
+  var tabContainer = document.getElementById('photo-cat-tabs-' + jobId);
+  if (tabContainer) {
+    tabContainer.querySelectorAll('[data-cat]').forEach(function(btn) {
+      var isActive = btn.getAttribute('data-cat') === category;
+      btn.className = 'text-xs px-2.5 py-1.5 rounded-lg font-semibold border transition-colors flex items-center gap-1 ' +
+        (isActive ? 'bg-pink-600 text-white border-pink-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-pink-50 hover:border-pink-300');
+    });
+  }
+  loadJobPhotos(jobId, category);
+}
+
+function showPhotoUploadModal(jobId) {
+  _photoUploadJobId = jobId;
+  _photoUploadFiles = [];
+  _photoUploadCategory = 'intake';
+  // Reset modal
+  var fileInput = document.getElementById('photo-file-input');
+  if (fileInput) fileInput.value = '';
+  var preview = document.getElementById('photo-preview-strip');
+  if (preview) { preview.innerHTML = ''; preview.classList.add('hidden'); }
+  var desc = document.getElementById('photo-description');
+  if (desc) desc.value = '';
+  var err = document.getElementById('photo-upload-error');
+  if (err) { err.textContent = ''; err.classList.add('hidden'); }
+  // Reset category selection
+  selectPhotoCategory('intake');
+  openModal('modal-photoUpload');
+}
+
+function selectPhotoCategory(cat) {
+  _photoUploadCategory = cat;
+  document.querySelectorAll('.photo-cat-btn').forEach(function(btn) {
+    var isActive = btn.getAttribute('data-cat') === cat;
+    var colors = {
+      intake:         { border:'border-blue-500',   bg:'bg-blue-50',   text:'text-blue-700' },
+      damage:         { border:'border-orange-500',  bg:'bg-orange-50',  text:'text-orange-700' },
+      repair_progress:{ border:'border-violet-500', bg:'bg-violet-50', text:'text-violet-700' },
+      final:          { border:'border-green-500',  bg:'bg-green-50',  text:'text-green-700' },
+    };
+    var c = colors[btn.getAttribute('data-cat')] || { border:'border-gray-300', bg:'bg-gray-50', text:'text-gray-600' };
+    btn.className = 'photo-cat-btn px-3 py-2.5 rounded-xl border-2 text-sm font-semibold flex items-center gap-2 transition-all ' +
+      (isActive ? c.border + ' ' + c.bg + ' ' + c.text : 'border-transparent bg-gray-50 text-gray-600 hover:border-gray-300');
+  });
+}
+
+function handlePhotoFileSelect(input) {
+  var files = Array.from(input.files || []);
+  if (!files.length) return;
+  _photoUploadFiles = files.slice(0, 10); // max 10 at once
+  var preview = document.getElementById('photo-preview-strip');
+  if (!preview) return;
+  preview.innerHTML = '';
+  preview.classList.remove('hidden');
+  _photoUploadFiles.forEach(function(f, idx) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var div = document.createElement('div');
+      div.className = 'relative w-16 h-16 rounded-lg overflow-hidden border-2 border-pink-300 flex-shrink-0';
+      div.innerHTML = '<img src="' + e.target.result + '" class="w-full h-full object-cover"/>' +
+        '<div class="absolute bottom-0 left-0 right-0 bg-black/50 text-[8px] text-white px-1 truncate">' + f.name + '</div>';
+      preview.appendChild(div);
+    };
+    reader.readAsDataURL(f);
+  });
+  // Drop-zone label update
+  var zone = document.getElementById('photo-drop-zone');
+  if (zone) {
+    zone.querySelector('p').textContent = _photoUploadFiles.length + ' file' + (_photoUploadFiles.length > 1 ? 's' : '') + ' selected';
+  }
+}
+
+async function submitPhotoUpload() {
+  if (!_photoUploadJobId) return;
+  if (_photoUploadFiles.length === 0) {
+    // Check if user selected via input
+    var fileInput = document.getElementById('photo-file-input');
+    if (fileInput && fileInput.files && fileInput.files.length > 0) {
+      _photoUploadFiles = Array.from(fileInput.files);
+    } else {
+      showPhotoError('Please select at least one photo.');
+      return;
+    }
+  }
+  var description = (document.getElementById('photo-description') || {}).value || '';
+  var btn = document.getElementById('btn-submit-photo');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Uploading…'; }
+  var err = document.getElementById('photo-upload-error');
+  if (err) err.classList.add('hidden');
+
+  var successCount = 0;
+  var errors = [];
+  for (var i = 0; i < _photoUploadFiles.length; i++) {
+    var f = _photoUploadFiles[i];
+    if (f.size > 5 * 1024 * 1024) { errors.push(f.name + ' exceeds 5 MB'); continue; }
+    try {
+      var dataUrl = await readFileAsDataURL(f);
+      // Create thumbnail (max 200px)
+      var thumb = await resizeImageDataURL(dataUrl, 200);
+      var payload = {
+        category: _photoUploadCategory,
+        fileUrl: dataUrl,
+        thumbnail: thumb,
+        fileName: f.name,
+        fileSize: f.size,
+        mimeType: f.type,
+        description: description,
+        uploadedBy: _currentUser.id,
+        uploadedByName: _currentUser.name,
+      };
+      await axios.post('/api/jobcards/' + _photoUploadJobId + '/photos', payload);
+      successCount++;
+    } catch(e2) {
+      errors.push(f.name + ': ' + ((e2.response && e2.response.data && e2.response.data.error) || e2.message || 'upload failed'));
+    }
+  }
+
+  if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-upload mr-1.5"></i>Upload'; }
+  if (successCount > 0) {
+    closeModal('modal-photoUpload');
+    showToast(successCount + ' photo' + (successCount > 1 ? 's' : '') + ' uploaded successfully!', 'success');
+    loadJobPhotos(_photoUploadJobId, 'all');
+    // Reset filter tabs to 'all'
+    var tabContainer = document.getElementById('photo-cat-tabs-' + _photoUploadJobId);
+    if (tabContainer) {
+      tabContainer.querySelectorAll('[data-cat]').forEach(function(btn2) {
+        var isAll = btn2.getAttribute('data-cat') === 'all';
+        btn2.className = 'text-xs px-2.5 py-1.5 rounded-lg font-semibold border transition-colors flex items-center gap-1 ' +
+          (isAll ? 'bg-pink-600 text-white border-pink-600' : 'bg-white text-gray-600 border-gray-200 hover:bg-pink-50 hover:border-pink-300');
+      });
+    }
+  }
+  if (errors.length > 0) showPhotoError(errors.join('; '));
+}
+
+function showPhotoError(msg) {
+  var err = document.getElementById('photo-upload-error');
+  if (err) { err.textContent = msg; err.classList.remove('hidden'); }
+}
+
+function readFileAsDataURL(file) {
+  return new Promise(function(resolve, reject) {
+    var reader = new FileReader();
+    reader.onload = function(e) { resolve(e.target.result); };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function resizeImageDataURL(dataURL, maxSize) {
+  return new Promise(function(resolve) {
+    var img = new Image();
+    img.onload = function() {
+      var w = img.width, h = img.height;
+      var scale = Math.min(maxSize / w, maxSize / h, 1);
+      var canvas = document.createElement('canvas');
+      canvas.width = Math.round(w * scale);
+      canvas.height = Math.round(h * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL('image/jpeg', 0.75));
+    };
+    img.onerror = function() { resolve(dataURL); };
+    img.src = dataURL;
+  });
+}
+
+async function openPhotoLightbox(jobId, photoId) {
+  _lightboxPhotoId = photoId;
+  _lightboxJobId = jobId;
+  try {
+    var { data: photo } = await axios.get('/api/photos/' + photoId);
+    var img = document.getElementById('lightbox-img');
+    var fname = document.getElementById('lightbox-filename');
+    var meta = document.getElementById('lightbox-meta');
+    var dl = document.getElementById('lightbox-download');
+    if (img) img.src = photo.fileUrl;
+    if (fname) fname.textContent = photo.fileName;
+    if (meta) meta.textContent = (PHOTO_CAT_LABELS[photo.category] || photo.category) + ' · ' +
+      fmtDateTime(photo.uploadedAt) + ' · ' + photo.uploadedByName +
+      (photo.description ? ' — ' + photo.description : '');
+    if (dl) { dl.href = photo.fileUrl; dl.download = photo.fileName; }
+    openModal('modal-photoLightbox');
+  } catch(e) {
+    showToast('Could not load photo', 'error');
+  }
+}
+
+async function confirmDeletePhoto() {
+  if (!_lightboxPhotoId || !_lightboxJobId) return;
+  if (!confirm('Delete this photo permanently?')) return;
+  deleteJobPhoto(_lightboxPhotoId, _lightboxJobId, true);
+}
+
+async function deleteJobPhoto(photoId, jobId, fromLightbox) {
+  try {
+    await axios.delete('/api/photos/' + photoId);
+    showToast('Photo deleted', 'success');
+    if (fromLightbox) closeModal('modal-photoLightbox');
+    loadJobPhotos(jobId, 'all');
+  } catch(e) {
+    showToast('Failed to delete photo: ' + ((e.response && e.response.data && e.response.data.error) || e.message), 'error');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── PHASE 4: Per-job Notification History ───────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+var NOTIF_TYPE_LABELS = {
+  job_created:'Job Created', job_status:'Status Change', job_completed:'Job Completed',
+  pfi_created:'PFI Created', pfi_sent:'PFI Sent', pfi_approved:'PFI Approved', pfi_rejected:'PFI Rejected',
+  invoice_created:'Invoice Created', invoice_paid:'Invoice Paid', invoice_overdue:'Invoice Overdue',
+  appointment_created:'Appointment', appointment_reminder:'Appointment Reminder', appointment_cancelled:'Appointment Cancelled',
+  expense_created:'Expense', expense_approved:'Expense Approved', low_stock:'Low Stock',
+  parts_added:'Parts Added', service_added:'Service Added',
+  gate_pass_exit_pending:'Gate Pass Pending', gate_pass_cleared:'Gate Pass Cleared',
+};
+var NOTIF_PRIORITY_COLORS = {
+  success:  'text-green-700 bg-green-50 border-green-200',
+  info:     'text-blue-700 bg-blue-50 border-blue-200',
+  warning:  'text-amber-700 bg-amber-50 border-amber-200',
+  error:    'text-red-700 bg-red-50 border-red-200',
+};
+var NOTIF_PRIORITY_ICONS = {
+  success:'fa-check-circle text-green-500', info:'fa-info-circle text-blue-500',
+  warning:'fa-exclamation-triangle text-amber-500', error:'fa-times-circle text-red-500',
+};
+
+async function loadJobNotifications(jobId) {
+  var container = document.getElementById('jobNotifContent-' + jobId);
+  if (!container) return;
+  try {
+    var { data } = await axios.get('/api/notifications?jobCardId=' + jobId + '&limit=20');
+    var notifs = data.notifications || [];
+    if (notifs.length === 0) {
+      container.innerHTML = '<p class="text-xs text-gray-400 text-center py-4"><i class="fas fa-bell-slash text-lg mb-1 block opacity-30"></i>No notifications for this job</p>';
+      return;
+    }
+    container.innerHTML = '<div class="space-y-2">' +
+      notifs.map(function(n) {
+        var label = NOTIF_TYPE_LABELS[n.type] || n.type;
+        var colorClass = NOTIF_PRIORITY_COLORS[n.priority] || 'text-gray-600 bg-gray-50 border-gray-200';
+        var iconClass  = NOTIF_PRIORITY_ICONS[n.priority]  || 'fa-circle text-gray-400';
+        return '<div class="flex items-start gap-2 p-2.5 rounded-xl border text-xs ' + colorClass + '">' +
+          '<i class="fas ' + iconClass + ' mt-0.5 flex-shrink-0 text-sm"></i>' +
+          '<div class="flex-1 min-w-0">' +
+            '<p class="font-semibold leading-tight">' + label + '</p>' +
+            '<p class="text-xs opacity-80 mt-0.5 leading-snug">' + (n.message || n.description || '') + '</p>' +
+            '<p class="text-[10px] opacity-60 mt-1">' + fmtDateTime(n.createdAt) + '</p>' +
+          '</div>' +
+        '</div>';
+      }).join('') +
+    '</div>';
+  } catch(e) {
+    var container2 = document.getElementById('jobNotifContent-' + jobId);
+    if (container2) container2.innerHTML = '<p class="text-xs text-gray-400 text-center py-3">Unable to load notifications</p>';
+  }
+}
+// ═══════════════════════════════════════════════════════════════════════════════
+
+var _rptMonthlyChart = null;
+var _rptCategoryChart = null;
+var _rptData = null;
+
+async function loadFinanceReport() {
+  var fromEl = document.getElementById('rpt-from');
+  var toEl   = document.getElementById('rpt-to');
+  var fromStr = fromEl ? fromEl.value : '';
+  var toStr   = toEl   ? toEl.value   : '';
+
+  // Default: current month
+  if (!fromStr && !toStr) {
+    var now = new Date();
+    fromStr = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-01';
+    var lastDay = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+    toStr   = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0') + '-' + lastDay;
+    if (fromEl) fromEl.value = fromStr;
+    if (toEl)   toEl.value   = toStr;
+  }
+
+  try {
+    var url = '/api/reports/finance?from=' + encodeURIComponent(fromStr) + '&to=' + encodeURIComponent(toStr);
+    var { data } = await axios.get(url);
+    _rptData = data;
+    var s = data.summary;
+    var fmt2 = function(v) { return 'TZS ' + Math.round(v||0).toLocaleString(); };
+    var setPct = function(id, v) { var el = document.getElementById(id); if(el) el.textContent = v; };
+
+    setPct('rpt-revenue',    fmt2(s.revenue));
+    setPct('rpt-labour-cost', fmt2(s.labourCost));
+    setPct('rpt-parts-cost', fmt2(s.cogsCost));
+    setPct('rpt-total-cost', fmt2(s.totalCost));
+    setPct('rpt-margin',     fmt2(s.grossMargin));
+    setPct('rpt-margin-pct', s.marginPct + '% margin');
+    setPct('rpt-unpaid',     fmt2(s.unpaidTotal));
+    setPct('rpt-inv-count',  (s.invoiceCount || 0) + ' paid invoices');
+
+    // Monthly chart
+    var months = Object.keys(data.monthly).sort();
+    var monthValues = months.map(function(m){ return data.monthly[m]; });
+    var monthLabels = months.map(function(m){
+      var d = new Date(m + '-01');
+      return d.toLocaleDateString('en-US', {month:'short', year:'2-digit'});
+    });
+    if (_rptMonthlyChart) _rptMonthlyChart.destroy();
+    var monthCanvas = document.getElementById('rpt-monthly-chart');
+    if (monthCanvas) {
+      _rptMonthlyChart = new Chart(monthCanvas, {
+        type: 'bar',
+        data: {
+          labels: monthLabels,
+          datasets: [{
+            label: 'Revenue (TZS)',
+            data: monthValues,
+            backgroundColor: 'rgba(59,130,246,0.7)',
+            borderRadius: 8,
+            borderSkipped: false,
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: { y: { ticks: { callback: function(v) { return 'TZS ' + (v/1000).toFixed(0) + 'k'; } } } }
+        }
+      });
+    }
+
+    // Category donut chart
+    var catLabels = Object.keys(data.byCategory);
+    var catValues = catLabels.map(function(k){ return data.byCategory[k]; });
+    if (_rptCategoryChart) _rptCategoryChart.destroy();
+    var catCanvas = document.getElementById('rpt-category-chart');
+    if (catCanvas) {
+      _rptCategoryChart = new Chart(catCanvas, {
+        type: 'doughnut',
+        data: {
+          labels: catLabels,
+          datasets: [{ data: catValues, backgroundColor: ['#3b82f6','#8b5cf6','#22c55e','#f59e0b','#ec4899','#14b8a6'], borderWidth: 2 }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 10 } } }
+        }
+      });
+    }
+
+    // Insurer list
+    var insurerEl = document.getElementById('rpt-insurer-list');
+    if (insurerEl) {
+      var insurerEntries = Object.entries(data.byInsurer).sort(function(a,b){ return b[1]-a[1]; });
+      var maxIns = insurerEntries[0] ? insurerEntries[0][1] : 1;
+      if (insurerEntries.length === 0) {
+        insurerEl.innerHTML = '<p class="text-sm text-gray-400 text-center py-4">No insurer revenue in this period</p>';
+      } else {
+        insurerEl.innerHTML = insurerEntries.map(function(entry){
+          var pct = Math.max(4, Math.round(entry[1]/maxIns*100));
+          return '<div class="mb-2">' +
+            '<div class="flex justify-between text-xs mb-1"><span class="font-medium text-gray-700">' + entry[0] + '</span><span class="font-bold text-blue-700">' + fmt2(entry[1]) + '</span></div>' +
+            '<div class="h-2 bg-gray-100 rounded-full"><div class="h-2 bg-blue-500 rounded-full" style="width:' + pct + '%"></div></div>' +
+          '</div>';
+        }).join('');
+      }
+    }
+
+    // Top technicians
+    var techEl = document.getElementById('rpt-tech-list');
+    if (techEl) {
+      if (!data.topTechnicians || data.topTechnicians.length === 0) {
+        techEl.innerHTML = '<p class="text-sm text-gray-400 text-center py-4">No technician data in this period</p>';
+      } else {
+        var medals = ['🥇','🥈','🥉'];
+        techEl.innerHTML = data.topTechnicians.map(function(t, i){
+          return '<div class="flex items-center gap-3 px-3 py-2 rounded-xl bg-gray-50 mb-1.5">' +
+            '<span class="text-base w-6 text-center flex-shrink-0">' + (medals[i] || (i+1)+'.') + '</span>' +
+            '<div class="flex-1 min-w-0"><p class="text-sm font-semibold text-gray-800 truncate">' + t.name + '</p>' +
+              '<p class="text-xs text-gray-400">' + t.jobCount + ' job' + (t.jobCount!==1?'s':'') + '</p></div>' +
+            '<p class="text-sm font-bold text-teal-700 flex-shrink-0">' + fmt2(t.revenue) + '</p>' +
+          '</div>';
+        }).join('');
+      }
+    }
+
+    // Expense breakdown
+    var expEl = document.getElementById('rpt-expense-breakdown');
+    if (expEl) {
+      var expEntries = Object.entries(data.expByCategory).sort(function(a,b){ return b[1]-a[1]; });
+      var expColors = ['#ef4444','#f97316','#eab308','#22c55e','#3b82f6','#8b5cf6','#ec4899','#14b8a6'];
+      if (expEntries.length === 0) {
+        expEl.innerHTML = '<p class="text-sm text-gray-400 text-center col-span-4 py-4">No expenses in this period</p>';
+      } else {
+        expEl.innerHTML = expEntries.map(function(entry, i){
+          return '<div class="rounded-xl p-3 border border-gray-100" style="border-left:4px solid ' + (expColors[i%expColors.length]) + '">' +
+            '<p class="text-xs text-gray-500 font-semibold truncate mb-1">' + entry[0] + '</p>' +
+            '<p class="text-base font-bold text-gray-800">' + fmt2(entry[1]) + '</p>' +
+          '</div>';
+        }).join('');
+      }
+    }
+
+  } catch(e) {
+    console.error('Finance report error', e);
+    showToast('Failed to load finance report', 'error');
+  }
+}
+
+function exportFinanceReport() {
+  if (!_rptData) { showToast('Run the report first', 'warning'); return; }
+  var s = _rptData.summary;
+  var rows = [
+    ['Finance Report Export'],
+    ['Generated', new Date().toLocaleString()],
+    [],
+    ['SUMMARY'],
+    ['Revenue', s.revenue],
+    ['Labour Cost', s.labourCost],
+    ['Parts/Materials Cost', s.cogsCost],
+    ['Other Costs', s.otherCost],
+    ['Total Cost', s.totalCost],
+    ['Gross Margin', s.grossMargin],
+    ['Margin %', s.marginPct + '%'],
+    ['Unpaid Invoices', s.unpaidTotal],
+    ['Paid Invoice Count', s.invoiceCount],
+    [],
+    ['REVENUE BY CATEGORY'],
+    ['Category','Amount (TZS)'],
+    ...Object.entries(_rptData.byCategory).map(function(e){ return [e[0], e[1]]; }),
+    [],
+    ['REVENUE BY INSURER'],
+    ['Insurer','Amount (TZS)'],
+    ...Object.entries(_rptData.byInsurer).map(function(e){ return [e[0], e[1]]; }),
+    [],
+    ['TOP TECHNICIANS'],
+    ['Name','Jobs','Revenue (TZS)'],
+    ...(_rptData.topTechnicians||[]).map(function(t){ return [t.name, t.jobCount, t.revenue]; }),
+    [],
+    ['EXPENSE BREAKDOWN'],
+    ['Category','Amount (TZS)'],
+    ...Object.entries(_rptData.expByCategory).map(function(e){ return [e[0], e[1]]; }),
+  ];
+  var csv = rows.map(function(r){ return r.map(function(c){ return '"' + String(c||'').replace(/"/g,'""') + '"'; }).join(','); }).join('\r\n');
+  var blob = new Blob([csv], { type:'text/csv' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'GMS-Finance-Report-' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── PHASE 4: Margin by Service Analytics ────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+var _marginBySvcChart = null;
+
+async function loadMarginByService() {
+  try {
+    var { data } = await axios.get('/api/analytics/margin-by-service');
+    var tableEl = document.getElementById('marginBySvcTable');
+    var chartCanvas = document.getElementById('marginBySvcChart');
+
+    var sorted = (data || []).sort(function(a,b){ return b.revenue - a.revenue; });
+    var fmt3 = function(v) { return 'TZS ' + Math.round(v||0).toLocaleString(); };
+    var MARGIN_COLORS = ['#3b82f6','#8b5cf6','#22c55e','#f59e0b','#ec4899','#14b8a6','#f97316'];
+
+    if (tableEl) {
+      if (sorted.length === 0) {
+        tableEl.innerHTML = '<p class="text-sm text-gray-400 text-center py-8">No margin data yet. Complete some paid jobs to populate this view.</p>';
+      } else {
+        tableEl.innerHTML = sorted.map(function(s, i) {
+          var marginColor = s.marginPct >= 40 ? 'text-green-700 bg-green-50' :
+                            s.marginPct >= 20 ? 'text-amber-700 bg-amber-50' : 'text-red-700 bg-red-50';
+          return '<div class="p-3 rounded-xl bg-gray-50 border border-gray-100">' +
+            '<div class="flex items-center justify-between mb-2">' +
+              '<span class="font-semibold text-gray-800 text-sm">' + s.category + '</span>' +
+              '<span class="text-xs font-bold px-2.5 py-1 rounded-full ' + marginColor + '">' + s.marginPct + '% margin</span>' +
+            '</div>' +
+            '<div class="grid grid-cols-3 gap-2 text-xs">' +
+              '<div><p class="text-gray-400 mb-0.5">Revenue</p><p class="font-bold text-gray-800">' + fmt3(s.revenue) + '</p></div>' +
+              '<div><p class="text-gray-400 mb-0.5">Cost</p><p class="font-bold text-red-600">' + fmt3(s.cost) + '</p></div>' +
+              '<div><p class="text-gray-400 mb-0.5">Gross Margin</p><p class="font-bold text-emerald-700">' + fmt3(s.margin) + '</p></div>' +
+            '</div>' +
+            '<div class="mt-2 h-1.5 bg-gray-200 rounded-full"><div class="h-1.5 rounded-full" style="width:' + Math.max(4, s.marginPct) + '%;background:' + MARGIN_COLORS[i%MARGIN_COLORS.length] + '"></div></div>' +
+          '</div>';
+        }).join('');
+      }
+    }
+
+    if (chartCanvas && sorted.length > 0) {
+      if (_marginBySvcChart) _marginBySvcChart.destroy();
+      _marginBySvcChart = new Chart(chartCanvas, {
+        type: 'bar',
+        data: {
+          labels: sorted.map(function(s){ return s.category; }),
+          datasets: [
+            { label: 'Revenue', data: sorted.map(function(s){ return s.revenue; }), backgroundColor: 'rgba(59,130,246,0.7)', borderRadius: 6 },
+            { label: 'Cost',    data: sorted.map(function(s){ return s.cost; }),    backgroundColor: 'rgba(239,68,68,0.6)',   borderRadius: 6 },
+            { label: 'Margin',  data: sorted.map(function(s){ return s.margin; }),  backgroundColor: 'rgba(34,197,94,0.8)',   borderRadius: 6 },
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 10 } } },
+          scales: { y: { ticks: { callback: function(v){ return 'TZS ' + (v/1000).toFixed(0) + 'k'; } } } }
+        }
+      });
+    } else if (chartCanvas && sorted.length === 0) {
+      var ctx = chartCanvas.getContext('2d');
+      ctx.clearRect(0, 0, chartCanvas.width, chartCanvas.height);
+    }
+  } catch(e) {
+    console.error('Margin analytics error', e);
+    var tableEl2 = document.getElementById('marginBySvcTable');
+    if (tableEl2) tableEl2.innerHTML = '<p class="text-sm text-gray-400 text-center py-4">Failed to load data</p>';
+  }
 }
 
 

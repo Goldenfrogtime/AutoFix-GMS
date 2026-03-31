@@ -7,6 +7,7 @@ import {
   fleetInvoices,
   subscriptionPlans,
   customerSubscriptions,
+  jobCardPhotos,
   ROLE_PERMISSIONS,
   type Customer, type Vehicle, type JobCard, type PFI,
   type PartConsumption, type ServicePackage, type User, type Invoice,
@@ -14,7 +15,8 @@ import {
   type JobService, type Expense, type Notification, type NotificationType, type NotificationPriority,
   type LubricantProduct, type Permission, type StatusTimelineEntry, type JobCardStatus, type Vendor,
   type GatePass, type FleetInvoice, type FleetInvoiceLineItem,
-  type SubscriptionPlan, type CustomerSubscription, type SubscriptionStatus
+  type SubscriptionPlan, type CustomerSubscription, type SubscriptionStatus,
+  type JobCardPhoto, type PhotoCategory
 } from '../data/store'
 import { save } from '../data/persist'
 
@@ -998,6 +1000,110 @@ api.post('/jobcards/:id/close', async (c) => {
   activityLog.push({ id: 'a' + genId(), jobCardId: jc.id, action: 'STATUS_CHANGE', description: `Job closed by ${body.userName || 'system'}. Gate pass set to Pending Exit.`, userId: body.userId || 'system', userName: body.userName || 'System', timestamp: ts })
   addNotification('job_status', 'success', 'Job Closed', `${jc.jobCardNumber} — job closed. Vehicle exit pending.`, { jobCardId: jc.id, jobCardNumber: jc.jobCardNumber })
   return c.json(jobCards[idx])
+})
+
+// ─── Photo Documentation ─────────────────────────────────────────────────────
+// GET /jobcards/:id/photos        — list all photos for a job (optionally filter by category)
+// POST /jobcards/:id/photos       — upload a new photo (base64 data URL)
+// DELETE /photos/:id              — remove a photo
+// GET /jobcards/:id/photos/stats  — count per category
+
+const PHOTO_CATEGORIES: PhotoCategory[] = ['intake', 'damage', 'repair_progress', 'final']
+const PHOTO_CATEGORY_LABELS: Record<PhotoCategory, string> = {
+  intake: 'Vehicle Intake',
+  damage: 'Damage Documentation',
+  repair_progress: 'Repair Progress',
+  final: 'Final / Completed',
+}
+
+api.get('/jobcards/:id/photos', (c) => {
+  const jobCardId = c.req.param('id')
+  const category = c.req.query('category') as PhotoCategory | undefined
+  let photos = jobCardPhotos.filter(p => p.jobCardId === jobCardId)
+  if (category && PHOTO_CATEGORIES.includes(category)) {
+    photos = photos.filter(p => p.category === category)
+  }
+  // Return without full base64 for listing (thumbnail only)
+  return c.json(photos.map(p => ({ ...p, fileUrl: p.thumbnail || p.fileUrl })))
+})
+
+api.get('/jobcards/:id/photos/stats', (c) => {
+  const jobCardId = c.req.param('id')
+  const counts: Record<string, number> = {}
+  for (const cat of PHOTO_CATEGORIES) {
+    counts[cat] = jobCardPhotos.filter(p => p.jobCardId === jobCardId && p.category === cat).length
+  }
+  return c.json({ total: jobCardPhotos.filter(p => p.jobCardId === jobCardId).length, counts })
+})
+
+api.get('/photos/:id', (c) => {
+  const photo = jobCardPhotos.find(p => p.id === c.req.param('id'))
+  if (!photo) return c.json({ error: 'Not found' }, 404)
+  return c.json(photo)  // full resolution
+})
+
+api.post('/jobcards/:id/photos', async (c) => {
+  const jobCardId = c.req.param('id')
+  const jc = jobCards.find(x => x.id === jobCardId)
+  if (!jc) return c.json({ error: 'Job card not found' }, 404)
+
+  const body = await c.req.json<{
+    category: PhotoCategory
+    fileUrl: string        // base64 data URL
+    fileName: string
+    fileSize?: number
+    mimeType?: string
+    description?: string
+    uploadedBy?: string
+    uploadedByName?: string
+  }>()
+
+  if (!body.fileUrl) return c.json({ error: 'fileUrl (base64) is required' }, 400)
+  if (!PHOTO_CATEGORIES.includes(body.category)) {
+    return c.json({ error: `category must be one of: ${PHOTO_CATEGORIES.join(', ')}` }, 400)
+  }
+
+  // Generate a thumbnail (just store the same data URL for in-memory demo)
+  // In production this would be a resized version stored in R2
+  const photo: JobCardPhoto = {
+    id: 'ph' + genId(),
+    jobCardId,
+    category: body.category,
+    fileUrl: body.fileUrl,
+    thumbnail: body.fileUrl,  // in-memory: same; production: resized
+    fileName: body.fileName || 'photo.jpg',
+    fileSize: body.fileSize || 0,
+    mimeType: body.mimeType || 'image/jpeg',
+    description: body.description || '',
+    uploadedBy: body.uploadedBy || '',
+    uploadedByName: body.uploadedByName || '',
+    uploadedAt: now(),
+  }
+  jobCardPhotos.push(photo)
+
+  activityLog.push({
+    id: 'a' + genId(), jobCardId,
+    action: 'PHOTO_UPLOADED',
+    description: `Photo uploaded: ${PHOTO_CATEGORY_LABELS[body.category]} — ${body.fileName || 'photo'}`,
+    userId: body.uploadedBy || 'system',
+    userName: body.uploadedByName || 'System',
+    timestamp: photo.uploadedAt,
+  })
+
+  return c.json(photo, 201)
+})
+
+api.delete('/photos/:id', (c) => {
+  const idx = jobCardPhotos.findIndex(p => p.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const [removed] = jobCardPhotos.splice(idx, 1)
+  activityLog.push({
+    id: 'a' + genId(), jobCardId: removed.jobCardId,
+    action: 'PHOTO_DELETED',
+    description: `Photo deleted: ${PHOTO_CATEGORY_LABELS[removed.category]} — ${removed.fileName}`,
+    userId: 'system', userName: 'System', timestamp: now(),
+  })
+  return c.json({ success: true })
 })
 
 // ─── Reopen a Job Card ───────────────────────────────────────────────────────
@@ -2883,12 +2989,14 @@ api.delete('/vendors/:id', (c) => {
 
 // GET /notifications?unread=true&type=&limit=50
 api.get('/notifications', (c) => {
-  const unreadOnly = c.req.query('unread') === 'true'
-  const typeFilter = c.req.query('type')
-  const limit      = parseInt(c.req.query('limit') || '50', 10)
+  const unreadOnly   = c.req.query('unread') === 'true'
+  const typeFilter   = c.req.query('type')
+  const jobCardIdFilter = c.req.query('jobCardId')
+  const limit        = parseInt(c.req.query('limit') || '50', 10)
   let list = notifications as Notification[]
-  if (unreadOnly) list = list.filter(n => !n.read)
-  if (typeFilter) list = list.filter(n => n.type === typeFilter)
+  if (unreadOnly)      list = list.filter(n => !n.read)
+  if (typeFilter)      list = list.filter(n => n.type === typeFilter)
+  if (jobCardIdFilter) list = list.filter(n => n.jobCardId === jobCardIdFilter)
   const unreadCount = notifications.filter(n => !n.read).length
   return c.json({ notifications: list.slice(0, limit), unreadCount })
 })
@@ -3617,6 +3725,140 @@ api.get('/jobcards/:id/active-subscriptions', (c) => {
     (!s.vehicleId || s.vehicleId === jc.vehicleId)
   )
   return c.json(active)
+})
+
+// ─── Finance Reports ─────────────────────────────────────────────────────────
+// GET /reports/finance?from=YYYY-MM-DD&to=YYYY-MM-DD
+// Returns P&L summary, revenue by category/insurer, top technicians by revenue,
+// monthly revenue breakdown, expense breakdown
+api.get('/reports/finance', (c) => {
+  const fromStr = c.req.query('from')
+  const toStr   = c.req.query('to')
+  const fromMs  = fromStr ? new Date(fromStr).getTime() : 0
+  const toMs    = toStr   ? new Date(toStr + 'T23:59:59').getTime() : Infinity
+
+  const paidInv = invoices.filter(i => {
+    if (!['Paid','Partially Paid'].includes(i.status)) return false
+    const d = new Date(i.paidAt || i.issuedAt).getTime()
+    return d >= fromMs && d <= toMs
+  })
+
+  const revenue     = paidInv.reduce((s, i) => s + (i.amountPaid || i.totalAmount), 0)
+  const labourRev   = paidInv.reduce((s, i) => s + (i.labourCost || 0), 0)
+  const partsRev    = paidInv.reduce((s, i) => s + (i.partsCost || 0), 0)
+  const taxCollected= paidInv.reduce((s, i) => s + (i.tax || 0), 0)
+  const discounts   = paidInv.reduce((s, i) => s + (i.discountAmount || 0), 0)
+
+  // Cost of goods (buying expenses auto-created when parts/services added)
+  const filteredExp = expenses.filter(e => {
+    const d = new Date(e.date || e.createdAt || '').getTime()
+    return d >= fromMs && d <= toMs
+  })
+  const cogsCost    = filteredExp.filter(e => e.category === 'Parts & Materials').reduce((s, e) => s + e.amount, 0)
+  const labourCost  = filteredExp.filter(e => e.category === 'Labour').reduce((s, e) => s + e.amount, 0)
+  const otherCost   = filteredExp.filter(e => !['Parts & Materials','Labour'].includes(e.category)).reduce((s, e) => s + e.amount, 0)
+  const totalCost   = cogsCost + labourCost + otherCost
+  const grossMargin = revenue - totalCost
+  const marginPct   = revenue > 0 ? Math.round(grossMargin / revenue * 100) : 0
+
+  // Revenue by job category (Insurance vs Private)
+  const byCategory: Record<string, number> = {}
+  paidInv.forEach(i => {
+    const jc = jobCards.find(j => j.id === i.jobCardId)
+    const cat = jc?.category || 'Unknown'
+    byCategory[cat] = (byCategory[cat] || 0) + (i.amountPaid || i.totalAmount)
+  })
+
+  // Revenue by insurer
+  const byInsurer: Record<string, number> = {}
+  paidInv.forEach(i => {
+    const jc = jobCards.find(j => j.id === i.jobCardId)
+    if (jc?.insurer) {
+      byInsurer[jc.insurer] = (byInsurer[jc.insurer] || 0) + (i.amountPaid || i.totalAmount)
+    }
+  })
+
+  // Monthly revenue (last 12 months)
+  const monthly: Record<string, number> = {}
+  paidInv.forEach(i => {
+    const d = new Date(i.paidAt || i.issuedAt)
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`
+    monthly[key] = (monthly[key] || 0) + (i.amountPaid || i.totalAmount)
+  })
+
+  // Expense breakdown by category
+  const expByCategory: Record<string, number> = {}
+  filteredExp.forEach(e => {
+    expByCategory[e.category] = (expByCategory[e.category] || 0) + e.amount
+  })
+
+  // Top technicians by job count and revenue
+  const techMap: Record<string, { name: string; jobCount: number; revenue: number }> = {}
+  paidInv.forEach(i => {
+    const jc = jobCards.find(j => j.id === i.jobCardId)
+    const techId   = jc?.assignedTechnician || 'unassigned'
+    const techUser = users.find(u => u.id === techId)
+    const techName = techUser?.name || jc?.workFinishedByName || 'Unassigned'
+    if (!techMap[techId]) techMap[techId] = { name: techName, jobCount: 0, revenue: 0 }
+    techMap[techId].jobCount++
+    techMap[techId].revenue += (i.amountPaid || i.totalAmount)
+  })
+  const topTechnicians = Object.entries(techMap)
+    .map(([id, v]) => ({ id, ...v }))
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 10)
+
+  // Jobs created in period
+  const jobsCreated = jobCards.filter(j => {
+    const d = new Date(j.createdAt).getTime()
+    return d >= fromMs && d <= toMs
+  }).length
+
+  // Unpaid invoices total
+  const unpaidTotal = invoices
+    .filter(i => i.status === 'Unpaid' || i.status === 'Overdue')
+    .reduce((s, i) => s + i.totalAmount, 0)
+
+  return c.json({
+    summary: { revenue, labourRev, partsRev, taxCollected, discounts,
+               cogsCost, labourCost, otherCost, totalCost, grossMargin, marginPct,
+               invoiceCount: paidInv.length, jobsCreated, unpaidTotal },
+    byCategory,
+    byInsurer,
+    monthly,
+    expByCategory,
+    topTechnicians,
+  })
+})
+
+// ─── Enhanced Analytics: per-service-type margin ─────────────────────────────
+api.get('/analytics/margin-by-service', (c) => {
+  const marginMap: Record<string, { revenue: number; cost: number; count: number }> = {}
+  jobCards.forEach(jc => {
+    const inv = invoices.find(i => i.jobCardId === jc.id && ['Paid','Partially Paid'].includes(i.status))
+    if (!inv) return
+    const svcs = jobServices.filter(s => s.jobCardId === jc.id)
+    svcs.forEach(sv => {
+      const cat = sv.category
+      if (!marginMap[cat]) marginMap[cat] = { revenue: 0, cost: 0, count: 0 }
+      marginMap[cat].revenue += sv.totalCost
+      marginMap[cat].count++
+    })
+    // Buying cost from auto-expenses
+    const buyExpenses = expenses.filter(e => e.jobCardId === jc.id && e.category === 'Parts & Materials')
+    buyExpenses.forEach(e => {
+      const sv = svcs.find(s => s.autoExpenseId === e.id)
+      const cat = sv?.category || 'Parts'
+      if (!marginMap[cat]) marginMap[cat] = { revenue: 0, cost: 0, count: 0 }
+      marginMap[cat].cost += e.amount
+    })
+  })
+  const result = Object.entries(marginMap).map(([category, v]) => ({
+    category, ...v,
+    margin: v.revenue - v.cost,
+    marginPct: v.revenue > 0 ? Math.round((v.revenue - v.cost) / v.revenue * 100) : 0,
+  }))
+  return c.json(result)
 })
 
 export default api

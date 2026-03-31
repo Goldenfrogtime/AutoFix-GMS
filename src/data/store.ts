@@ -964,6 +964,26 @@ export interface GatePass {
 
 export const gatePasses: GatePass[] = []
 
+// ─── Photo Documentation ─────────────────────────────────────────────────────
+export type PhotoCategory = 'intake' | 'damage' | 'repair_progress' | 'final'
+
+export interface JobCardPhoto {
+  id: string
+  jobCardId: string
+  category: PhotoCategory
+  fileUrl: string       // base64 data URL stored in memory (production: object-storage URL)
+  thumbnail?: string    // smaller base64 for list views
+  fileName: string
+  fileSize: number      // bytes
+  mimeType: string
+  description: string
+  uploadedBy: string    // userId
+  uploadedByName: string
+  uploadedAt: string    // ISO timestamp
+}
+
+export const jobCardPhotos: JobCardPhoto[] = []
+
 // ─── Notifications ───────────────────────────────────────────────────────────
 
 export type NotificationType =
