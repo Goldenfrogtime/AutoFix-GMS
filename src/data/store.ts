@@ -33,7 +33,13 @@ export type JobCardStatus =
   | 'RELEASED'
 
 export type JobCategory = 'Insurance' | 'Private'
-export type UserRole = 'Owner' | 'Manager' | 'Front Desk' | 'Technician' | 'Accountant'
+export type UserRole =
+  | 'Admin'
+  | 'Workshop Controller'
+  | 'Service Advisor'
+  | 'Technician'
+  | 'Finance'
+  | 'Quality Control'
 
 // ─── RBAC: Permission Keys ─────────────────────────────────────────────────────
 // Each permission key maps to a feature/action in the system.
@@ -48,9 +54,10 @@ export type Permission =
   | 'jobcards.delete'
   | 'jobcards.change_status'
   | 'jobcards.assign_technician'
-  | 'jobcards.approve'          // approve/reject job cards
-  | 'jobcards.preliminary_check' // perform pre-handover preliminary check
-  | 'jobcards.inspection'       // perform inspection (simple/full)
+  | 'jobcards.approve'           // approve/reject job cards (Admin + Workshop Controller)
+  | 'jobcards.preliminary_check' // pre-handover check (Service Advisor)
+  | 'jobcards.inspection'        // full vehicle inspection (Technician + QC)
+  | 'jobcards.qc'                // quality-control sign-off (Quality Control)
   // Appointments
   | 'appointments.view'
   | 'appointments.create'
@@ -113,10 +120,14 @@ export type Permission =
 
 // ─── RBAC: Role → Permissions Map ─────────────────────────────────────────────
 export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
-  Owner: [
-    // Full access to everything
+
+  // ── 1. Admin ──────────────────────────────────────────────────────────────
+  // Full access to all modules, settings, users, reports and approvals.
+  Admin: [
     'dashboard.view',
-    'jobcards.view','jobcards.create','jobcards.edit','jobcards.delete','jobcards.change_status','jobcards.assign_technician','jobcards.approve','jobcards.preliminary_check','jobcards.inspection',
+    'jobcards.view','jobcards.create','jobcards.edit','jobcards.delete',
+    'jobcards.change_status','jobcards.assign_technician','jobcards.approve',
+    'jobcards.preliminary_check','jobcards.inspection','jobcards.qc',
     'appointments.view','appointments.create','appointments.edit','appointments.delete','appointments.convert',
     'customers.view','customers.create','customers.edit','customers.delete',
     'vehicles.view','vehicles.create','vehicles.edit',
@@ -134,28 +145,39 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'notifications.view',
     'settings.view','settings.manage',
   ],
-  Manager: [
+
+  // ── 2. Workshop Controller ────────────────────────────────────────────────
+  // Manages all workshop operations: approves jobs, assigns technicians,
+  // oversees workflow, manages parts & catalogue. Full ops access, no finance.
+  'Workshop Controller': [
     'dashboard.view',
-    'jobcards.view','jobcards.create','jobcards.edit','jobcards.change_status','jobcards.assign_technician','jobcards.approve','jobcards.preliminary_check','jobcards.inspection',
+    'jobcards.view','jobcards.create','jobcards.edit',
+    'jobcards.change_status','jobcards.assign_technician','jobcards.approve',
+    'jobcards.preliminary_check','jobcards.inspection','jobcards.qc',
     'appointments.view','appointments.create','appointments.edit','appointments.delete','appointments.convert',
     'customers.view','customers.create','customers.edit',
     'vehicles.view','vehicles.create','vehicles.edit',
     'pfis.view','pfis.create','pfis.approve','pfis.send',
-    'invoices.view','invoices.create','invoices.mark_paid',
-    'expenses.view','expenses.create','expenses.approve',
+    'invoices.view',
+    'expenses.view','expenses.create',
     'packages.view','packages.manage',
     'oil_services.view',
     'parts.view','parts.manage','parts.restock',
     'carwash.view','carwash.manage',
     'addons.view','addons.manage',
     'analytics.view',
-    'finance.view',
     'users.view',
     'notifications.view',
+    'settings.view',
   ],
-  'Front Desk': [
+
+  // ── 3. Service Advisor ────────────────────────────────────────────────────
+  // Customer-facing: creates job cards, manages appointments, does pre-handover
+  // preliminary check, creates PFIs. Cannot approve jobs or access finance.
+  'Service Advisor': [
     'dashboard.view',
-    'jobcards.view','jobcards.create','jobcards.edit','jobcards.change_status','jobcards.preliminary_check',
+    'jobcards.view','jobcards.create','jobcards.edit',
+    'jobcards.change_status','jobcards.preliminary_check',
     'appointments.view','appointments.create','appointments.edit','appointments.convert',
     'customers.view','customers.create','customers.edit',
     'vehicles.view','vehicles.create','vehicles.edit',
@@ -169,6 +191,10 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'addons.view',
     'notifications.view',
   ],
+
+  // ── 4. Technician ─────────────────────────────────────────────────────────
+  // Workshop floor: views assigned jobs, updates job status, performs
+  // inspections, records parts used. No customer financials or admin access.
   Technician: [
     'dashboard.view',
     'jobcards.view','jobcards.change_status','jobcards.inspection',
@@ -183,17 +209,37 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'addons.view',
     'notifications.view',
   ],
-  Accountant: [
+
+  // ── 5. Finance ────────────────────────────────────────────────────────────
+  // Manages all money flows: invoices, expenses, payments, financial reports.
+  // Cannot create job cards or modify workshop operations.
+  Finance: [
     'dashboard.view',
     'jobcards.view',
     'customers.view',
     'vehicles.view',
-    'pfis.view',
+    'pfis.view','pfis.approve',
     'invoices.view','invoices.create','invoices.mark_paid',
     'expenses.view','expenses.create','expenses.approve','expenses.delete',
     'analytics.view',
     'finance.view',
     'parts.view',
+    'notifications.view',
+  ],
+
+  // ── 6. Quality Control ────────────────────────────────────────────────────
+  // Final inspection before vehicle release: performs QC sign-off,
+  // views job cards and parts. Read-only on everything else.
+  'Quality Control': [
+    'dashboard.view',
+    'jobcards.view','jobcards.change_status','jobcards.inspection','jobcards.qc',
+    'appointments.view',
+    'customers.view',
+    'vehicles.view',
+    'pfis.view',
+    'parts.view',
+    'oil_services.view',
+    'packages.view',
     'notifications.view',
   ],
 }
@@ -723,7 +769,7 @@ export const users: User[] = [
     id: 'u-default-admin',
     name: 'System Admin',
     email: 'admin@autofix.co.tz',
-    role: 'Owner',
+    role: 'Admin',
     active: true,
     password: 'Admin2025!',
     createdAt: '2026-01-01T00:00:00.000Z',

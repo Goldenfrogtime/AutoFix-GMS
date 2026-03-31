@@ -596,7 +596,7 @@ api.post('/jobcards', async (c) => {
   const cust = customers.find(x => x.id === newJob.customerId)
   const veh  = vehicles.find(x => x.id === newJob.vehicleId)
   addNotification('job_created', 'warning', 'New Job Card — Approval Required',
-    `${num} created for ${cust?.name || 'customer'} – ${veh?.make || ''} ${veh?.model || ''} (${veh?.registrationNumber || ''}) — awaiting Admin/Manager approval`,
+    `${num} created for ${cust?.name || 'customer'} – ${veh?.make || ''} ${veh?.model || ''} (${veh?.registrationNumber || ''}) — awaiting Admin/Workshop Controller approval`,
     { jobCardId: newJob.id, jobCardNumber: num })
 
   // Dispatch customer notification if enabled
@@ -699,7 +699,7 @@ api.patch('/jobcards/:id/status', async (c) => {
 
 // ─── Approve / Reject / Cancel a Job Card ───────────────────────────────────
 // decision: 'APPROVED' | 'REJECTED' | 'CANCELLED'
-// Only Admin/Manager (Owner/Manager role) should call this.
+// Only Admin or Workshop Controller should call this.
 api.patch('/jobcards/:id/approve', async (c) => {
   const _p2 = requirePerm(c, 'jobcards.approve'); if (_p2) return _p2
   const idx = jobCards.findIndex(x => x.id === c.req.param('id'))
@@ -736,26 +736,26 @@ api.patch('/jobcards/:id/approve', async (c) => {
     extraFields = { approvedBy: userId, approvedByName: userName, approvedAt: ts, approvalNotes: notes }
     const newEntry = openTimelineEntry(jc, newStatus, ts)
     timeline.push(newEntry)
-    activityLog.push({ id: 'a' + genId(), jobCardId: jc.id, action: 'JOB_APPROVED', description: `Job card approved by ${userName || 'Admin/Manager'}${notes ? ': ' + notes : ''}`, userId: userId || 'system', userName: userName || 'System', timestamp: ts })
+    activityLog.push({ id: 'a' + genId(), jobCardId: jc.id, action: 'JOB_APPROVED', description: `Job card approved by ${userName || 'Admin/Workshop Controller'}${notes ? ': ' + notes : ''}`, userId: userId || 'system', userName: userName || 'System', timestamp: ts })
     addNotification('job_status', 'success', 'Job Card Approved ✓',
-      `${jc.jobCardNumber} has been approved by ${userName || 'Admin/Manager'}`,
+      `${jc.jobCardNumber} has been approved by ${userName || 'Admin/Workshop Controller'}`,
       { jobCardId: jc.id, jobCardNumber: jc.jobCardNumber })
   } else if (decision === 'REJECTED') {
     newStatus = 'REJECTED'
     extraFields = { rejectedBy: userId, rejectedByName: userName, rejectedAt: ts, rejectionReason: reason }
     const newEntry = openTimelineEntry(jc, newStatus, ts)
     timeline.push(newEntry)
-    activityLog.push({ id: 'a' + genId(), jobCardId: jc.id, action: 'JOB_REJECTED', description: `Job card rejected by ${userName || 'Admin/Manager'}: ${reason}`, userId: userId || 'system', userName: userName || 'System', timestamp: ts })
+    activityLog.push({ id: 'a' + genId(), jobCardId: jc.id, action: 'JOB_REJECTED', description: `Job card rejected by ${userName || 'Admin/Workshop Controller'}: ${reason}`, userId: userId || 'system', userName: userName || 'System', timestamp: ts })
     addNotification('job_status', 'warning', 'Job Card Rejected',
       `${jc.jobCardNumber} was rejected — ${reason}`,
       { jobCardId: jc.id, jobCardNumber: jc.jobCardNumber })
   } else {
     // CANCELLED
     newStatus = 'REJECTED' // We use REJECTED status but record cancel reason
-    extraFields = { cancelledBy: userId, cancelledByName: userName, cancelledAt: ts, cancelReason: reason || 'Cancelled by Admin/Manager' }
+    extraFields = { cancelledBy: userId, cancelledByName: userName, cancelledAt: ts, cancelReason: reason || 'Cancelled by Admin/Workshop Controller' }
     const newEntry = openTimelineEntry(jc, newStatus, ts)
     timeline.push(newEntry)
-    activityLog.push({ id: 'a' + genId(), jobCardId: jc.id, action: 'JOB_CANCELLED', description: `Job card cancelled by ${userName || 'Admin/Manager'}`, userId: userId || 'system', userName: userName || 'System', timestamp: ts })
+    activityLog.push({ id: 'a' + genId(), jobCardId: jc.id, action: 'JOB_CANCELLED', description: `Job card cancelled by ${userName || 'Admin/Workshop Controller'}`, userId: userId || 'system', userName: userName || 'System', timestamp: ts })
   }
 
   jobCards[idx] = { ...jc, status: newStatus, statusTimeline: timeline, ...extraFields, updatedAt: ts }

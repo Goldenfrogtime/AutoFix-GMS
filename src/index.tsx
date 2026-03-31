@@ -3122,7 +3122,12 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         <div><label class="form-label">Role *</label>
           <select class="form-input" id="usr-role" required onchange="updateRolePreview(this.value)">
             <option value="">Select role…</option>
-            <option>Owner</option><option>Manager</option><option>Front Desk</option><option>Technician</option><option>Accountant</option>
+            <option>Admin</option>
+            <option>Workshop Controller</option>
+            <option>Service Advisor</option>
+            <option>Technician</option>
+            <option>Finance</option>
+            <option>Quality Control</option>
           </select>
         </div>
       </div>
@@ -3168,7 +3173,12 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <div><label class="form-label">Phone Number</label><input class="form-input" id="edit-usr-phone"/></div>
       <div><label class="form-label">Role *</label>
         <select class="form-input" id="edit-usr-role" required>
-          <option>Owner</option><option>Manager</option><option>Front Desk</option><option>Technician</option><option>Accountant</option>
+          <option>Admin</option>
+          <option>Workshop Controller</option>
+          <option>Service Advisor</option>
+          <option>Technician</option>
+          <option>Finance</option>
+          <option>Quality Control</option>
         </select>
       </div>
     </div>
@@ -5427,11 +5437,12 @@ const PFI_STATUS_CONFIG = {
 };
 
 const ROLE_CONFIG = {
-  Owner:{ bg:'#fee2e2', text:'#dc2626', icon:'fa-crown' },
-  Manager:{ bg:'#fef3c7', text:'#d97706', icon:'fa-user-tie' },
-  'Front Desk':{ bg:'#dbeafe', text:'#2563eb', icon:'fa-concierge-bell' },
-  Technician:{ bg:'#dcfce7', text:'#16a34a', icon:'fa-wrench' },
-  Accountant:{ bg:'#f5f3ff', text:'#7c3aed', icon:'fa-calculator' }
+  Admin:                  { bg:'#fee2e2', text:'#dc2626',  icon:'fa-crown' },
+  'Workshop Controller':  { bg:'#fef3c7', text:'#b45309',  icon:'fa-clipboard-list' },
+  'Service Advisor':      { bg:'#dbeafe', text:'#2563eb',  icon:'fa-concierge-bell' },
+  Technician:             { bg:'#dcfce7', text:'#16a34a',  icon:'fa-wrench' },
+  Finance:                { bg:'#f5f3ff', text:'#7c3aed',  icon:'fa-coins' },
+  'Quality Control':      { bg:'#fdf2f8', text:'#db2777',  icon:'fa-check-double' },
 };
 
 // ═══ UTILS ═══
@@ -5731,7 +5742,7 @@ async function loadDashboard() {
   // Update nav approval badge (Admin/Manager only)
   try {
     const navBadge = document.getElementById('navApprovalBadge');
-    if (navBadge && ['Owner','Manager'].includes(currentUser?.role||'') && data.pendingApproval > 0) {
+    if (navBadge && ['Admin','Workshop Controller'].includes(currentUser?.role||'') && data.pendingApproval > 0) {
       navBadge.textContent = data.pendingApproval;
       navBadge.classList.remove('hidden');
     } else if (navBadge) { navBadge.classList.add('hidden'); }
@@ -5874,7 +5885,7 @@ function renderJobCards(jobs) {
           <button class="text-blue-500 hover:text-blue-700 text-sm" onclick="viewJobDetail('\${j.id}')" title="View"><i class="fas fa-eye"></i></button>
           \${['RELEASED','COMPLETED','INVOICED','PAID','CLOSED'].includes(j.status)
             ? \`<button class="text-amber-500 hover:text-amber-700 text-sm" onclick="showReopenModal('\${j.id}')" title="Reopen Job"><i class="fas fa-folder-open"></i></button>\`
-            : j.status === 'PENDING_APPROVAL' && ['Owner','Manager'].includes(currentUser?.role||'')
+            : j.status === 'PENDING_APPROVAL' && ['Admin','Workshop Controller'].includes(currentUser?.role||'')
               ? \`<button class="text-green-600 hover:text-green-800 text-sm" onclick="event.stopPropagation();showApprovalPanel('\${j.id}')" title="Review & Approve"><i class="fas fa-check-circle"></i></button>\`
               : !['DRAFT','PENDING_APPROVAL','APPROVED','REJECTED'].includes(j.status)
                 ? \`<button class="text-amber-500 hover:text-amber-700 text-sm" onclick="showStatusModal('\${j.id}','\${j.status}')" title="Update Status"><i class="fas fa-exchange-alt"></i></button>\`
@@ -5919,9 +5930,11 @@ async function viewJobDetail(id) {
   const isReopened = (j.reopenCount || 0) > 0;
   const canServiceCard = !!(j.mileageIn || j.nextServiceMileage);
   const userRole = currentUser?.role || '';
-  const isAdminOrManager = ['Owner','Manager'].includes(userRole);
-  const isFrontDesk = userRole === 'Front Desk';
+  const isAdminOrManager = ['Admin','Workshop Controller'].includes(userRole);
+  const isFrontDesk = userRole === 'Service Advisor';
   const isTechnician = userRole === 'Technician';
+  const isQualityControl = userRole === 'Quality Control';
+  const isFinance = userRole === 'Finance';
 
   // ── Phase 3 new-pipeline action buttons ─────────────────────────────────────
   let actionButtons = '';
@@ -5973,18 +5986,18 @@ async function viewJobDetail(id) {
   }
 
   // Phase 5: QC & Sign-off
-  if (s === 'FINISHED' && (isAdminOrManager || isFrontDesk)) {
+  if (s === 'FINISHED' && (isAdminOrManager || isFrontDesk || isQualityControl)) {
     actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-teal-100 hover:bg-teal-200 text-teal-700 border border-teal-300 flex items-center gap-1.5" onclick="showQCFormModal('\${j.id}')"><i class="fas fa-award"></i> Quality Control</button>\`;
   }
-  if (s === 'QUALITY_CONTROL' && (isAdminOrManager || isFrontDesk)) {
+  if (s === 'QUALITY_CONTROL' && (isAdminOrManager || isFrontDesk || isQualityControl)) {
     actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-teal-100 hover:bg-teal-200 text-teal-700 border border-teal-300 flex items-center gap-1.5" onclick="showQCFormModal('\${j.id}')"><i class="fas fa-award"></i> Complete QC</button>\`;
   }
-  if (s === 'CUSTOMER_SIGNOFF' && (isAdminOrManager || isFrontDesk)) {
+  if (s === 'CUSTOMER_SIGNOFF' && (isAdminOrManager || isFrontDesk || isQualityControl)) {
     actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 border border-indigo-300 flex items-center gap-1.5" onclick="showCustomerSignoffModal('\${j.id}')"><i class="fas fa-signature"></i> Customer Sign-off</button>\`;
   }
 
   // Phase 6: Invoice & Payment
-  if (s === 'INVOICED' && (isAdminOrManager || userRole === 'Accountant')) {
+  if (s === 'INVOICED' && (isAdminOrManager || userRole === 'Finance')) {
     actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-green-100 hover:bg-green-200 text-green-700 border border-green-300 flex items-center gap-1.5" onclick="showMarkPaidModal('\${j.id}')"><i class="fas fa-money-bill-wave"></i> Record Payment</button>\`;
   }
   if (s === 'PAID' && (isAdminOrManager || isFrontDesk)) {
@@ -6062,7 +6075,7 @@ async function viewJobDetail(id) {
     <div class="flex items-start gap-3 bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3 mb-4">
       <i class="fas fa-clock text-yellow-500 mt-0.5 flex-shrink-0"></i>
       <div class="flex-1 min-w-0">
-        <p class="text-sm font-semibold text-yellow-800">Awaiting Admin/Manager Approval</p>
+        <p class="text-sm font-semibold text-yellow-800">Awaiting Admin/Workshop Controller Approval</p>
         <p class="text-xs text-yellow-700 mt-0.5">This job card has been submitted and is pending review.</p>
         \${isAdminOrManager ? \`<button class="mt-2 text-xs font-semibold px-3 py-1 rounded-lg bg-yellow-100 text-yellow-700 hover:bg-yellow-200 border border-yellow-300" onclick="showApprovalPanel('\${j.id}')"><i class="fas fa-search mr-1"></i>Review Now</button>\` : ''}
       </div>
@@ -8071,17 +8084,20 @@ async function removeJobService(jobId, serviceId) {
 // Status Update Modal — role-gated transitions
 function showStatusModal(jobId, currentStatus) {
   const userRole = currentUser?.role || '';
-  const isAdminOrManager = ['Owner','Manager'].includes(userRole);
-  const isFrontDesk = userRole === 'Front Desk';
+  const isAdminOrManager = ['Admin','Workshop Controller'].includes(userRole);
+  const isFrontDesk = userRole === 'Service Advisor';
   const isTechnician = userRole === 'Technician';
+  const isQualityControl = userRole === 'Quality Control';
+  const isFinance = userRole === 'Finance';
 
   // Allowed transitions per role for the NEW pipeline
-  // Admin/Manager can move anywhere forward; Front Desk & Technician restricted
   const ROLE_ALLOWED = {
-    'Owner':      STATUS_FLOW,
-    'Manager':    STATUS_FLOW,
-    'Front Desk': ['PRE_HANDOVER','HANDED_OVER'],
-    'Technician': ['WORK_IN_PROGRESS','FINISHED'],
+    'Admin':               STATUS_FLOW,
+    'Workshop Controller': STATUS_FLOW,
+    'Service Advisor':     ['PRE_HANDOVER','HANDED_OVER'],
+    'Technician':          ['WORK_IN_PROGRESS','FINISHED'],
+    'Quality Control':     ['QUALITY_CONTROL'],
+    'Finance':             [],
   };
   const allowed = ROLE_ALLOWED[userRole] || [];
 
@@ -10793,7 +10809,7 @@ async function aptLoadVehicles(selectedId) {
 }
 
 function aptPopulateTechnicians(selectedId) {
-  const techs = allUsers.filter(u => u.role === 'Technician' || u.role === 'Manager');
+  const techs = allUsers.filter(u => u.role === 'Technician' || u.role === 'Workshop Controller' || u.role === 'Quality Control');
   document.getElementById('apt-technician').innerHTML =
     '<option value="">Unassigned</option>' +
     techs.map(u => \`<option value="\${u.id}" \${u.id===selectedId?'selected':''}>\${u.name}</option>\`).join('');
@@ -14967,11 +14983,12 @@ async function loadMarginByService() {
 
 // Role descriptions for preview
 var ROLE_DESCRIPTIONS = {
-  Owner:        'Full access to all modules, settings, user management, and financial reports. Can approve jobs, manage users, and configure the system.',
-  Manager:      'Full operations access including job approval, analytics, and expense approval. Cannot delete users or change system settings.',
-  'Front Desk': 'Creates and manages job cards, appointments, customers and vehicles. Can generate PFIs and view invoices. No financial reports or user management.',
-  Technician:   'Views assigned job cards and updates job status (start/finish work, QC). Can view parts, lubricants, and service catalogues. No financial access.',
-  Accountant:   'Manages invoices, expenses, and financial analytics. Cannot create job cards, modify customers, or access user management.',
+  Admin:                 'Full access to all modules, settings, users, financials and approvals. System owner with unrestricted control.',
+  'Workshop Controller': 'Manages all workshop operations: approves jobs, assigns technicians, oversees workflow, manages parts & catalogue. Full ops access, no finance management.',
+  'Service Advisor':     'Customer-facing: creates job cards, manages appointments, performs pre-handover checks, generates PFIs. Cannot approve jobs or access financials.',
+  Technician:            'Workshop floor access: views assigned jobs, updates status (start/finish work), performs vehicle inspections. No financial or admin access.',
+  Finance:               'Manages all money flows: invoices, expenses, payments and financial reports. Cannot create job cards or modify workshop operations.',
+  'Quality Control':     'Final inspection gate: performs QC sign-off before vehicle release. View-only on job cards, parts and catalogues.',
 };
 
 var PERMISSION_GROUPS = [
@@ -15004,7 +15021,7 @@ async function loadUsers() {
   allUsers = data;
 
   // Role stats
-  var roles = ['Owner','Manager','Front Desk','Technician','Accountant'];
+  var roles = ['Admin','Workshop Controller','Service Advisor','Technician','Finance','Quality Control'];
   var roleCounts = {};
   roles.forEach(function(r){ roleCounts[r] = data.filter(function(u){ return u.role===r; }).length; });
   document.getElementById('roleStatsRow').innerHTML = roles.map(function(r) {
@@ -15163,14 +15180,14 @@ async function deleteUser() {
 }
 
 function renderPermissionsMatrix(permsMap) {
-  var roles = ['Owner','Manager','Front Desk','Technician','Accountant'];
+  var roles = ['Admin','Workshop Controller','Service Advisor','Technician','Finance','Quality Control'];
   var html = '<thead><tr><th class="text-left px-4 py-3 font-bold text-gray-700 bg-gray-50 sticky left-0 z-10">Permission</th>' +
     roles.map(function(r) {
       var rc = ROLE_CONFIG[r] || { bg:'#f1f5f9', text:'#64748b' };
       return '<th class="px-4 py-3 text-center font-bold" style="background:'+rc.bg+';color:'+rc.text+'">'+r+'</th>';
     }).join('') + '</tr></thead><tbody>';
   PERMISSION_GROUPS.forEach(function(grp) {
-    html += '<tr><td colspan="6" class="px-4 py-2 bg-gray-100 text-xs font-bold text-gray-600 uppercase tracking-wide">'+grp.label+'</td></tr>';
+    html += '<tr><td colspan="7" class="px-4 py-2 bg-gray-100 text-xs font-bold text-gray-600 uppercase tracking-wide">'+grp.label+'</td></tr>';
     grp.perms.forEach(function(perm) {
       var label = perm.split('.')[1].replace(/_/g,' ');
       html += '<tr class="border-b hover:bg-gray-50"><td class="px-4 py-2 text-xs text-gray-700 sticky left-0 bg-white">'+label+'</td>' +
@@ -18782,9 +18799,14 @@ function _renderAuditTable(entries) {
     var action = e.action || '—';
     var detail = e.detail || '';
     var userName = e.userName || e.userId || '—';
-    var roleColor = { Owner:'bg-purple-100 text-purple-700', Manager:'bg-blue-100 text-blue-700',
-      'Front Desk':'bg-sky-100 text-sky-700', Technician:'bg-green-100 text-green-700',
-      Accountant:'bg-amber-100 text-amber-700' };
+    var roleColor = {
+      Admin:'bg-red-100 text-red-700',
+      'Workshop Controller':'bg-amber-100 text-amber-700',
+      'Service Advisor':'bg-blue-100 text-blue-700',
+      Technician:'bg-green-100 text-green-700',
+      Finance:'bg-purple-100 text-purple-700',
+      'Quality Control':'bg-pink-100 text-pink-700'
+    };
     var roleBadge = e.userRole ? '<span class="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ' + (roleColor[e.userRole] || 'bg-gray-100 text-gray-600') + '">' + e.userRole + '</span>' : '';
     return '<tr class="hover:bg-gray-50 border-b border-gray-50">' +
       '<td class="px-4 py-2.5 whitespace-nowrap text-xs text-gray-500">' + ts + '</td>' +
