@@ -3032,15 +3032,351 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
   </div>
 </div>
 
-<div id="modal-approveGP" class="modal-overlay hidden">
-  <div class="modal-box" style="max-width:560px">
-    <div class="flex items-center justify-between mb-5">
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     PHASE 3 MODALS
+═══════════════════════════════════════════════════════════════════════════ -->
+
+<!-- ── Inspection Form Modal ──────────────────────────────────────────────── -->
+<div id="modal-inspection" class="modal-overlay hidden" style="align-items:flex-start;padding-top:20px;padding-bottom:20px">
+  <div class="modal-box" style="max-width:680px;max-height:92vh;overflow-y:auto">
+    <div class="flex items-center justify-between mb-4 sticky top-0 bg-white pb-3 border-b border-gray-100 z-10">
       <div>
-        <h3 class="text-xl font-bold text-gray-900"><i class="fas fa-sign-out-alt text-green-600 mr-2"></i>Approve Exit Gate Pass</h3>
-        <p class="text-sm text-gray-500 mt-1">Review vehicle details and sign to clear exit</p>
+        <h3 class="text-xl font-bold text-gray-900"><i class="fas fa-search text-amber-500 mr-2"></i>Vehicle Inspection Form</h3>
+        <p class="text-sm text-gray-400 mt-0.5" id="insp-subtitle">Simple Check Inspection</p>
       </div>
-      <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-approveGP')"><i class="fas fa-times"></i></button>
+      <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-inspection')"><i class="fas fa-times"></i></button>
     </div>
+    <!-- Job summary banner -->
+    <div class="bg-amber-50 border border-amber-200 rounded-2xl p-3 mb-4 grid grid-cols-2 gap-2 text-sm">
+      <div><p class="text-gray-400 text-xs font-semibold uppercase">Job Card</p><p class="font-mono font-bold text-amber-700 mt-0.5" id="insp-jobcard">—</p></div>
+      <div><p class="text-gray-400 text-xs font-semibold uppercase">Vehicle</p><p class="font-bold text-gray-800 mt-0.5" id="insp-vehicle">—</p></div>
+    </div>
+    <!-- Section A: Inspection Items (from Simple Check PDF) -->
+    <div class="mb-5">
+      <h4 class="font-bold text-gray-700 text-sm mb-3 flex items-center gap-2">
+        <span class="w-6 h-6 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-bold">A</span>
+        Inspection Items
+        <span class="text-xs text-gray-400 font-normal">(tick if checked/OK)</span>
+      </h4>
+      <div class="grid grid-cols-2 gap-2" id="insp-items-grid"><!-- rendered by JS --></div>
+    </div>
+    <!-- Section B: Recommendations -->
+    <div class="mb-5">
+      <h4 class="font-bold text-gray-700 text-sm mb-2 flex items-center gap-2">
+        <span class="w-6 h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold">B</span>
+        Recommended Service / Parts
+      </h4>
+      <textarea id="insp-recommended" rows="2" class="form-input w-full text-sm" placeholder="List any recommended services or parts…"></textarea>
+    </div>
+    <!-- Section C: Notes -->
+    <div class="mb-5">
+      <h4 class="font-bold text-gray-700 text-sm mb-2 flex items-center gap-2">
+        <span class="w-6 h-6 rounded-full bg-gray-100 text-gray-700 flex items-center justify-center text-xs font-bold">C</span>
+        Additional Notes
+      </h4>
+      <textarea id="insp-notes" rows="2" class="form-input w-full text-sm" placeholder="Any other observations…"></textarea>
+    </div>
+    <!-- Section D: Technician Signature -->
+    <div class="mb-5">
+      <h4 class="font-bold text-gray-700 text-sm mb-3 flex items-center gap-2">
+        <span class="w-6 h-6 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-xs font-bold">D</span>
+        Technician Sign-off <span class="text-red-500 text-xs">*</span>
+      </h4>
+      <input type="text" id="insp-tech-name" placeholder="Technician name" class="form-input w-full text-sm mb-2" readonly/>
+      <div class="border-2 border-dashed border-green-300 rounded-xl bg-green-50 p-3">
+        <p class="text-xs text-gray-400 mb-2 font-semibold">Technician Signature <span class="text-red-500">*</span></p>
+        <canvas id="insp-tech-canvas" width="580" height="110" class="w-full rounded-lg bg-white border border-green-200 cursor-crosshair touch-none" style="touch-action:none"></canvas>
+        <button type="button" onclick="pcClearSig('insp-tech')" class="text-xs text-gray-400 hover:text-red-500 font-semibold mt-2"><i class="fas fa-eraser mr-1"></i>Clear</button>
+      </div>
+    </div>
+    <!-- Section E: Service Advisor Signature -->
+    <div class="mb-5">
+      <h4 class="font-bold text-gray-700 text-sm mb-3 flex items-center gap-2">
+        <span class="w-6 h-6 rounded-full bg-purple-100 text-purple-700 flex items-center justify-center text-xs font-bold">E</span>
+        Service Advisor Signature
+      </h4>
+      <input type="text" id="insp-sa-name" placeholder="Service Advisor name" class="form-input w-full text-sm mb-2" readonly/>
+      <div class="border-2 border-dashed border-purple-300 rounded-xl bg-purple-50 p-3">
+        <canvas id="insp-sa-canvas" width="580" height="110" class="w-full rounded-lg bg-white border border-purple-200 cursor-crosshair touch-none" style="touch-action:none"></canvas>
+        <button type="button" onclick="pcClearSig('insp-sa')" class="text-xs text-gray-400 hover:text-red-500 font-semibold mt-2"><i class="fas fa-eraser mr-1"></i>Clear</button>
+      </div>
+    </div>
+    <!-- Submit -->
+    <div class="flex gap-3">
+      <button class="btn-secondary flex-1" onclick="closeModal('modal-inspection')">Cancel</button>
+      <button id="insp-submit-btn" class="btn-primary flex-1 bg-amber-600 hover:bg-amber-700" onclick="submitInspection()">
+        <i class="fas fa-check-circle mr-2"></i>Complete Inspection &amp; Prepare PFI
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Customer Approval Modal ─────────────────────────────────────────────── -->
+<div id="modal-customerApproval" class="modal-overlay hidden" style="align-items:flex-start;padding-top:20px;padding-bottom:20px">
+  <div class="modal-box" style="max-width:620px;max-height:92vh;overflow-y:auto">
+    <div class="flex items-center justify-between mb-4 sticky top-0 bg-white pb-3 border-b border-gray-100 z-10">
+      <div>
+        <h3 class="text-xl font-bold text-gray-900"><i class="fas fa-user-check text-orange-500 mr-2"></i>Customer Cost Approval</h3>
+        <p class="text-sm text-gray-400 mt-0.5" id="custappr-subtitle">Customer approval of estimated costs</p>
+      </div>
+      <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-customerApproval')"><i class="fas fa-times"></i></button>
+    </div>
+    <!-- Cost Summary -->
+    <div class="bg-orange-50 border border-orange-200 rounded-2xl p-4 mb-5" id="custappr-cost-summary">
+      <p class="text-xs font-bold text-gray-400 uppercase mb-2">Estimated Cost Breakdown</p>
+      <div id="custappr-cost-rows" class="space-y-1 text-sm"></div>
+      <div class="border-t border-orange-200 mt-3 pt-3 flex justify-between items-center">
+        <span class="font-bold text-gray-800">Total Amount</span>
+        <span class="text-xl font-black text-orange-700" id="custappr-total">TZS 0</span>
+      </div>
+    </div>
+    <!-- Declaration -->
+    <div class="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-5 text-sm text-blue-800">
+      <i class="fas fa-info-circle mr-1"></i>
+      By signing below, the customer acknowledges the cost estimate and authorises the repair work to proceed.
+    </div>
+    <!-- Customer Name -->
+    <div class="mb-4">
+      <label class="text-xs font-semibold text-gray-500 uppercase mb-1 block">Customer Name <span class="text-red-500">*</span></label>
+      <input type="text" id="custappr-name" class="form-input w-full text-sm" placeholder="Full name"/>
+    </div>
+    <!-- Approval Notes -->
+    <div class="mb-5">
+      <label class="text-xs font-semibold text-gray-500 uppercase mb-1 block">Notes (optional)</label>
+      <textarea id="custappr-notes" rows="2" class="form-input w-full text-sm" placeholder="Any conditions or notes from customer…"></textarea>
+    </div>
+    <!-- Customer Signature -->
+    <div class="mb-5">
+      <h4 class="font-bold text-gray-700 text-sm mb-3 flex items-center gap-2">
+        <span class="w-6 h-6 rounded-full bg-orange-100 text-orange-700 flex items-center justify-center text-xs font-bold">S</span>
+        Customer Signature <span class="text-red-500 text-xs">*</span>
+      </h4>
+      <div class="border-2 border-dashed border-orange-300 rounded-xl bg-orange-50 p-3">
+        <canvas id="custappr-canvas" width="540" height="130" class="w-full rounded-lg bg-white border border-orange-200 cursor-crosshair touch-none" style="touch-action:none"></canvas>
+        <div class="flex justify-between mt-2">
+          <button type="button" onclick="pcClearSig('custappr')" class="text-xs text-gray-400 hover:text-red-500 font-semibold"><i class="fas fa-eraser mr-1"></i>Clear</button>
+          <span class="text-xs text-gray-400 italic">Sign above with finger or mouse</span>
+        </div>
+      </div>
+    </div>
+    <div class="flex gap-3">
+      <button class="btn-secondary flex-1" onclick="closeModal('modal-customerApproval')">Cancel</button>
+      <button id="custappr-submit-btn" class="btn-primary flex-1 bg-orange-600 hover:bg-orange-700" onclick="submitCustomerApproval()">
+        <i class="fas fa-handshake mr-2"></i>Approve &amp; Release Parts
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── QC Form Modal ────────────────────────────────────────────────────────── -->
+<div id="modal-qcForm" class="modal-overlay hidden" style="align-items:flex-start;padding-top:20px;padding-bottom:20px">
+  <div class="modal-box" style="max-width:620px;max-height:92vh;overflow-y:auto">
+    <div class="flex items-center justify-between mb-4 sticky top-0 bg-white pb-3 border-b border-gray-100 z-10">
+      <div>
+        <h3 class="text-xl font-bold text-gray-900"><i class="fas fa-award text-teal-500 mr-2"></i>Quality Control Form</h3>
+        <p class="text-sm text-gray-400 mt-0.5" id="qc-subtitle">Post-repair quality verification</p>
+      </div>
+      <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-qcForm')"><i class="fas fa-times"></i></button>
+    </div>
+    <!-- Job banner -->
+    <div class="bg-teal-50 border border-teal-200 rounded-2xl p-3 mb-4 grid grid-cols-2 gap-2 text-sm">
+      <div><p class="text-gray-400 text-xs font-semibold uppercase">Job Card</p><p class="font-mono font-bold text-teal-700 mt-0.5" id="qc-jobcard">—</p></div>
+      <div><p class="text-gray-400 text-xs font-semibold uppercase">Vehicle</p><p class="font-bold text-gray-800 mt-0.5" id="qc-vehicle">—</p></div>
+    </div>
+    <!-- QC Checklist (from Quality Control Form PDF) -->
+    <div class="mb-5">
+      <h4 class="font-bold text-gray-700 text-sm mb-3 flex items-center gap-2">
+        <span class="w-6 h-6 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-xs font-bold">A</span>
+        Quality Control Checklist
+      </h4>
+      <div class="space-y-3">
+        <!-- Engine Oil Level -->
+        <div class="flex items-center justify-between p-3 rounded-xl border border-gray-200 bg-white">
+          <span class="text-sm font-medium text-gray-700">Engine Oil Level</span>
+          <select id="qc-engineOilLevel" class="form-input text-sm py-1 px-3 w-28">
+            <option>OK</option><option>Low</option><option>N/A</option>
+          </select>
+        </div>
+        <!-- Fuel Level -->
+        <div class="flex items-center justify-between p-3 rounded-xl border border-gray-200 bg-white">
+          <span class="text-sm font-medium text-gray-700">Fuel Level</span>
+          <select id="qc-fuelLevel" class="form-input text-sm py-1 px-3 w-28">
+            <option>OK</option><option>Low</option><option>N/A</option>
+          </select>
+        </div>
+        <!-- Bolts Tightened -->
+        <div class="flex items-center justify-between p-3 rounded-xl border border-gray-200 bg-white">
+          <span class="text-sm font-medium text-gray-700"><i class="fas fa-exclamation-triangle text-amber-400 mr-1.5"></i>Bolts Tightened</span>
+          <div class="flex gap-2">
+            <label class="flex items-center gap-1.5 cursor-pointer"><input type="radio" name="qc-bolts" value="Yes" checked class="accent-teal-600"/><span class="text-sm">Yes</span></label>
+            <label class="flex items-center gap-1.5 cursor-pointer"><input type="radio" name="qc-bolts" value="No" class="accent-red-600"/><span class="text-sm">No</span></label>
+          </div>
+        </div>
+        <!-- Leakages -->
+        <div class="flex items-center justify-between p-3 rounded-xl border border-gray-200 bg-white">
+          <span class="text-sm font-medium text-gray-700"><i class="fas fa-tint text-blue-400 mr-1.5"></i>Leakages</span>
+          <div class="flex gap-2">
+            <label class="flex items-center gap-1.5 cursor-pointer"><input type="radio" name="qc-leakages" value="No" checked class="accent-teal-600"/><span class="text-sm">No</span></label>
+            <label class="flex items-center gap-1.5 cursor-pointer"><input type="radio" name="qc-leakages" value="Yes" class="accent-red-600"/><span class="text-sm">Yes</span></label>
+          </div>
+        </div>
+        <!-- Clean Work -->
+        <div class="flex items-center justify-between p-3 rounded-xl border border-gray-200 bg-white">
+          <span class="text-sm font-medium text-gray-700"><i class="fas fa-broom text-green-400 mr-1.5"></i>Clean Work</span>
+          <div class="flex gap-2">
+            <label class="flex items-center gap-1.5 cursor-pointer"><input type="radio" name="qc-cleanWork" value="Yes" checked class="accent-teal-600"/><span class="text-sm">Yes</span></label>
+            <label class="flex items-center gap-1.5 cursor-pointer"><input type="radio" name="qc-cleanWork" value="No" class="accent-red-600"/><span class="text-sm">No</span></label>
+          </div>
+        </div>
+        <!-- All Works Completed -->
+        <div class="flex items-center justify-between p-3 rounded-xl border-2 border-teal-300 bg-teal-50">
+          <span class="text-sm font-bold text-teal-800"><i class="fas fa-check-circle text-teal-500 mr-1.5"></i>All Works Completed</span>
+          <div class="flex gap-2">
+            <label class="flex items-center gap-1.5 cursor-pointer"><input type="radio" name="qc-allWorks" id="qc-allWorks-yes" value="Yes" checked class="accent-teal-600"/><span class="text-sm font-semibold text-teal-700">Yes</span></label>
+            <label class="flex items-center gap-1.5 cursor-pointer"><input type="radio" name="qc-allWorks" id="qc-allWorks-no" value="No" class="accent-red-600"/><span class="text-sm font-semibold text-red-600">No</span></label>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Notes -->
+    <div class="mb-5">
+      <label class="text-xs font-semibold text-gray-500 uppercase mb-1 block">QC Notes</label>
+      <textarea id="qc-notes" rows="2" class="form-input w-full text-sm" placeholder="Any observations or remediation notes…"></textarea>
+    </div>
+    <!-- Technician Signature -->
+    <div class="mb-4">
+      <h4 class="font-bold text-gray-700 text-sm mb-2 flex items-center gap-2">
+        <span class="w-5 h-5 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-xs font-bold">T</span>
+        Technician Signature
+      </h4>
+      <input type="text" id="qc-tech-name" placeholder="Technician name" class="form-input w-full text-sm mb-2"/>
+      <div class="border-2 border-dashed border-green-300 rounded-xl bg-green-50 p-3">
+        <canvas id="qc-tech-canvas" width="540" height="100" class="w-full rounded-lg bg-white border border-green-200 cursor-crosshair touch-none" style="touch-action:none"></canvas>
+        <button type="button" onclick="pcClearSig('qc-tech')" class="text-xs text-gray-400 hover:text-red-500 font-semibold mt-2"><i class="fas fa-eraser mr-1"></i>Clear</button>
+      </div>
+    </div>
+    <!-- QC Officer Signature -->
+    <div class="mb-5">
+      <h4 class="font-bold text-gray-700 text-sm mb-2 flex items-center gap-2">
+        <span class="w-5 h-5 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-xs font-bold">Q</span>
+        QC Officer Signature <span class="text-red-500 text-xs">*</span>
+      </h4>
+      <input type="text" id="qc-officer-name" placeholder="QC Officer name" class="form-input w-full text-sm mb-2" readonly/>
+      <div class="border-2 border-dashed border-teal-300 rounded-xl bg-teal-50 p-3">
+        <canvas id="qc-officer-canvas" width="540" height="110" class="w-full rounded-lg bg-white border border-teal-200 cursor-crosshair touch-none" style="touch-action:none"></canvas>
+        <button type="button" onclick="pcClearSig('qc-officer')" class="text-xs text-gray-400 hover:text-red-500 font-semibold mt-2"><i class="fas fa-eraser mr-1"></i>Clear</button>
+      </div>
+    </div>
+    <div class="flex gap-3">
+      <button class="btn-secondary flex-1" onclick="closeModal('modal-qcForm')">Cancel</button>
+      <button id="qc-submit-btn" class="btn-primary flex-1 bg-teal-600 hover:bg-teal-700" onclick="submitQCForm()">
+        <i class="fas fa-award mr-2"></i>Pass QC &amp; Notify Customer
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Customer Sign-off Modal ─────────────────────────────────────────────── -->
+<div id="modal-customerSignoff" class="modal-overlay hidden" style="align-items:flex-start;padding-top:20px;padding-bottom:20px">
+  <div class="modal-box" style="max-width:600px;max-height:92vh;overflow-y:auto">
+    <div class="flex items-center justify-between mb-4 sticky top-0 bg-white pb-3 border-b border-gray-100 z-10">
+      <div>
+        <h3 class="text-xl font-bold text-gray-900"><i class="fas fa-signature text-indigo-500 mr-2"></i>Customer Final Sign-off</h3>
+        <p class="text-sm text-gray-400 mt-0.5" id="signoff-subtitle">Customer accepts the completed work</p>
+      </div>
+      <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-customerSignoff')"><i class="fas fa-times"></i></button>
+    </div>
+    <!-- Completed work summary -->
+    <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-4 mb-4">
+      <p class="text-xs font-bold text-gray-400 uppercase mb-2">Work Completed</p>
+      <div id="signoff-work-summary" class="text-sm text-gray-700 space-y-0.5"></div>
+    </div>
+    <!-- Satisfaction rating -->
+    <div class="mb-4">
+      <label class="text-xs font-semibold text-gray-500 uppercase mb-2 block">Satisfaction Rating</label>
+      <div class="flex gap-2" id="signoff-rating-stars">
+        <button type="button" data-star="1" onclick="setSignoffRating(1)" class="star-btn text-2xl text-gray-300 hover:text-yellow-400 transition-colors">★</button>
+        <button type="button" data-star="2" onclick="setSignoffRating(2)" class="star-btn text-2xl text-gray-300 hover:text-yellow-400 transition-colors">★</button>
+        <button type="button" data-star="3" onclick="setSignoffRating(3)" class="star-btn text-2xl text-gray-300 hover:text-yellow-400 transition-colors">★</button>
+        <button type="button" data-star="4" onclick="setSignoffRating(4)" class="star-btn text-2xl text-yellow-400 transition-colors">★</button>
+        <button type="button" data-star="5" onclick="setSignoffRating(5)" class="star-btn text-2xl text-yellow-400 transition-colors">★</button>
+      </div>
+      <input type="hidden" id="signoff-rating" value="5"/>
+    </div>
+    <!-- Customer name -->
+    <div class="mb-4">
+      <label class="text-xs font-semibold text-gray-500 uppercase mb-1 block">Customer Name <span class="text-red-500">*</span></label>
+      <input type="text" id="signoff-cust-name" class="form-input w-full text-sm" placeholder="Full name"/>
+    </div>
+    <!-- Sign-off notes -->
+    <div class="mb-4">
+      <label class="text-xs font-semibold text-gray-500 uppercase mb-1 block">Notes (optional)</label>
+      <textarea id="signoff-notes" rows="2" class="form-input w-full text-sm" placeholder="Customer feedback or comments…"></textarea>
+    </div>
+    <!-- Customer Signature -->
+    <div class="mb-5">
+      <h4 class="font-bold text-gray-700 text-sm mb-3 flex items-center gap-2">
+        <span class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-bold">S</span>
+        Customer Signature <span class="text-red-500 text-xs">*</span>
+      </h4>
+      <div class="border-2 border-dashed border-indigo-300 rounded-xl bg-indigo-50 p-3">
+        <canvas id="signoff-canvas" width="520" height="130" class="w-full rounded-lg bg-white border border-indigo-200 cursor-crosshair touch-none" style="touch-action:none"></canvas>
+        <div class="flex justify-between mt-2">
+          <button type="button" onclick="pcClearSig('signoff')" class="text-xs text-gray-400 hover:text-red-500 font-semibold"><i class="fas fa-eraser mr-1"></i>Clear</button>
+          <span class="text-xs text-gray-400 italic">Sign above with finger or mouse</span>
+        </div>
+      </div>
+    </div>
+    <!-- Action note -->
+    <div class="bg-green-50 border border-green-200 rounded-xl px-4 py-2.5 mb-5 text-xs text-green-700">
+      <i class="fas fa-receipt mr-1"></i>
+      Submitting this form will <strong>auto-generate the invoice</strong> and advance the job to <strong>Invoiced</strong>.
+    </div>
+    <div class="flex gap-3">
+      <button class="btn-secondary flex-1" onclick="closeModal('modal-customerSignoff')">Cancel</button>
+      <button id="signoff-submit-btn" class="btn-primary flex-1" onclick="submitCustomerSignoff()">
+        <i class="fas fa-file-invoice-dollar mr-2"></i>Sign Off &amp; Generate Invoice
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Mark Paid Modal ─────────────────────────────────────────────────────── -->
+<div id="modal-markPaid" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:480px">
+    <div class="flex items-center justify-between mb-5">
+      <h3 class="text-xl font-bold text-gray-900"><i class="fas fa-money-bill-wave text-green-600 mr-2"></i>Record Payment</h3>
+      <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-markPaid')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="bg-green-50 border border-green-200 rounded-xl p-4 mb-5">
+      <p class="text-sm font-semibold text-green-800" id="markpaid-amount-label">Invoice Amount: —</p>
+    </div>
+    <div class="space-y-4 mb-6">
+      <div>
+        <label class="text-xs font-semibold text-gray-500 uppercase mb-1 block">Payment Method</label>
+        <select id="markpaid-method" class="form-input w-full text-sm">
+          <option value="Cash">Cash</option>
+          <option value="Bank Transfer">Bank Transfer</option>
+          <option value="Mobile Money">Mobile Money (M-Pesa/Tigopesa)</option>
+          <option value="Cheque">Cheque</option>
+          <option value="Insurance">Insurance Direct</option>
+        </select>
+      </div>
+      <div>
+        <label class="text-xs font-semibold text-gray-500 uppercase mb-1 block">Payment Reference (optional)</label>
+        <input type="text" id="markpaid-ref" class="form-input w-full text-sm" placeholder="Transaction ID, cheque no., etc."/>
+      </div>
+    </div>
+    <div class="flex gap-3">
+      <button class="btn-secondary flex-1" onclick="closeModal('modal-markPaid')">Cancel</button>
+      <button id="markpaid-submit-btn" class="btn-primary flex-1 bg-green-600 hover:bg-green-700" onclick="submitMarkPaid()">
+        <i class="fas fa-check-circle mr-2"></i>Confirm Payment
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-approveGP" class="modal-overlay hidden">
 
     <!-- Gate Pass Info Card -->
     <div class="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl p-4 mb-5">
@@ -4952,23 +5288,85 @@ async function viewJobDetail(id) {
   const isFrontDesk = userRole === 'Front Desk';
   const isTechnician = userRole === 'Technician';
 
-  // Role-gated action buttons for new workflow
+  // ── Phase 3 new-pipeline action buttons ─────────────────────────────────────
   let actionButtons = '';
-  if (j.status === 'PENDING_APPROVAL' && isAdminOrManager) {
+  const s = j.status;
+
+  // Phase 1: Pre-intake workflow
+  if (s === 'PENDING_APPROVAL' && isAdminOrManager) {
     actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-green-100 hover:bg-green-200 text-green-700 border border-green-300 flex items-center gap-1.5" onclick="showApprovalPanel('\${j.id}')"><i class="fas fa-check-circle"></i> Review &amp; Approve</button>\`;
   }
-  if (j.status === 'DRAFT' && (isAdminOrManager || isFrontDesk)) {
+  if (s === 'DRAFT' && (isAdminOrManager || isFrontDesk)) {
     actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 border border-blue-300 flex items-center gap-1.5" onclick="submitJobForApproval('\${j.id}')"><i class="fas fa-paper-plane"></i> Submit for Approval</button>\`;
   }
-  if ((j.status === 'APPROVED' || j.status === 'PRE_HANDOVER') && (isAdminOrManager || isFrontDesk)) {
-    actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-purple-100 hover:bg-purple-200 text-purple-700 border border-purple-300 flex items-center gap-1.5" onclick="showPrelimCheckModal('\${j.id}')"><i class="fas fa-clipboard-check"></i> \${j.status === 'PRE_HANDOVER' ? 'Complete Preliminary Check' : 'Start Pre-Handover'}</button>\`;
+  if ((s === 'APPROVED' || s === 'PRE_HANDOVER') && (isAdminOrManager || isFrontDesk)) {
+    actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-purple-100 hover:bg-purple-200 text-purple-700 border border-purple-300 flex items-center gap-1.5" onclick="showPrelimCheckModal('\${j.id}')"><i class="fas fa-clipboard-check"></i> \${s === 'PRE_HANDOVER' ? 'Complete Preliminary Check' : 'Start Pre-Handover'}</button>\`;
   }
+
+  // Phase 2: Post-handover — Inspection
+  if (s === 'HANDED_OVER' && (isAdminOrManager || isFrontDesk || isTechnician)) {
+    actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-amber-100 hover:bg-amber-200 text-amber-700 border border-amber-300 flex items-center gap-1.5" onclick="showInspectionModal('\${j.id}')"><i class="fas fa-search"></i> Start Inspection</button>\`;
+  }
+  if (s === 'INSPECTION' && (isAdminOrManager || isFrontDesk || isTechnician)) {
+    actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-amber-100 hover:bg-amber-200 text-amber-700 border border-amber-300 flex items-center gap-1.5" onclick="showInspectionModal('\${j.id}')"><i class="fas fa-search"></i> Complete Inspection</button>\`;
+  }
+
+  // Phase 3: PFI workflow
+  if (s === 'PFI_PENDING' && (isAdminOrManager || isFrontDesk)) {
+    // Allow creating/editing PFI
+    if (canMakePFI) {
+      actionButtons += \`<button class="btn-secondary text-sm" onclick="showPFIModal('\${j.id}','\${j.category}')"><i class="fas fa-file-invoice"></i> Create PFI</button>\`;
+    }
+    if (isAdminOrManager && j.pfi) {
+      // Admin can approve PFI directly
+      actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-cyan-100 hover:bg-cyan-200 text-cyan-700 border border-cyan-300 flex items-center gap-1.5" onclick="quickApprovePFI('\${j.pfi?.id||''}','\${j.id}')"><i class="fas fa-stamp"></i> Approve PFI</button>\`;
+    }
+  }
+  if (s === 'PFI_APPROVED' && (isAdminOrManager || isFrontDesk)) {
+    actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-orange-100 hover:bg-orange-200 text-orange-700 border border-orange-300 flex items-center gap-1.5" onclick="showCustomerApprovalModal('\${j.id}')"><i class="fas fa-user-check"></i> Get Customer Approval</button>\`;
+  }
+  if (s === 'CUSTOMER_APPROVAL' && (isAdminOrManager || isFrontDesk)) {
+    actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-orange-100 hover:bg-orange-200 text-orange-700 border border-orange-300 flex items-center gap-1.5" onclick="showCustomerApprovalModal('\${j.id}')"><i class="fas fa-user-check"></i> Record Customer Approval</button>\`;
+  }
+
+  // Phase 4: Repair workflow
+  if (s === 'PARTS_RELEASED' && (isAdminOrManager || isTechnician)) {
+    actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 border border-blue-300 flex items-center gap-1.5" onclick="startWork('\${j.id}')"><i class="fas fa-wrench"></i> Start Work</button>\`;
+  }
+  if (s === 'WORK_IN_PROGRESS' && (isAdminOrManager || isTechnician)) {
+    actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 border border-emerald-300 flex items-center gap-1.5" onclick="finishWork('\${j.id}')"><i class="fas fa-flag-checkered"></i> Mark Work Finished</button>\`;
+  }
+
+  // Phase 5: QC & Sign-off
+  if (s === 'FINISHED' && (isAdminOrManager || isFrontDesk)) {
+    actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-teal-100 hover:bg-teal-200 text-teal-700 border border-teal-300 flex items-center gap-1.5" onclick="showQCFormModal('\${j.id}')"><i class="fas fa-award"></i> Quality Control</button>\`;
+  }
+  if (s === 'QUALITY_CONTROL' && (isAdminOrManager || isFrontDesk)) {
+    actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-teal-100 hover:bg-teal-200 text-teal-700 border border-teal-300 flex items-center gap-1.5" onclick="showQCFormModal('\${j.id}')"><i class="fas fa-award"></i> Complete QC</button>\`;
+  }
+  if (s === 'CUSTOMER_SIGNOFF' && (isAdminOrManager || isFrontDesk)) {
+    actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 border border-indigo-300 flex items-center gap-1.5" onclick="showCustomerSignoffModal('\${j.id}')"><i class="fas fa-signature"></i> Customer Sign-off</button>\`;
+  }
+
+  // Phase 6: Invoice & Payment
+  if (s === 'INVOICED' && (isAdminOrManager || userRole === 'Accountant')) {
+    actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-green-100 hover:bg-green-200 text-green-700 border border-green-300 flex items-center gap-1.5" onclick="showMarkPaidModal('\${j.id}')"><i class="fas fa-money-bill-wave"></i> Record Payment</button>\`;
+  }
+  if (s === 'PAID' && (isAdminOrManager || isFrontDesk)) {
+    actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 flex items-center gap-1.5" onclick="closeJob('\${j.id}')"><i class="fas fa-archive"></i> Close Job</button>\`;
+  }
+
+  // Reopen (legacy + new)
   if (canReopen) {
     actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 transition-all bg-amber-100 hover:bg-amber-200 text-amber-700 border border-amber-300 flex items-center gap-1.5" onclick="showReopenModal('\${j.id}')"><i class="fas fa-folder-open"></i> Reopen Job</button>\`;
-  } else if (!['DRAFT','PENDING_APPROVAL','APPROVED','REJECTED','PRE_HANDOVER'].includes(j.status)) {
-    actionButtons += \`<button class="btn-secondary text-sm" onclick="showStatusModal('\${j.id}','\${j.status}')"><i class="fas fa-exchange-alt"></i> Update Status</button>\`;
   }
-  if (canMakePFI) { actionButtons += \`<button class="btn-secondary text-sm" onclick="showPFIModal('\${j.id}','\${j.category}')"><i class="fas fa-file-invoice"></i> Create PFI</button>\`; }
+
+  // Generic status update for legacy statuses
+  if (STATUS_FLOW_LEGACY.includes(s)) {
+    actionButtons += \`<button class="btn-secondary text-sm" onclick="showStatusModal('\${j.id}','\${s}')"><i class="fas fa-exchange-alt"></i> Update Status</button>\`;
+  }
+
+  // Legacy: canMakeInvoice (COMPLETED status)
   if (canMakeInvoice) { actionButtons += \`<button class="btn-primary text-sm" onclick="showInvoiceModal('\${j.id}',\${j.pfi?.labourCost||0},\${j.parts?.reduce((s,p)=>s+p.totalCost,0)||0})"><i class="fas fa-receipt"></i> Generate Invoice</button>\`; }
   if (canServiceCard) { actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 transition-all bg-green-100 hover:bg-green-200 text-green-700 border border-green-300 flex items-center gap-1.5" onclick="showServiceCardModal('\${j.id}')"><i class="fas fa-id-card"></i> Service Card\${j.serviceCardIssuedAt ? ' <i class=\\"fas fa-check-circle text-green-500 ml-0.5\\" title=\\"Issued: '+fmtDate(j.serviceCardIssuedAt)+'\\"></i>' : ''}</button>\`; }
 
@@ -5289,6 +5687,146 @@ async function viewJobDetail(id) {
               <p class="text-xs text-gray-400 mb-1 font-semibold">Customer Signature</p>
               <img src="\${j.preliminaryCheck.customerSignature}" alt="Customer Sig" class="max-h-10 border border-gray-200 rounded bg-white p-1 w-full object-contain"/>
             </div>
+          </div>\` : ''}
+        </div>\` : ''}
+
+        <!-- Inspection Summary Card -->
+        \${j.inspectionData ? \`
+        <div class="card p-5 border-l-4 border-amber-400">
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="font-bold text-gray-800 text-sm"><i class="fas fa-search text-amber-500 mr-2"></i>Inspection</h4>
+            <span class="badge text-xs bg-amber-100 text-amber-700"><i class="fas fa-check mr-1"></i>Completed</span>
+          </div>
+          <div class="space-y-1.5 text-sm">
+            <div class="flex justify-between"><span class="text-gray-400">Completed At</span><span class="font-semibold text-gray-700">\${fmtDateTime(j.inspectionData.completedAt)}</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">Technician</span><span class="font-semibold text-gray-700">\${j.inspectionData.technicianName||j.inspectionData.completedByName||'—'}</span></div>
+            \${j.inspectionData.recommendedService ? \`<div class="flex justify-between items-start gap-2"><span class="text-gray-400 flex-shrink-0">Recommended</span><span class="text-xs font-medium text-amber-700 text-right">\${j.inspectionData.recommendedService}</span></div>\` : ''}
+          </div>
+          <div class="mt-3 pt-3 border-t border-gray-100">
+            <p class="text-xs font-semibold text-gray-400 uppercase mb-2 tracking-wide">Checklist</p>
+            <div class="grid grid-cols-2 gap-1">
+              \${[
+                {k:'engineOilTopup',l:'Engine Oil'},{k:'airFilter',l:'Air Filter'},{k:'acFilter',l:'A/C Filter'},
+                {k:'sparkPlugs',l:'Spark Plugs'},{k:'bulbs',l:'Bulbs'},{k:'tiresCondition',l:'Tyres'},
+                {k:'brakeConditions',l:'Brakes'},{k:'coolantLevel',l:'Coolant'},{k:'battery',l:'Battery'},
+                {k:'leakages',l:'No Leakages'}
+              ].map(function(item){
+                const val = j.inspectionData[item.k];
+                const ok = val === 'OK' || val === 'Good';
+                return '<div class="flex items-center gap-1.5 text-xs"><i class="fas '+(ok?'fa-check-circle text-green-500':'fa-times-circle text-gray-300')+'"></i><span class="text-gray-600">'+item.l+'</span></div>';
+              }).join('')}
+            </div>
+          </div>
+          \${j.inspectionData.notes ? \`<div class="mt-2 pt-2 border-t border-gray-100"><p class="text-xs text-gray-400">Notes: <span class="text-gray-600">\${j.inspectionData.notes}</span></p></div>\` : ''}
+          \${j.inspectionData.technicianSignature ? \`
+          <div class="mt-3 pt-3 border-t border-gray-100">
+            <p class="text-xs text-gray-400 mb-1 font-semibold">Technician Signature</p>
+            <img src="\${j.inspectionData.technicianSignature}" alt="Tech Sig" class="max-h-10 border border-gray-200 rounded bg-white p-1 w-full object-contain"/>
+          </div>\` : ''}
+        </div>\` : ''}
+
+        <!-- Customer Approval Summary Card -->
+        \${j.customerApprovalData ? \`
+        <div class="card p-5 border-l-4 border-orange-400">
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="font-bold text-gray-800 text-sm"><i class="fas fa-user-check text-orange-500 mr-2"></i>Customer Approval</h4>
+            <span class="badge text-xs bg-orange-100 text-orange-700"><i class="fas fa-check mr-1"></i>Approved</span>
+          </div>
+          <div class="space-y-1.5 text-sm">
+            <div class="flex justify-between"><span class="text-gray-400">Approved By</span><span class="font-semibold text-gray-700">\${j.customerApprovalData.approvedBy||'—'}</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">Date</span><span class="font-semibold text-gray-700">\${fmtDateTime(j.customerApprovalData.approvedAt)}</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">Amount Approved</span><span class="font-bold text-orange-700">TZS \${(j.customerApprovalData.totalApproved||0).toLocaleString()}</span></div>
+            \${j.customerApprovalData.approvalNotes ? \`<div class="flex justify-between items-start gap-2"><span class="text-gray-400 flex-shrink-0">Notes</span><span class="text-xs font-medium text-gray-600 text-right">\${j.customerApprovalData.approvalNotes}</span></div>\` : ''}
+          </div>
+          \${j.customerApprovalData.approvalSignature ? \`
+          <div class="mt-3 pt-3 border-t border-gray-100">
+            <p class="text-xs text-gray-400 mb-1 font-semibold">Customer Signature</p>
+            <img src="\${j.customerApprovalData.approvalSignature}" alt="Customer Sig" class="max-h-10 border border-gray-200 rounded bg-white p-1 w-full object-contain"/>
+          </div>\` : ''}
+        </div>\` : ''}
+
+        <!-- Work Timeline Card (PARTS_RELEASED → WORK_IN_PROGRESS → FINISHED) -->
+        \${(j.partsReleasedAt || j.workStartedAt || j.workFinishedAt) ? \`
+        <div class="card p-5 border-l-4 border-blue-400">
+          <h4 class="font-bold text-gray-800 text-sm mb-3"><i class="fas fa-wrench text-blue-500 mr-2"></i>Repair Progress</h4>
+          <div class="space-y-2">
+            \${j.partsReleasedAt ? \`
+            <div class="flex items-center gap-2.5 text-sm">
+              <i class="fas fa-box-open text-blue-400 w-4"></i>
+              <div>
+                <p class="font-semibold text-gray-700">Parts Released</p>
+                <p class="text-xs text-gray-400">\${fmtDateTime(j.partsReleasedAt)}\${j.partsReleasedByName?' · '+j.partsReleasedByName:''}</p>
+              </div>
+            </div>\` : ''}
+            \${j.workStartedAt ? \`
+            <div class="flex items-center gap-2.5 text-sm">
+              <i class="fas fa-tools text-indigo-400 w-4"></i>
+              <div>
+                <p class="font-semibold text-gray-700">Work Started</p>
+                <p class="text-xs text-gray-400">\${fmtDateTime(j.workStartedAt)}\${j.workStartedByName?' · '+j.workStartedByName:''}</p>
+              </div>
+            </div>\` : ''}
+            \${j.workFinishedAt ? \`
+            <div class="flex items-center gap-2.5 text-sm">
+              <i class="fas fa-flag-checkered text-emerald-500 w-4"></i>
+              <div>
+                <p class="font-semibold text-gray-700">Work Finished</p>
+                <p class="text-xs text-gray-400">\${fmtDateTime(j.workFinishedAt)}\${j.workFinishedByName?' · '+j.workFinishedByName:''}</p>
+              </div>
+            </div>\` : ''}
+          </div>
+        </div>\` : ''}
+
+        <!-- QC Summary Card -->
+        \${j.qcData ? \`
+        <div class="card p-5 border-l-4 border-teal-400">
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="font-bold text-gray-800 text-sm"><i class="fas fa-award text-teal-500 mr-2"></i>Quality Control</h4>
+            <span class="badge text-xs bg-teal-100 text-teal-700"><i class="fas fa-check mr-1"></i>Passed</span>
+          </div>
+          <div class="space-y-1.5 text-sm">
+            <div class="flex justify-between"><span class="text-gray-400">QC Officer</span><span class="font-semibold text-gray-700">\${j.qcData.qcOfficerName||j.qcData.completedByName||'—'}</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">Completed</span><span class="font-semibold text-gray-700">\${fmtDateTime(j.qcData.completedAt)}</span></div>
+          </div>
+          <div class="mt-3 pt-3 border-t border-gray-100 grid grid-cols-2 gap-1">
+            \${[
+              {k:'boltsTightened',l:'Bolts Tightened',good:'Yes'},
+              {k:'leakages',l:'No Leakages',good:'No'},
+              {k:'cleanWork',l:'Clean Work',good:'Yes'},
+              {k:'allWorksCompleted',l:'All Works Done',good:'Yes'},
+              {k:'engineOilLevel',l:'Engine Oil',good:'OK'},
+              {k:'fuelLevel',l:'Fuel Level',good:'OK'},
+            ].map(function(item){
+              const val = j.qcData[item.k];
+              const ok = val === item.good;
+              return '<div class="flex items-center gap-1.5 text-xs"><i class="fas '+(ok?'fa-check-circle text-green-500':'fa-exclamation-circle text-red-400')+'"></i><span class="text-gray-600">'+item.l+'</span></div>';
+            }).join('')}
+          </div>
+          \${j.qcData.notes ? \`<div class="mt-2 pt-2 border-t border-gray-100"><p class="text-xs text-gray-400">Notes: <span class="text-gray-600">\${j.qcData.notes}</span></p></div>\` : ''}
+          \${j.qcData.qcOfficerSignature ? \`
+          <div class="mt-3 pt-3 border-t border-gray-100">
+            <p class="text-xs text-gray-400 mb-1 font-semibold">QC Officer Signature</p>
+            <img src="\${j.qcData.qcOfficerSignature}" alt="QC Sig" class="max-h-10 border border-gray-200 rounded bg-white p-1 w-full object-contain"/>
+          </div>\` : ''}
+        </div>\` : ''}
+
+        <!-- Customer Sign-off Summary Card -->
+        \${j.customerSignoffData ? \`
+        <div class="card p-5 border-l-4 border-indigo-400">
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="font-bold text-gray-800 text-sm"><i class="fas fa-signature text-indigo-500 mr-2"></i>Customer Sign-off</h4>
+            <span class="badge text-xs bg-indigo-100 text-indigo-700"><i class="fas fa-check mr-1"></i>Signed</span>
+          </div>
+          <div class="space-y-1.5 text-sm">
+            <div class="flex justify-between"><span class="text-gray-400">Customer</span><span class="font-semibold text-gray-700">\${j.customerSignoffData.customerName||'—'}</span></div>
+            <div class="flex justify-between"><span class="text-gray-400">Signed At</span><span class="font-semibold text-gray-700">\${fmtDateTime(j.customerSignoffData.signedAt)}</span></div>
+            \${j.customerSignoffData.satisfactionRating ? \`<div class="flex justify-between items-center"><span class="text-gray-400">Rating</span><span class="text-yellow-500 font-bold">\${'★'.repeat(j.customerSignoffData.satisfactionRating)}<span class="text-gray-300">\${'★'.repeat(5-j.customerSignoffData.satisfactionRating)}</span></span></div>\` : ''}
+            \${j.customerSignoffData.signoffNotes ? \`<div class="flex justify-between items-start gap-2"><span class="text-gray-400 flex-shrink-0">Feedback</span><span class="text-xs font-medium text-gray-600 text-right">\${j.customerSignoffData.signoffNotes}</span></div>\` : ''}
+          </div>
+          \${j.customerSignoffData.customerSignature ? \`
+          <div class="mt-3 pt-3 border-t border-gray-100">
+            <p class="text-xs text-gray-400 mb-1 font-semibold">Customer Signature</p>
+            <img src="\${j.customerSignoffData.customerSignature}" alt="Signoff Sig" class="max-h-10 border border-gray-200 rounded bg-white p-1 w-full object-contain"/>
           </div>\` : ''}
         </div>\` : ''}
 
@@ -7375,6 +7913,379 @@ async function submitPrelimCheck() {
     showToast(msg, 'error');
     if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-check-circle mr-2"></i>Complete Handover & Issue Gate Pass'; }
   }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PHASE 3 — POST-HANDOVER WORKFLOW FUNCTIONS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── Inspection Items (Simple Check Form from PDF) ───────────────────────────
+const INSP_ITEMS = [
+  { id: 'engineOilTopup',  label: 'Engine Oil Top-up',      icon: 'fa-oil-can' },
+  { id: 'airFilter',       label: 'Air Filter',             icon: 'fa-wind' },
+  { id: 'acFilter',        label: 'A/C Filter',             icon: 'fa-snowflake' },
+  { id: 'sparkPlugs',      label: 'Spark Plugs',            icon: 'fa-bolt' },
+  { id: 'bulbs',           label: 'Bulbs',                  icon: 'fa-lightbulb' },
+  { id: 'tiresCondition',  label: 'Tyres Condition/Pressure', icon: 'fa-circle' },
+  { id: 'brakeConditions', label: 'Brake Conditions',       icon: 'fa-hand-paper' },
+  { id: 'leakages',        label: 'Leakages',               icon: 'fa-tint' },
+  { id: 'coolantLevel',    label: 'Coolant Level',          icon: 'fa-thermometer-half' },
+  { id: 'wiperBlades',     label: 'Wiper Blades',           icon: 'fa-water' },
+  { id: 'battery',         label: 'Battery',                icon: 'fa-battery-half' },
+  { id: 'fireExtinguisher',label: 'Fire Extinguisher',      icon: 'fa-fire-extinguisher' },
+  { id: 'brakeFluidLevel', label: 'Brake Fluid Level',      icon: 'fa-flask' },
+  { id: 'triangle',        label: 'Warning Triangle',       icon: 'fa-exclamation-triangle' },
+  { id: 'hydraulic',       label: 'Hydraulic',              icon: 'fa-cog' },
+  { id: 'airFreshener',    label: 'Air Freshener',          icon: 'fa-spray-can' },
+];
+
+let _inspJobId = null;
+
+async function showInspectionModal(jobId) {
+  _inspJobId = jobId;
+  openModal('modal-inspection');
+
+  // Render checklist
+  const grid = document.getElementById('insp-items-grid');
+  if (grid) {
+    grid.innerHTML = INSP_ITEMS.map(function(item) {
+      return '<label class="flex items-center gap-2.5 p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-amber-50 hover:border-amber-300 cursor-pointer transition-all select-none">' +
+        '<input type="checkbox" id="insp-item-' + item.id + '" class="w-4 h-4 accent-amber-600 flex-shrink-0" checked/>' +
+        '<i class="fas ' + item.icon + ' text-gray-400 text-xs w-4 flex-shrink-0"></i>' +
+        '<span class="text-sm text-gray-700 font-medium leading-tight">' + item.label + '</span>' +
+        '</label>';
+    }).join('');
+  }
+
+  // Clear signatures
+  pcClearSig('insp-tech'); pcClearSig('insp-sa');
+  pcInitSig('insp-tech'); pcInitSig('insp-sa');
+  document.getElementById('insp-recommended').value = '';
+  document.getElementById('insp-notes').value = '';
+
+  try {
+    const { data: job } = await axios.get('/api/jobcards/' + jobId);
+    document.getElementById('insp-subtitle').textContent = job.jobCardNumber + ' · Simple Check Inspection';
+    document.getElementById('insp-jobcard').textContent = job.jobCardNumber || '—';
+    let vehLabel = '—';
+    if (job.vehicleId) {
+      try { const { data: v } = await axios.get('/api/vehicles/' + job.vehicleId); vehLabel = [v.make, v.model, v.registrationNumber].filter(Boolean).join(' · '); } catch(e) {}
+    }
+    document.getElementById('insp-vehicle').textContent = vehLabel;
+    document.getElementById('insp-tech-name').value = _currentUser?.name || '';
+    document.getElementById('insp-sa-name').value = _currentUser?.name || '';
+    // Pre-fill if re-opening
+    if (job.inspectionData) {
+      const d = job.inspectionData;
+      INSP_ITEMS.forEach(function(it) {
+        const cb = document.getElementById('insp-item-' + it.id);
+        if (cb) cb.checked = (d[it.id] !== 'N/A' && d[it.id] !== 'Not OK');
+      });
+      if (d.recommendedService) document.getElementById('insp-recommended').value = d.recommendedService;
+      if (d.notes) document.getElementById('insp-notes').value = d.notes;
+    }
+  } catch(err) { console.error('showInspectionModal error', err); }
+}
+
+async function submitInspection() {
+  const jobId = _inspJobId;
+  if (!jobId) return;
+  const techCanvas = document.getElementById('insp-tech-canvas');
+  if (pcIsEmpty(techCanvas)) { showToast('Technician signature is required', 'error'); return; }
+  const btn = document.getElementById('insp-submit-btn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Submitting…'; }
+  try {
+    const payload = {};
+    INSP_ITEMS.forEach(function(it) {
+      const cb = document.getElementById('insp-item-' + it.id);
+      payload[it.id] = cb && cb.checked ? 'OK' : 'N/A';
+    });
+    payload.recommendedService = document.getElementById('insp-recommended').value.trim();
+    payload.notes = document.getElementById('insp-notes').value.trim();
+    payload.technicianName = document.getElementById('insp-tech-name').value.trim();
+    payload.technicianSignature = pcGetSig(techCanvas);
+    const saCanvas = document.getElementById('insp-sa-canvas');
+    payload.serviceAdvisorName = document.getElementById('insp-sa-name').value.trim();
+    payload.serviceAdvisorSignature = pcGetSig(saCanvas);
+    payload.customerApproval = 'Approved';
+    payload.completedBy = _currentUser?.id || '';
+    payload.completedByName = _currentUser?.name || '';
+    await axios.post('/api/jobcards/' + jobId + '/complete-inspection', payload);
+    closeModal('modal-inspection');
+    showToast('Inspection complete! Job moved to PFI Pending.', 'success');
+    viewJobDetail(jobId);
+  } catch(err) {
+    const msg = err?.response?.data?.error || 'Failed to submit inspection';
+    showToast(msg, 'error');
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-check-circle mr-2"></i>Complete Inspection & Prepare PFI'; }
+  }
+}
+
+// ─── Customer Approval ────────────────────────────────────────────────────────
+let _custApprJobId = null;
+
+async function showCustomerApprovalModal(jobId) {
+  _custApprJobId = jobId;
+  openModal('modal-customerApproval');
+  pcClearSig('custappr'); pcInitSig('custappr');
+  document.getElementById('custappr-name').value = '';
+  document.getElementById('custappr-notes').value = '';
+  try {
+    const { data: job } = await axios.get('/api/jobcards/' + jobId);
+    document.getElementById('custappr-subtitle').textContent = job.jobCardNumber + ' · Customer cost approval';
+    // Fill customer name from job
+    if (job.customerId) {
+      try { const { data: cu } = await axios.get('/api/customers/' + job.customerId); document.getElementById('custappr-name').value = cu.name || ''; } catch(e) {}
+    }
+    // Build cost summary
+    const pfi = job.pfi || {};
+    const labourCost = pfi.labourCost || 0;
+    const partsCost = pfi.partsCost || 0;
+    const discount = pfi.discountAmount || 0;
+    const tax = pfi.tax || 0;
+    const total = pfi.totalAmount || (labourCost + partsCost - discount + tax);
+    const rows = document.getElementById('custappr-cost-rows');
+    rows.innerHTML =
+      '<div class="flex justify-between"><span class="text-gray-500">Labour</span><span class="font-semibold">TZS ' + labourCost.toLocaleString() + '</span></div>' +
+      '<div class="flex justify-between"><span class="text-gray-500">Parts</span><span class="font-semibold">TZS ' + partsCost.toLocaleString() + '</span></div>' +
+      (discount > 0 ? '<div class="flex justify-between text-green-700"><span>Discount</span><span>- TZS ' + discount.toLocaleString() + '</span></div>' : '') +
+      (tax > 0 ? '<div class="flex justify-between"><span class="text-gray-500">VAT (18%)</span><span class="font-semibold">TZS ' + tax.toLocaleString() + '</span></div>' : '');
+    document.getElementById('custappr-total').textContent = 'TZS ' + total.toLocaleString();
+    document.getElementById('custappr-submit-btn').dataset.total = total;
+  } catch(err) { console.error('showCustomerApprovalModal error', err); }
+}
+
+async function submitCustomerApproval() {
+  const jobId = _custApprJobId;
+  if (!jobId) return;
+  const custName = document.getElementById('custappr-name').value.trim();
+  if (!custName) { showToast('Customer name is required', 'error'); return; }
+  const canvas = document.getElementById('custappr-canvas');
+  if (pcIsEmpty(canvas)) { showToast('Customer signature is required', 'error'); return; }
+  const btn = document.getElementById('custappr-submit-btn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing…'; }
+  try {
+    await axios.post('/api/jobcards/' + jobId + '/customer-approval', {
+      approvedBy: custName,
+      approvalSignature: pcGetSig(canvas),
+      approvalNotes: document.getElementById('custappr-notes').value.trim(),
+      totalApproved: +(btn?.dataset?.total || 0),
+      recordedBy: _currentUser?.id || '',
+      recordedByName: _currentUser?.name || '',
+    });
+    closeModal('modal-customerApproval');
+    showToast('Customer approved! Parts released for repair.', 'success');
+    viewJobDetail(jobId);
+  } catch(err) {
+    const msg = err?.response?.data?.error || 'Failed to record approval';
+    showToast(msg, 'error');
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-handshake mr-2"></i>Approve & Release Parts'; }
+  }
+}
+
+// ─── Start Work / Finish Work ─────────────────────────────────────────────────
+async function startWork(jobId) {
+  try {
+    await axios.post('/api/jobcards/' + jobId + '/start-work', { userId: _currentUser?.id, userName: _currentUser?.name });
+    showToast('Work started! Status: Work In Progress', 'success');
+    viewJobDetail(jobId);
+  } catch(err) { showToast('Error: ' + (err?.response?.data?.error || err.message), 'error'); }
+}
+
+async function finishWork(jobId) {
+  if (!confirm('Mark work as finished? This will move the job to Quality Control.')) return;
+  try {
+    await axios.post('/api/jobcards/' + jobId + '/finish-work', { userId: _currentUser?.id, userName: _currentUser?.name });
+    showToast('Work finished! Pending Quality Control.', 'success');
+    viewJobDetail(jobId);
+  } catch(err) { showToast('Error: ' + (err?.response?.data?.error || err.message), 'error'); }
+}
+
+// ─── QC Form ──────────────────────────────────────────────────────────────────
+let _qcJobId = null;
+
+async function showQCFormModal(jobId) {
+  _qcJobId = jobId;
+  openModal('modal-qcForm');
+  pcClearSig('qc-tech'); pcClearSig('qc-officer');
+  pcInitSig('qc-tech'); pcInitSig('qc-officer');
+  document.querySelectorAll('input[name="qc-bolts"]')[0].checked = true;
+  document.querySelectorAll('input[name="qc-leakages"]')[0].checked = true;
+  document.querySelectorAll('input[name="qc-cleanWork"]')[0].checked = true;
+  document.querySelectorAll('input[name="qc-allWorks"]')[0].checked = true;
+  document.getElementById('qc-notes').value = '';
+  document.getElementById('qc-officer-name').value = _currentUser?.name || '';
+  try {
+    const { data: job } = await axios.get('/api/jobcards/' + jobId);
+    document.getElementById('qc-subtitle').textContent = job.jobCardNumber + ' · Quality Control';
+    document.getElementById('qc-jobcard').textContent = job.jobCardNumber || '—';
+    let vehLabel = '—';
+    if (job.vehicleId) {
+      try { const { data: v } = await axios.get('/api/vehicles/' + job.vehicleId); vehLabel = [v.make, v.model, v.registrationNumber].filter(Boolean).join(' · '); } catch(e) {}
+    }
+    document.getElementById('qc-vehicle').textContent = vehLabel;
+    // Pre-fill technician name from workFinishedByName
+    document.getElementById('qc-tech-name').value = job.workFinishedByName || job.technicianName || '';
+  } catch(err) { console.error('showQCFormModal error', err); }
+}
+
+async function submitQCForm() {
+  const jobId = _qcJobId;
+  if (!jobId) return;
+  const allWorksYes = document.querySelector('input[name="qc-allWorks"]:checked')?.value === 'Yes';
+  if (!allWorksYes) { showToast('All works must be completed to pass QC', 'error'); return; }
+  const officerCanvas = document.getElementById('qc-officer-canvas');
+  if (pcIsEmpty(officerCanvas)) { showToast('QC Officer signature is required', 'error'); return; }
+  const btn = document.getElementById('qc-submit-btn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Submitting…'; }
+  try {
+    const techCanvas = document.getElementById('qc-tech-canvas');
+    await axios.post('/api/jobcards/' + jobId + '/complete-qc', {
+      engineOilLevel: document.getElementById('qc-engineOilLevel').value,
+      fuelLevel: document.getElementById('qc-fuelLevel').value,
+      boltsTightened: document.querySelector('input[name="qc-bolts"]:checked')?.value || 'Yes',
+      leakages: document.querySelector('input[name="qc-leakages"]:checked')?.value || 'No',
+      cleanWork: document.querySelector('input[name="qc-cleanWork"]:checked')?.value || 'Yes',
+      allWorksCompleted: 'Yes',
+      notes: document.getElementById('qc-notes').value.trim(),
+      technicianName: document.getElementById('qc-tech-name').value.trim(),
+      technicianSignature: pcGetSig(techCanvas),
+      qcOfficerName: document.getElementById('qc-officer-name').value.trim(),
+      qcOfficerSignature: pcGetSig(officerCanvas),
+      completedBy: _currentUser?.id || '',
+      completedByName: _currentUser?.name || '',
+    });
+    closeModal('modal-qcForm');
+    showToast('QC passed! Customer sign-off requested.', 'success');
+    viewJobDetail(jobId);
+  } catch(err) {
+    const msg = err?.response?.data?.error || 'Failed to submit QC';
+    showToast(msg, 'error');
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-award mr-2"></i>Pass QC & Notify Customer'; }
+  }
+}
+
+// ─── Customer Sign-off ────────────────────────────────────────────────────────
+let _signoffJobId = null;
+let _signoffRating = 5;
+
+function setSignoffRating(val) {
+  _signoffRating = val;
+  document.getElementById('signoff-rating').value = val;
+  document.querySelectorAll('.star-btn').forEach(function(btn, i) {
+    btn.classList.toggle('text-yellow-400', i < val);
+    btn.classList.toggle('text-gray-300', i >= val);
+  });
+}
+
+async function showCustomerSignoffModal(jobId) {
+  _signoffJobId = jobId;
+  openModal('modal-customerSignoff');
+  pcClearSig('signoff'); pcInitSig('signoff');
+  _signoffRating = 5; setSignoffRating(5);
+  document.getElementById('signoff-cust-name').value = '';
+  document.getElementById('signoff-notes').value = '';
+  try {
+    const { data: job } = await axios.get('/api/jobcards/' + jobId);
+    document.getElementById('signoff-subtitle').textContent = job.jobCardNumber + ' · Final sign-off';
+    // Work summary
+    const svcs = job.services || [];
+    const parts = job.parts || [];
+    let summaryHtml = svcs.map(function(s) { return '<div class="flex justify-between"><span>' + s.serviceName + '</span><span class="font-semibold">TZS ' + (s.totalCost||0).toLocaleString() + '</span></div>'; }).join('');
+    if (parts.length) summaryHtml += '<div class="mt-1 pt-1 border-t border-indigo-100"><span class="text-xs text-gray-400">+ ' + parts.length + ' part(s)</span></div>';
+    document.getElementById('signoff-work-summary').innerHTML = summaryHtml || '<span class="text-gray-400 text-xs">No services recorded</span>';
+    // Customer name from record
+    if (job.customerId) {
+      try { const { data: cu } = await axios.get('/api/customers/' + job.customerId); document.getElementById('signoff-cust-name').value = cu.name || ''; } catch(e) {}
+    }
+  } catch(err) { console.error('showCustomerSignoffModal error', err); }
+}
+
+async function submitCustomerSignoff() {
+  const jobId = _signoffJobId;
+  if (!jobId) return;
+  const custName = document.getElementById('signoff-cust-name').value.trim();
+  if (!custName) { showToast('Customer name is required', 'error'); return; }
+  const canvas = document.getElementById('signoff-canvas');
+  if (pcIsEmpty(canvas)) { showToast('Customer signature is required', 'error'); return; }
+  const btn = document.getElementById('signoff-submit-btn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing…'; }
+  try {
+    const res = await axios.post('/api/jobcards/' + jobId + '/customer-signoff', {
+      customerName: custName,
+      customerSignature: pcGetSig(canvas),
+      signoffNotes: document.getElementById('signoff-notes').value.trim(),
+      satisfactionRating: _signoffRating,
+      recordedBy: _currentUser?.id || '',
+      recordedByName: _currentUser?.name || '',
+    });
+    closeModal('modal-customerSignoff');
+    const invNum = res.data?.invoice?.invoiceNumber || '';
+    showToast('Customer signed off! Invoice ' + (invNum || 'generated') + '.', 'success');
+    viewJobDetail(jobId);
+  } catch(err) {
+    const msg = err?.response?.data?.error || 'Failed to record sign-off';
+    showToast(msg, 'error');
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-file-invoice-dollar mr-2"></i>Sign Off & Generate Invoice'; }
+  }
+}
+
+// ─── Mark Paid ────────────────────────────────────────────────────────────────
+let _markPaidJobId = null;
+
+async function showMarkPaidModal(jobId) {
+  _markPaidJobId = jobId;
+  openModal('modal-markPaid');
+  document.getElementById('markpaid-method').value = 'Cash';
+  document.getElementById('markpaid-ref').value = '';
+  try {
+    const { data: job } = await axios.get('/api/jobcards/' + jobId);
+    const total = job.invoice?.totalAmount || 0;
+    document.getElementById('markpaid-amount-label').textContent = 'Invoice Amount: TZS ' + total.toLocaleString();
+  } catch(err) {}
+}
+
+async function submitMarkPaid() {
+  const jobId = _markPaidJobId;
+  if (!jobId) return;
+  const btn = document.getElementById('markpaid-submit-btn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Recording…'; }
+  try {
+    await axios.post('/api/jobcards/' + jobId + '/mark-paid', {
+      paymentMethod: document.getElementById('markpaid-method').value,
+      paymentRef: document.getElementById('markpaid-ref').value.trim(),
+      userId: _currentUser?.id || '',
+      userName: _currentUser?.name || '',
+    });
+    closeModal('modal-markPaid');
+    showToast('Payment recorded! Job status: Paid.', 'success');
+    viewJobDetail(jobId);
+  } catch(err) {
+    const msg = err?.response?.data?.error || 'Failed to record payment';
+    showToast(msg, 'error');
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-check-circle mr-2"></i>Confirm Payment'; }
+  }
+}
+
+// ─── Quick Approve PFI (Admin inline approval) ───────────────────────────────
+async function quickApprovePFI(pfiId, jobId) {
+  if (!pfiId) { showToast('No PFI found on this job card', 'error'); return; }
+  if (!confirm('Approve this PFI? The job will advance to PFI Approved and the customer cost approval step will begin.')) return;
+  try {
+    await axios.patch('/api/pfi/' + pfiId, { status: 'Approved' });
+    showToast('PFI approved! Job advanced to PFI Approved.', 'success');
+    viewJobDetail(jobId);
+  } catch(err) { showToast('Error: ' + (err?.response?.data?.error || err.message), 'error'); }
+}
+
+// ─── Close Job ────────────────────────────────────────────────────────────────
+async function closeJob(jobId) {
+  if (!confirm('Close this job? This will set the gate pass to Pending Exit and finalise the record.')) return;
+  try {
+    await axios.post('/api/jobcards/' + jobId + '/close', { userId: _currentUser?.id, userName: _currentUser?.name });
+    showToast('Job closed. Gate pass set to Pending Exit.', 'success');
+    viewJobDetail(jobId);
+  } catch(err) { showToast('Error: ' + (err?.response?.data?.error || err.message), 'error'); }
 }
 
 // ── Reopen Job Card ──────────────────────────────────────────────────────────

@@ -706,6 +706,300 @@ api.post('/jobcards/:id/preliminary-check', async (c) => {
   return c.json({ jobCard: jobCards[idx], gatePass: entryGP })
 })
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// PHASE 3 ENDPOINTS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── POST /jobcards/:id/start-inspection ─────────────────────────────────────
+// HANDED_OVER → INSPECTION. Technician/SA begins the inspection.
+api.post('/jobcards/:id/start-inspection', async (c) => {
+  const idx = jobCards.findIndex(x => x.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const jc = jobCards[idx]
+  if (jc.status !== 'HANDED_OVER') {
+    return c.json({ error: `Job must be HANDED_OVER to start inspection. Current: ${jc.status}` }, 400)
+  }
+  const body = await c.req.json<{ userId?: string; userName?: string }>()
+  const ts = now()
+  const timeline = jc.statusTimeline ? [...jc.statusTimeline] : []
+  const openEntry = timeline.findLast ? timeline.findLast((e: any) => !e.exitedAt) : [...timeline].reverse().find((e: any) => !e.exitedAt)
+  if (openEntry) closeTimelineEntry(openEntry, ts)
+  timeline.push(openTimelineEntry(jc, 'INSPECTION', ts))
+  jobCards[idx] = { ...jc, status: 'INSPECTION', statusTimeline: timeline, updatedAt: ts }
+  activityLog.push({ id: 'a' + genId(), jobCardId: jc.id, action: 'STATUS_CHANGE', description: `Inspection started by ${body.userName || 'system'}`, userId: body.userId || 'system', userName: body.userName || 'System', timestamp: ts })
+  addNotification('job_status', 'info', 'Inspection Started', `${jc.jobCardNumber} — vehicle under inspection.`, { jobCardId: jc.id, jobCardNumber: jc.jobCardNumber })
+  return c.json(jobCards[idx])
+})
+
+// ─── POST /jobcards/:id/complete-inspection ───────────────────────────────────
+// Saves inspection form data. INSPECTION → PFI_PENDING.
+api.post('/jobcards/:id/complete-inspection', async (c) => {
+  const idx = jobCards.findIndex(x => x.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const jc = jobCards[idx]
+  if (jc.status !== 'INSPECTION') {
+    return c.json({ error: `Job must be in INSPECTION status. Current: ${jc.status}` }, 400)
+  }
+  const body = await c.req.json<any>()
+  if (!body.technicianSignature) return c.json({ error: 'Technician signature required' }, 400)
+
+  const ts = now()
+  const timeline = jc.statusTimeline ? [...jc.statusTimeline] : []
+  const openEntry = timeline.findLast ? timeline.findLast((e: any) => !e.exitedAt) : [...timeline].reverse().find((e: any) => !e.exitedAt)
+  if (openEntry) closeTimelineEntry(openEntry, ts)
+  timeline.push(openTimelineEntry(jc, 'PFI_PENDING', ts))
+
+  const inspData = {
+    engineOilTopup: body.engineOilTopup || 'N/A', airFilter: body.airFilter || 'N/A',
+    acFilter: body.acFilter || 'N/A', sparkPlugs: body.sparkPlugs || 'N/A',
+    bulbs: body.bulbs || 'N/A', tiresCondition: body.tiresCondition || 'N/A',
+    brakeConditions: body.brakeConditions || 'N/A', leakages: body.leakages || 'N/A',
+    coolantLevel: body.coolantLevel || 'N/A', wiperBlades: body.wiperBlades || 'N/A',
+    battery: body.battery || 'N/A', fireExtinguisher: body.fireExtinguisher || 'N/A',
+    brakeFluidLevel: body.brakeFluidLevel || 'N/A', triangle: body.triangle || 'N/A',
+    hydraulic: body.hydraulic || 'N/A', airFreshener: body.airFreshener || 'N/A',
+    recommendedService: body.recommendedService || '',
+    technicianName: body.technicianName || '', technicianSignature: body.technicianSignature,
+    serviceAdvisorName: body.serviceAdvisorName || '', serviceAdvisorSignature: body.serviceAdvisorSignature || '',
+    customerApproval: body.customerApproval || 'Approved',
+    notes: body.notes || '',
+    completedAt: ts, completedBy: body.completedBy || '', completedByName: body.completedByName || '',
+  }
+
+  jobCards[idx] = { ...jc, status: 'PFI_PENDING', statusTimeline: timeline, inspectionData: inspData as any, updatedAt: ts }
+  activityLog.push({ id: 'a' + genId(), jobCardId: jc.id, action: 'INSPECTION_COMPLETE', description: `Inspection completed by ${body.completedByName}. Moved to PFI Pending.`, userId: body.completedBy || 'system', userName: body.completedByName || 'System', timestamp: ts })
+  addNotification('job_status', 'info', 'Inspection Complete', `${jc.jobCardNumber} — inspection done, awaiting PFI.`, { jobCardId: jc.id, jobCardNumber: jc.jobCardNumber })
+  return c.json(jobCards[idx])
+})
+
+// ─── POST /jobcards/:id/customer-approval ────────────────────────────────────
+// Customer signs approval of cost estimate. PFI_APPROVED → CUSTOMER_APPROVAL → PARTS_RELEASED
+api.post('/jobcards/:id/customer-approval', async (c) => {
+  const idx = jobCards.findIndex(x => x.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const jc = jobCards[idx]
+  if (!['PFI_APPROVED', 'CUSTOMER_APPROVAL'].includes(jc.status)) {
+    return c.json({ error: `Job must be in PFI_APPROVED or CUSTOMER_APPROVAL. Current: ${jc.status}` }, 400)
+  }
+  const body = await c.req.json<any>()
+  if (!body.approvalSignature) return c.json({ error: 'Customer signature is required' }, 400)
+  if (!body.approvedBy) return c.json({ error: 'Customer name is required' }, 400)
+
+  const ts = now()
+  const timeline = jc.statusTimeline ? [...jc.statusTimeline] : []
+  const openEntry = timeline.findLast ? timeline.findLast((e: any) => !e.exitedAt) : [...timeline].reverse().find((e: any) => !e.exitedAt)
+  if (openEntry) closeTimelineEntry(openEntry, ts)
+  timeline.push(openTimelineEntry(jc, 'PARTS_RELEASED', ts))
+
+  const approvalData = {
+    approvedBy: body.approvedBy,
+    approvalSignature: body.approvalSignature,
+    approvalNotes: body.approvalNotes || '',
+    approvedAt: ts,
+    approvedByUserId: body.recordedBy || '',
+    approvedByUserName: body.recordedByName || '',
+    totalApproved: body.totalApproved || 0,
+  }
+
+  jobCards[idx] = { ...jc, status: 'PARTS_RELEASED', statusTimeline: timeline, customerApprovalData: approvalData as any, partsReleasedAt: ts, partsReleasedBy: body.recordedBy || '', partsReleasedByName: body.recordedByName || '', updatedAt: ts }
+  activityLog.push({ id: 'a' + genId(), jobCardId: jc.id, action: 'CUSTOMER_APPROVED', description: `Customer ${body.approvedBy} approved cost. Parts released.`, userId: body.recordedBy || 'system', userName: body.recordedByName || 'System', timestamp: ts })
+  addNotification('job_status', 'success', 'Customer Approved', `${jc.jobCardNumber} — customer signed off cost. Parts released for repair.`, { jobCardId: jc.id, jobCardNumber: jc.jobCardNumber })
+  return c.json(jobCards[idx])
+})
+
+// ─── POST /jobcards/:id/start-work ───────────────────────────────────────────
+// PARTS_RELEASED → WORK_IN_PROGRESS
+api.post('/jobcards/:id/start-work', async (c) => {
+  const idx = jobCards.findIndex(x => x.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const jc = jobCards[idx]
+  if (jc.status !== 'PARTS_RELEASED') {
+    return c.json({ error: `Job must be PARTS_RELEASED to start work. Current: ${jc.status}` }, 400)
+  }
+  const body = await c.req.json<{ userId?: string; userName?: string }>()
+  const ts = now()
+  const timeline = jc.statusTimeline ? [...jc.statusTimeline] : []
+  const openEntry = timeline.findLast ? timeline.findLast((e: any) => !e.exitedAt) : [...timeline].reverse().find((e: any) => !e.exitedAt)
+  if (openEntry) closeTimelineEntry(openEntry, ts)
+  timeline.push(openTimelineEntry(jc, 'WORK_IN_PROGRESS', ts))
+  jobCards[idx] = { ...jc, status: 'WORK_IN_PROGRESS', statusTimeline: timeline, workStartedAt: ts, workStartedBy: body.userId || '', workStartedByName: body.userName || '', updatedAt: ts }
+  activityLog.push({ id: 'a' + genId(), jobCardId: jc.id, action: 'STATUS_CHANGE', description: `Work started by ${body.userName || 'system'}`, userId: body.userId || 'system', userName: body.userName || 'System', timestamp: ts })
+  addNotification('job_status', 'info', 'Repair Started', `${jc.jobCardNumber} — repair work in progress.`, { jobCardId: jc.id, jobCardNumber: jc.jobCardNumber })
+  return c.json(jobCards[idx])
+})
+
+// ─── POST /jobcards/:id/finish-work ──────────────────────────────────────────
+// WORK_IN_PROGRESS → FINISHED
+api.post('/jobcards/:id/finish-work', async (c) => {
+  const idx = jobCards.findIndex(x => x.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const jc = jobCards[idx]
+  if (jc.status !== 'WORK_IN_PROGRESS') {
+    return c.json({ error: `Job must be WORK_IN_PROGRESS. Current: ${jc.status}` }, 400)
+  }
+  const body = await c.req.json<{ userId?: string; userName?: string; notes?: string }>()
+  const ts = now()
+  const timeline = jc.statusTimeline ? [...jc.statusTimeline] : []
+  const openEntry = timeline.findLast ? timeline.findLast((e: any) => !e.exitedAt) : [...timeline].reverse().find((e: any) => !e.exitedAt)
+  if (openEntry) closeTimelineEntry(openEntry, ts)
+  timeline.push(openTimelineEntry(jc, 'FINISHED', ts))
+  jobCards[idx] = { ...jc, status: 'FINISHED', statusTimeline: timeline, workFinishedAt: ts, workFinishedBy: body.userId || '', workFinishedByName: body.userName || '', updatedAt: ts }
+  activityLog.push({ id: 'a' + genId(), jobCardId: jc.id, action: 'STATUS_CHANGE', description: `Work finished by ${body.userName || 'system'}. Awaiting QC.`, userId: body.userId || 'system', userName: body.userName || 'System', timestamp: ts })
+  addNotification('job_status', 'success', 'Work Finished', `${jc.jobCardNumber} — repair finished, pending Quality Control.`, { jobCardId: jc.id, jobCardNumber: jc.jobCardNumber })
+  return c.json(jobCards[idx])
+})
+
+// ─── POST /jobcards/:id/complete-qc ──────────────────────────────────────────
+// Saves QC form data. FINISHED → QUALITY_CONTROL → CUSTOMER_SIGNOFF
+api.post('/jobcards/:id/complete-qc', async (c) => {
+  const idx = jobCards.findIndex(x => x.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const jc = jobCards[idx]
+  if (!['FINISHED', 'QUALITY_CONTROL'].includes(jc.status)) {
+    return c.json({ error: `Job must be FINISHED or QUALITY_CONTROL. Current: ${jc.status}` }, 400)
+  }
+  const body = await c.req.json<any>()
+  if (!body.qcOfficerSignature) return c.json({ error: 'QC officer signature required' }, 400)
+  // Require all works completed
+  if (body.allWorksCompleted !== 'Yes') return c.json({ error: 'All works must be completed before QC sign-off' }, 400)
+
+  const ts = now()
+  const timeline = jc.statusTimeline ? [...jc.statusTimeline] : []
+  const openEntry = timeline.findLast ? timeline.findLast((e: any) => !e.exitedAt) : [...timeline].reverse().find((e: any) => !e.exitedAt)
+  if (openEntry) closeTimelineEntry(openEntry, ts)
+  timeline.push(openTimelineEntry(jc, 'CUSTOMER_SIGNOFF', ts))
+
+  const qcRecord = {
+    engineOilLevel: body.engineOilLevel || 'N/A', fuelLevel: body.fuelLevel || 'N/A',
+    boltsTightened: body.boltsTightened || 'Yes', leakages: body.leakages || 'No',
+    cleanWork: body.cleanWork || 'Yes', allWorksCompleted: body.allWorksCompleted || 'Yes',
+    notes: body.notes || '',
+    technicianName: body.technicianName || '', technicianSignature: body.technicianSignature || '',
+    qcOfficerName: body.qcOfficerName || '', qcOfficerSignature: body.qcOfficerSignature,
+    completedAt: ts, completedBy: body.completedBy || '', completedByName: body.completedByName || '',
+  }
+
+  jobCards[idx] = { ...jc, status: 'CUSTOMER_SIGNOFF', statusTimeline: timeline, qcData: qcRecord as any, updatedAt: ts }
+  activityLog.push({ id: 'a' + genId(), jobCardId: jc.id, action: 'QC_COMPLETE', description: `QC completed by ${body.completedByName}. Awaiting customer sign-off.`, userId: body.completedBy || 'system', userName: body.completedByName || 'System', timestamp: ts })
+  addNotification('job_status', 'success', 'Quality Control Passed', `${jc.jobCardNumber} — QC approved, vehicle ready for customer sign-off.`, { jobCardId: jc.id, jobCardNumber: jc.jobCardNumber })
+  return c.json(jobCards[idx])
+})
+
+// ─── POST /jobcards/:id/customer-signoff ─────────────────────────────────────
+// Customer final sign-off. CUSTOMER_SIGNOFF → INVOICED (auto-create invoice)
+api.post('/jobcards/:id/customer-signoff', async (c) => {
+  const idx = jobCards.findIndex(x => x.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const jc = jobCards[idx]
+  if (jc.status !== 'CUSTOMER_SIGNOFF') {
+    return c.json({ error: `Job must be in CUSTOMER_SIGNOFF. Current: ${jc.status}` }, 400)
+  }
+  const body = await c.req.json<any>()
+  if (!body.customerSignature) return c.json({ error: 'Customer signature required' }, 400)
+  if (!body.customerName) return c.json({ error: 'Customer name required' }, 400)
+
+  const ts = now()
+  const timeline = jc.statusTimeline ? [...jc.statusTimeline] : []
+  const openEntry = timeline.findLast ? timeline.findLast((e: any) => !e.exitedAt) : [...timeline].reverse().find((e: any) => !e.exitedAt)
+  if (openEntry) closeTimelineEntry(openEntry, ts)
+  timeline.push(openTimelineEntry(jc, 'INVOICED', ts))
+
+  const signoffRecord = {
+    customerName: body.customerName, customerSignature: body.customerSignature,
+    signoffNotes: body.signoffNotes || '', satisfactionRating: body.satisfactionRating || 5,
+    signedAt: ts, witnessName: body.witnessName || '', witnessSignature: body.witnessSignature || '',
+    recordedBy: body.recordedBy || '', recordedByName: body.recordedByName || '',
+  }
+
+  // ── Auto-create invoice ────────────────────────────────────────────────────
+  const jcSvcs  = jobServices.filter(s => s.jobCardId === jc.id)
+  const jcParts = partsConsumption.filter(p => p.jobCardId === jc.id)
+  const labourCost = jcSvcs.reduce((s, sv) => s + sv.totalCost, 0)
+  const partsCost  = jcParts.reduce((s, p)  => s + p.totalCost, 0)
+  const subtotal   = labourCost + partsCost
+  const pfi        = (jc as any).pfi
+  const discountAmt = pfi?.discountAmount || 0
+  const applyVAT    = pfi?.tax > 0
+  const taxBase     = subtotal - discountAmt
+  const taxAmt      = applyVAT ? Math.round(taxBase * 0.18) : 0
+  const totalAmount = taxBase + taxAmt
+
+  const invYear = new Date().getFullYear()
+  const invNum  = `GMS-INV-${invYear}-${String(invoices.length + 1).padStart(3, '0')}`
+
+  const newInv: Invoice = {
+    id: 'inv' + genId(), jobCardId: jc.id, invoiceNumber: invNum,
+    labourCost, partsCost, discountAmount: discountAmt, discountReason: pfi?.discountReason || '',
+    tax: taxAmt, totalAmount, status: 'Unpaid',
+    claimReference: jc.claimReference || '', pfiReference: pfi?.id || '',
+    paymentMethod: 'Cash', issuedAt: ts, createdAt: ts,
+  } as any
+  invoices.push(newInv)
+
+  jobCards[idx] = {
+    ...jc, status: 'INVOICED', statusTimeline: timeline,
+    customerSignoffData: signoffRecord as any,
+    invoice: newInv as any,
+    completedAt: ts, totalTATMins: Math.round((new Date(ts).getTime() - new Date(jc.createdAt).getTime()) / 60000),
+    updatedAt: ts,
+  }
+  activityLog.push({ id: 'a' + genId(), jobCardId: jc.id, action: 'CUSTOMER_SIGNOFF', description: `Customer ${body.customerName} signed off. Invoice ${invNum} generated.`, userId: body.recordedBy || 'system', userName: body.recordedByName || 'System', timestamp: ts })
+  addNotification('job_status', 'success', 'Vehicle Ready — Invoice Generated', `${jc.jobCardNumber} — customer signed off. Invoice ${invNum} issued.`, { jobCardId: jc.id, jobCardNumber: jc.jobCardNumber, entityId: newInv.id, entityType: 'invoice' })
+  return c.json({ jobCard: jobCards[idx], invoice: newInv })
+})
+
+// ─── POST /jobcards/:id/mark-paid ────────────────────────────────────────────
+// INVOICED → PAID
+api.post('/jobcards/:id/mark-paid', async (c) => {
+  const idx = jobCards.findIndex(x => x.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const jc = jobCards[idx]
+  if (jc.status !== 'INVOICED') {
+    return c.json({ error: `Job must be INVOICED to mark paid. Current: ${jc.status}` }, 400)
+  }
+  const body = await c.req.json<{ paymentMethod?: string; paymentRef?: string; userId?: string; userName?: string }>()
+  const ts = now()
+  const timeline = jc.statusTimeline ? [...jc.statusTimeline] : []
+  const openEntry = timeline.findLast ? timeline.findLast((e: any) => !e.exitedAt) : [...timeline].reverse().find((e: any) => !e.exitedAt)
+  if (openEntry) closeTimelineEntry(openEntry, ts)
+  timeline.push(openTimelineEntry(jc, 'PAID', ts))
+  // Update invoice status
+  const invIdx = invoices.findIndex(i => i.jobCardId === jc.id)
+  if (invIdx !== -1) {
+    invoices[invIdx] = { ...invoices[invIdx], status: 'Paid', paidAt: ts, paymentMethod: (body.paymentMethod as any) || 'Cash', paymentReference: body.paymentRef }
+  }
+  jobCards[idx] = { ...jc, status: 'PAID', statusTimeline: timeline, updatedAt: ts }
+  activityLog.push({ id: 'a' + genId(), jobCardId: jc.id, action: 'STATUS_CHANGE', description: `Payment recorded by ${body.userName || 'system'}. Method: ${body.paymentMethod || 'Cash'}.`, userId: body.userId || 'system', userName: body.userName || 'System', timestamp: ts })
+  addNotification('job_status', 'success', 'Payment Received', `${jc.jobCardNumber} — payment received. Job ready for closure.`, { jobCardId: jc.id, jobCardNumber: jc.jobCardNumber })
+  return c.json(jobCards[idx])
+})
+
+// ─── POST /jobcards/:id/close ─────────────────────────────────────────────────
+// PAID → CLOSED (issues exit gate pass, finalises job)
+api.post('/jobcards/:id/close', async (c) => {
+  const idx = jobCards.findIndex(x => x.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  const jc = jobCards[idx]
+  if (jc.status !== 'PAID') {
+    return c.json({ error: `Job must be PAID to close. Current: ${jc.status}` }, 400)
+  }
+  const body = await c.req.json<{ userId?: string; userName?: string; notes?: string }>()
+  const ts = now()
+  const timeline = jc.statusTimeline ? [...jc.statusTimeline] : []
+  const openEntry = timeline.findLast ? timeline.findLast((e: any) => !e.exitedAt) : [...timeline].reverse().find((e: any) => !e.exitedAt)
+  if (openEntry) closeTimelineEntry(openEntry, ts)
+  timeline.push(openTimelineEntry(jc, 'CLOSED', ts))
+
+  // Mark the active gate pass as Pending Exit
+  const gp = gatePasses.find(g => g.jobCardId === jc.id && g.status === 'Active')
+  if (gp) { gp.status = 'Pending Exit'; gp.updatedAt = ts }
+
+  jobCards[idx] = { ...jc, status: 'CLOSED', statusTimeline: timeline, updatedAt: ts }
+  activityLog.push({ id: 'a' + genId(), jobCardId: jc.id, action: 'STATUS_CHANGE', description: `Job closed by ${body.userName || 'system'}. Gate pass set to Pending Exit.`, userId: body.userId || 'system', userName: body.userName || 'System', timestamp: ts })
+  addNotification('job_status', 'success', 'Job Closed', `${jc.jobCardNumber} — job closed. Vehicle exit pending.`, { jobCardId: jc.id, jobCardNumber: jc.jobCardNumber })
+  return c.json(jobCards[idx])
+})
+
 // ─── Reopen a Job Card ───────────────────────────────────────────────────────
 // Allowed from: RELEASED, COMPLETED, INVOICED, PAID, CLOSED
 // Sets status back to REPAIR_IN_PROGRESS, records reason, increments reopenCount
@@ -825,14 +1119,18 @@ api.post('/jobcards/:id/pfi', async (c) => {
   pfis.push(newPFI)
   const jIdx = jobCards.findIndex(x => x.id === c.req.param('id'))
   if (jIdx !== -1) {
-    // Close current timeline entry and open PFI_PREPARATION
+    const currentStatus = jobCards[jIdx].status
+    // New pipeline: jobs in PFI_PENDING stay in PFI_PENDING (admin approval will advance them)
+    // Legacy pipeline: advance to PFI_PREPARATION
+    const nextStatus = currentStatus === 'PFI_PENDING' ? 'PFI_PENDING' : 'PFI_PREPARATION'
+    // Close current timeline entry and open next
     const timeline: StatusTimelineEntry[] = jobCards[jIdx].statusTimeline
       ? [...jobCards[jIdx].statusTimeline!]
       : []
     const openEntry = timeline.findLast ? timeline.findLast(e => !e.exitedAt) : [...timeline].reverse().find(e => !e.exitedAt)
     if (openEntry) closeTimelineEntry(openEntry, ts)
-    timeline.push(openTimelineEntry(jobCards[jIdx], 'PFI_PREPARATION', ts))
-    jobCards[jIdx].status = 'PFI_PREPARATION'
+    timeline.push(openTimelineEntry(jobCards[jIdx], nextStatus as any, ts))
+    jobCards[jIdx].status = nextStatus as any
     jobCards[jIdx].statusTimeline = timeline
     jobCards[jIdx].updatedAt = ts
   }
@@ -871,6 +1169,33 @@ api.patch('/pfi/:id', async (c) => {
     merged.totalAmount = merged.totalEstimate + merged.tax
   }
   pfis[idx] = merged
+
+  // ── Sync job card status when PFI status changes ─────────────────────────
+  // PFI_PENDING → PFI_APPROVED when PFI is approved
+  // PFI_APPROVED → PFI_PENDING when PFI is rejected/reset to draft
+  if (body.status) {
+    const linkedJobIdx = jobCards.findIndex(j => j.id === pfis[idx].jobCardId)
+    if (linkedJobIdx !== -1) {
+      const linkedJob = jobCards[linkedJobIdx]
+      const ts2 = now()
+      if (body.status === 'Approved' && linkedJob.status === 'PFI_PENDING') {
+        const tl = linkedJob.statusTimeline ? [...linkedJob.statusTimeline] : []
+        const oe = tl.findLast ? tl.findLast((e: any) => !e.exitedAt) : [...tl].reverse().find((e: any) => !e.exitedAt)
+        if (oe) closeTimelineEntry(oe, ts2)
+        tl.push(openTimelineEntry(linkedJob, 'PFI_APPROVED', ts2))
+        jobCards[linkedJobIdx] = { ...linkedJob, status: 'PFI_APPROVED', statusTimeline: tl, updatedAt: ts2 }
+        activityLog.push({ id: 'a' + genId(), jobCardId: linkedJob.id, action: 'STATUS_CHANGE', description: 'PFI approved — job advanced to PFI Approved.', userId: 'system', userName: 'System', timestamp: ts2 })
+        addNotification('job_status', 'success', 'PFI Approved', `${linkedJob.jobCardNumber} — PFI approved, awaiting customer cost approval.`, { jobCardId: linkedJob.id, jobCardNumber: linkedJob.jobCardNumber })
+      } else if ((body.status === 'Rejected' || body.status === 'Draft') && linkedJob.status === 'PFI_APPROVED') {
+        const tl = linkedJob.statusTimeline ? [...linkedJob.statusTimeline] : []
+        const oe = tl.findLast ? tl.findLast((e: any) => !e.exitedAt) : [...tl].reverse().find((e: any) => !e.exitedAt)
+        if (oe) closeTimelineEntry(oe, ts2)
+        tl.push(openTimelineEntry(linkedJob, 'PFI_PENDING', ts2))
+        jobCards[linkedJobIdx] = { ...linkedJob, status: 'PFI_PENDING', statusTimeline: tl, updatedAt: ts2 }
+      }
+    }
+  }
+
   return c.json(pfis[idx])
 })
 

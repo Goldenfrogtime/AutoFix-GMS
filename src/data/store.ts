@@ -307,6 +307,64 @@ export interface JobCard {
     completedByName: string
   }
   gatePassInId?: string           // id of the auto-generated entry Gate Pass
+  // ── Phase 3: Post-Handover workflow data ───────────────────────────────────
+  inspectionData?: {
+    // Simple Check Inspection items (from PDF)
+    engineOilTopup:   string; airFilter:      string; acFilter:       string
+    sparkPlugs:       string; bulbs:          string; tiresCondition: string
+    brakeConditions:  string; leakages:       string; coolantLevel:   string
+    wiperBlades:      string; battery:        string; fireExtinguisher: string
+    brakeFluidLevel:  string; triangle:       string; hydraulic:      string
+    airFreshener:     string
+    // Recommendations
+    recommendedService: string
+    // Sign-offs
+    technicianName:   string; technicianSignature: string
+    serviceAdvisorName: string; serviceAdvisorSignature: string
+    customerApproval: string  // "Approved" | "Declined"
+    notes: string
+    completedAt: string; completedBy: string; completedByName: string
+  }
+  customerApprovalData?: {
+    approvedBy:       string       // customer name
+    approvalSignature: string      // base64 PNG
+    approvalNotes:    string
+    approvedAt:       string
+    approvedByUserId: string
+    approvedByUserName: string
+    totalApproved:    number       // TZS amount customer agreed to
+  }
+  partsReleasedAt?: string        // ISO when parts were released
+  partsReleasedBy?: string
+  partsReleasedByName?: string
+  workStartedAt?: string          // when WORK_IN_PROGRESS began
+  workStartedBy?: string
+  workStartedByName?: string
+  workFinishedAt?: string         // when FINISHED was set
+  workFinishedBy?: string
+  workFinishedByName?: string
+  qcData?: {
+    // Quality Control Form items (from PDF)
+    engineOilLevel:   string; fuelLevel:      string
+    boltsTightened:   string; leakages:       string
+    cleanWork:        string; allWorksCompleted: string
+    notes:            string
+    // Sign-off
+    technicianName:   string; technicianSignature: string
+    qcOfficerName:    string; qcOfficerSignature:  string
+    completedAt:      string; completedBy: string; completedByName: string
+  }
+  customerSignoffData?: {
+    customerName:     string
+    customerSignature: string     // base64 PNG
+    signoffNotes:     string
+    satisfactionRating: number    // 1-5
+    signedAt:         string
+    witnessName:      string
+    witnessSignature: string      // base64 PNG
+    recordedBy:       string
+    recordedByName:   string
+  }
   createdAt: string
   updatedAt: string
 }
