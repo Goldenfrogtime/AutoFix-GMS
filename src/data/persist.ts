@@ -4,8 +4,8 @@
  * Stores all runtime data (customers, vehicles, job cards, PFIs, invoices,
  * parts consumption, job services, service packages, expenses, vendors,
  * appointments, notifications, activity log, users, lubricant products,
- * catalogue parts, car wash packages, add-on services) in a single JSON
- * file at DATA_FILE_PATH.
+ * catalogue parts, car wash packages, add-on services, garage settings) in a
+ * single JSON file at DATA_FILE_PATH.
  *
  * • load()  — called once at startup; populates the live arrays from disk.
  * • save()  — called after every mutation; writes the live arrays to disk.
@@ -43,19 +43,15 @@ import {
   subscriptionPlans,
   customerSubscriptions,
   jobCardPhotos,
+  customerNotifDispatches,
+  garageSettings,
+  updateGarageSettings,
 } from './store.js'
 
 // ── Path to the data file ─────────────────────────────────────────────────────
-// Resolve relative to this file's compiled location.  In the wrangler pages dev
-// runtime the CWD is the project root, so '../gms-data.json' lands next to
-// package.json — safely outside dist/.
 const DATA_FILE_PATH = resolve(process.cwd(), 'gms-data.json')
 
 // ── Keys that are persisted ───────────────────────────────────────────────────
-// Sessions (token→userId) are intentionally NOT persisted: all active sessions
-// are invalidated on restart (users simply log in again).
-// Catalogue seed data (lubricantProducts, catalogueParts, etc.) IS persisted
-// so that stock changes and price edits survive restarts.
 const PERSIST_KEYS = [
   'customers',
   'vehicles',
@@ -80,6 +76,7 @@ const PERSIST_KEYS = [
   'subscriptionPlans',
   'customerSubscriptions',
   'jobCardPhotos',
+  'customerNotifDispatches',
 ] as const
 
 type PersistKey = typeof PERSIST_KEYS[number]
@@ -110,15 +107,11 @@ function getLiveArrays(): Record<PersistKey, unknown[]> {
     subscriptionPlans,
     customerSubscriptions,
     jobCardPhotos,
+    customerNotifDispatches,
   }
 }
 
 // ── load ──────────────────────────────────────────────────────────────────────
-/**
- * Read gms-data.json and splice the saved rows into every live array.
- * Called ONCE on server startup (from store.ts bottom).
- * Safe to call even if the file does not exist yet.
- */
 export function load(): void {
   if (!existsSync(DATA_FILE_PATH)) {
     console.log('[GMS persist] No saved data file found — starting fresh.')
@@ -127,18 +120,23 @@ export function load(): void {
 
   try {
     const raw = readFileSync(DATA_FILE_PATH, 'utf-8')
-    const saved: Partial<Record<PersistKey, unknown[]>> = JSON.parse(raw)
+    const saved: Partial<Record<PersistKey, unknown[]>> & { garageSettings?: unknown } = JSON.parse(raw)
     const live = getLiveArrays()
 
     let totalLoaded = 0
     for (const key of PERSIST_KEYS) {
       const arr = saved[key]
       if (Array.isArray(arr) && arr.length > 0) {
-        // Replace contents of the live array without losing the reference
         live[key].splice(0, live[key].length, ...arr)
         totalLoaded += arr.length
       }
     }
+
+    // Load settings object (not an array)
+    if (saved.garageSettings && typeof saved.garageSettings === 'object') {
+      updateGarageSettings(saved.garageSettings as any)
+    }
+
     console.log(`[GMS persist] Loaded ${totalLoaded} records from ${DATA_FILE_PATH}`)
   } catch (err) {
     console.error('[GMS persist] Failed to load data file — starting fresh.', err)
@@ -146,17 +144,14 @@ export function load(): void {
 }
 
 // ── save ──────────────────────────────────────────────────────────────────────
-/**
- * Serialise all live arrays to gms-data.json.
- * Called after every mutation in api.ts.
- */
 export function save(): void {
   try {
     const live = getLiveArrays()
-    const snapshot: Partial<Record<PersistKey, unknown[]>> = {}
+    const snapshot: Partial<Record<PersistKey, unknown[]>> & { garageSettings?: unknown } = {}
     for (const key of PERSIST_KEYS) {
       snapshot[key] = live[key]
     }
+    snapshot.garageSettings = garageSettings
     writeFileSync(DATA_FILE_PATH, JSON.stringify(snapshot, null, 2), 'utf-8')
   } catch (err) {
     console.error('[GMS persist] Failed to save data file.', err)

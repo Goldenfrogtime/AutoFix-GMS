@@ -79,6 +79,9 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 .parts-cat-tab{padding:6px 16px;border-radius:99px;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;font-size:.82rem;font-weight:600;cursor:pointer;transition:all .18s}
 .parts-cat-tab:hover{border-color:#3b82f6;color:#2563eb;background:#eff6ff}
 .parts-cat-tab.active{background:#2563eb;color:#fff;border-color:#2563eb}
+.settings-tab-btn{padding:0.5rem 1rem;border-bottom:2px solid transparent;font-size:0.875rem;font-weight:600;color:#6b7280;cursor:pointer;transition:all .15s;white-space:nowrap;background:transparent;border-top:none;border-left:none;border-right:none}
+.settings-tab-btn:hover{color:#2563eb;border-bottom-color:#93c5fd}
+.settings-tab-btn.active{color:#2563eb;border-bottom-color:#2563eb}
 /* ── Responsive ── */
 @media(max-width:1023px){
   /* Sidebar becomes a fixed full-height overlay on mobile/tablet */
@@ -286,7 +289,16 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <i class="fas fa-coins w-5 text-center"></i> Finance
     </a>
     <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('users')" data-perm="users.view">
-      <i class="fas fa-user-cog w-5 text-center"></i> Users & Roles
+      <i class="fas fa-user-cog w-5 text-center"></i> Users &amp; Roles
+    </a>
+    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('audit-log')" data-perm="users.view">
+      <i class="fas fa-history w-5 text-center"></i> Audit Log
+    </a>
+    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('dispatch-log')" data-perm="analytics.view">
+      <i class="fas fa-paper-plane w-5 text-center"></i> Customer Messages
+    </a>
+    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('settings')" data-perm="settings.view">
+      <i class="fas fa-cog w-5 text-center"></i> Settings
     </a>
   </nav>
   <div class="p-3 border-t border-white/10">
@@ -486,6 +498,16 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
               <button class="text-violet-600 text-xs font-semibold hover:underline" onclick="showPage('subscriptions')">View All →</button>
             </div>
             <div id="dashSubStats"><p class="text-gray-400 text-sm text-center py-4">Loading…</p></div>
+          </div>
+          <!-- Alerts Widget -->
+          <div class="card p-5" id="dash-alerts-widget">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="font-bold text-gray-800 flex items-center gap-2"><i class="fas fa-exclamation-circle text-red-500"></i>Alerts</h3>
+              <button class="text-xs text-gray-400 hover:text-gray-600" onclick="loadDashboardAlerts()" title="Refresh alerts"><i class="fas fa-sync-alt"></i></button>
+            </div>
+            <div id="dashboardAlerts" class="space-y-2">
+              <p class="text-gray-400 text-sm text-center py-2">Loading…</p>
+            </div>
           </div>
         </div>
       </div>
@@ -1812,6 +1834,369 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         </div>
         <div id="notifPageList" class="divide-y divide-gray-50">
           <p class="text-center text-gray-400 text-sm py-12"><i class="fas fa-bell-slash text-3xl mb-3 block"></i>No notifications yet</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ CUSTOMER DISPATCH LOG ═══ -->
+    <div id="page-dispatch-log" class="page">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-900">Customer Notification Log</h2>
+          <p class="text-gray-500 text-sm mt-1">Record of all SMS, email and WhatsApp messages sent to customers</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button class="btn-secondary text-sm" onclick="showSendManualNotifModal()"><i class="fas fa-paper-plane mr-1"></i>Send Manual</button>
+          <button class="btn-secondary text-sm" onclick="exportDispatchLog()"><i class="fas fa-file-csv mr-1"></i>Export CSV</button>
+        </div>
+      </div>
+
+      <!-- Stats row -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6" id="dispatchLogStats"></div>
+
+      <!-- Filters -->
+      <div class="card p-4 mb-5">
+        <div class="flex flex-wrap gap-3 items-end">
+          <div class="flex-1 min-w-[140px]">
+            <label class="form-label">Search</label>
+            <div class="relative">
+              <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+              <input class="form-input pl-9" id="dlSearch" placeholder="Customer, subject, event…" oninput="loadDispatchLog()"/>
+            </div>
+          </div>
+          <div>
+            <label class="form-label">Channel</label>
+            <select class="form-input" id="dlChannel" onchange="loadDispatchLog()">
+              <option value="">All Channels</option>
+              <option value="sms">SMS</option>
+              <option value="email">Email</option>
+              <option value="whatsapp">WhatsApp</option>
+            </select>
+          </div>
+          <div>
+            <label class="form-label">Status</label>
+            <select class="form-input" id="dlStatus" onchange="loadDispatchLog()">
+              <option value="">All Statuses</option>
+              <option value="sent">Sent</option>
+              <option value="simulated">Simulated</option>
+              <option value="failed">Failed</option>
+            </select>
+          </div>
+          <button class="btn-secondary text-sm" onclick="resetDispatchFilters()"><i class="fas fa-times mr-1"></i>Reset</button>
+        </div>
+      </div>
+
+      <!-- Table -->
+      <div class="card overflow-hidden">
+        <div class="table-scroll">
+          <table class="w-full text-sm" style="min-width:800px">
+            <thead><tr class="border-b border-gray-100 bg-gray-50">
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Sent At</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Customer</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Channel</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Event</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Subject</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Status</th>
+              <th class="text-center px-4 py-3 font-semibold text-gray-600">Preview</th>
+            </tr></thead>
+            <tbody id="dispatchLogTable">
+              <tr><td colspan="7" class="text-center py-10 text-gray-400"><i class="fas fa-spinner fa-spin mr-2"></i>Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="flex items-center justify-between px-5 py-3 border-t border-gray-100 bg-gray-50" id="dlPagination">
+          <span class="text-xs text-gray-500" id="dlTotal"></span>
+          <div class="flex gap-2">
+            <button class="btn-secondary text-xs py-1 px-3" id="dlPrevBtn" onclick="dlPageChange(-1)"><i class="fas fa-chevron-left"></i> Prev</button>
+            <button class="btn-secondary text-xs py-1 px-3" id="dlNextBtn" onclick="dlPageChange(1)">Next <i class="fas fa-chevron-right"></i></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ SETTINGS ═══ -->
+    <div id="page-settings" class="page">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-900">Garage Settings</h2>
+          <p class="text-gray-500 text-sm mt-1">Configure your garage profile, invoice numbering, and notification channels</p>
+        </div>
+        <button class="btn-primary" onclick="saveGarageSettings()"><i class="fas fa-save mr-1"></i>Save Settings</button>
+      </div>
+
+      <!-- Tab bar -->
+      <div class="flex gap-2 mb-6 border-b border-gray-200" id="settingsTabs">
+        <button class="settings-tab-btn active" onclick="switchSettingsTab('profile')" data-tab="profile">
+          <i class="fas fa-building mr-1"></i> Garage Profile
+        </button>
+        <button class="settings-tab-btn" onclick="switchSettingsTab('invoicing')" data-tab="invoicing">
+          <i class="fas fa-file-invoice mr-1"></i> Invoicing
+        </button>
+        <button class="settings-tab-btn" onclick="switchSettingsTab('notifications')" data-tab="notifications">
+          <i class="fas fa-bell mr-1"></i> Notifications
+        </button>
+      </div>
+
+      <!-- Profile tab -->
+      <div id="settingsPane-profile">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="card p-5">
+            <h3 class="text-base font-bold text-gray-800 mb-4"><i class="fas fa-building text-blue-500 mr-2"></i>Garage Identity</h3>
+            <div class="space-y-3">
+              <div>
+                <label class="form-label">Garage Name <span class="text-red-500">*</span></label>
+                <input class="form-input" id="sett-garageName" placeholder="e.g. Twiga Group Garage"/>
+              </div>
+              <div>
+                <label class="form-label">Physical Address</label>
+                <input class="form-input" id="sett-address" placeholder="e.g. Mikocheni, Dar es Salaam"/>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="form-label">Phone</label>
+                  <input class="form-input" id="sett-phone" placeholder="+255 …"/>
+                </div>
+                <div>
+                  <label class="form-label">Email</label>
+                  <input class="form-input" type="email" id="sett-email" placeholder="info@garage.co.tz"/>
+                </div>
+              </div>
+              <div>
+                <label class="form-label">Website</label>
+                <input class="form-input" id="sett-website" placeholder="https://"/>
+              </div>
+              <div>
+                <label class="form-label">TIN Number</label>
+                <input class="form-input" id="sett-tinNumber" placeholder="e.g. 123-456-789"/>
+              </div>
+            </div>
+          </div>
+          <div class="card p-5">
+            <h3 class="text-base font-bold text-gray-800 mb-4"><i class="fas fa-coins text-amber-500 mr-2"></i>Financial Defaults</h3>
+            <div class="space-y-3">
+              <div>
+                <label class="form-label">Currency</label>
+                <select class="form-input" id="sett-currency">
+                  <option value="TZS">TZS – Tanzanian Shilling</option>
+                  <option value="KES">KES – Kenyan Shilling</option>
+                  <option value="USD">USD – US Dollar</option>
+                </select>
+              </div>
+              <div>
+                <label class="form-label">VAT Rate (%)</label>
+                <input class="form-input" type="number" min="0" max="100" step="0.5" id="sett-vatRate" placeholder="18"/>
+              </div>
+              <div>
+                <label class="form-label">Invoice Footer Note</label>
+                <textarea class="form-input" rows="3" id="sett-invoiceFooterNote" placeholder="Thank you for your business!"></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Invoicing tab -->
+      <div id="settingsPane-invoicing" class="hidden">
+        <div class="card p-5 max-w-2xl">
+          <h3 class="text-base font-bold text-gray-800 mb-4"><i class="fas fa-hashtag text-purple-500 mr-2"></i>Number Prefixes</h3>
+          <p class="text-xs text-gray-500 mb-4">These prefixes are prepended to sequential numbers, e.g. <code class="bg-gray-100 px-1 py-0.5 rounded">GMS-INV-2026-001</code></p>
+          <div class="space-y-3">
+            <div>
+              <label class="form-label">Invoice Prefix</label>
+              <input class="form-input" id="sett-invoicePrefix" placeholder="GMS-INV"/>
+            </div>
+            <div>
+              <label class="form-label">Job Card Prefix</label>
+              <input class="form-input" id="sett-jobCardPrefix" placeholder="GMS"/>
+            </div>
+            <div>
+              <label class="form-label">PFI Prefix</label>
+              <input class="form-input" id="sett-pfiPrefix" placeholder="GMS-PFI"/>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notifications tab -->
+      <div id="settingsPane-notifications" class="hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Triggers -->
+          <div class="card p-5">
+            <h3 class="text-base font-bold text-gray-800 mb-4"><i class="fas fa-bell text-blue-500 mr-2"></i>Notification Triggers</h3>
+            <div class="space-y-3">
+              <label class="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" class="w-4 h-4 rounded accent-blue-600" id="sett-notifyOnJobCreate"/>
+                <span class="text-sm text-gray-700">New job card created</span>
+              </label>
+              <label class="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" class="w-4 h-4 rounded accent-blue-600" id="sett-notifyOnJobStatus"/>
+                <span class="text-sm text-gray-700">Job status change</span>
+              </label>
+              <label class="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" class="w-4 h-4 rounded accent-blue-600" id="sett-notifyOnJobComplete"/>
+                <span class="text-sm text-gray-700">Job completed / closed</span>
+              </label>
+              <label class="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" class="w-4 h-4 rounded accent-blue-600" id="sett-notifyOnInvoicePaid"/>
+                <span class="text-sm text-gray-700">Invoice paid</span>
+              </label>
+              <label class="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" class="w-4 h-4 rounded accent-blue-600" id="sett-notifyOnAppointment"/>
+                <span class="text-sm text-gray-700">Appointment booked / reminder</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- SMS channel -->
+          <div class="card p-5">
+            <h3 class="text-base font-bold text-gray-800 mb-4">
+              <i class="fas fa-sms text-green-500 mr-2"></i>SMS Channel
+              <span class="ml-2 text-xs text-gray-400 font-normal">(optional)</span>
+            </h3>
+            <div class="space-y-3">
+              <label class="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" class="w-4 h-4 rounded accent-green-600" id="sett-smsEnabled"
+                  onchange="toggleSettingsSection('sms')"/>
+                <span class="text-sm text-gray-700">Enable SMS notifications</span>
+              </label>
+              <div id="smsSettingsBody" class="space-y-3">
+                <div>
+                  <label class="form-label">Provider</label>
+                  <select class="form-input" id="sett-smsProvider">
+                    <option value="none">None / Not configured</option>
+                    <option value="bongolive">BongoLive (Tanzania)</option>
+                    <option value="africastalking">Africa's Talking</option>
+                    <option value="nexmo">Vonage / Nexmo</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label">API Key</label>
+                  <input class="form-input" id="sett-smsApiKey" type="password" placeholder="Enter API key…" autocomplete="new-password"/>
+                </div>
+                <div>
+                  <label class="form-label">Sender ID / Shortcode</label>
+                  <input class="form-input" id="sett-smsSenderId" placeholder="e.g. TWIGA"/>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Email channel -->
+          <div class="card p-5">
+            <h3 class="text-base font-bold text-gray-800 mb-4">
+              <i class="fas fa-envelope text-blue-500 mr-2"></i>Email Channel
+              <span class="ml-2 text-xs text-gray-400 font-normal">(optional)</span>
+            </h3>
+            <div class="space-y-3">
+              <label class="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" class="w-4 h-4 rounded accent-blue-600" id="sett-emailEnabled"
+                  onchange="toggleSettingsSection('email')"/>
+                <span class="text-sm text-gray-700">Enable email notifications</span>
+              </label>
+              <div id="emailSettingsBody" class="space-y-3">
+                <div>
+                  <label class="form-label">Provider</label>
+                  <select class="form-input" id="sett-emailProvider">
+                    <option value="none">None / Not configured</option>
+                    <option value="sendgrid">SendGrid</option>
+                    <option value="mailgun">Mailgun</option>
+                    <option value="smtp">SMTP (generic)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="form-label">API Key / Password</label>
+                  <input class="form-input" id="sett-emailApiKey" type="password" placeholder="Enter API key…" autocomplete="new-password"/>
+                </div>
+                <div>
+                  <label class="form-label">From Address</label>
+                  <input class="form-input" type="email" id="sett-emailFrom" placeholder="noreply@garage.co.tz"/>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- WhatsApp channel -->
+          <div class="card p-5">
+            <h3 class="text-base font-bold text-gray-800 mb-4">
+              <i class="fab fa-whatsapp text-green-600 mr-2"></i>WhatsApp Channel
+              <span class="ml-2 text-xs text-gray-400 font-normal">(optional)</span>
+            </h3>
+            <div class="space-y-3">
+              <label class="flex items-center gap-3 cursor-pointer">
+                <input type="checkbox" class="w-4 h-4 rounded accent-green-600" id="sett-whatsappEnabled"
+                  onchange="toggleSettingsSection('whatsapp')"/>
+                <span class="text-sm text-gray-700">Enable WhatsApp notifications</span>
+              </label>
+              <div id="whatsappSettingsBody" class="space-y-3">
+                <div>
+                  <label class="form-label">WhatsApp Number (Twilio / 360dialog)</label>
+                  <input class="form-input" id="sett-whatsappNumber" placeholder="+14155238886"/>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ AUDIT LOG ═══ -->
+    <div id="page-audit-log" class="page">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-900">Audit Log</h2>
+          <p class="text-gray-500 text-sm mt-1">Full history of all system actions and changes</p>
+        </div>
+        <button class="btn-secondary" onclick="exportAuditLog()"><i class="fas fa-file-csv mr-1"></i>Export CSV</button>
+      </div>
+
+      <!-- Filters -->
+      <div class="card p-4 mb-5">
+        <div class="flex flex-wrap gap-3 items-end">
+          <div class="flex-1 min-w-[160px]">
+            <label class="form-label">Search</label>
+            <div class="relative">
+              <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+              <input class="form-input pl-9" id="auditSearch" placeholder="Action, detail, user…" oninput="loadAuditLog()"/>
+            </div>
+          </div>
+          <div class="flex-1 min-w-[140px]">
+            <label class="form-label">User</label>
+            <select class="form-input" id="auditUserFilter" onchange="loadAuditLog()">
+              <option value="">All Users</option>
+            </select>
+          </div>
+          <button class="btn-secondary text-sm" onclick="resetAuditFilters()"><i class="fas fa-times mr-1"></i>Reset</button>
+        </div>
+      </div>
+
+      <!-- Audit table -->
+      <div class="card overflow-hidden">
+        <div class="table-scroll">
+          <table class="w-full text-sm" style="min-width:700px">
+            <thead>
+              <tr class="border-b border-gray-100 bg-gray-50">
+                <th class="text-left px-4 py-3 font-semibold text-gray-600">Timestamp</th>
+                <th class="text-left px-4 py-3 font-semibold text-gray-600">User</th>
+                <th class="text-left px-4 py-3 font-semibold text-gray-600">Action</th>
+                <th class="text-left px-4 py-3 font-semibold text-gray-600">Detail</th>
+              </tr>
+            </thead>
+            <tbody id="auditLogTable">
+              <tr><td colspan="4" class="text-center py-10 text-gray-400"><i class="fas fa-spinner fa-spin mr-2"></i>Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <!-- Pagination -->
+        <div class="flex items-center justify-between px-5 py-3 border-t border-gray-100 bg-gray-50" id="auditLogPagination">
+          <span class="text-xs text-gray-500" id="auditLogTotal"></span>
+          <div class="flex gap-2">
+            <button class="btn-secondary text-xs py-1 px-3" id="auditPrevBtn" onclick="auditLogPageChange(-1)">
+              <i class="fas fa-chevron-left"></i> Prev
+            </button>
+            <button class="btn-secondary text-xs py-1 px-3" id="auditNextBtn" onclick="auditLogPageChange(1)">
+              Next <i class="fas fa-chevron-right"></i>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -4690,6 +5075,88 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
   </div>
 </div>
 
+<!-- ═══ MODAL: Manual Customer Notification ═══ -->
+<div id="modal-manualNotif" class="modal-overlay hidden">
+  <div class="modal-container w-full max-w-lg">
+    <div class="flex items-center justify-between mb-5">
+      <h3 class="text-lg font-bold text-gray-900"><i class="fas fa-paper-plane text-blue-500 mr-2"></i>Send Manual Notification</h3>
+      <button onclick="closeModal('modal-manualNotif')" class="text-gray-400 hover:text-gray-600 text-xl"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="space-y-4">
+      <div>
+        <label class="form-label">Customer <span class="text-red-500">*</span></label>
+        <select class="form-input" id="mn-customerId" onchange="updateMnRecipient()">
+          <option value="">— Select customer —</option>
+        </select>
+        <p class="text-xs text-gray-400 mt-1" id="mn-recipientInfo">Phone &amp; email will be shown here</p>
+      </div>
+      <div>
+        <label class="form-label">Channel(s) <span class="text-red-500">*</span></label>
+        <div class="flex gap-4">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" class="w-4 h-4 accent-green-600" id="mn-ch-sms" checked/>
+            <span class="text-sm"><i class="fas fa-sms text-green-600 mr-1"></i>SMS</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" class="w-4 h-4 accent-blue-600" id="mn-ch-email"/>
+            <span class="text-sm"><i class="fas fa-envelope text-blue-600 mr-1"></i>Email</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" class="w-4 h-4 accent-green-600" id="mn-ch-whatsapp"/>
+            <span class="text-sm"><i class="fab fa-whatsapp text-green-600 mr-1"></i>WhatsApp</span>
+          </label>
+        </div>
+      </div>
+      <div>
+        <label class="form-label">Subject <span class="text-red-500">*</span></label>
+        <input class="form-input" id="mn-subject" placeholder="e.g. Vehicle Service Update"/>
+      </div>
+      <div>
+        <label class="form-label">Message <span class="text-red-500">*</span></label>
+        <textarea class="form-input" rows="4" id="mn-body" placeholder="Type your message here…"></textarea>
+        <p class="text-xs text-gray-400 mt-1">Characters: <span id="mn-charCount">0</span></p>
+      </div>
+    </div>
+    <div class="flex gap-3 mt-6">
+      <button class="btn-secondary flex-1" onclick="closeModal('modal-manualNotif')">Cancel</button>
+      <button class="btn-primary flex-1" id="mn-sendBtn" onclick="submitManualNotif()"><i class="fas fa-paper-plane mr-1"></i>Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ MODAL: Stock Adjust ═══ -->
+<div id="modal-stockAdjust" class="modal-overlay hidden">
+  <div class="modal-container w-full max-w-sm">
+    <div class="flex items-center justify-between mb-5">
+      <h3 class="text-lg font-bold text-gray-900"><i class="fas fa-exchange-alt text-purple-500 mr-2"></i>Adjust Stock</h3>
+      <button onclick="closeModal('modal-stockAdjust')" class="text-gray-400 hover:text-gray-600 text-xl"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="space-y-4">
+      <div class="p-3 bg-gray-50 rounded-xl">
+        <p class="text-sm font-semibold text-gray-800" id="sa-partName">—</p>
+        <p class="text-xs text-gray-500 mt-0.5">Current stock: <span class="font-bold" id="sa-currentStock">0</span> units</p>
+      </div>
+      <div>
+        <label class="form-label">Adjustment <span class="text-red-500">*</span></label>
+        <div class="flex gap-2">
+          <button class="w-10 h-10 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 font-bold text-lg flex items-center justify-center" onclick="saStep(-1)">−</button>
+          <input type="number" class="form-input text-center font-bold text-lg flex-1" id="sa-adjustment" value="0" oninput="saUpdatePreview()"/>
+          <button class="w-10 h-10 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 font-bold text-lg flex items-center justify-center" onclick="saStep(1)">+</button>
+        </div>
+        <p class="text-xs text-center mt-1 text-gray-500">New stock will be: <span class="font-bold" id="sa-newStock">0</span></p>
+      </div>
+      <div>
+        <label class="form-label">Reason / Note</label>
+        <input class="form-input" id="sa-note" placeholder="e.g. Stock received from supplier"/>
+      </div>
+    </div>
+    <div class="flex gap-3 mt-6">
+      <button class="btn-secondary flex-1" onclick="closeModal('modal-stockAdjust')">Cancel</button>
+      <button class="btn-primary flex-1" onclick="submitStockAdjust()"><i class="fas fa-check mr-1"></i>Apply</button>
+    </div>
+  </div>
+</div>
+
 <script>
 // ═══ GLOBAL STATE ═══
 let allJobCards = [], allCustomers = [], allVehicles = [], allPFIs = [], allInvoices = [], allPackages = [], allUsers = [], allAppointments = [];
@@ -5155,6 +5622,9 @@ function showPage(page) {
   if (page === 'vendors') loadVendors();
   if (page === 'notifications') loadNotificationsPage();
   if (page === 'gate-passes') loadGatePasses();
+  if (page === 'dispatch-log') loadDispatchLog();
+  if (page === 'settings') loadGarageSettings();
+  if (page === 'audit-log') { loadAuditLog(); populateAuditUserFilter(); }
   window.scrollTo(0, 0);
 }
 
@@ -5246,6 +5716,8 @@ async function loadDashboard() {
   loadFinanceSummaryCards();
   // Load subscription widget (async, non-blocking)
   _loadDashSubWidget();
+  // Load alerts widget (async, non-blocking)
+  loadDashboardAlerts();
   // Update nav approval badge (Admin/Manager only)
   try {
     const navBadge = document.getElementById('navApprovalBadge');
@@ -10141,6 +10613,10 @@ function renderAptTable(list) {
             ? \`<button class="text-green-600 hover:text-green-800 text-sm" title="Convert to Job Card" onclick="convertAptToJob('\${a.id}')"><i class="fas fa-clipboard-list"></i></button>\`
             : a.jobCardId ? \`<span class="text-xs bg-green-100 text-green-700 rounded px-1.5 py-0.5 font-semibold">Job Card</span>\` : ''
           }
+          \${!['Completed','Cancelled','No Show'].includes(a.status)
+            ? \`<button class="text-purple-500 hover:text-purple-700 text-sm \${a.reminderSentAt ? 'opacity-40' : ''}" title="\${a.reminderSentAt ? 'Reminder already sent at ' + new Date(a.reminderSentAt).toLocaleString() : 'Send appointment reminder to customer'}" onclick="sendAppointmentReminder('\${a.id}', this)"><i class="fas fa-bell"></i></button>\`
+            : ''
+          }
           <button class="text-red-400 hover:text-red-600 text-sm" title="Cancel" onclick="cancelAppointment('\${a.id}')"><i class="fas fa-times"></i></button>
         </div>
       </td>
@@ -10348,6 +10824,21 @@ async function cancelAppointment(id) {
   await axios.patch('/api/appointments/' + id + '/status', { status: 'Cancelled' });
   showToast('Appointment cancelled');
   loadAppointments();
+}
+
+async function sendAppointmentReminder(id, btn) {
+  const apt = allAppointments.find(a => a.id === id);
+  if (!apt) return;
+  if (apt.reminderSentAt) { showToast('Reminder already sent', 'info'); return; }
+  try {
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; }
+    await axios.post('/api/appointments/' + id + '/send-reminder');
+    showToast('Reminder sent to customer!', 'success');
+    loadAppointments();
+  } catch(e) {
+    showToast('Failed to send reminder', 'error');
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-bell"></i>'; }
+  }
 }
 
 async function convertAptToJob(id) {
@@ -15036,6 +15527,7 @@ const LUB_TYPE_COLORS = {
 async function loadLubricants() {
   const { data } = await axios.get('/api/catalogue/lubricants');
   allLubricants = data;
+  window._allLubricants = data;  // used by adjustLubStock modal
   renderLubricantsStats(data);
   renderLubricantsTable(data);
 }
@@ -15205,11 +15697,13 @@ function renderLubricantsTable(list) {
     const tc = LUB_TYPE_COLORS[l.lubricantType] || '#64748b';
     const marginPct = l.sellingPrice > 0 ? Math.round((l.margin / l.sellingPrice) * 100) : 0;
     const marginColor = marginPct >= 40 ? '#16a34a' : marginPct >= 25 ? '#d97706' : '#dc2626';
+    const reorderLevel = l.reorderLevel != null ? l.reorderLevel : 5;
     const stockBadge = (l.stockQuantity || 0) === 0
       ? '<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-600"><i class="fas fa-times-circle"></i>Out</span>'
-      : (l.stockQuantity || 0) <= 5
+      : (l.stockQuantity || 0) <= reorderLevel
         ? '<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700"><i class="fas fa-exclamation-triangle"></i>'+l.stockQuantity+'</span>'
         : '<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700"><i class="fas fa-check"></i>'+l.stockQuantity+'</span>';
+    const reorderBadge = '<span class="ml-1 text-xs text-gray-400" title="Reorder level: '+reorderLevel+'">/ '+reorderLevel+'</span>';
     const batchCell = l.batchNumber
       ? '<span class="text-xs font-mono font-semibold px-2 py-0.5 rounded bg-indigo-50 text-indigo-700">'+l.batchNumber+'</span>'
       : '<span class="text-xs text-gray-300">—</span>';
@@ -15234,11 +15728,13 @@ function renderLubricantsTable(list) {
         if (l.mileageInterval) return '<td class="px-4 py-3 text-center"><span class="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700"><i class="fas fa-tachometer-alt text-[10px]"></i>'+l.mileageInterval.toLocaleString()+' km</span></td>';
         return '<td class="px-4 py-3 text-center"><span class="text-xs text-amber-500 font-medium"><i class="fas fa-exclamation-circle mr-0.5"></i>Not set</span></td>';
       })() +
-      '<td class="px-4 py-3 text-right">'+stockBadge+'</td>' +
+      '<td class="px-4 py-3 text-right">'+stockBadge+reorderBadge+'</td>' +
       '<td class="px-4 py-3 text-center">' +
         '<div class="flex items-center justify-center gap-1">' +
           '<button class="lub-edit-btn w-7 h-7 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center transition-colors" data-id="'+l.id+'" title="Edit"><i class="fas fa-pen text-xs"></i></button>' +
           '<button class="lub-restock-btn w-7 h-7 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 flex items-center justify-center transition-colors" data-id="'+l.id+'" title="Add Stock"><i class="fas fa-plus text-xs"></i></button>' +
+          '<button class="lub-adj-btn w-7 h-7 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 flex items-center justify-center transition-colors" data-id="'+l.id+'" data-name="'+l.description.replace(/'/g,'')+'" title="Adjust Stock"><i class="fas fa-exchange-alt text-xs"></i></button>' +
+          '<button class="lub-reorder-btn w-7 h-7 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 flex items-center justify-center transition-colors" data-id="'+l.id+'" data-reorder="'+reorderLevel+'" title="Set Reorder Level"><i class="fas fa-bell text-xs"></i></button>' +
           '<button class="lub-del-btn w-7 h-7 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center transition-colors" data-id="'+l.id+'" title="Delete"><i class="fas fa-trash text-xs"></i></button>' +
         '</div>' +
       '</td>' +
@@ -15250,6 +15746,12 @@ function renderLubricantsTable(list) {
   });
   tbody.querySelectorAll('.lub-restock-btn').forEach(function(btn) {
     btn.addEventListener('click', function() { showLubRestockModal(btn.getAttribute('data-id')); });
+  });
+  tbody.querySelectorAll('.lub-adj-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() { adjustLubStock(btn.getAttribute('data-id'), btn.getAttribute('data-name')); });
+  });
+  tbody.querySelectorAll('.lub-reorder-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() { setLubReorderLevel(btn.getAttribute('data-id'), btn.getAttribute('data-reorder')); });
   });
   tbody.querySelectorAll('.lub-del-btn').forEach(function(btn) {
     btn.addEventListener('click', function() { deleteLubricant(btn.getAttribute('data-id')); });
@@ -16218,7 +16720,10 @@ function renderPartsStats(parts) {
   parts.forEach(function(p) { if (cats.indexOf(p.category) === -1) cats.push(p.category); });
   var totalStock     = parts.reduce(function(s, p) { return s + (p.stockQuantity || 0); }, 0);
   var outOfStock     = parts.filter(function(p) { return (p.stockQuantity || 0) === 0; }).length;
-  var lowStock       = parts.filter(function(p) { return (p.stockQuantity||0) > 0 && (p.stockQuantity||0) <= 5; }).length;
+  var lowStock       = parts.filter(function(p) {
+    var qty = p.stockQuantity||0; var reorder = p.reorderLevel != null ? p.reorderLevel : 5;
+    return qty > 0 && qty <= reorder;
+  }).length;
   var avgMargin      = parts.reduce(function(s, p) { return s + (p.margin || 0); }, 0) / parts.length;
   var bestMargin     = Math.max.apply(null, parts.map(function(p) { return p.margin || 0; }));
   var stockCostValue  = parts.reduce(function(s, p) { return s + (p.buyingPrice  || 0) * (p.stockQuantity || 0); }, 0);
@@ -16256,8 +16761,16 @@ function renderPartsStats(parts) {
 function showPartsStockAlertPanel() {
   var list     = window._partsCurrentList || allParts;
   var outItems = list.filter(function(p) { return (p.stockQuantity||0) === 0; });
-  var lowItems = list.filter(function(p) { return (p.stockQuantity||0) > 0 && (p.stockQuantity||0) <= 5; });
-  var okItems  = list.filter(function(p) { return (p.stockQuantity||0) > 5; });
+  var lowItems = list.filter(function(p) {
+    var qty = p.stockQuantity||0;
+    var reorder = p.reorderLevel != null ? p.reorderLevel : 5;
+    return qty > 0 && qty <= reorder;
+  });
+  var okItems  = list.filter(function(p) {
+    var qty = p.stockQuantity||0;
+    var reorder = p.reorderLevel != null ? p.reorderLevel : 5;
+    return qty > reorder;
+  });
 
   function makeRow(p, badgeHtml) {
     var c = CAT_COLORS[p.category] || { bg:'#f1f5f9', text:'#64748b' };
@@ -16361,11 +16874,13 @@ function renderPartsTable(parts) {
       const extra = parts2.length > 3 ? '<span class="tag bg-gray-100 text-gray-400">+' + (parts2.length-3) + ' more</span>' : '';
       return visible + extra;
     })();
+    const reorderLevel = p.reorderLevel != null ? p.reorderLevel : 5;
     const stockBadge = (p.stockQuantity || 0) === 0
       ? '<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-red-100 text-red-600"><i class="fas fa-times-circle"></i>Out</span>'
-      : (p.stockQuantity || 0) <= 5
+      : (p.stockQuantity || 0) <= reorderLevel
         ? '<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700"><i class="fas fa-exclamation-triangle"></i>'+p.stockQuantity+'</span>'
         : '<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700"><i class="fas fa-check"></i>'+p.stockQuantity+'</span>';
+    const reorderBadge = '<span class="ml-1 text-xs text-gray-400" title="Reorder level: '+reorderLevel+'">/ '+reorderLevel+'</span>';
     return '<tr class="table-row border-b border-gray-50">' +
       '<td class="px-4 py-3">'+batchCell+'</td>' +
       '<td class="px-4 py-3"><span class="badge" style="background:'+c.bg+';color:'+c.text+'">'+p.category+'</span></td>' +
@@ -16376,10 +16891,12 @@ function renderPartsTable(parts) {
       '<td class="px-4 py-3 text-right font-bold text-gray-900">'+fmt(p.sellingPrice)+'</td>' +
       '<td class="px-4 py-3 text-right font-semibold text-green-600">'+fmt(p.margin)+'</td>' +
       '<td class="px-4 py-3 text-right"><span class="font-bold text-sm" style="color:'+marginColor+'">'+marginPct+'%</span></td>' +
-      '<td class="px-4 py-3 text-right">'+stockBadge+'</td>' +
+      '<td class="px-4 py-3 text-right">'+stockBadge+reorderBadge+'</td>' +
       '<td class="px-4 py-3 text-center"><div class="flex items-center justify-center gap-1">' +
         '<button onclick="showEditCataloguePartModal(&apos;'+p.id+'&apos;)" title="Edit part" class="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 flex items-center justify-center transition-colors"><i class="fas fa-pen text-xs"></i></button>' +
         '<button onclick="showRestockModal(&apos;'+p.id+'&apos;)" title="Add stock" class="w-7 h-7 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 flex items-center justify-center transition-colors"><i class="fas fa-plus text-xs"></i></button>' +
+        '<button onclick="adjustPartStock(&apos;'+p.id+'&apos;,&apos;'+p.description.replace(/'/g,'')+'&apos;)" title="Adjust stock" class="w-7 h-7 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 flex items-center justify-center transition-colors"><i class="fas fa-exchange-alt text-xs"></i></button>' +
+        '<button onclick="setPartReorderLevel(&apos;'+p.id+'&apos;,'+reorderLevel+')" title="Set reorder level" class="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 hover:bg-amber-100 flex items-center justify-center transition-colors"><i class="fas fa-bell text-xs"></i></button>' +
       '</div></td>' +
     '</tr>';
   }).join('');
@@ -18121,6 +18638,578 @@ function expVendorValidate() {
     return false;
   }
   return true;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PHASE 5 — GARAGE SETTINGS
+// ═══════════════════════════════════════════════════════════════════════════
+
+var _settingsData = null;
+
+async function loadGarageSettings() {
+  try {
+    var r = await axios.get('/api/settings');
+    _settingsData = r.data;
+    _fillSettingsForm(_settingsData);
+  } catch(e) { showToast('Failed to load settings', 'error'); }
+}
+
+function _fillSettingsForm(s) {
+  var ids = [
+    'garageName','address','phone','email','website','tinNumber',
+    'currency','vatRate','invoiceFooterNote',
+    'invoicePrefix','jobCardPrefix','pfiPrefix',
+    'smsProvider','smsApiKey','smsSenderId',
+    'emailProvider','emailApiKey','emailFrom',
+    'whatsappNumber'
+  ];
+  ids.forEach(function(k) {
+    var el = document.getElementById('sett-' + k);
+    if (el) el.value = s[k] != null ? s[k] : '';
+  });
+  // Checkboxes
+  var cbs = ['notifyOnJobCreate','notifyOnJobStatus','notifyOnJobComplete',
+             'notifyOnInvoicePaid','notifyOnAppointment',
+             'smsEnabled','emailEnabled','whatsappEnabled'];
+  cbs.forEach(function(k) {
+    var el = document.getElementById('sett-' + k);
+    if (el) el.checked = !!s[k];
+  });
+}
+
+async function saveGarageSettings() {
+  var payload = {};
+  var textIds = [
+    'garageName','address','phone','email','website','tinNumber',
+    'currency','invoiceFooterNote',
+    'invoicePrefix','jobCardPrefix','pfiPrefix',
+    'smsProvider','smsApiKey','smsSenderId',
+    'emailProvider','emailApiKey','emailFrom',
+    'whatsappNumber'
+  ];
+  textIds.forEach(function(k) {
+    var el = document.getElementById('sett-' + k);
+    if (el) payload[k] = el.value.trim();
+  });
+  var vatEl = document.getElementById('sett-vatRate');
+  if (vatEl) payload.vatRate = parseFloat(vatEl.value) || 18;
+
+  var cbs = ['notifyOnJobCreate','notifyOnJobStatus','notifyOnJobComplete',
+             'notifyOnInvoicePaid','notifyOnAppointment',
+             'smsEnabled','emailEnabled','whatsappEnabled'];
+  cbs.forEach(function(k) {
+    var el = document.getElementById('sett-' + k);
+    if (el) payload[k] = el.checked;
+  });
+
+  // Strip masked keys — if value starts with 4+ dots (server masked), don't send
+  if (payload.smsApiKey   && payload.smsApiKey.startsWith('\x26bull;\x26bull;'))   delete payload.smsApiKey;
+  if (payload.emailApiKey && payload.emailApiKey.startsWith('\x26bull;\x26bull;')) delete payload.emailApiKey;
+  // Also strip if it looks like it was pre-masked (contains only dots)
+  if (payload.smsApiKey   && /^[•\*\.]+$/.test(payload.smsApiKey))   delete payload.smsApiKey;
+  if (payload.emailApiKey && /^[•\*\.]+$/.test(payload.emailApiKey)) delete payload.emailApiKey;
+
+  try {
+    await axios.patch('/api/settings', payload);
+    showToast('Settings saved successfully', 'success');
+  } catch(e) { showToast('Failed to save settings', 'error'); }
+}
+
+function switchSettingsTab(tab) {
+  document.querySelectorAll('.settings-tab-btn').forEach(function(b) {
+    b.classList.toggle('active', b.getAttribute('data-tab') === tab);
+  });
+  ['profile','invoicing','notifications'].forEach(function(t) {
+    var el = document.getElementById('settingsPane-' + t);
+    if (el) el.classList.toggle('hidden', t !== tab);
+  });
+}
+
+function toggleSettingsSection(section) {
+  var map = { sms:'smsSettingsBody', email:'emailSettingsBody', whatsapp:'whatsappSettingsBody' };
+  var chk = document.getElementById('sett-' + section + 'Enabled');
+  var body = document.getElementById(map[section]);
+  if (body && chk) body.classList.toggle('opacity-50 pointer-events-none', !chk.checked);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PHASE 5 — AUDIT LOG
+// ═══════════════════════════════════════════════════════════════════════════
+
+var _auditPage  = 1;
+var _auditTotal = 0;
+var _auditLimit = 50;
+
+async function loadAuditLog() {
+  var search = (document.getElementById('auditSearch') || {}).value || '';
+  var userId = (document.getElementById('auditUserFilter') || {}).value || '';
+  var params = 'page=' + _auditPage + '&limit=' + _auditLimit;
+  if (search) params += '&search=' + encodeURIComponent(search);
+  if (userId) params += '&userId=' + encodeURIComponent(userId);
+
+  var tbody = document.getElementById('auditLogTable');
+  if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="text-center py-8 text-gray-400"><i class="fas fa-spinner fa-spin mr-2"></i>Loading…</td></tr>';
+
+  try {
+    var r = await axios.get('/api/activity-log?' + params);
+    _auditTotal = r.data.total;
+    _renderAuditTable(r.data.entries);
+    _updateAuditPagination();
+  } catch(e) {
+    if (tbody) tbody.innerHTML = '<tr><td colspan="4" class="text-center py-8 text-red-400">Failed to load audit log</td></tr>';
+  }
+}
+
+function _renderAuditTable(entries) {
+  var tbody = document.getElementById('auditLogTable');
+  if (!tbody) return;
+  if (!entries.length) {
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-10 text-gray-400"><i class="fas fa-history text-3xl mb-2 block opacity-30"></i>No audit entries found</td></tr>';
+    return;
+  }
+  tbody.innerHTML = entries.map(function(e) {
+    var ts = e.createdAt ? new Date(e.createdAt).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+    var action = e.action || '—';
+    var detail = e.detail || '';
+    var userName = e.userName || e.userId || '—';
+    var roleColor = { Owner:'bg-purple-100 text-purple-700', Manager:'bg-blue-100 text-blue-700',
+      'Front Desk':'bg-sky-100 text-sky-700', Technician:'bg-green-100 text-green-700',
+      Accountant:'bg-amber-100 text-amber-700' };
+    var roleBadge = e.userRole ? '<span class="ml-1 inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ' + (roleColor[e.userRole] || 'bg-gray-100 text-gray-600') + '">' + e.userRole + '</span>' : '';
+    return '<tr class="hover:bg-gray-50 border-b border-gray-50">' +
+      '<td class="px-4 py-2.5 whitespace-nowrap text-xs text-gray-500">' + ts + '</td>' +
+      '<td class="px-4 py-2.5 text-sm text-gray-800 font-medium">' + escHtml(userName) + roleBadge + '</td>' +
+      '<td class="px-4 py-2.5 text-sm"><span class="font-semibold text-gray-800">' + escHtml(action) + '</span></td>' +
+      '<td class="px-4 py-2.5 text-xs text-gray-500 max-w-xs truncate" title="' + escHtml(detail) + '">' + escHtml(detail) + '</td>' +
+    '</tr>';
+  }).join('');
+}
+
+function _updateAuditPagination() {
+  var totalEl = document.getElementById('auditLogTotal');
+  if (totalEl) totalEl.textContent = _auditTotal + ' entries  (page ' + _auditPage + ' of ' + Math.ceil(_auditTotal / _auditLimit) + ')';
+  var prev = document.getElementById('auditPrevBtn');
+  var next = document.getElementById('auditNextBtn');
+  if (prev) prev.disabled = _auditPage <= 1;
+  if (next) next.disabled = _auditPage * _auditLimit >= _auditTotal;
+}
+
+function auditLogPageChange(delta) {
+  var maxPage = Math.ceil(_auditTotal / _auditLimit) || 1;
+  _auditPage = Math.max(1, Math.min(maxPage, _auditPage + delta));
+  loadAuditLog();
+}
+
+function resetAuditFilters() {
+  var s = document.getElementById('auditSearch');   if (s) s.value = '';
+  var u = document.getElementById('auditUserFilter'); if (u) u.value = '';
+  _auditPage = 1;
+  loadAuditLog();
+}
+
+async function populateAuditUserFilter() {
+  try {
+    var r = await axios.get('/api/users');
+    var sel = document.getElementById('auditUserFilter');
+    if (!sel) return;
+    var existing = Array.from(sel.options).map(function(o){ return o.value; });
+    r.data.forEach(function(u) {
+      if (existing.indexOf(u.id) === -1) {
+        var opt = document.createElement('option');
+        opt.value = u.id; opt.textContent = u.name + ' (' + u.role + ')';
+        sel.appendChild(opt);
+      }
+    });
+  } catch(e) { /* ignore */ }
+}
+
+function exportAuditLog() {
+  var search = (document.getElementById('auditSearch') || {}).value || '';
+  var userId = (document.getElementById('auditUserFilter') || {}).value || '';
+  var params = 'page=1&limit=2000';
+  if (search) params += '&search=' + encodeURIComponent(search);
+  if (userId) params += '&userId=' + encodeURIComponent(userId);
+
+  axios.get('/api/activity-log?' + params).then(function(r) {
+    var rows = [['Timestamp','User','Role','Action','Detail']];
+    r.data.entries.forEach(function(e) {
+      rows.push([e.createdAt || '', e.userName || e.userId || '', e.userRole || '', e.action || '', e.detail || '']);
+    });
+    var csv = rows.map(function(row) {
+      return row.map(function(c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(',');
+    }).join(String.fromCharCode(13,10));
+    var blob = new Blob([csv], { type: 'text/csv' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'GMS-Audit-Log-' + new Date().toISOString().slice(0,10) + '.csv';
+    a.click();
+  }).catch(function() { showToast('Export failed', 'error'); });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PHASE 5 — PARTS STOCK MANAGEMENT (reorder level editing)
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function setPartReorderLevel(partId, currentLevel) {
+  var input = prompt('Set reorder level (alert fires when stock falls to or below this level):', currentLevel != null ? currentLevel : 5);
+  if (input === null) return;
+  var level = parseInt(input);
+  if (isNaN(level) || level < 0) { showToast('Invalid reorder level', 'error'); return; }
+  try {
+    await axios.patch('/api/catalogue/parts/' + partId + '/reorder', { reorderLevel: level });
+    showToast('Reorder level updated to ' + level, 'success');
+    loadPartsCatalogue();
+  } catch(e) { showToast('Failed to update reorder level', 'error'); }
+}
+
+// adjustPartStock is defined below (modal-based, replaces old prompt version)
+
+async function setLubReorderLevel(lubId, currentLevel) {
+  var input = prompt('Set reorder level (alert fires when stock falls to or below this level):', currentLevel != null ? currentLevel : 5);
+  if (input === null) return;
+  var level = parseInt(input);
+  if (isNaN(level) || level < 0) { showToast('Invalid reorder level', 'error'); return; }
+  try {
+    await axios.patch('/api/catalogue/lubricants/' + lubId + '/reorder', { reorderLevel: level });
+    showToast('Reorder level updated to ' + level, 'success');
+    loadLubricants();
+  } catch(e) { showToast('Failed to update reorder level', 'error'); }
+}
+
+async function adjustLubStock(lubId, lubName) {
+  // Reuse stock adjust modal — set up for lubricants
+  _saPartId   = null;        // flag as lubricant
+  _saLubId    = lubId;
+  _saPartName = lubName;
+  var allLubs = window._allLubricants || [];
+  var lub = allLubs.find(function(l){ return l.id === lubId; });
+  _saCurrentStock = lub ? (lub.stockQuantity || 0) : 0;
+  var nameEl = document.getElementById('sa-partName');    if (nameEl) nameEl.textContent = lubName;
+  var curEl  = document.getElementById('sa-currentStock'); if (curEl)  curEl.textContent = _saCurrentStock;
+  var adjEl  = document.getElementById('sa-adjustment');  if (adjEl)  adjEl.value = '0';
+  var newEl  = document.getElementById('sa-newStock');    if (newEl)  newEl.textContent = _saCurrentStock;
+  var noteEl = document.getElementById('sa-note');        if (noteEl) noteEl.value = '';
+  openModal('modal-stockAdjust');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PHASE 5 — DASHBOARD ALERTS WIDGET
+// ═══════════════════════════════════════════════════════════════════════════
+
+async function loadDashboardAlerts() {
+  try {
+    var r = await axios.get('/api/dashboard/alerts');
+    var d = r.data;
+    var alertsEl = document.getElementById('dashboardAlerts');
+    if (!alertsEl) return;
+    var items = [];
+    if (d.overdueInvoices > 0)
+      items.push({ icon:'fa-file-invoice-dollar', color:'text-red-500', bg:'bg-red-50', label: d.overdueInvoices + ' Overdue Invoice' + (d.overdueInvoices>1?'s':''), action:"showPage('invoices')" });
+    if (d.lowStockParts > 0)
+      items.push({ icon:'fa-exclamation-triangle', color:'text-amber-500', bg:'bg-amber-50', label: d.lowStockParts + ' Low Stock Part' + (d.lowStockParts>1?'s':''), action:"showPage('parts-catalogue')" });
+    if (d.lowStockLubs > 0)
+      items.push({ icon:'fa-tint', color:'text-orange-500', bg:'bg-orange-50', label: d.lowStockLubs + ' Low Stock Lubricant' + (d.lowStockLubs>1?'s':''), action:"showPage('oil-services')" });
+    if (d.upcomingAppts > 0)
+      items.push({ icon:'fa-calendar-check', color:'text-blue-500', bg:'bg-blue-50', label: d.upcomingAppts + ' Appointment' + (d.upcomingAppts>1?'s':'')+' in 24h', action:"showPage('appointments')" });
+    if (!items.length) {
+      alertsEl.innerHTML = '<div class="flex items-center gap-2 text-green-600 text-sm"><i class="fas fa-check-circle"></i><span>No urgent alerts</span></div>';
+      return;
+    }
+    alertsEl.innerHTML = items.map(function(it) {
+      return '<div class="flex items-center gap-2 px-3 py-2 rounded-xl cursor-pointer ' + it.bg + ' hover:opacity-90 transition-opacity" onclick="' + it.action + '">' +
+        '<i class="fas ' + it.icon + ' ' + it.color + ' text-sm"></i>' +
+        '<span class="text-sm font-semibold ' + it.color.replace('text-','text-').replace('500','700') + '">' + it.label + '</span>' +
+      '</div>';
+    }).join('');
+    // Run overdue check silently on dashboard load
+    axios.post('/api/invoices/run-overdue-check').catch(function(){});
+  } catch(e) { /* silent */ }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PHASE 5 — CUSTOMER NOTIFICATION DISPATCH LOG
+// ═══════════════════════════════════════════════════════════════════════════
+
+var _dlPage  = 1;
+var _dlTotal = 0;
+var _dlLimit = 50;
+
+async function loadDispatchLog() {
+  var search  = (document.getElementById('dlSearch') || {}).value || '';
+  var channel = (document.getElementById('dlChannel') || {}).value || '';
+  var status  = (document.getElementById('dlStatus') || {}).value || '';
+  var params  = 'page=' + _dlPage + '&limit=' + _dlLimit;
+  if (search)  params += '&search='  + encodeURIComponent(search);
+  if (channel) params += '&channel=' + encodeURIComponent(channel);
+  if (status)  params += '&status='  + encodeURIComponent(status);
+
+  var tbody = document.getElementById('dispatchLogTable');
+  if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-400"><i class="fas fa-spinner fa-spin mr-2"></i>Loading…</td></tr>';
+
+  try {
+    var r = await axios.get('/api/customer-notifications?' + params);
+    _dlTotal = r.data.total;
+    _renderDispatchTable(r.data.entries);
+    _updateDlPagination();
+    _renderDispatchStats(r.data.entries, r.data.total);
+  } catch(e) {
+    if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-red-400">Failed to load dispatch log</td></tr>';
+  }
+}
+
+function _renderDispatchStats(entries, total) {
+  var statsEl = document.getElementById('dispatchLogStats');
+  if (!statsEl) return;
+  var sent = entries.filter(function(e){ return e.status === 'sent'; }).length;
+  var simulated = entries.filter(function(e){ return e.status === 'simulated'; }).length;
+  var failed = entries.filter(function(e){ return e.status === 'failed'; }).length;
+  var channels = { sms:0, email:0, whatsapp:0 };
+  entries.forEach(function(e){ if (channels[e.channel] !== undefined) channels[e.channel]++; });
+  statsEl.innerHTML = [
+    { label: 'Total Dispatched', val: total, icon: 'fa-paper-plane', color: 'text-blue-600', bg: 'bg-blue-50' },
+    { label: 'Sent (Live)', val: sent, icon: 'fa-check-circle', color: 'text-green-600', bg: 'bg-green-50' },
+    { label: 'Simulated', val: simulated, icon: 'fa-flask', color: 'text-amber-600', bg: 'bg-amber-50' },
+    { label: 'Failed', val: failed, icon: 'fa-times-circle', color: 'text-red-600', bg: 'bg-red-50' },
+  ].map(function(s) {
+    return '<div class="card p-4 text-center">' +
+      '<i class="fas ' + s.icon + ' text-xl ' + s.color + ' mb-1.5 block"></i>' +
+      '<p class="text-xl font-bold text-gray-900">' + s.val + '</p>' +
+      '<p class="text-xs text-gray-500 mt-0.5">' + s.label + '</p>' +
+    '</div>';
+  }).join('');
+}
+
+var DL_CHANNEL_ICONS = { sms:'fa-sms', email:'fa-envelope', whatsapp:'fa-whatsapp fab' };
+var DL_CHANNEL_COLORS = { sms:'text-green-600 bg-green-50', email:'text-blue-600 bg-blue-50', whatsapp:'text-green-700 bg-green-100' };
+var DL_STATUS_COLORS  = { sent:'bg-green-100 text-green-700', simulated:'bg-amber-100 text-amber-700', failed:'bg-red-100 text-red-700' };
+
+function _renderDispatchTable(entries) {
+  var tbody = document.getElementById('dispatchLogTable');
+  if (!tbody) return;
+  if (!entries.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-12 text-gray-400"><i class="fas fa-paper-plane text-3xl mb-2 block opacity-30"></i>No dispatch records found</td></tr>';
+    return;
+  }
+  tbody.innerHTML = entries.map(function(e) {
+    var ts = e.sentAt ? new Date(e.sentAt).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '—';
+    var chIcon = DL_CHANNEL_ICONS[e.channel] || 'fa-comment';
+    var chColor = DL_CHANNEL_COLORS[e.channel] || 'text-gray-600 bg-gray-50';
+    var stColor = DL_STATUS_COLORS[e.status] || 'bg-gray-100 text-gray-600';
+    var recipient = e.channel === 'email' ? (e.recipientEmail || e.recipientName) : (e.recipientPhone || e.recipientName);
+    var eventLabel = (e.triggerEvent || '').replace(/_/g,' ').replace(/\b\w/g,function(c){return c.toUpperCase();});
+    return '<tr class="hover:bg-gray-50 border-b border-gray-50">' +
+      '<td class="px-4 py-2.5 whitespace-nowrap text-xs text-gray-500">' + ts + '</td>' +
+      '<td class="px-4 py-2.5">' +
+        '<p class="text-sm font-semibold text-gray-800">' + escHtml(e.recipientName) + '</p>' +
+        '<p class="text-xs text-gray-400">' + escHtml(recipient || '') + '</p>' +
+      '</td>' +
+      '<td class="px-4 py-2.5"><span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ' + chColor + '"><i class="' + (e.channel === 'whatsapp' ? 'fab' : 'fas') + ' ' + chIcon + '"></i>' + e.channel.toUpperCase() + '</span></td>' +
+      '<td class="px-4 py-2.5 text-xs text-gray-600">' + escHtml(eventLabel) + '</td>' +
+      '<td class="px-4 py-2.5 text-sm text-gray-800 max-w-xs truncate" title="' + escHtml(e.subject) + '">' + escHtml(e.subject) + '</td>' +
+      '<td class="px-4 py-2.5"><span class="px-2.5 py-1 rounded-full text-xs font-semibold ' + stColor + '">' + (e.status.charAt(0).toUpperCase() + e.status.slice(1)) + '</span>' +
+        (e.errorMessage ? '<p class="text-xs text-red-400 mt-0.5 max-w-[120px] truncate" title="' + escHtml(e.errorMessage) + '">' + escHtml(e.errorMessage) + '</p>' : '') +
+      '</td>' +
+      '<td class="px-4 py-2.5 text-center"><button class="dl-preview-btn text-blue-500 hover:text-blue-700 text-sm" data-id="' + e.id + '" title="Preview message"><i class="fas fa-eye"></i></button></td>' +
+    '</tr>';
+  }).join('');
+  // Cache entries for preview; wire preview buttons
+  window._dlEntries = entries;
+  var tbody2 = document.getElementById('dispatchLogTable');
+  if (tbody2) tbody2.querySelectorAll('.dl-preview-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() { showDispatchPreview(btn.getAttribute('data-id')); });
+  });
+}
+
+function _updateDlPagination() {
+  var el = document.getElementById('dlTotal');
+  if (el) el.textContent = _dlTotal + ' records (page ' + _dlPage + ' of ' + Math.ceil(_dlTotal / _dlLimit) + ')';
+  var prev = document.getElementById('dlPrevBtn');
+  var next = document.getElementById('dlNextBtn');
+  if (prev) prev.disabled = _dlPage <= 1;
+  if (next) next.disabled = _dlPage * _dlLimit >= _dlTotal;
+}
+
+function dlPageChange(delta) {
+  var maxPage = Math.ceil(_dlTotal / _dlLimit) || 1;
+  _dlPage = Math.max(1, Math.min(maxPage, _dlPage + delta));
+  loadDispatchLog();
+}
+
+function resetDispatchFilters() {
+  var s = document.getElementById('dlSearch'); if (s) s.value = '';
+  var c = document.getElementById('dlChannel'); if (c) c.value = '';
+  var st = document.getElementById('dlStatus'); if (st) st.value = '';
+  _dlPage = 1;
+  loadDispatchLog();
+}
+
+function showDispatchPreview(id) {
+  var entries = window._dlEntries || [];
+  var e = entries.find(function(x){ return x.id === id; });
+  if (!e) return;
+  var panel = document.createElement('div');
+  panel.className = 'fixed inset-0 z-[300] flex items-center justify-center';
+  panel.innerHTML =
+    '<div class="absolute inset-0 bg-black/50" onclick="this.parentElement.remove()"></div>' +
+    '<div class="relative bg-white w-full max-w-md rounded-2xl shadow-2xl p-6 mx-4">' +
+      '<div class="flex items-center justify-between mb-4">' +
+        '<h4 class="font-bold text-gray-900">Message Preview</h4>' +
+        '<button class="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200" onclick="this.parentElement.parentElement.parentElement.remove()"><i class="fas fa-times text-sm"></i></button>' +
+      '</div>' +
+      '<div class="space-y-3">' +
+        '<div><p class="text-xs text-gray-400 mb-1">To</p><p class="text-sm font-semibold text-gray-800">' + escHtml(e.recipientName) + ' &bull; ' + escHtml(e.recipientPhone || e.recipientEmail || '—') + '</p></div>' +
+        '<div><p class="text-xs text-gray-400 mb-1">Subject</p><p class="text-sm font-semibold text-gray-800">' + escHtml(e.subject) + '</p></div>' +
+        '<div><p class="text-xs text-gray-400 mb-1">Message</p><p class="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 rounded-xl p-3">' + escHtml(e.body) + '</p></div>' +
+        '<div class="flex gap-3 text-xs text-gray-500">' +
+          '<span><i class="fas fa-clock mr-1"></i>' + new Date(e.sentAt).toLocaleString() + '</span>' +
+          '<span><i class="fas fa-tag mr-1"></i>' + e.triggerEvent + '</span>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(panel);
+}
+
+async function showSendManualNotifModal() {
+  // Populate customer select
+  var sel = document.getElementById('mn-customerId');
+  if (sel) {
+    sel.innerHTML = '<option value="">— Select customer —</option>';
+    var r = await axios.get('/api/customers');
+    r.data.forEach(function(c) {
+      var opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.name + (c.phone ? ' · ' + c.phone : '');
+      opt.dataset.phone = c.phone || '';
+      opt.dataset.email = c.email || '';
+      sel.appendChild(opt);
+    });
+  }
+  // Reset form
+  var bodyEl = document.getElementById('mn-body');
+  if (bodyEl) { bodyEl.value = ''; bodyEl.oninput = function(){ document.getElementById('mn-charCount').textContent = bodyEl.value.length; }; }
+  var subjEl = document.getElementById('mn-subject'); if (subjEl) subjEl.value = '';
+  openModal('modal-manualNotif');
+}
+
+function updateMnRecipient() {
+  var sel = document.getElementById('mn-customerId');
+  var info = document.getElementById('mn-recipientInfo');
+  if (!sel || !info) return;
+  var opt = sel.options[sel.selectedIndex];
+  if (!opt || !opt.value) { info.textContent = 'Phone & email will be shown here'; return; }
+  var parts = [];
+  if (opt.dataset.phone) parts.push('Phone: ' + opt.dataset.phone);
+  if (opt.dataset.email) parts.push('Email: ' + opt.dataset.email);
+  info.textContent = parts.join(' · ') || 'No contact info on file';
+}
+
+async function submitManualNotif() {
+  var customerId = (document.getElementById('mn-customerId') || {}).value;
+  var subject    = (document.getElementById('mn-subject') || {}).value.trim();
+  var body       = (document.getElementById('mn-body') || {}).value.trim();
+  var channels   = [];
+  if ((document.getElementById('mn-ch-sms') || {}).checked)      channels.push('sms');
+  if ((document.getElementById('mn-ch-email') || {}).checked)    channels.push('email');
+  if ((document.getElementById('mn-ch-whatsapp') || {}).checked) channels.push('whatsapp');
+
+  if (!customerId) { showToast('Please select a customer', 'error'); return; }
+  if (!subject)    { showToast('Subject is required', 'error'); return; }
+  if (!body)       { showToast('Message body is required', 'error'); return; }
+  if (!channels.length) { showToast('Select at least one channel', 'error'); return; }
+
+  var btn = document.getElementById('mn-sendBtn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>Sending…'; }
+
+  try {
+    var r = await axios.post('/api/customer-notifications/manual', { customerId, subject, body, channels });
+    closeModal('modal-manualNotif');
+    showToast('Notification sent (' + r.data.dispatched.length + ' channel' + (r.data.dispatched.length>1?'s':'')+')!', 'success');
+    if (document.getElementById('page-dispatch-log').classList.contains('active')) loadDispatchLog();
+  } catch(e) {
+    showToast('Failed to send notification', 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-paper-plane mr-1"></i>Send'; }
+  }
+}
+
+function exportDispatchLog() {
+  var params = 'page=1&limit=2000';
+  var search  = (document.getElementById('dlSearch') || {}).value || '';
+  var channel = (document.getElementById('dlChannel') || {}).value || '';
+  var status  = (document.getElementById('dlStatus') || {}).value || '';
+  if (search)  params += '&search='  + encodeURIComponent(search);
+  if (channel) params += '&channel=' + encodeURIComponent(channel);
+  if (status)  params += '&status='  + encodeURIComponent(status);
+
+  axios.get('/api/customer-notifications?' + params).then(function(r) {
+    var rows = [['Sent At','Recipient','Phone','Email','Channel','Event','Subject','Status','Error']];
+    r.data.entries.forEach(function(e) {
+      rows.push([e.sentAt||'', e.recipientName||'', e.recipientPhone||'', e.recipientEmail||'', e.channel||'', e.triggerEvent||'', e.subject||'', e.status||'', e.errorMessage||'']);
+    });
+    var csv = rows.map(function(row){
+      return row.map(function(c){ return '"' + String(c).replace(/"/g,'""') + '"'; }).join(',');
+    }).join(String.fromCharCode(13,10));
+    var blob = new Blob([csv], { type:'text/csv' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'GMS-Customer-Notifications-' + new Date().toISOString().slice(0,10) + '.csv';
+    a.click();
+  }).catch(function(){ showToast('Export failed', 'error'); });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PHASE 5 — STOCK ADJUST MODAL (replaces prompt())
+// ═══════════════════════════════════════════════════════════════════════════
+
+var _saLubId    = null;
+var _saPartId   = null;
+var _saPartName = '';
+var _saCurrentStock = 0;
+
+function adjustPartStock(partId, partName) {
+  _saLubId    = null;
+  _saPartId   = partId;
+  _saPartName = partName;
+  var part = allParts ? allParts.find(function(p){ return p.id === partId; }) : null;
+  _saCurrentStock = part ? (part.stockQuantity || 0) : 0;
+  var nameEl = document.getElementById('sa-partName');    if (nameEl) nameEl.textContent = partName;
+  var curEl  = document.getElementById('sa-currentStock'); if (curEl)  curEl.textContent = _saCurrentStock;
+  var adjEl  = document.getElementById('sa-adjustment');  if (adjEl)  { adjEl.value = '0'; }
+  var newEl  = document.getElementById('sa-newStock');    if (newEl)  newEl.textContent = _saCurrentStock;
+  var noteEl = document.getElementById('sa-note');        if (noteEl) noteEl.value = '';
+  openModal('modal-stockAdjust');
+}
+
+function saStep(delta) {
+  var adjEl = document.getElementById('sa-adjustment');
+  if (!adjEl) return;
+  adjEl.value = String(parseInt(adjEl.value || '0') + delta);
+  saUpdatePreview();
+}
+
+function saUpdatePreview() {
+  var adjEl = document.getElementById('sa-adjustment');
+  var newEl = document.getElementById('sa-newStock');
+  if (!adjEl || !newEl) return;
+  var adj = parseInt(adjEl.value || '0') || 0;
+  newEl.textContent = Math.max(0, _saCurrentStock + adj);
+}
+
+async function submitStockAdjust() {
+  var adjEl  = document.getElementById('sa-adjustment');
+  var noteEl = document.getElementById('sa-note');
+  var adj  = parseInt((adjEl || {}).value || '0') || 0;
+  var note = ((noteEl || {}).value || '').trim();
+  if (adj === 0) { showToast('Enter a non-zero adjustment', 'error'); return; }
+  try {
+    var endpoint = _saLubId
+      ? '/api/catalogue/lubricants/' + _saLubId + '/stock'
+      : '/api/catalogue/parts/' + _saPartId + '/stock';
+    var r = await axios.patch(endpoint, { adjustment: adj, note: note });
+    closeModal('modal-stockAdjust');
+    showToast('Stock adjusted: ' + (adj > 0 ? '+' : '') + adj + ' units (now ' + r.data.stockQuantity + ')', 'success');
+    if (_saLubId) loadLubricants(); else loadPartsCatalogue();
+  } catch(e) { showToast('Failed to adjust stock', 'error'); }
 }
 
 // ═══ INIT ═══

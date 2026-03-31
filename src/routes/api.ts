@@ -8,6 +8,9 @@ import {
   subscriptionPlans,
   customerSubscriptions,
   jobCardPhotos,
+  customerNotifDispatches,
+  garageSettings,
+  updateGarageSettings,
   ROLE_PERMISSIONS,
   type Customer, type Vehicle, type JobCard, type PFI,
   type PartConsumption, type ServicePackage, type User, type Invoice,
@@ -16,7 +19,9 @@ import {
   type LubricantProduct, type Permission, type StatusTimelineEntry, type JobCardStatus, type Vendor,
   type GatePass, type FleetInvoice, type FleetInvoiceLineItem,
   type SubscriptionPlan, type CustomerSubscription, type SubscriptionStatus,
-  type JobCardPhoto, type PhotoCategory
+  type JobCardPhoto, type PhotoCategory,
+  type CustomerNotifDispatch, type NotifChannel, type NotifDispatchStatus,
+  type GarageSettings
 } from '../data/store'
 import { save } from '../data/persist'
 
@@ -171,6 +176,129 @@ function addNotification(
   if (notifications.length > 200)   // cap at 200 entries
     notifications.splice(200)
   return n
+}
+
+// ─── Customer Notification Dispatcher ────────────────────────────────────────
+// Sends a customer-facing message via the configured channels (SMS / email /
+// WhatsApp) and records each dispatch attempt in customerNotifDispatches.
+// If no channels are enabled, the notification is recorded as 'simulated'.
+async function dispatchCustomerNotification(opts: {
+  triggerEvent: string
+  subject: string
+  body: string
+  customer: Customer | null
+  jobCardId?: string
+}): Promise<void> {
+  const { triggerEvent, subject, body, customer, jobCardId } = opts
+  if (!customer) return
+
+  const channels: { channel: NotifChannel; enabled: boolean; recipientPhone?: string; recipientEmail?: string }[] = [
+    { channel: 'sms',      enabled: garageSettings.smsEnabled && !!(customer.phone || customer.email), recipientPhone: customer.phone },
+    { channel: 'email',    enabled: garageSettings.emailEnabled && !!customer.email,                    recipientEmail: customer.email },
+    { channel: 'whatsapp', enabled: garageSettings.whatsappEnabled && !!(customer.phone),              recipientPhone: customer.phone },
+  ]
+
+  const activeChannels = channels.filter(ch => ch.enabled)
+
+  // If no channels are configured, log a simulated dispatch so the record exists
+  if (!activeChannels.length) {
+    const d: CustomerNotifDispatch = {
+      id: 'cnd' + genId(),
+      channel: 'sms',
+      recipientPhone: customer.phone || undefined,
+      recipientEmail: customer.email || undefined,
+      recipientName: customer.name,
+      subject,
+      body,
+      triggerEvent,
+      jobCardId,
+      customerId: customer.id,
+      status: 'simulated',
+      sentAt: now(),
+    }
+    customerNotifDispatches.unshift(d)
+    if (customerNotifDispatches.length > 1000) customerNotifDispatches.splice(1000)
+    return
+  }
+
+  for (const ch of activeChannels) {
+    let status: NotifDispatchStatus = 'sent'
+    let errorMessage: string | undefined
+
+    try {
+      // ── SMS ──────────────────────────────────────────────────────────────────
+      if (ch.channel === 'sms' && garageSettings.smsApiKey) {
+        if (garageSettings.smsProvider === 'africastalking') {
+          const res = await fetch('https://api.africastalking.com/version1/messaging', {
+            method: 'POST',
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'apiKey': garageSettings.smsApiKey,
+            },
+            body: new URLSearchParams({
+              username: 'sandbox',
+              to: customer.phone || '',
+              message: body,
+              from: garageSettings.smsSenderId || 'GMS',
+            }).toString(),
+          })
+          if (!res.ok) throw new Error('AT SMS HTTP ' + res.status)
+        } else {
+          // BongoLive / Nexmo / other: record as simulated (keys present but provider not integrated)
+          status = 'simulated'
+        }
+      }
+
+      // ── Email ─────────────────────────────────────────────────────────────────
+      if (ch.channel === 'email' && garageSettings.emailApiKey && garageSettings.emailProvider === 'sendgrid') {
+        const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + garageSettings.emailApiKey,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            personalizations: [{ to: [{ email: customer.email, name: customer.name }] }],
+            from: { email: garageSettings.emailFrom || 'noreply@gms.local', name: garageSettings.garageName },
+            subject,
+            content: [{ type: 'text/plain', value: body }],
+          }),
+        })
+        if (!res.ok) throw new Error('SendGrid HTTP ' + res.status)
+      } else if (ch.channel === 'email') {
+        status = 'simulated'
+      }
+
+      // ── WhatsApp ──────────────────────────────────────────────────────────────
+      if (ch.channel === 'whatsapp') {
+        // WhatsApp (360dialog / Twilio) integration recorded as simulated unless
+        // the provider is explicitly wired up.
+        status = 'simulated'
+      }
+    } catch (err: any) {
+      status = 'failed'
+      errorMessage = err?.message || 'Unknown error'
+    }
+
+    const d: CustomerNotifDispatch = {
+      id: 'cnd' + genId(),
+      channel: ch.channel,
+      recipientPhone: ch.recipientPhone,
+      recipientEmail: ch.recipientEmail,
+      recipientName: customer.name,
+      subject,
+      body,
+      triggerEvent,
+      jobCardId,
+      customerId: customer.id,
+      status,
+      errorMessage,
+      sentAt: now(),
+    }
+    customerNotifDispatches.unshift(d)
+    if (customerNotifDispatches.length > 1000) customerNotifDispatches.splice(1000)
+  }
 }
 
 // ─── Sync PFI + Invoice after parts/services change ─────────────────────────
@@ -441,6 +569,17 @@ api.post('/jobcards', async (c) => {
   addNotification('job_created', 'warning', 'New Job Card — Approval Required',
     `${num} created for ${cust?.name || 'customer'} – ${veh?.make || ''} ${veh?.model || ''} (${veh?.registrationNumber || ''}) — awaiting Admin/Manager approval`,
     { jobCardId: newJob.id, jobCardNumber: num })
+
+  // Dispatch customer notification if enabled
+  if (garageSettings.notifyOnJobCreate && cust) {
+    dispatchCustomerNotification({
+      triggerEvent: 'job_created',
+      subject: 'Your Vehicle Has Been Received',
+      body: `Dear ${cust.name}, your vehicle (${veh?.registrationNumber || ''} ${veh?.make || ''} ${veh?.model || ''}) has been received at ${garageSettings.garageName}. Job Card: ${num}. We will keep you updated on the progress.`,
+      customer: cust,
+      jobCardId: newJob.id,
+    })
+  }
 
   // NOTE: Gate Pass IN is no longer auto-created at job creation.
   // It will be auto-created in Phase 2 after Preliminary Check + Customer Signature.
@@ -947,6 +1086,21 @@ api.post('/jobcards/:id/customer-signoff', async (c) => {
   }
   activityLog.push({ id: 'a' + genId(), jobCardId: jc.id, action: 'CUSTOMER_SIGNOFF', description: `Customer ${body.customerName} signed off. Invoice ${invNum} generated.`, userId: body.recordedBy || 'system', userName: body.recordedByName || 'System', timestamp: ts })
   addNotification('job_status', 'success', 'Vehicle Ready — Invoice Generated', `${jc.jobCardNumber} — customer signed off. Invoice ${invNum} issued.`, { jobCardId: jc.id, jobCardNumber: jc.jobCardNumber, entityId: newInv.id, entityType: 'invoice' })
+
+  // Dispatch customer notification — vehicle ready
+  if (garageSettings.notifyOnJobComplete) {
+    const custReady = customers.find(x => x.id === jc.customerId)
+    if (custReady) {
+      dispatchCustomerNotification({
+        triggerEvent: 'job_completed',
+        subject: 'Your Vehicle Is Ready for Collection',
+        body: `Dear ${custReady.name}, your vehicle (${jc.vehicleReg || ''}) is ready for collection from ${garageSettings.garageName}. Invoice ${invNum} of TZS ${newInv.totalAmount.toLocaleString()} has been issued. Please come to settle the bill and collect your vehicle. Thank you!`,
+        customer: custReady,
+        jobCardId: jc.id,
+      })
+    }
+  }
+
   return c.json({ jobCard: jobCards[idx], invoice: newInv })
 })
 
@@ -1729,6 +1883,21 @@ api.patch('/invoices/:id/status', async (c) => {
     addNotification('invoice_paid', 'success', 'Invoice Paid',
       `${inv.invoiceNumber} – TZS ${inv.totalAmount.toLocaleString()} received via ${inv.paymentMethod || 'payment'}${jc ? ' for ' + jc.jobCardNumber : ''}`,
       { jobCardId: jc?.id, jobCardNumber: jc?.jobCardNumber, entityId: inv.id, entityType: 'invoice' })
+
+    // Dispatch payment receipt to customer
+    if (garageSettings.notifyOnInvoicePaid && jc) {
+      const custPaid = customers.find(x => x.id === jc.customerId)
+      if (custPaid) {
+        dispatchCustomerNotification({
+          triggerEvent: 'invoice_paid',
+          subject: 'Payment Receipt — ' + inv.invoiceNumber,
+          body: `Dear ${custPaid.name}, we have received your payment of TZS ${inv.totalAmount.toLocaleString()} for invoice ${inv.invoiceNumber} (Job ${jc.jobCardNumber}). Thank you for choosing ${garageSettings.garageName}!`,
+          customer: custPaid,
+          jobCardId: jc.id,
+        })
+      }
+    }
+
     // ── Check gate pass: if job is also COMPLETED, move to Pending Exit ──────
     if (jc && (jc.status === 'COMPLETED' || jc.status === 'INVOICED' || jc.status === 'RELEASED')) {
       const gp = gatePasses.find(g => g.jobCardId === jc.id && g.status === 'Active')
@@ -2352,6 +2521,7 @@ api.post('/catalogue/parts', async (c) => {
     sellingPrice: Number(body.sellingPrice) || 0,
     margin: Number(body.sellingPrice || 0) - Number(body.buyingPrice || 0),
     stockQuantity: Number(body.stockQuantity) || 0,
+    reorderLevel: Number((body as any).reorderLevel) || 5,
     batchNumber: genBatchNumber(),
     ...(body.partSerialNumber ? { partSerialNumber: String(body.partSerialNumber) } : {}),
   }
@@ -2385,6 +2555,7 @@ api.post('/catalogue/parts/bulk', async (c) => {
       sellingPrice: Number(body.sellingPrice) || 0,
       margin: Number(body.sellingPrice || 0) - Number(body.buyingPrice || 0),
       stockQuantity: Number(body.stockQuantity) || 0,
+      reorderLevel: Number((body as any).reorderLevel) || 5,
       batchNumber: genBatchNumber(),
       ...(body.partSerialNumber ? { partSerialNumber: String(body.partSerialNumber) } : {}),
     }
@@ -2686,6 +2857,17 @@ api.post('/appointments', async (c) => {
   addNotification('appointment_created', 'info', 'Appointment Scheduled',
     `${cust?.name || 'Customer'} booked for ${newApt.serviceType} on ${newApt.date} at ${newApt.time} — ${veh?.make || ''} ${veh?.registrationNumber || ''}`,
     { entityId: newApt.id, entityType: 'appointment' })
+
+  // Dispatch appointment confirmation to customer
+  if (garageSettings.notifyOnAppointment && cust) {
+    dispatchCustomerNotification({
+      triggerEvent: 'appointment_created',
+      subject: 'Appointment Confirmation',
+      body: `Dear ${cust.name}, your appointment at ${garageSettings.garageName} has been confirmed for ${newApt.date} at ${newApt.time} (${newApt.serviceType}). Vehicle: ${veh?.registrationNumber || ''} ${veh?.make || ''} ${veh?.model || ''}. See you then!`,
+      customer: cust,
+    })
+  }
+
   return c.json(newApt, 201)
 })
 
@@ -3859,6 +4041,342 @@ api.get('/analytics/margin-by-service', (c) => {
     marginPct: v.revenue > 0 ? Math.round((v.revenue - v.cost) / v.revenue * 100) : 0,
   }))
   return c.json(result)
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PHASE 5 — GARAGE SETTINGS
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GET /settings — return current garage settings (strip secret keys)
+api.get('/settings', (c) => {
+  const safe = { ...garageSettings }
+  // Mask API keys in GET response (show only last 4 chars)
+  if (safe.smsApiKey) safe.smsApiKey = '••••' + safe.smsApiKey.slice(-4)
+  if (safe.emailApiKey) safe.emailApiKey = '••••' + safe.emailApiKey.slice(-4)
+  return c.json(safe)
+})
+
+// PATCH /settings — update any subset of garage settings
+api.patch('/settings', async (c) => {
+  const body = await c.req.json<Partial<GarageSettings>>()
+  // Reject attempts to patch updatedAt directly
+  delete (body as any).updatedAt
+  updateGarageSettings(body)
+  return c.json({ ok: true, settings: garageSettings })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PHASE 5 — ACTIVITY / AUDIT LOG VIEWER
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GET /activity-log — paginated audit log with optional filters
+api.get('/activity-log', (c) => {
+  const { page: rawPage, limit: rawLimit, userId, jobCardId, search } = c.req.query()
+  const page  = Math.max(1, parseInt(rawPage  || '1',  10))
+  const limit = Math.min(200, Math.max(1, parseInt(rawLimit || '50', 10)))
+
+  let entries = [...activityLog].reverse()   // newest first
+
+  if (userId)    entries = entries.filter(e => (e as any).userId === userId)
+  if (jobCardId) entries = entries.filter(e => (e as any).jobCardId === jobCardId || e.detail?.includes(jobCardId))
+  if (search) {
+    const q = search.toLowerCase()
+    entries = entries.filter(e =>
+      e.action?.toLowerCase().includes(q) ||
+      e.detail?.toLowerCase().includes(q) ||
+      (e as any).userName?.toLowerCase().includes(q)
+    )
+  }
+
+  const total = entries.length
+  const slice = entries.slice((page - 1) * limit, page * limit)
+  return c.json({ total, page, limit, entries: slice })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PHASE 5 — PARTS STOCK MANAGEMENT
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GET /catalogue/parts/low-stock — parts at or below reorderLevel
+api.get('/catalogue/parts/low-stock', (c) => {
+  const items = catalogueParts.filter(p => {
+    const qty = p.stockQuantity ?? 0
+    const reorder = (p as any).reorderLevel ?? 5
+    return qty <= reorder
+  }).map(p => ({
+    ...p,
+    status: (p.stockQuantity ?? 0) === 0 ? 'out' : 'low',
+  }))
+  return c.json(items)
+})
+
+// PATCH /catalogue/parts/:id/stock — adjust stock qty (add / subtract)
+api.patch('/catalogue/parts/:id/stock', async (c) => {
+  const part = catalogueParts.find(p => p.id === c.req.param('id'))
+  if (!part) return c.json({ error: 'Part not found' }, 404)
+  const { adjustment, note } = await c.req.json<{ adjustment: number; note?: string }>()
+  const prev = part.stockQuantity ?? 0
+  part.stockQuantity = Math.max(0, prev + adjustment)
+  const reorderLevel = (part as any).reorderLevel ?? 5
+  if (part.stockQuantity <= reorderLevel) {
+    addNotification(
+      'low_stock',
+      part.stockQuantity === 0 ? 'error' : 'warning',
+      'Stock Alert',
+      part.stockQuantity === 0
+        ? part.description + ' is now OUT OF STOCK'
+        : part.description + ' is low on stock (' + part.stockQuantity + ' remaining)',
+      undefined, undefined
+    )
+  }
+  return c.json({ ok: true, stockQuantity: part.stockQuantity, prev, note })
+})
+
+// PATCH /catalogue/parts/:id/reorder — set reorder level
+api.patch('/catalogue/parts/:id/reorder', async (c) => {
+  const part = catalogueParts.find(p => p.id === c.req.param('id'))
+  if (!part) return c.json({ error: 'Part not found' }, 404)
+  const { reorderLevel } = await c.req.json<{ reorderLevel: number }>()
+  ;(part as any).reorderLevel = Math.max(0, reorderLevel)
+  return c.json({ ok: true, reorderLevel: (part as any).reorderLevel })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PHASE 5 — LUBRICANTS STOCK MANAGEMENT
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GET /catalogue/lubricants/low-stock — lubricants at or below reorderLevel (default 5)
+api.get('/catalogue/lubricants/low-stock', (c) => {
+  const items = lubricantProducts.filter(l => {
+    const qty = l.stockQuantity ?? 0
+    const reorder = (l as any).reorderLevel ?? 5
+    return qty <= reorder
+  }).map(l => ({
+    ...l,
+    status: (l.stockQuantity ?? 0) === 0 ? 'out' : 'low',
+  }))
+  return c.json(items)
+})
+
+// PATCH /catalogue/lubricants/:id/stock — adjust lubricant stock quantity
+api.patch('/catalogue/lubricants/:id/stock', async (c) => {
+  const lub = lubricantProducts.find(l => l.id === c.req.param('id'))
+  if (!lub) return c.json({ error: 'Lubricant not found' }, 404)
+  const { adjustment, note } = await c.req.json<{ adjustment: number; note?: string }>()
+  const prev = lub.stockQuantity ?? 0
+  lub.stockQuantity = Math.max(0, prev + adjustment)
+  const reorderLevel = (lub as any).reorderLevel ?? 5
+  if (lub.stockQuantity <= reorderLevel) {
+    addNotification(
+      'low_stock',
+      lub.stockQuantity === 0 ? 'error' : 'warning',
+      'Lubricant Stock Alert',
+      lub.stockQuantity === 0
+        ? lub.description + ' is now OUT OF STOCK'
+        : lub.description + ' is low on stock (' + lub.stockQuantity + ' remaining)',
+      undefined
+    )
+  }
+  return c.json({ ok: true, stockQuantity: lub.stockQuantity, prev, note })
+})
+
+// PATCH /catalogue/lubricants/:id/reorder — set lubricant reorder level
+api.patch('/catalogue/lubricants/:id/reorder', async (c) => {
+  const lub = lubricantProducts.find(l => l.id === c.req.param('id'))
+  if (!lub) return c.json({ error: 'Lubricant not found' }, 404)
+  const { reorderLevel } = await c.req.json<{ reorderLevel: number }>()
+  ;(lub as any).reorderLevel = Math.max(0, reorderLevel)
+  return c.json({ ok: true, reorderLevel: (lub as any).reorderLevel })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PHASE 5 — APPOINTMENT REMINDER FLAGS
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GET /appointments/due-reminders — upcoming appointments whose reminder hasn't been sent
+api.get('/appointments/due-reminders', (c) => {
+  const now    = new Date()
+  const in24h  = new Date(now.getTime() + 24 * 60 * 60 * 1000)
+  const due = appointments.filter(a => {
+    if (a.status === 'cancelled' || a.status === 'completed') return false
+    if ((a as any).reminderSentAt) return false
+    const apptDate = new Date(a.appointmentDate)
+    return apptDate >= now && apptDate <= in24h
+  })
+  return c.json(due)
+})
+
+// POST /appointments/:id/mark-reminder — flag reminder as sent
+api.post('/appointments/:id/mark-reminder', async (c) => {
+  const appt = appointments.find(a => a.id === c.req.param('id'))
+  if (!appt) return c.json({ error: 'Appointment not found' }, 404)
+  ;(appt as any).reminderSentAt = new Date().toISOString()
+  addNotification(
+    'appointment_reminder',
+    'info',
+    'Appointment Reminder Sent',
+    'Reminder marked for appointment on ' + appt.appointmentDate,
+    undefined, undefined
+  )
+  return c.json({ ok: true, reminderSentAt: (appt as any).reminderSentAt })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PHASE 5 — INVOICE OVERDUE AUTO-FLAG
+// ─────────────────────────────────────────────────────────────────────────────
+
+// POST /invoices/run-overdue-check — mark unpaid past-due invoices as Overdue
+api.post('/invoices/run-overdue-check', (c) => {
+  const today = new Date().toISOString().slice(0, 10)
+  let flagged = 0
+  invoices.forEach(inv => {
+    if (inv.status !== 'Unpaid' && inv.status !== 'Partial') return
+    if (!inv.dueDate) return
+    if (inv.dueDate < today) {
+      if (inv.status !== 'Overdue') {
+        inv.status = 'Overdue'
+        flagged++
+        addNotification(
+          'invoice_overdue',
+          'error',
+          'Invoice Overdue',
+          inv.invoiceNumber + ' is overdue (due ' + inv.dueDate + ')',
+          inv.id, inv.jobCardId
+        )
+      }
+    }
+  })
+  return c.json({ ok: true, flagged })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PHASE 5 — DASHBOARD LOW-STOCK SUMMARY
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GET /dashboard/alerts — quick summary of actionable alerts
+api.get('/dashboard/alerts', (c) => {
+  const today = new Date().toISOString().slice(0, 10)
+  const in24h  = new Date(Date.now() + 24 * 60 * 60 * 1000)
+
+  const overdueInvoices = invoices.filter(inv =>
+    (inv.status === 'Unpaid' || inv.status === 'Partial' || inv.status === 'Overdue') &&
+    inv.dueDate && inv.dueDate < today
+  ).length
+
+  const lowStockParts = catalogueParts.filter(p => {
+    const qty = p.stockQuantity ?? 0
+    const reorder = (p as any).reorderLevel ?? 5
+    return qty <= reorder
+  }).length
+
+  const lowStockLubs = lubricantProducts.filter(l => {
+    const qty = l.stockQuantity ?? 0
+    const reorder = (l as any).reorderLevel ?? 5
+    return qty <= reorder
+  }).length
+
+  const upcomingAppts = appointments.filter(a => {
+    if (a.status === 'cancelled') return false
+    const d = new Date(a.appointmentDate)
+    return d >= new Date() && d <= in24h
+  }).length
+
+  const unreadNotifs = notifications.filter(n => !n.isRead).length
+
+  return c.json({ overdueInvoices, lowStockParts, lowStockLubs, upcomingAppts, unreadNotifs })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PHASE 5 — CUSTOMER NOTIFICATION DISPATCH LOG
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GET /customer-notifications — paginated dispatch log
+api.get('/customer-notifications', (c) => {
+  const { page: rawPage, limit: rawLimit, channel, status, search, jobCardId } = c.req.query()
+  const page  = Math.max(1, parseInt(rawPage  || '1',  10))
+  const limit = Math.min(200, Math.max(1, parseInt(rawLimit || '50', 10)))
+
+  let entries = [...customerNotifDispatches]  // already newest-first
+
+  if (channel)    entries = entries.filter(e => e.channel === channel)
+  if (status)     entries = entries.filter(e => e.status === status)
+  if (jobCardId)  entries = entries.filter(e => e.jobCardId === jobCardId)
+  if (search) {
+    const q = search.toLowerCase()
+    entries = entries.filter(e =>
+      e.recipientName.toLowerCase().includes(q) ||
+      e.subject.toLowerCase().includes(q) ||
+      e.body.toLowerCase().includes(q) ||
+      e.triggerEvent.toLowerCase().includes(q)
+    )
+  }
+
+  const total = entries.length
+  const slice = entries.slice((page - 1) * limit, page * limit)
+  return c.json({ total, page, limit, entries: slice })
+})
+
+// POST /customer-notifications/manual — manually send a customer notification
+api.post('/customer-notifications/manual', async (c) => {
+  const { customerId, subject, body, channels: chans } = await c.req.json<{
+    customerId: string
+    subject: string
+    body: string
+    channels: NotifChannel[]
+  }>()
+  const cust = customers.find(x => x.id === customerId)
+  if (!cust) return c.json({ error: 'Customer not found' }, 404)
+
+  const dispatched: CustomerNotifDispatch[] = []
+  for (const channel of (chans || ['sms'])) {
+    const d: CustomerNotifDispatch = {
+      id: 'cnd' + genId(),
+      channel,
+      recipientPhone: cust.phone || undefined,
+      recipientEmail: cust.email || undefined,
+      recipientName: cust.name,
+      subject,
+      body,
+      triggerEvent: 'manual',
+      customerId: cust.id,
+      status: 'simulated',
+      sentAt: now(),
+    }
+    customerNotifDispatches.unshift(d)
+    if (customerNotifDispatches.length > 1000) customerNotifDispatches.splice(1000)
+    dispatched.push(d)
+  }
+
+  return c.json({ ok: true, dispatched })
+})
+
+// POST /appointments/:id/send-reminder — mark + dispatch reminder
+api.post('/appointments/:id/send-reminder', async (c) => {
+  const appt = appointments.find(a => a.id === c.req.param('id'))
+  if (!appt) return c.json({ error: 'Appointment not found' }, 404)
+  ;(appt as any).reminderSentAt = now()
+
+  const cust = customers.find(x => x.id === appt.customerId)
+  const veh  = vehicles.find(x => x.id === appt.vehicleId)
+
+  addNotification(
+    'appointment_reminder',
+    'info',
+    'Appointment Reminder Sent',
+    `Reminder sent to ${cust?.name || 'customer'} for ${appt.serviceType} on ${appt.appointmentDate}`,
+    { entityId: appt.id, entityType: 'appointment' }
+  )
+
+  if (cust) {
+    await dispatchCustomerNotification({
+      triggerEvent: 'appointment_reminder',
+      subject: 'Appointment Reminder — ' + (appt as any).appointmentDate,
+      body: `Dear ${cust.name}, this is a reminder that your vehicle (${veh?.registrationNumber || ''}) is booked for ${appt.serviceType} at ${garageSettings.garageName} on ${(appt as any).appointmentDate} at ${(appt as any).time || ''}. Please arrive on time.`,
+      customer: cust,
+    })
+  }
+
+  return c.json({ ok: true, reminderSentAt: (appt as any).reminderSentAt })
 })
 
 export default api

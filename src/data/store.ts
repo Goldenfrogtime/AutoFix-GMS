@@ -515,6 +515,7 @@ export interface CataloguePart {
   sellingPrice: number
   margin: number
   stockQuantity: number      // units in stock
+  reorderLevel: number       // trigger low-stock alert when stockQuantity <= reorderLevel
   batchNumber?: string       // system-generated on create (e.g. BAT-2026-0042)
   partSerialNumber?: string  // supplier-assigned serial / part number
 }
@@ -1154,6 +1155,96 @@ export interface CustomerSubscription {
 
 export const subscriptionPlans: SubscriptionPlan[] = []
 export const customerSubscriptions: CustomerSubscription[] = []
+
+// ─── Customer Notification Dispatch Log ──────────────────────────────────────
+export type NotifChannel = 'sms' | 'email' | 'whatsapp'
+export type NotifDispatchStatus = 'sent' | 'failed' | 'simulated'
+
+export interface CustomerNotifDispatch {
+  id: string
+  channel: NotifChannel
+  recipientPhone?: string        // phone / WhatsApp number
+  recipientEmail?: string        // email address
+  recipientName: string
+  subject: string                // short label, e.g. "Job Status Update"
+  body: string                   // message body
+  triggerEvent: string           // e.g. 'job_status_changed', 'invoice_paid'
+  jobCardId?: string
+  customerId?: string
+  status: NotifDispatchStatus
+  errorMessage?: string          // if failed
+  sentAt: string                 // ISO timestamp
+}
+
+export const customerNotifDispatches: CustomerNotifDispatch[] = []
+
+// ─── Garage Settings ─────────────────────────────────────────────────────────
+export interface GarageSettings {
+  // Profile
+  garageName: string
+  address: string
+  phone: string
+  email: string
+  website?: string
+  logoUrl?: string            // base64 data URL or storage URL
+  tinNumber?: string          // tax identification number
+  vatRate: number             // e.g. 18 for 18%
+  currency: string            // e.g. 'TZS'
+
+  // Invoice & numbering
+  invoicePrefix: string       // e.g. 'GMS-INV'
+  jobCardPrefix: string       // e.g. 'GMS'
+  pfiPrefix: string           // e.g. 'GMS-PFI'
+  invoiceFooterNote?: string  // printed on every invoice
+
+  // Notification channels
+  notifyOnJobCreate: boolean
+  notifyOnJobStatus: boolean
+  notifyOnJobComplete: boolean
+  notifyOnInvoicePaid: boolean
+  notifyOnAppointment: boolean
+  smsEnabled: boolean
+  smsProvider: 'bongolive' | 'africastalking' | 'nexmo' | 'none'
+  smsApiKey?: string
+  smsSenderId?: string
+  emailEnabled: boolean
+  emailProvider: 'smtp' | 'sendgrid' | 'mailgun' | 'none'
+  emailApiKey?: string
+  emailFrom?: string
+  whatsappEnabled: boolean
+  whatsappNumber?: string     // Twilio / 360dialog number
+
+  updatedAt: string
+}
+
+export const defaultGarageSettings: GarageSettings = {
+  garageName: 'Twiga Group Garage',
+  address: '',
+  phone: '',
+  email: '',
+  vatRate: 18,
+  currency: 'TZS',
+  invoicePrefix: 'GMS-INV',
+  jobCardPrefix: 'GMS',
+  pfiPrefix: 'GMS-PFI',
+  notifyOnJobCreate: true,
+  notifyOnJobStatus: true,
+  notifyOnJobComplete: true,
+  notifyOnInvoicePaid: true,
+  notifyOnAppointment: true,
+  smsEnabled: false,
+  smsProvider: 'none',
+  emailEnabled: false,
+  emailProvider: 'none',
+  whatsappEnabled: false,
+  updatedAt: new Date().toISOString(),
+}
+
+// Single mutable settings object — loaded from / saved to gms-data.json
+export let garageSettings: GarageSettings = { ...defaultGarageSettings }
+export function updateGarageSettings(patch: Partial<GarageSettings>): void {
+  garageSettings = { ...garageSettings, ...patch, updatedAt: new Date().toISOString() }
+}
 
 // ─── Persistence — load saved data on startup ─────────────────────────────────
 // This must be the last statement in the module so all arrays are declared first.
