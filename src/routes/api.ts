@@ -1077,6 +1077,49 @@ api.delete('/services/:id', (c) => {
   }
   jobServices.splice(idx, 1)
   syncJobFinancials(svc.jobCardId)
+
+  // ── Recalculate next-service mileage after oil-service removal ──────────────
+  // If the deleted service had a lubricant, re-derive nextServiceMileage from
+  // whichever oil service (with a lubricant interval) remains on this job card.
+  // If none remain, clear the fields.
+  if (svc.lubricantId) {
+    const jcIdx = jobCards.findIndex(j => j.id === svc.jobCardId)
+    if (jcIdx !== -1) {
+      // Find remaining oil services on this job that have a lubricant with an interval
+      const remainingOilSvcs = jobServices.filter(
+        s => s.jobCardId === svc.jobCardId && s.lubricantId
+      )
+      const jc = jobCards[jcIdx]
+      if (remainingOilSvcs.length === 0) {
+        // No more oil services — clear next-service fields
+        jobCards[jcIdx] = {
+          ...jc,
+          nextServiceMileage: undefined,
+          nextServiceLubricant: undefined,
+          updatedAt: now(),
+        }
+      } else {
+        // Recalculate from the first remaining oil service that has an interval
+        let newNextMileage: number | undefined
+        let newNextLubricant: string | undefined
+        for (const remainSvc of remainingOilSvcs) {
+          const lub = lubricantProducts.find(l => l.id === remainSvc.lubricantId)
+          if (lub?.mileageInterval && jc.mileageIn) {
+            newNextMileage  = jc.mileageIn + lub.mileageInterval
+            newNextLubricant = lub.description
+            break
+          }
+        }
+        jobCards[jcIdx] = {
+          ...jc,
+          nextServiceMileage:  newNextMileage,
+          nextServiceLubricant: newNextLubricant,
+          updatedAt: now(),
+        }
+      }
+    }
+  }
+
   return c.json({ success: true })
 })
 
