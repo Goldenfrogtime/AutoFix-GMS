@@ -8364,19 +8364,29 @@ let _pcJobId        = null;
 let _pcSaCanvas     = null, _pcSaCtx     = null, _pcSaDrawing     = false;
 let _pcCustCanvas   = null, _pcCustCtx   = null, _pcCustDrawing   = false;
 
+// Resolve canvas element: try 'pc-{who}-canvas' first, then '{who}-canvas'
+function _pcCanvas(who) {
+  return document.getElementById('pc-' + who + '-canvas') ||
+         document.getElementById(who + '-canvas');
+}
+
 function pcInitSig(who) {
-  const canvas = document.getElementById('pc-' + who + '-canvas');
+  const canvas = _pcCanvas(who);
   if (!canvas) return;
-  const ctx = canvas.getContext('2d');
+  // Remove stale listeners by cloning the node
+  const fresh = canvas.cloneNode(true);
+  canvas.parentNode.replaceChild(fresh, canvas);
+  const c = fresh;
+  const ctx = c.getContext('2d');
   ctx.strokeStyle = '#1e293b';
   ctx.lineWidth   = 2.5;
   ctx.lineCap     = 'round';
   ctx.lineJoin    = 'round';
 
   function getPos(e) {
-    const r = canvas.getBoundingClientRect();
-    const scaleX = canvas.width  / r.width;
-    const scaleY = canvas.height / r.height;
+    const r = c.getBoundingClientRect();
+    const scaleX = c.width  / r.width;
+    const scaleY = c.height / r.height;
     const src = e.touches ? e.touches[0] : e;
     return { x: (src.clientX - r.left) * scaleX, y: (src.clientY - r.top) * scaleY };
   }
@@ -8386,20 +8396,20 @@ function pcInitSig(who) {
   function move(e)  { e.preventDefault(); if (!drawing) return; const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); }
   function stop(e)  { e.preventDefault(); drawing = false; }
 
-  canvas.addEventListener('mousedown',  start);
-  canvas.addEventListener('mousemove',  move);
-  canvas.addEventListener('mouseup',    stop);
-  canvas.addEventListener('mouseleave', stop);
-  canvas.addEventListener('touchstart', start, { passive: false });
-  canvas.addEventListener('touchmove',  move,  { passive: false });
-  canvas.addEventListener('touchend',   stop,  { passive: false });
+  c.addEventListener('mousedown',  start);
+  c.addEventListener('mousemove',  move);
+  c.addEventListener('mouseup',    stop);
+  c.addEventListener('mouseleave', stop);
+  c.addEventListener('touchstart', start, { passive: false });
+  c.addEventListener('touchmove',  move,  { passive: false });
+  c.addEventListener('touchend',   stop,  { passive: false });
 
-  if (who === 'sa')   { _pcSaCanvas = canvas;   _pcSaCtx = ctx; }
-  else                { _pcCustCanvas = canvas; _pcCustCtx = ctx; }
+  if (who === 'sa')   { _pcSaCanvas = c;   _pcSaCtx = ctx; }
+  else                { _pcCustCanvas = c; _pcCustCtx = ctx; }
 }
 
 function pcClearSig(who) {
-  const canvas = document.getElementById('pc-' + who + '-canvas');
+  const canvas = _pcCanvas(who);
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
