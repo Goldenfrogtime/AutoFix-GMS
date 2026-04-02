@@ -908,8 +908,19 @@ api.post('/jobcards/:id/complete-inspection', async (c) => {
   const idx = jobCards.findIndex(x => x.id === c.req.param('id'))
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
   const jc = jobCards[idx]
-  if (jc.status !== 'INSPECTION') {
-    return c.json({ error: `Job must be in INSPECTION status. Current: ${jc.status}` }, 400)
+  // Accept HANDED_OVER as well — the frontend auto-calls start-inspection first,
+  // but guard here too in case of race conditions or direct API calls.
+  if (!['INSPECTION', 'HANDED_OVER'].includes(jc.status)) {
+    return c.json({ error: `Job must be in INSPECTION or HANDED_OVER status. Current: ${jc.status}` }, 400)
+  }
+  // If still HANDED_OVER, advance to INSPECTION inline
+  if (jc.status === 'HANDED_OVER') {
+    const ts0 = now()
+    const tl0 = jc.statusTimeline ? [...jc.statusTimeline] : []
+    const openE = tl0.findLast ? tl0.findLast((e: any) => !e.exitedAt) : [...tl0].reverse().find((e: any) => !e.exitedAt)
+    if (openE) closeTimelineEntry(openE, ts0)
+    tl0.push(openTimelineEntry(jc, 'INSPECTION', ts0))
+    jobCards[idx] = { ...jc, status: 'INSPECTION', statusTimeline: tl0, updatedAt: ts0 }
   }
   const body = await c.req.json<any>()
   if (!body.technicianSignature) return c.json({ error: 'Technician signature required' }, 400)

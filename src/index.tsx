@@ -8689,6 +8689,15 @@ async function submitInspection() {
   const btn = document.getElementById('insp-submit-btn');
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Submitting…'; }
   try {
+    // If the job is still HANDED_OVER, auto-advance it to INSPECTION first
+    const { data: currentJob } = await axios.get('/api/jobcards/' + jobId);
+    if (currentJob.status === 'HANDED_OVER') {
+      await axios.post('/api/jobcards/' + jobId + '/start-inspection', {
+        userId: currentUser?.id || '',
+        userName: currentUser?.name || ''
+      });
+    }
+
     const payload = {};
     INSP_ITEMS.forEach(function(it) {
       const cb = document.getElementById('insp-item-' + it.id);
