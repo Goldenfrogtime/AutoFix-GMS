@@ -134,6 +134,9 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 #jobDetailActions{flex-wrap:wrap;gap:6px}
 /* Parts / Lubricants stats 2 cols on xs */
 @media(max-width:639px){#partsStats,#lubStats{grid-template-columns:repeat(2,1fr)}}
+/* Option D: collapsible job-detail sections */
+.sec-body{display:block;overflow:hidden;transition:all 0.2s ease}
+.sec-body.sec-collapsed{display:none}
 /* Status progress stepper: always scrollable */
 .status-stepper-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:4px}
 .status-stepper-scroll::-webkit-scrollbar{height:3px}
