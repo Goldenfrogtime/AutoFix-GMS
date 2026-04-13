@@ -668,15 +668,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
     </div>
 
     <!-- ═══ JOB DETAIL ═══ -->
-    <div id="page-jobdetail" class="page">
-      <div class="flex flex-wrap items-center gap-2 mb-6">
-        <button class="btn-secondary text-sm flex-shrink-0" onclick="showPage('jobcards')"><i class="fas fa-arrow-left"></i> Back</button>
-        <div class="flex-1 min-w-0">
-          <h2 class="text-xl sm:text-2xl font-bold text-gray-900 truncate" id="jobDetailTitle">Job Card Detail</h2>
-          <p class="text-gray-500 text-sm mt-1" id="jobDetailSub"></p>
-        </div>
-        <div id="jobDetailActions" class="flex flex-wrap gap-2"></div>
-      </div>
+    <div id="page-jobdetail" class="page !p-0">
       <div id="jobDetailContent"></div>
     </div>
 
@@ -5921,8 +5913,7 @@ async function viewJobDetail(id) {
   let _activeSubs = [];
   try { const sr = await axios.get('/api/jobcards/' + id + '/active-subscriptions'); _activeSubs = sr.data || []; } catch(e) {}
   showPage('jobdetail');
-  document.getElementById('jobDetailTitle').textContent = j.jobCardNumber;
-  document.getElementById('jobDetailSub').textContent = (j.vehicle?.make||'') + ' ' + (j.vehicle?.model||'') + ' · ' + (j.vehicle?.registrationNumber||'') + ' · ' + (j.customer?.name||'');
+  // Title/sub now rendered in sticky bar inside jobDetailContent
   
   const canMakeInvoice = j.status === 'COMPLETED' && !j.invoice;
   const canMakePFI = !j.pfi;
@@ -6018,7 +6009,7 @@ async function viewJobDetail(id) {
   if (canMakeInvoice) { actionButtons += \`<button class="btn-primary text-sm" onclick="showInvoiceModal('\${j.id}',\${j.pfi?.labourCost||0},\${j.parts?.reduce((s,p)=>s+p.totalCost,0)||0})"><i class="fas fa-receipt"></i> Generate Invoice</button>\`; }
   if (canServiceCard) { actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 transition-all bg-green-100 hover:bg-green-200 text-green-700 border border-green-300 flex items-center gap-1.5" onclick="showServiceCardModal('\${j.id}')"><i class="fas fa-id-card"></i> Service Card\${j.serviceCardIssuedAt ? ' <i class=\\"fas fa-check-circle text-green-500 ml-0.5\\" title=\\"Issued: '+fmtDate(j.serviceCardIssuedAt)+'\\"></i>' : ''}</button>\`; }
 
-  document.getElementById('jobDetailActions').innerHTML = actionButtons;
+  // actionButtons are now embedded in the sticky bar inside jobDetailContent
   
   const totalPartsCost = j.parts ? j.parts.reduce((s, p) => s + p.totalCost, 0) : 0;
   const totalServicesCost = j.services ? j.services.reduce((s, sv) => s + sv.totalCost, 0) : 0;
@@ -6060,89 +6051,326 @@ async function viewJobDetail(id) {
       _items + '</div>';
   })() : '';
   document.getElementById('jobDetailContent').innerHTML = \`
-    \${_subBannerHtml}
-    \${j.status === 'REJECTED' ? \`
-    <div class="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4">
-      <i class="fas fa-times-circle text-red-500 mt-0.5 flex-shrink-0"></i>
-      <div class="flex-1 min-w-0">
-        <p class="text-sm font-semibold text-red-800">Job Card Rejected</p>
-        <p class="text-xs text-red-700 mt-0.5">\${j.rejectionReason || 'No reason provided.'}</p>
-        <p class="text-xs text-red-400 mt-0.5">Rejected by \${j.rejectedByName || '—'} · \${fmtDate(j.rejectedAt)}</p>
-        \${(isAdminOrManager || isFrontDesk) ? \`<button class="mt-2 text-xs font-semibold px-3 py-1 rounded-lg bg-red-100 text-red-700 hover:bg-red-200 border border-red-300" onclick="submitJobForApproval('\${j.id}')"><i class="fas fa-paper-plane mr-1"></i>Re-submit for Approval</button>\` : ''}
-      </div>
-    </div>\` : ''}
-    \${j.status === 'PENDING_APPROVAL' ? \`
-    <div class="flex items-start gap-3 bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3 mb-4">
-      <i class="fas fa-clock text-yellow-500 mt-0.5 flex-shrink-0"></i>
-      <div class="flex-1 min-w-0">
-        <p class="text-sm font-semibold text-yellow-800">Awaiting Admin/Workshop Controller Approval</p>
-        <p class="text-xs text-yellow-700 mt-0.5">This job card has been submitted and is pending review.</p>
-        \${isAdminOrManager ? \`<button class="mt-2 text-xs font-semibold px-3 py-1 rounded-lg bg-yellow-100 text-yellow-700 hover:bg-yellow-200 border border-yellow-300" onclick="showApprovalPanel('\${j.id}')"><i class="fas fa-search mr-1"></i>Review Now</button>\` : ''}
-      </div>
-    </div>\` : ''}
-    \${isReopened ? \`
-    <div class="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-4">
-      <i class="fas fa-folder-open text-amber-500 mt-0.5 flex-shrink-0"></i>
-      <div class="flex-1 min-w-0">
-        <p class="text-sm font-semibold text-amber-800">Reopened Job \${j.reopenCount > 1 ? '(' + j.reopenCount + ' times)' : ''}</p>
-        <p class="text-xs text-amber-700 mt-0.5">\${j.reopenReason || ''}</p>
-        <p class="text-xs text-amber-500 mt-0.5">Last reopened: \${fmtDate(j.reopenedAt)}</p>
-      </div>
-    </div>\` : ''}
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
-      <!-- Main Info -->
-      <div class="lg:col-span-2 space-y-4">
-        <!-- Status Progress -->
-        <div class="card p-5">
-          <h4 class="font-bold text-gray-800 mb-4">Job Progress</h4>
-          <div class="status-stepper-scroll">
-          <div class="flex items-center gap-1" style="min-width:max-content">
-            \${(() => {
-              const isLegacy = STATUS_FLOW_LEGACY.includes(j.status);
-              const flowToUse = isLegacy ? STATUS_FLOW_LEGACY : STATUS_FLOW;
-              const cur = flowToUse.indexOf(j.status);
-              return flowToUse.map((s, i) => {
-                const done = i < cur;
-                const active = i === cur;
-                const isRejected = s === 'REJECTED' && j.status === 'REJECTED';
-                return \`<div class="flex items-center">
-                  <div class="flex flex-col items-center">
-                    <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all \${isRejected ? 'bg-red-500 text-white ring-4 ring-red-100' : active ? 'bg-blue-600 text-white ring-4 ring-blue-100' : done ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}">\${isRejected ? '<i class="fas fa-times text-xs"></i>' : done ? '<i class="fas fa-check text-xs"></i>' : (i+1)}</div>
-                    <p class="text-xs text-center mt-1 leading-tight max-w-16 \${isRejected?'text-red-600 font-semibold':active?'text-blue-600 font-semibold':done?'text-green-600':'text-gray-400'}">\${(STATUS_CONFIG[s]||{label:s}).label}</p>
-                  </div>
-                  \${i < flowToUse.length-1 ? \`<div class="h-0.5 w-4 mx-0.5 mb-5 \${i < cur ? 'bg-green-400' : 'bg-gray-200'}"></div>\` : ''}
-                </div>\`;
-              }).join('');
-            })()}
+    <!-- ═══ OPTION D: STICKY SUMMARY BAR + COLLAPSIBLE SECTIONS ═══ -->
+
+    <!-- Sticky Summary Bar -->
+    <div class="sticky top-0 z-30 bg-gray-900 text-white shadow-xl" style="margin:0">
+      <div class="px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex items-center gap-3 min-w-0 flex-1">
+          <div class="flex flex-col min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="font-bold text-lg leading-tight">\${j.jobCardNumber}</span>
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold" style="background:\${(STATUS_CONFIG[j.status]||{bg:'#6b7280'}).bg};color:\${(STATUS_CONFIG[j.status]||{text:'#fff'}).text}">\${(STATUS_CONFIG[j.status]||{label:j.status}).label}</span>
+              \${isReopened ? \`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-500 text-white"><i class="fas fa-folder-open text-xs"></i>Reopened</span>\` : ''}
+            </div>
+            <div class="flex items-center gap-3 mt-1 flex-wrap">
+              <span class="text-gray-300 text-xs"><i class="fas fa-user mr-1 text-gray-400"></i>\${j.customer?.name||'—'}</span>
+              <span class="text-gray-300 text-xs"><i class="fas fa-car mr-1 text-gray-400"></i>\${j.vehicle?.registrationNumber||'—'} \${j.vehicle?.make||''} \${j.vehicle?.model||''}</span>
+              <span class="text-gray-400 text-xs"><i class="fas fa-calendar mr-1"></i>\${fmtDate(j.createdAt)}</span>
+            </div>
           </div>
+        </div>
+        <div class="flex items-center gap-3 flex-shrink-0">
+          \${(totalServicesCost + totalPartsCost) > 0 ? \`
+          <div class="text-right hidden sm:block">
+            <p class="text-xs text-gray-400">Est. Total</p>
+            <p class="font-bold text-green-400 text-base">\${fmt(totalServicesCost + totalPartsCost)}</p>
+          </div>\` : ''}
+          <div class="flex flex-wrap gap-1.5" style="max-width:340px">
+            \${actionButtons}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Alert banners -->
+    <div class="px-4 pt-4 space-y-3">
+      \${_subBannerHtml}
+      \${j.status === 'REJECTED' ? \`
+      <div class="flex items-start gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+        <i class="fas fa-times-circle text-red-500 mt-0.5 flex-shrink-0"></i>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-semibold text-red-800">Job Card Rejected</p>
+          <p class="text-xs text-red-700 mt-0.5">\${j.rejectionReason || 'No reason provided.'}</p>
+          <p class="text-xs text-red-400 mt-0.5">Rejected by \${j.rejectedByName || '—'} · \${fmtDate(j.rejectedAt)}</p>
+          \${(isAdminOrManager || isFrontDesk) ? \`<button class="mt-2 text-xs font-semibold px-3 py-1 rounded-lg bg-red-100 text-red-700 hover:bg-red-200 border border-red-300" onclick="submitJobForApproval('\${j.id}')"><i class="fas fa-paper-plane mr-1"></i>Re-submit for Approval</button>\` : ''}
+        </div>
+      </div>\` : ''}
+      \${j.status === 'PENDING_APPROVAL' ? \`
+      <div class="flex items-start gap-3 bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3">
+        <i class="fas fa-clock text-yellow-500 mt-0.5 flex-shrink-0"></i>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-semibold text-yellow-800">Awaiting Admin / Workshop Controller Approval</p>
+          <p class="text-xs text-yellow-700 mt-0.5">This job card has been submitted and is pending review.</p>
+          \${isAdminOrManager ? \`<button class="mt-2 text-xs font-semibold px-3 py-1 rounded-lg bg-yellow-100 text-yellow-700 hover:bg-yellow-200 border border-yellow-300" onclick="showApprovalPanel('\${j.id}')"><i class="fas fa-search mr-1"></i>Review Now</button>\` : ''}
+        </div>
+      </div>\` : ''}
+      \${isReopened ? \`
+      <div class="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+        <i class="fas fa-folder-open text-amber-500 mt-0.5 flex-shrink-0"></i>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-semibold text-amber-800">Reopened Job \${j.reopenCount > 1 ? '(' + j.reopenCount + ' times)' : ''}</p>
+          <p class="text-xs text-amber-700 mt-0.5">\${j.reopenReason || ''}</p>
+          <p class="text-xs text-amber-500 mt-0.5">Last reopened: \${fmtDate(j.reopenedAt)}</p>
+        </div>
+      </div>\` : ''}
+    </div>
+
+    <!-- ═══ SECTION 1: OVERVIEW ═══ -->
+    <div class="mx-4 mt-4 rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm" id="sec-overview">
+      <button onclick="toggleSection('sec-overview')" class="w-full flex items-center justify-between px-5 py-3.5 bg-gray-50 hover:bg-gray-100 transition-colors border-b border-gray-200">
+        <div class="flex items-center gap-2">
+          <i class="fas fa-info-circle text-blue-500"></i>
+          <span class="font-bold text-gray-800">Overview</span>
+          <span class="text-xs text-gray-400 font-normal">Customer · Vehicle · Job Details · Intake</span>
+        </div>
+        <i class="fas fa-chevron-up text-gray-400 sec-chevron transition-transform duration-200"></i>
+      </button>
+      <div class="sec-body">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-gray-100">
+          <div class="p-5">
+            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3"><i class="fas fa-user mr-1.5 text-blue-400"></i>Customer</p>
+            <div class="flex items-center gap-3 mb-2">
+              <div class="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center font-bold text-blue-600 flex-shrink-0">\${(j.customer?.name||'?').charAt(0)}</div>
+              <div><p class="font-semibold text-gray-800 text-sm">\${j.customer?.name||'—'}</p><p class="text-xs text-gray-400">\${j.customer?.phone||''}</p></div>
+            </div>
+            \${j.customer?.email ? \`<p class="text-xs text-gray-400 mt-1"><i class="fas fa-envelope mr-1 text-gray-300"></i>\${j.customer.email}</p>\` : ''}
+            \${j.customer?.address ? \`<p class="text-xs text-gray-400 mt-1"><i class="fas fa-map-marker-alt mr-1 text-gray-300"></i>\${j.customer.address}</p>\` : ''}
+          </div>
+          <div class="p-5">
+            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3"><i class="fas fa-car mr-1.5 text-indigo-400"></i>Vehicle</p>
+            <div class="space-y-1.5 text-sm">
+              <div class="flex justify-between gap-2"><span class="text-gray-400 text-xs">Reg #</span><span class="font-bold text-gray-800">\${j.vehicle?.registrationNumber||'—'}</span></div>
+              <div class="flex justify-between gap-2"><span class="text-gray-400 text-xs">Make / Model</span><span class="font-semibold text-gray-700">\${j.vehicle?.make||'—'} \${j.vehicle?.model||''}</span></div>
+              <div class="flex justify-between gap-2"><span class="text-gray-400 text-xs">Year</span><span class="font-semibold text-gray-700">\${j.vehicle?.year||'—'}</span></div>
+              \${j.vehicle?.vin ? \`<div class="flex justify-between gap-2"><span class="text-gray-400 text-xs">VIN</span><span class="font-mono text-xs text-gray-600">\${j.vehicle.vin}</span></div>\` : ''}
+              \${j.vehicle?.insurer ? \`<div class="flex justify-between gap-2"><span class="text-gray-400 text-xs">Insurer</span><span class="font-semibold text-xs text-gray-700">\${j.vehicle.insurer}</span></div>\` : ''}
+            </div>
+          </div>
+          <div class="p-5">
+            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3"><i class="fas fa-clipboard mr-1.5 text-purple-400"></i>Job Details</p>
+            <div class="space-y-1.5 text-sm">
+              <div class="flex justify-between gap-2"><span class="text-gray-400 text-xs">Category</span><span class="font-semibold text-gray-700">\${j.category}</span></div>
+              <div class="flex justify-between gap-2"><span class="text-gray-400 text-xs">Technician</span><span class="font-semibold text-gray-700">\${j.technicianName||'—'}</span></div>
+              \${j.claimReference ? \`<div class="flex justify-between gap-2"><span class="text-gray-400 text-xs">Claim Ref</span><span class="font-semibold text-gray-700">\${j.claimReference}</span></div>\` : ''}
+              \${j.insurer ? \`<div class="flex justify-between gap-2"><span class="text-gray-400 text-xs">Insurer</span><span class="font-semibold text-gray-700">\${j.insurer}</span></div>\` : ''}
+              \${j.assessor ? \`<div class="flex justify-between gap-2"><span class="text-gray-400 text-xs">Assessor</span><span class="font-semibold text-gray-700">\${j.assessor}</span></div>\` : ''}
+              <div class="flex justify-between gap-2"><span class="text-gray-400 text-xs">Created</span><span class="font-semibold text-gray-700 text-xs">\${fmtDateTime(j.createdAt)}</span></div>
+            </div>
+          </div>
+          <div class="p-5">
+            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3"><i class="fas fa-tachometer-alt mr-1.5 text-green-400"></i>Intake Readings</p>
+            \${(j.mileageIn || j.fuelLevel || j.nextServiceMileage) ? \`
+            <div class="space-y-2 text-sm">
+              \${j.mileageIn ? \`<div class="flex justify-between gap-2"><span class="text-gray-400 text-xs"><i class="fas fa-road mr-1 text-blue-300"></i>Mileage In</span><span class="font-bold text-gray-800">\${j.mileageIn.toLocaleString()} km</span></div>\` : ''}
+              \${j.fuelLevel ? \`<div class="flex justify-between gap-2 items-center"><span class="text-gray-400 text-xs"><i class="fas fa-gas-pump mr-1 text-amber-300"></i>Fuel</span><span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold \${ {'Empty':'bg-red-100 text-red-700','1/4':'bg-orange-100 text-orange-700','1/2':'bg-amber-100 text-amber-700','3/4':'bg-green-100 text-green-700','Full':'bg-emerald-100 text-emerald-700'}[j.fuelLevel] || 'bg-gray-100 text-gray-600'}">\${j.fuelLevel}</span></div>\` : ''}
+              \${j.nextServiceMileage ? \`<div class="flex justify-between gap-2"><span class="text-gray-400 text-xs"><i class="fas fa-calendar-check mr-1 text-green-400"></i>Next Service</span><span class="font-bold text-green-700 text-xs">\${j.nextServiceMileage.toLocaleString()} km</span></div>\` : ''}
+              \${j.nextServiceLubricant ? \`<p class="text-xs text-gray-400 mt-1">\${j.nextServiceLubricant}</p>\` : ''}
+            </div>\` : '<p class="text-xs text-gray-300 italic">No readings recorded</p>'}
+          </div>
+        </div>
+        <div class="px-5 py-4 border-t border-gray-100 bg-gray-50">
+          <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1.5">Damage / Service Description</p>
+          <p class="text-sm text-gray-700">\${j.damageDescription}</p>
+          \${j.inspectionNotes ? \`<div class="mt-3"><p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Inspection Notes</p><p class="text-sm text-gray-700">\${j.inspectionNotes}</p></div>\` : ''}
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ SECTION 2: WORKFLOW ═══ -->
+    <div class="mx-4 mt-3 rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm" id="sec-workflow">
+      <button onclick="toggleSection('sec-workflow')" class="w-full flex items-center justify-between px-5 py-3.5 bg-gray-50 hover:bg-gray-100 transition-colors border-b border-gray-200">
+        <div class="flex items-center gap-2">
+          <i class="fas fa-project-diagram text-purple-500"></i>
+          <span class="font-bold text-gray-800">Workflow</span>
+          <span class="text-xs text-gray-400 font-normal">Pipeline · Checks · Approvals · QC</span>
+        </div>
+        <i class="fas fa-chevron-up text-gray-400 sec-chevron transition-transform duration-200"></i>
+      </button>
+      <div class="sec-body">
+        <div class="px-5 pt-5 pb-4">
+          <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Job Progress</p>
+          <div class="status-stepper-scroll">
+            <div class="flex items-center gap-1" style="min-width:max-content">
+              \${(() => {
+                const isLegacy = STATUS_FLOW_LEGACY.includes(j.status);
+                const flowToUse = isLegacy ? STATUS_FLOW_LEGACY : STATUS_FLOW;
+                const cur = flowToUse.indexOf(j.status);
+                return flowToUse.map((st, i) => {
+                  const done = i < cur;
+                  const active = i === cur;
+                  const isRejected = st === 'REJECTED' && j.status === 'REJECTED';
+                  return \`<div class="flex items-center">
+                    <div class="flex flex-col items-center">
+                      <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all \${isRejected ? 'bg-red-500 text-white ring-4 ring-red-100' : active ? 'bg-blue-600 text-white ring-4 ring-blue-100' : done ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-400'}">\${isRejected ? '<i class="fas fa-times text-xs"></i>' : done ? '<i class="fas fa-check text-xs"></i>' : (i+1)}</div>
+                      <p class="text-xs text-center mt-1 leading-tight max-w-16 \${isRejected?'text-red-600 font-semibold':active?'text-blue-600 font-semibold':done?'text-green-600':'text-gray-400'}">\${(STATUS_CONFIG[st]||{label:st}).label}</p>
+                    </div>
+                    \${i < flowToUse.length-1 ? \`<div class="h-0.5 w-4 mx-0.5 mb-5 \${i < cur ? 'bg-green-400' : 'bg-gray-200'}"></div>\` : ''}
+                  </div>\`;
+                }).join('');
+              })()}
+            </div>
           </div>
           \${j.approvedBy ? \`<p class="text-xs text-gray-400 mt-3"><i class="fas fa-check-circle text-green-500 mr-1"></i>Approved by \${j.approvedByName||'—'} · \${fmtDate(j.approvedAt)}\${j.approvalNotes ? ' · "'+j.approvalNotes+'"' : ''}</p>\` : ''}
         </div>
-        <div class="card p-5">
-          <h4 class="font-bold text-gray-800 mb-4">Job Details</h4>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-            <div><p class="text-gray-400 text-xs font-semibold uppercase mb-1">Category</p><p class="font-semibold">\${j.category}</p></div>
-            <div><p class="text-gray-400 text-xs font-semibold uppercase mb-1">Technician</p><p class="font-semibold">\${j.technicianName||'—'}</p></div>
-            \${j.claimReference ? \`<div><p class="text-gray-400 text-xs font-semibold uppercase mb-1">Claim Ref</p><p class="font-semibold">\${j.claimReference}</p></div>\` : ''}
-            \${j.insurer ? \`<div><p class="text-gray-400 text-xs font-semibold uppercase mb-1">Insurer</p><p class="font-semibold">\${j.insurer}</p></div>\` : ''}
-            \${j.assessor ? \`<div><p class="text-gray-400 text-xs font-semibold uppercase mb-1">Assessor</p><p class="font-semibold">\${j.assessor}</p></div>\` : ''}
-            <div><p class="text-gray-400 text-xs font-semibold uppercase mb-1">Created</p><p class="font-semibold">\${fmtDateTime(j.createdAt)}</p></div>
-          </div>
-          <div class="mt-4 pt-4 border-t border-gray-100">
-            <p class="text-gray-400 text-xs font-semibold uppercase mb-2">Damage / Service Description</p>
-            <p class="text-sm text-gray-700">\${j.damageDescription}</p>
-          </div>
-          \${j.inspectionNotes ? \`<div class="mt-3 pt-3 border-t border-gray-100"><p class="text-gray-400 text-xs font-semibold uppercase mb-2">Inspection Notes</p><p class="text-sm text-gray-700">\${j.inspectionNotes}</p></div>\` : ''}
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 px-5 pb-5">
+
+          \${j.preliminaryCheck ? \`
+          <div class="rounded-xl border border-purple-200 bg-purple-50 p-4">
+            <div class="flex items-center justify-between mb-2">
+              <p class="text-xs font-bold text-purple-700 uppercase tracking-wide"><i class="fas fa-clipboard-check mr-1.5"></i>Preliminary Check</p>
+              <span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-semibold"><i class="fas fa-check mr-1"></i>Done</span>
+            </div>
+            <div class="space-y-1 text-xs">
+              <div class="flex justify-between"><span class="text-gray-400">By</span><span class="font-semibold text-gray-700">\${j.preliminaryCheck.completedByName||j.preliminaryCheck.serviceAdvisorName||'—'}</span></div>
+              <div class="flex justify-between"><span class="text-gray-400">At</span><span class="font-semibold text-gray-700">\${fmtDateTime(j.preliminaryCheck.completedAt)}</span></div>
+              <div class="flex justify-between"><span class="text-gray-400">Condition</span><span class="font-semibold \${j.preliminaryCheck.vehicleCondition==='Good'?'text-green-700':j.preliminaryCheck.vehicleCondition==='Fair'?'text-amber-700':'text-red-700'}">\${j.preliminaryCheck.vehicleCondition||'—'}</span></div>
+              <div class="flex justify-between"><span class="text-gray-400">Fuel</span><span class="font-semibold text-gray-700">\${j.preliminaryCheck.fuelLevelCheck||'—'}</span></div>
+            </div>
+            <div class="mt-2 pt-2 border-t border-purple-200 grid grid-cols-3 gap-1">
+              \${['spareTyre','jack','wheelSpanner','triangle','toolbox','fireExtinguisher'].map(function(k){
+                const label={spareTyre:'Tyre',jack:'Jack',wheelSpanner:'Spanner',triangle:'Triangle',toolbox:'Toolbox',fireExtinguisher:'Extinguisher'}[k];
+                const present=j.preliminaryCheck[k]==='Present';
+                return '<div class="flex items-center gap-1 text-xs"><i class="fas '+(present?'fa-check-circle text-green-500':'fa-times-circle text-red-400')+'"></i><span class="text-gray-500 truncate">'+label+'</span></div>';
+              }).join('')}
+            </div>
+            \${j.preliminaryCheck.customerSignature ? \`
+            <div class="mt-2 pt-2 border-t border-purple-200 flex gap-2">
+              \${j.preliminaryCheck.serviceAdvisorSignature ? \`<div class="flex-1"><p class="text-xs text-gray-400 mb-1">SA Sig</p><img src="\${j.preliminaryCheck.serviceAdvisorSignature}" class="max-h-8 border border-gray-200 rounded bg-white p-0.5 w-full object-contain"/></div>\` : ''}
+              <div class="flex-1"><p class="text-xs text-gray-400 mb-1">Cust. Sig</p><img src="\${j.preliminaryCheck.customerSignature}" class="max-h-8 border border-gray-200 rounded bg-white p-0.5 w-full object-contain"/></div>
+            </div>\` : ''}
+          </div>\` : \`
+          <div class="rounded-xl border border-dashed border-gray-200 p-4 flex flex-col items-center justify-center text-center gap-1 opacity-40">
+            <i class="fas fa-clipboard-check text-gray-300 text-2xl"></i>
+            <p class="text-xs text-gray-400 font-semibold">Preliminary Check</p>
+            <p class="text-xs text-gray-300">Not yet completed</p>
+          </div>\`}
+
+          \${j.inspectionData ? \`
+          <div class="rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <div class="flex items-center justify-between mb-2">
+              <p class="text-xs font-bold text-amber-700 uppercase tracking-wide"><i class="fas fa-search mr-1.5"></i>Inspection</p>
+              <span class="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold"><i class="fas fa-check mr-1"></i>Done</span>
+            </div>
+            <div class="space-y-1 text-xs">
+              <div class="flex justify-between"><span class="text-gray-400">By</span><span class="font-semibold text-gray-700">\${j.inspectionData.technicianName||j.inspectionData.completedByName||'—'}</span></div>
+              <div class="flex justify-between"><span class="text-gray-400">At</span><span class="font-semibold text-gray-700">\${fmtDateTime(j.inspectionData.completedAt)}</span></div>
+              \${j.inspectionData.recommendedService ? \`<div class="flex justify-between items-start gap-1"><span class="text-gray-400 flex-shrink-0">Recommended</span><span class="font-medium text-amber-700 text-right">\${j.inspectionData.recommendedService}</span></div>\` : ''}
+            </div>
+            <div class="mt-2 pt-2 border-t border-amber-200 grid grid-cols-3 gap-1">
+              \${[{k:'engineOilTopup',l:'Oil'},{k:'airFilter',l:'Air Filter'},{k:'acFilter',l:'A/C'},{k:'sparkPlugs',l:'Plugs'},{k:'bulbs',l:'Bulbs'},{k:'tiresCondition',l:'Tyres'},{k:'brakeConditions',l:'Brakes'},{k:'coolantLevel',l:'Coolant'},{k:'battery',l:'Battery'},{k:'leakages',l:'No Leaks'}].map(function(item){
+                const val=j.inspectionData[item.k]; const ok=val==='OK'||val==='Good';
+                return '<div class="flex items-center gap-1 text-xs"><i class="fas '+(ok?'fa-check-circle text-green-500':'fa-times-circle text-gray-300')+'"></i><span class="text-gray-500 truncate">'+item.l+'</span></div>';
+              }).join('')}
+            </div>
+            \${j.inspectionData.technicianSignature ? \`<div class="mt-2 pt-2 border-t border-amber-200"><p class="text-xs text-gray-400 mb-1">Technician Sig</p><img src="\${j.inspectionData.technicianSignature}" class="max-h-8 border border-gray-200 rounded bg-white p-0.5 w-full object-contain"/></div>\` : ''}
+          </div>\` : \`
+          <div class="rounded-xl border border-dashed border-gray-200 p-4 flex flex-col items-center justify-center text-center gap-1 opacity-40">
+            <i class="fas fa-search text-gray-300 text-2xl"></i>
+            <p class="text-xs text-gray-400 font-semibold">Inspection</p>
+            <p class="text-xs text-gray-300">Not yet completed</p>
+          </div>\`}
+
+          \${j.customerApprovalData ? \`
+          <div class="rounded-xl border border-orange-200 bg-orange-50 p-4">
+            <div class="flex items-center justify-between mb-2">
+              <p class="text-xs font-bold text-orange-700 uppercase tracking-wide"><i class="fas fa-user-check mr-1.5"></i>Customer Approval</p>
+              <span class="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full font-semibold"><i class="fas fa-check mr-1"></i>Approved</span>
+            </div>
+            <div class="space-y-1 text-xs">
+              <div class="flex justify-between"><span class="text-gray-400">By</span><span class="font-semibold text-gray-700">\${j.customerApprovalData.approvedBy||'—'}</span></div>
+              <div class="flex justify-between"><span class="text-gray-400">At</span><span class="font-semibold text-gray-700">\${fmtDateTime(j.customerApprovalData.approvedAt)}</span></div>
+              <div class="flex justify-between"><span class="text-gray-400">Amount</span><span class="font-bold text-orange-700">TZS \${(j.customerApprovalData.totalApproved||0).toLocaleString()}</span></div>
+              \${j.customerApprovalData.approvalNotes ? \`<p class="text-gray-500 italic mt-1">"\${j.customerApprovalData.approvalNotes}"</p>\` : ''}
+            </div>
+            \${j.customerApprovalData.approvalSignature ? \`<div class="mt-2 pt-2 border-t border-orange-200"><p class="text-xs text-gray-400 mb-1">Customer Sig</p><img src="\${j.customerApprovalData.approvalSignature}" class="max-h-8 border border-gray-200 rounded bg-white p-0.5 w-full object-contain"/></div>\` : ''}
+          </div>\` : \`
+          <div class="rounded-xl border border-dashed border-gray-200 p-4 flex flex-col items-center justify-center text-center gap-1 opacity-40">
+            <i class="fas fa-user-check text-gray-300 text-2xl"></i>
+            <p class="text-xs text-gray-400 font-semibold">Customer Approval</p>
+            <p class="text-xs text-gray-300">Not yet obtained</p>
+          </div>\`}
+
+          \${(j.partsReleasedAt || j.workStartedAt || j.workFinishedAt) ? \`
+          <div class="rounded-xl border border-blue-200 bg-blue-50 p-4">
+            <p class="text-xs font-bold text-blue-700 uppercase tracking-wide mb-3"><i class="fas fa-wrench mr-1.5"></i>Repair Progress</p>
+            <div class="space-y-2">
+              \${j.partsReleasedAt ? \`<div class="flex items-start gap-2 text-xs"><div class="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0 mt-0.5"><i class="fas fa-box-open text-white" style="font-size:7px"></i></div><div><p class="font-semibold text-gray-700">Parts Released</p><p class="text-gray-400">\${fmtDateTime(j.partsReleasedAt)}\${j.partsReleasedByName?' · '+j.partsReleasedByName:''}</p></div></div>\` : ''}
+              \${j.workStartedAt ? \`<div class="flex items-start gap-2 text-xs"><div class="w-5 h-5 rounded-full bg-indigo-500 flex items-center justify-center flex-shrink-0 mt-0.5"><i class="fas fa-tools text-white" style="font-size:7px"></i></div><div><p class="font-semibold text-gray-700">Work Started</p><p class="text-gray-400">\${fmtDateTime(j.workStartedAt)}\${j.workStartedByName?' · '+j.workStartedByName:''}</p></div></div>\` : ''}
+              \${j.workFinishedAt ? \`<div class="flex items-start gap-2 text-xs"><div class="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0 mt-0.5"><i class="fas fa-flag-checkered text-white" style="font-size:7px"></i></div><div><p class="font-semibold text-gray-700">Work Finished</p><p class="text-gray-400">\${fmtDateTime(j.workFinishedAt)}\${j.workFinishedByName?' · '+j.workFinishedByName:''}</p></div></div>\` : ''}
+            </div>
+          </div>\` : \`
+          <div class="rounded-xl border border-dashed border-gray-200 p-4 flex flex-col items-center justify-center text-center gap-1 opacity-40">
+            <i class="fas fa-wrench text-gray-300 text-2xl"></i>
+            <p class="text-xs text-gray-400 font-semibold">Repair Progress</p>
+            <p class="text-xs text-gray-300">Work not started</p>
+          </div>\`}
+
+          \${j.qcData ? \`
+          <div class="rounded-xl border border-teal-200 bg-teal-50 p-4">
+            <div class="flex items-center justify-between mb-2">
+              <p class="text-xs font-bold text-teal-700 uppercase tracking-wide"><i class="fas fa-award mr-1.5"></i>Quality Control</p>
+              <span class="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full font-semibold"><i class="fas fa-check mr-1"></i>Passed</span>
+            </div>
+            <div class="space-y-1 text-xs">
+              <div class="flex justify-between"><span class="text-gray-400">Officer</span><span class="font-semibold text-gray-700">\${j.qcData.qcOfficerName||j.qcData.completedByName||'—'}</span></div>
+              <div class="flex justify-between"><span class="text-gray-400">At</span><span class="font-semibold text-gray-700">\${fmtDateTime(j.qcData.completedAt)}</span></div>
+            </div>
+            <div class="mt-2 pt-2 border-t border-teal-200 grid grid-cols-2 gap-1">
+              \${[{k:'boltsTightened',l:'Bolts',good:'Yes'},{k:'leakages',l:'No Leaks',good:'No'},{k:'cleanWork',l:'Clean Work',good:'Yes'},{k:'allWorksCompleted',l:'All Done',good:'Yes'},{k:'engineOilLevel',l:'Oil Level',good:'OK'},{k:'fuelLevel',l:'Fuel',good:'OK'}].map(function(item){
+                const val=j.qcData[item.k]; const ok=val===item.good;
+                return '<div class="flex items-center gap-1 text-xs"><i class="fas '+(ok?'fa-check-circle text-green-500':'fa-exclamation-circle text-red-400')+'"></i><span class="text-gray-500">'+item.l+'</span></div>';
+              }).join('')}
+            </div>
+            \${j.qcData.notes ? \`<p class="text-xs text-gray-400 mt-2 pt-2 border-t border-teal-200 italic">"\${j.qcData.notes}"</p>\` : ''}
+            \${j.qcData.qcOfficerSignature ? \`<div class="mt-2 pt-2 border-t border-teal-200"><p class="text-xs text-gray-400 mb-1">QC Sig</p><img src="\${j.qcData.qcOfficerSignature}" class="max-h-8 border border-gray-200 rounded bg-white p-0.5 w-full object-contain"/></div>\` : ''}
+          </div>\` : \`
+          <div class="rounded-xl border border-dashed border-gray-200 p-4 flex flex-col items-center justify-center text-center gap-1 opacity-40">
+            <i class="fas fa-award text-gray-300 text-2xl"></i>
+            <p class="text-xs text-gray-400 font-semibold">Quality Control</p>
+            <p class="text-xs text-gray-300">Not yet completed</p>
+          </div>\`}
+
+          \${j.customerSignoffData ? \`
+          <div class="rounded-xl border border-indigo-200 bg-indigo-50 p-4">
+            <div class="flex items-center justify-between mb-2">
+              <p class="text-xs font-bold text-indigo-700 uppercase tracking-wide"><i class="fas fa-signature mr-1.5"></i>Customer Sign-off</p>
+              <span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-semibold"><i class="fas fa-check mr-1"></i>Signed</span>
+            </div>
+            <div class="space-y-1 text-xs">
+              <div class="flex justify-between"><span class="text-gray-400">Customer</span><span class="font-semibold text-gray-700">\${j.customerSignoffData.customerName||'—'}</span></div>
+              <div class="flex justify-between"><span class="text-gray-400">At</span><span class="font-semibold text-gray-700">\${fmtDateTime(j.customerSignoffData.signedAt)}</span></div>
+              \${j.customerSignoffData.satisfactionRating ? \`<div class="flex justify-between items-center"><span class="text-gray-400">Rating</span><span class="text-yellow-500 font-bold text-sm">\${'★'.repeat(j.customerSignoffData.satisfactionRating)}<span class="text-gray-300">\${'★'.repeat(5-j.customerSignoffData.satisfactionRating)}</span></span></div>\` : ''}
+              \${j.customerSignoffData.signoffNotes ? \`<p class="text-gray-500 italic mt-1">"\${j.customerSignoffData.signoffNotes}"</p>\` : ''}
+            </div>
+            \${j.customerSignoffData.customerSignature ? \`<div class="mt-2 pt-2 border-t border-indigo-200"><p class="text-xs text-gray-400 mb-1">Customer Sig</p><img src="\${j.customerSignoffData.customerSignature}" class="max-h-8 border border-gray-200 rounded bg-white p-0.5 w-full object-contain"/></div>\` : ''}
+          </div>\` : \`
+          <div class="rounded-xl border border-dashed border-gray-200 p-4 flex flex-col items-center justify-center text-center gap-1 opacity-40">
+            <i class="fas fa-signature text-gray-300 text-2xl"></i>
+            <p class="text-xs text-gray-400 font-semibold">Customer Sign-off</p>
+            <p class="text-xs text-gray-300">Not yet signed</p>
+          </div>\`}
+
         </div>
-        <!-- Services & Parts -->
-        <div class="card p-5">
-          <div class="flex items-center justify-between mb-4">
-            <h4 class="font-bold text-gray-800">Services &amp; Parts</h4>
-            <button class="btn-secondary text-xs" onclick="showAddServiceModal('\${j.id}')"><i class="fas fa-plus mr-1"></i> Add Service / Part</button>
-          </div>
+      </div>
+    </div>
 
+    <!-- ═══ SECTION 3: SERVICES & PARTS ═══ -->
+    <div class="mx-4 mt-3 rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm" id="sec-services">
+      <button onclick="toggleSection('sec-services')" class="w-full flex items-center justify-between px-5 py-3.5 bg-gray-50 hover:bg-gray-100 transition-colors border-b border-gray-200">
+        <div class="flex items-center gap-2">
+          <i class="fas fa-tools text-amber-500"></i>
+          <span class="font-bold text-gray-800">Services &amp; Parts</span>
+          <span class="text-xs font-semibold text-blue-600">\${fmt(totalServicesCost + totalPartsCost)}</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <button class="text-xs bg-white border border-gray-200 hover:bg-blue-50 hover:border-blue-300 text-gray-600 font-semibold px-2.5 py-1 rounded-lg transition-colors" onclick="event.stopPropagation();showAddServiceModal('\${j.id}')"><i class="fas fa-plus mr-1"></i>Add</button>
+          <i class="fas fa-chevron-up text-gray-400 sec-chevron transition-transform duration-200"></i>
+        </div>
+      </button>
+      <div class="sec-body">
+        <div class="p-5">
           \${(j.services && j.services.length) || (j.parts && j.parts.length) ? \`
-
             \${j.services && j.services.length ? \`
               <p class="text-xs font-semibold text-gray-400 uppercase mb-2 tracking-wide">Services</p>
               <div class="space-y-2 mb-4">
@@ -6162,9 +6390,7 @@ async function viewJobDetail(id) {
                     </div>
                   </div>
                 \`).join('')}
-              </div>
-            \` : ''}
-
+              </div>\` : ''}
             \${j.parts && j.parts.length ? \`
               <p class="text-xs font-semibold text-gray-400 uppercase mb-2 tracking-wide">Parts Consumed</p>
               <div class="overflow-x-auto mb-3">
@@ -6188,9 +6414,7 @@ async function viewJobDetail(id) {
                     </tr>
                   \`).join('')}</tbody>
                 </table>
-              </div>
-            \` : ''}
-
+              </div>\` : ''}
             <div class="border-t border-gray-100 pt-3 mt-1 space-y-1 text-sm">
               \${j.services && j.services.length ? \`<div class="flex justify-between text-gray-500"><span>Services Total</span><span class="font-semibold">\${fmt(totalServicesCost)}</span></div>\` : ''}
               \${j.parts && j.parts.length ? \`<div class="flex justify-between text-gray-500"><span>Parts Total</span><span class="font-semibold">\${fmt(totalPartsCost)}</span></div>\` : ''}
@@ -6199,40 +6423,199 @@ async function viewJobDetail(id) {
                 <span class="text-blue-600">\${fmt(totalServicesCost + totalPartsCost)}</span>
               </div>
             </div>
-
           \` : '<p class="text-gray-400 text-sm text-center py-6"><i class="fas fa-concierge-bell text-2xl mb-2 block"></i>No services or parts added yet</p>'}
         </div>
-        <!-- Activity Log -->
-        <div class="card p-5">
-          <h4 class="font-bold text-gray-800 mb-4"><i class="fas fa-history text-blue-400 mr-2"></i>Activity Log</h4>
-          <div class="space-y-0">
-            \${j.logs && j.logs.length ? j.logs.map((log, idx) => \`
-              <div class="flex gap-3 \${idx < j.logs.length - 1 ? 'pb-4 border-l-2 border-blue-100 ml-[7px] pl-5 -ml-0' : ''}">
-                <div class="flex flex-col items-center flex-shrink-0 \${idx < j.logs.length - 1 ? '' : ''}">
-                  <div class="w-3.5 h-3.5 rounded-full bg-blue-500 border-2 border-white shadow flex-shrink-0 mt-0.5 z-10"></div>
-                </div>
-                <div class="flex-1 pb-\${idx < j.logs.length - 1 ? '4' : '0'} -mt-0.5">
-                  <p class="text-sm font-semibold text-gray-800">\${log.description}</p>
-                  <div class="flex items-center gap-2 mt-1 flex-wrap">
-                    <span class="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full border border-gray-100">
-                      <i class="fas fa-user-circle text-blue-300"></i>\${log.userName}
-                    </span>
-                    <span class="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full border border-gray-100">
-                      <i class="fas fa-clock text-blue-300"></i>\${fmtDateTime(log.timestamp)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            \`).join('') : '<p class="text-gray-400 text-sm text-center py-4"><i class="fas fa-history text-2xl mb-2 block opacity-30"></i>No activity yet</p>'}
+      </div>
+    </div>
+
+    <!-- ═══ SECTION 4: FINANCIAL ═══ -->
+    <div class="mx-4 mt-3 rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm" id="sec-financial">
+      <button onclick="toggleSection('sec-financial')" class="w-full flex items-center justify-between px-5 py-3.5 bg-gray-50 hover:bg-gray-100 transition-colors border-b border-gray-200">
+        <div class="flex items-center gap-2">
+          <i class="fas fa-file-invoice-dollar text-green-500"></i>
+          <span class="font-bold text-gray-800">Financial</span>
+          <span class="text-xs text-gray-400 font-normal">PFI · Invoice · P&amp;L · Expenses</span>
+          \${j.invoice ? \`<span class="text-xs font-semibold px-2 py-0.5 rounded-full \${j.invoice.status==='Paid'?'bg-green-100 text-green-700':j.invoice.status==='Overdue'?'bg-red-100 text-red-700':'bg-amber-100 text-amber-700'}">\${j.invoice.status}</span>\` : ''}
+        </div>
+        <i class="fas fa-chevron-up text-gray-400 sec-chevron transition-transform duration-200"></i>
+      </button>
+      <div class="sec-body">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 p-5">
+          \${j.pfi ? \`
+          <div class="rounded-xl border border-blue-200 bg-blue-50 p-4">
+            <div class="flex items-center justify-between mb-3">
+              <p class="text-sm font-bold text-blue-700"><i class="fas fa-file-invoice mr-1.5"></i>Pro Forma Invoice</p>
+              <span class="badge" style="background:\${PFI_STATUS_CONFIG[j.pfi.status]?.bg};color:\${PFI_STATUS_CONFIG[j.pfi.status]?.text}">\${j.pfi.status}</span>
+            </div>
+            \${j.services && j.services.length ? \`
+              <p class="text-xs font-semibold text-gray-400 uppercase mb-1.5">Services</p>
+              <div class="space-y-1 mb-2">
+                \${j.services.map(sv => \`<div class="flex justify-between text-xs"><span class="text-gray-600 truncate max-w-[65%]"><i class="fas \${svcIcon(sv.category)} mr-1"></i>\${sv.serviceName}\${sv.quantity>1?' <span class=\\"text-gray-400\\">×'+sv.quantity+'</span>':''}</span><span class="font-semibold text-gray-700">\${fmt(sv.totalCost)}</span></div>\`).join('')}
+              </div><div class="border-t border-blue-200 mb-2"></div>\` : ''}
+            \${j.parts && j.parts.length ? \`
+              <p class="text-xs font-semibold text-gray-400 uppercase mb-1.5">Parts</p>
+              <div class="space-y-1 mb-2">
+                \${j.parts.map(p => \`<div class="flex justify-between text-xs"><span class="text-gray-600 truncate max-w-[60%]">\${p.partName} <span class="text-gray-400">×\${p.quantity}</span></span><span class="font-semibold text-gray-700">\${fmt(p.totalCost)}</span></div>\`).join('')}
+              </div><div class="border-t border-blue-200 mb-2"></div>\` : ''}
+            \${(function(){
+              const _ls=(j.services||[]).reduce(function(s,sv){return s+sv.totalCost;},0);
+              const _lp=(j.parts||[]).reduce(function(s,p){return s+p.totalCost;},0);
+              const _lb=_ls+_lp; const _la=j.pfi.labourCost||0;
+              const _st=_la+_lb; const _d=j.pfi.discountAmount||0;
+              const _dr=j.pfi.discountReason||''; const _t=Math.max(0,_st-_d);
+              const _tx=typeof j.pfi.tax==='number'?j.pfi.tax:Math.round(_t*0.18);
+              const _gt=_t+_tx;
+              return \`<div class="space-y-1.5 text-xs">
+                <div class="flex justify-between"><span class="text-gray-400">Labour</span><span class="font-semibold">\${fmt(_la)}</span></div>
+                <div class="flex justify-between"><span class="text-gray-400">Services + Parts</span><span class="font-semibold">\${fmt(_lb)}</span></div>
+                \${_d>0?\`<div class="flex justify-between text-green-600"><span>Discount\${_dr?' ('+_dr+')':''}</span><span class="font-semibold">− \${fmt(_d)}</span></div>\`:''}
+                <div class="flex justify-between text-gray-500 border-t pt-1 mt-1"><span>Subtotal</span><span class="font-medium">\${fmt(_t)}</span></div>
+                <div class="flex justify-between text-orange-600"><span>Tax / VAT\${_tx>0?' (18%)':''}</span><span class="font-semibold">\${fmt(_tx)}</span></div>
+                <div class="flex justify-between border-t pt-1.5 font-bold text-sm"><span>Grand Total</span><span class="text-blue-700">\${fmt(_gt)}</span></div>
+              </div>\`;
+            })()}
+            <div class="mt-3 flex gap-2">
+              \${!j.invoice ? \`<button class="text-xs text-amber-600 hover:underline font-semibold" onclick="showEditPFIModal('\${j.pfi.id}')"><i class="fas fa-edit mr-1"></i>Edit</button>\` : ''}
+              <button class="text-xs text-blue-600 hover:underline font-semibold" onclick="showSendPFIModal('\${j.pfi.id}')"><i class="fas fa-paper-plane mr-1"></i>Send / View</button>
+            </div>
+          </div>\` : \`
+          <div class="rounded-xl border border-dashed border-gray-200 p-4 flex flex-col items-center justify-center text-center gap-1 opacity-40">
+            <i class="fas fa-file-invoice text-gray-300 text-2xl"></i>
+            <p class="text-xs text-gray-400 font-semibold">Pro Forma Invoice</p>
+            <p class="text-xs text-gray-300">Not yet created</p>
+          </div>\`}
+
+          \${j.invoice ? \`
+          <div class="rounded-xl border-2 border-green-200 bg-green-50 p-4">
+            <div class="flex items-center justify-between mb-3">
+              <p class="text-sm font-bold text-green-700"><i class="fas fa-receipt mr-1.5"></i>Invoice</p>
+              <span class="badge \${j.invoice.status==='Paid'?'bg-green-100 text-green-700':j.invoice.status==='Partially Paid'?'bg-amber-100 text-amber-700':j.invoice.status==='Overdue'?'bg-red-100 text-red-700':'bg-gray-100 text-gray-600'}">\${j.invoice.status}</span>
+            </div>
+            <p class="text-xs text-gray-400 mb-2">\${j.invoice.invoiceNumber}</p>
+            \${(function(){
+              const _ls=(j.services||[]).reduce(function(s,sv){return s+sv.totalCost;},0);
+              const _lp=(j.parts||[]).reduce(function(s,p){return s+p.totalCost;},0);
+              const _lb=_ls+_lp; const _la=j.invoice.labourCost||0;
+              const _st=_la+_lb; const _d=j.invoice.discountAmount||0;
+              const _dr=j.invoice.discountReason||''; const _ad=Math.max(0,_st-_d);
+              const _tx=typeof j.invoice.tax==='number'?j.invoice.tax:Math.round(_ad*0.18);
+              const _t=_ad+_tx;
+              return \`<div class="space-y-1.5 text-xs">
+                <div class="flex justify-between"><span class="text-gray-400">Labour</span><span>\${fmt(_la)}</span></div>
+                <div class="flex justify-between"><span class="text-gray-400">Services + Parts</span><span>\${fmt(_lb)}</span></div>
+                \${_d>0?\`<div class="flex justify-between text-green-600"><span>Discount\${_dr?' ('+_dr+')':''}</span><span class="font-semibold">− \${fmt(_d)}</span></div>\`:''}
+                <div class="flex justify-between"><span class="text-gray-400">Tax / VAT\${_tx>0?' (18%)':''}</span><span>\${fmt(_tx)}</span></div>
+                <div class="flex justify-between border-t pt-1.5 font-bold text-green-700 text-sm"><span>Total</span><span>\${fmt(_t)}</span></div>
+              </div>\`;
+            })()}
+            \${j.invoice.dueDate ? \`<p class="text-xs text-gray-400 mt-2">Due: \${j.invoice.dueDate}</p>\` : ''}
+            \${j.invoice.paidAt ? \`<p class="text-xs text-green-600 mt-1"><i class="fas fa-check-circle mr-1"></i>Paid: \${fmtDate(j.invoice.paidAt)}</p>\` : ''}
+            \${j.invoice.paymentMethod ? \`<p class="text-xs text-gray-500 mt-0.5"><i class="fas fa-credit-card mr-1"></i>\${j.invoice.paymentMethod}\${j.invoice.paymentReference?' · '+j.invoice.paymentReference:''}</p>\` : ''}
+            \${j.invoice.status !== 'Paid' ? \`<button class="mt-3 btn-primary text-xs py-1.5 px-3 w-full" onclick="markInvoicePaid('\${j.invoice.id}','\${j.id}')"><i class="fas fa-money-bill-wave mr-1"></i>\${j.invoice.status==='Partially Paid'?'Pay Balance':'Record Payment'}</button>\` : ''}
+          </div>\` : \`
+          <div class="rounded-xl border border-dashed border-gray-200 p-4 flex flex-col items-center justify-center text-center gap-1 opacity-40">
+            <i class="fas fa-receipt text-gray-300 text-2xl"></i>
+            <p class="text-xs text-gray-400 font-semibold">Invoice</p>
+            <p class="text-xs text-gray-300">Not yet generated</p>
+          </div>\`}
+
+          \${j.invoice ? \`
+          <div class="rounded-xl border border-indigo-100 p-4" id="jobPLPanel-\${j.id}">
+            <h4 class="text-sm font-bold text-gray-800 mb-2"><i class="fas fa-chart-line text-indigo-500 mr-2"></i>Job P&amp;L</h4>
+            <p class="text-xs text-gray-400 text-center py-2"><i class="fas fa-spinner fa-spin mr-1"></i>Loading…</p>
+          </div>\` : ''}
+
+          <div class="rounded-xl border border-gray-100 p-4">
+            <div id="jobExpenses"><p class="text-xs text-gray-400 text-center py-3"><i class="fas fa-spinner fa-spin mr-1"></i>Loading expenses…</p></div>
           </div>
         </div>
-        <!-- Photo Documentation -->
-        <div class="card p-5" id="photoCard-\${j.id}">
-          <div class="flex items-center justify-between mb-4">
-            <h4 class="font-bold text-gray-800"><i class="fas fa-camera text-pink-500 mr-2"></i>Photo Documentation</h4>
-            <button class="btn-secondary text-xs" onclick="showPhotoUploadModal('\${j.id}')"><i class="fas fa-upload mr-1"></i>Upload Photo</button>
+      </div>
+    </div>
+
+    <!-- ═══ SECTION 5: GATE PASS & TRACKING ═══ -->
+    <div class="mx-4 mt-3 rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm" id="sec-tracking">
+      <button onclick="toggleSection('sec-tracking')" class="w-full flex items-center justify-between px-5 py-3.5 bg-gray-50 hover:bg-gray-100 transition-colors border-b border-gray-200">
+        <div class="flex items-center gap-2">
+          <i class="fas fa-stopwatch text-violet-500"></i>
+          <span class="font-bold text-gray-800">Gate Pass &amp; Tracking</span>
+          <span class="text-xs text-gray-400 font-normal">Gate Pass · Time · Notifications · Service Card</span>
+        </div>
+        <i class="fas fa-chevron-up text-gray-400 sec-chevron transition-transform duration-200"></i>
+      </button>
+      <div class="sec-body">
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 p-5">
+          <div class="card p-4 border-l-4 \${_gpDetail ? (_gpDetail.status==='Cleared'?'border-green-400':_gpDetail.status==='Pending Exit'?'border-orange-400':'border-blue-400') : 'border-blue-400'}" id="gatePassCard-\${j.id}">
+            <div class="flex items-center justify-between mb-3">
+              <h4 class="font-bold text-gray-800 text-sm"><i class="fas fa-id-badge text-blue-500 mr-2"></i>Gate Pass</h4>
+              \${_gpDetail ? \`<span class="badge text-xs \${_gpDetail.status==='Cleared'?'bg-green-100 text-green-700':_gpDetail.status==='Pending Exit'?'bg-orange-100 text-orange-700':_gpDetail.status==='Voided'?'bg-red-100 text-red-700':'bg-blue-100 text-blue-700'}">\${_gpDetail.status}</span>\` : '<span class="badge bg-gray-100 text-gray-400 text-xs">Not Found</span>'}
+            </div>
+            \${_gpDetail ? \`
+            <div class="space-y-1.5 text-xs">
+              <div class="flex justify-between"><span class="text-gray-400">Pass #</span><span class="font-mono font-bold text-gray-800">\${_gpDetail.passNumber}</span></div>
+              <div class="flex justify-between"><span class="text-gray-400">Vehicle</span><span class="font-bold text-blue-700">\${_gpDetail.vehicleReg}</span></div>
+              <div class="flex justify-between"><span class="text-gray-400">Entry</span><span class="font-semibold text-gray-700">\${fmtDateTime(_gpDetail.entryTime)}</span></div>
+              \${_gpDetail.exitTime ? \`<div class="flex justify-between"><span class="text-gray-400">Exit</span><span class="font-semibold text-green-700">\${fmtDateTime(_gpDetail.exitTime)}</span></div>\` : ''}
+              \${_gpDetail.approvedBy ? \`<div class="flex justify-between"><span class="text-gray-400">Approved By</span><span class="font-semibold text-gray-700">\${_gpDetail.approvedBy}</span></div>\` : ''}
+            </div>
+            \${_gpDetail.signatureData ? \`<div class="mt-2 pt-2 border-t border-gray-100"><p class="text-xs text-gray-400 mb-1 font-semibold uppercase tracking-wide">Signature</p><img src="\${_gpDetail.signatureData}" alt="Signature" class="max-h-10 border border-gray-200 rounded-lg bg-white p-1"/></div>\` : ''}
+            <div class="mt-3 pt-2 border-t border-gray-100 flex flex-wrap gap-2">
+              \${_gpDetail.status === 'Pending Exit' ? \`<button class="btn-primary flex-1 text-xs py-1.5 bg-green-600 hover:bg-green-700" onclick="openGPApprovalModal('\${_gpDetail.id}')"><i class="fas fa-sign-out-alt mr-1"></i>Approve Exit</button>\` : ''}
+              <button class="btn-secondary flex-1 text-xs py-1.5" onclick="downloadGatePassPDF('\${_gpDetail.id}')"><i class="fas fa-download mr-1"></i>PDF</button>
+              \${_gpDetail.status === 'Active' || _gpDetail.status === 'Pending Exit' ? \`<button class="btn-secondary text-xs py-1.5 px-2 text-red-600 border-red-200 hover:bg-red-50" onclick="openVoidGPModal('\${_gpDetail.id}')"><i class="fas fa-ban"></i></button>\` : ''}
+            </div>\` : '<p class="text-xs text-gray-400 text-center py-4">Gate pass not yet generated</p>'}
           </div>
-          <!-- Category tabs -->
+
+          <div class="card p-4 border-l-4 border-violet-400" id="timeTrackCard-\${j.id}">
+            <div class="flex items-center justify-between mb-3">
+              <h4 class="font-bold text-gray-800 text-sm"><i class="fas fa-stopwatch text-violet-500 mr-2"></i>Time Tracking</h4>
+              <button onclick="refreshTimeTrack('\${j.id}')" class="text-xs text-violet-500 hover:text-violet-700 font-semibold" title="Refresh"><i class="fas fa-sync-alt"></i></button>
+            </div>
+            <div id="timeTrackContent-\${j.id}">
+              <p class="text-xs text-gray-400 text-center py-3"><i class="fas fa-spinner fa-spin mr-1"></i>Loading…</p>
+            </div>
+          </div>
+
+          <div class="card p-4 border-l-4 border-sky-400" id="jobNotifCard-\${j.id}">
+            <div class="flex items-center justify-between mb-3">
+              <h4 class="font-bold text-gray-800 text-sm"><i class="fas fa-bell text-sky-500 mr-2"></i>Notifications</h4>
+              <button onclick="loadJobNotifications('\${j.id}')" class="text-xs text-sky-500 hover:text-sky-700 font-semibold" title="Refresh"><i class="fas fa-sync-alt"></i></button>
+            </div>
+            <div id="jobNotifContent-\${j.id}">
+              <p class="text-xs text-gray-400 text-center py-3"><i class="fas fa-spinner fa-spin mr-1"></i>Loading…</p>
+            </div>
+          </div>
+
+          \${(j.mileageIn || j.fuelLevel || j.nextServiceMileage) ? \`
+          <div class="card p-4 border-l-4 border-blue-400">
+            <h4 class="font-bold text-gray-800 text-sm mb-3"><i class="fas fa-id-card text-blue-500 mr-2"></i>Service Card</h4>
+            \${j.serviceCardIssuedAt ? \`
+            <div class="flex items-center gap-2 mb-3">
+              <i class="fas fa-check-circle text-green-500 text-sm"></i>
+              <div class="flex-1"><p class="text-xs font-semibold text-green-700">Service Card Issued</p><p class="text-xs text-gray-400">\${fmtDateTime(j.serviceCardIssuedAt)}</p></div>
+              <button class="text-xs text-blue-600 hover:underline font-semibold" onclick="showServiceCardModal('\${j.id}')"><i class="fas fa-redo mr-0.5"></i>Reissue</button>
+            </div>\` : \`
+            <button class="w-full text-sm font-semibold rounded-xl px-3 py-2 bg-green-100 hover:bg-green-200 text-green-700 border border-green-300 flex items-center justify-center gap-2 transition-all" onclick="showServiceCardModal('\${j.id}')">
+              <i class="fas fa-id-card"></i> Issue Service Card
+            </button>\`}
+          </div>\` : ''}
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ SECTION 6: PHOTOS ═══ -->
+    <div class="mx-4 mt-3 rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm" id="sec-photos">
+      <button onclick="toggleSection('sec-photos')" class="w-full flex items-center justify-between px-5 py-3.5 bg-gray-50 hover:bg-gray-100 transition-colors border-b border-gray-200">
+        <div class="flex items-center gap-2">
+          <i class="fas fa-camera text-pink-500"></i>
+          <span class="font-bold text-gray-800">Photo Documentation</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <button class="text-xs bg-white border border-gray-200 hover:bg-pink-50 hover:border-pink-300 text-gray-600 font-semibold px-2.5 py-1 rounded-lg transition-colors" onclick="event.stopPropagation();showPhotoUploadModal('\${j.id}')"><i class="fas fa-upload mr-1"></i>Upload</button>
+          <i class="fas fa-chevron-up text-gray-400 sec-chevron transition-transform duration-200"></i>
+        </div>
+      </button>
+      <div class="sec-body" id="photoCard-\${j.id}">
+        <div class="p-5">
           <div class="flex gap-1.5 mb-4 flex-wrap" id="photo-cat-tabs-\${j.id}">
             <button class="text-xs px-2.5 py-1.5 rounded-lg font-semibold border transition-colors bg-pink-600 text-white border-pink-600" onclick="filterJobPhotos('\${j.id}','all')" data-cat="all">All</button>
             <button class="text-xs px-2.5 py-1.5 rounded-lg font-semibold border transition-colors bg-white text-gray-600 border-gray-200 hover:bg-pink-50 hover:border-pink-300" onclick="filterJobPhotos('\${j.id}','intake')" data-cat="intake">Intake</button>
@@ -6240,420 +6623,46 @@ async function viewJobDetail(id) {
             <button class="text-xs px-2.5 py-1.5 rounded-lg font-semibold border transition-colors bg-white text-gray-600 border-gray-200 hover:bg-pink-50 hover:border-pink-300" onclick="filterJobPhotos('\${j.id}','repair_progress')" data-cat="repair_progress">Progress</button>
             <button class="text-xs px-2.5 py-1.5 rounded-lg font-semibold border transition-colors bg-white text-gray-600 border-gray-200 hover:bg-pink-50 hover:border-pink-300" onclick="filterJobPhotos('\${j.id}','final')" data-cat="final">Final</button>
           </div>
-          <div id="photo-grid-\${j.id}" class="grid grid-cols-3 gap-2">
-            <p class="text-xs text-gray-400 col-span-3 text-center py-4"><i class="fas fa-spinner fa-spin mr-1"></i>Loading photos…</p>
+          <div id="photo-grid-\${j.id}" class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
+            <p class="text-xs text-gray-400 col-span-5 text-center py-4"><i class="fas fa-spinner fa-spin mr-1"></i>Loading photos…</p>
           </div>
         </div>
       </div>
-      <!-- Sidebar -->
-      <div class="space-y-5">
-        <!-- Customer -->
-        <div class="card p-5">
-          <h4 class="font-bold text-gray-800 mb-4">Customer</h4>
-          <div class="flex items-center gap-3 mb-3">
-            <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center font-bold text-blue-600">\${(j.customer?.name||'?').charAt(0)}</div>
-            <div><p class="font-semibold text-gray-800">\${j.customer?.name||'—'}</p><p class="text-xs text-gray-500">\${j.customer?.phone||''}</p></div>
-          </div>
-          <p class="text-xs text-gray-500">\${j.customer?.email||''}</p>
-          <p class="text-xs text-gray-500 mt-1">\${j.customer?.address||''}</p>
+    </div>
+
+    <!-- ═══ SECTION 7: ACTIVITY LOG ═══ -->
+    <div class="mx-4 mt-3 mb-8 rounded-2xl border border-gray-200 bg-white overflow-hidden shadow-sm" id="sec-activity">
+      <button onclick="toggleSection('sec-activity')" class="w-full flex items-center justify-between px-5 py-3.5 bg-gray-50 hover:bg-gray-100 transition-colors border-b border-gray-200">
+        <div class="flex items-center gap-2">
+          <i class="fas fa-history text-blue-400"></i>
+          <span class="font-bold text-gray-800">Activity Log</span>
+          \${j.logs && j.logs.length ? \`<span class="text-xs bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full font-semibold">\${j.logs.length}</span>\` : ''}
         </div>
-        <!-- Vehicle -->
-        <div class="card p-5">
-          <h4 class="font-bold text-gray-800 mb-4">Vehicle</h4>
-          <div class="space-y-2 text-sm">
-            <div class="flex justify-between"><span class="text-gray-400">Reg #</span><span class="font-semibold">\${j.vehicle?.registrationNumber||'—'}</span></div>
-            <div class="flex justify-between"><span class="text-gray-400">Make</span><span class="font-semibold">\${j.vehicle?.make||'—'} \${j.vehicle?.model||''}</span></div>
-            <div class="flex justify-between"><span class="text-gray-400">Year</span><span class="font-semibold">\${j.vehicle?.year||'—'}</span></div>
-            \${j.vehicle?.vin ? \`<div class="flex justify-between"><span class="text-gray-400">VIN</span><span class="font-mono text-xs">\${j.vehicle.vin}</span></div>\` : ''}
-            \${j.vehicle?.insurer ? \`<div class="flex justify-between"><span class="text-gray-400">Insurer</span><span class="font-semibold text-xs text-right max-w-28">\${j.vehicle.insurer}</span></div>\` : ''}
-          </div>
-        </div>
-        <!-- Intake Readings & Next Service -->
-        \${(j.mileageIn || j.fuelLevel || j.nextServiceMileage) ? \`
-        <div class="card p-5 border-l-4 border-blue-400">
-          <h4 class="font-bold text-gray-800 mb-3"><i class="fas fa-tachometer-alt text-blue-500 mr-2"></i>Intake Readings</h4>
-          <div class="space-y-2.5 text-sm">
-            \${j.mileageIn ? \`
-            <div class="flex justify-between items-center">
-              <span class="text-gray-500"><i class="fas fa-road mr-1.5 text-blue-400"></i>Mileage In</span>
-              <span class="font-bold text-gray-800">\${j.mileageIn.toLocaleString()} km</span>
-            </div>\` : ''}
-            \${j.fuelLevel ? \`
-            <div class="flex justify-between items-center">
-              <span class="text-gray-500"><i class="fas fa-gas-pump mr-1.5 text-amber-400"></i>Fuel Level</span>
-              <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold \${ {'Empty':'bg-red-100 text-red-700','1/4':'bg-orange-100 text-orange-700','1/2':'bg-amber-100 text-amber-700','3/4':'bg-green-100 text-green-700','Full':'bg-emerald-100 text-emerald-700'}[j.fuelLevel] || 'bg-gray-100 text-gray-600'}">\${j.fuelLevel}</span>
-            </div>\` : ''}
-            \${j.nextServiceMileage ? \`
-            <div class="mt-2 pt-2 border-t border-blue-100">
-              <div class="flex justify-between items-start">
-                <span class="text-gray-500"><i class="fas fa-calendar-check mr-1.5 text-green-500"></i>Next Service</span>
-                <div class="text-right">
-                  <p class="font-bold text-green-700">\${j.nextServiceMileage.toLocaleString()} km</p>
-                  \${j.nextServiceLubricant ? \`<p class="text-xs text-gray-400 mt-0.5">\${j.nextServiceLubricant}</p>\` : ''}
+        <i class="fas fa-chevron-down text-gray-400 sec-chevron transition-transform duration-200"></i>
+      </button>
+      <div class="sec-body sec-collapsed">
+        <div class="p-5">
+          <div class="space-y-0">
+            \${j.logs && j.logs.length ? j.logs.map((log, idx) => \`
+              <div class="flex gap-3 \${idx < j.logs.length - 1 ? 'pb-4 border-l-2 border-blue-100 ml-[7px] pl-5 -ml-0' : ''}">
+                <div class="flex flex-col items-center flex-shrink-0">
+                  <div class="w-3.5 h-3.5 rounded-full bg-blue-500 border-2 border-white shadow flex-shrink-0 mt-0.5 z-10"></div>
+                </div>
+                <div class="flex-1 -mt-0.5">
+                  <p class="text-sm font-semibold text-gray-800">\${log.description}</p>
+                  <div class="flex items-center gap-2 mt-1 flex-wrap">
+                    <span class="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full border border-gray-100"><i class="fas fa-user-circle text-blue-300"></i>\${log.userName}</span>
+                    <span class="inline-flex items-center gap-1 text-xs text-gray-500 bg-gray-50 px-2 py-0.5 rounded-full border border-gray-100"><i class="fas fa-clock text-blue-300"></i>\${fmtDateTime(log.timestamp)}</span>
+                  </div>
                 </div>
               </div>
-            </div>\` : ''}
+            \`).join('') : '<p class="text-gray-400 text-sm text-center py-4"><i class="fas fa-history text-2xl mb-2 block opacity-30"></i>No activity yet</p>'}
           </div>
-          \${j.serviceCardIssuedAt ? \`
-          <div class="mt-3 pt-3 border-t border-blue-100 flex items-center gap-2">
-            <i class="fas fa-check-circle text-green-500 text-sm"></i>
-            <div class="flex-1">
-              <p class="text-xs font-semibold text-green-700">Service Card Issued</p>
-              <p class="text-xs text-gray-400">\${fmtDateTime(j.serviceCardIssuedAt)}</p>
-            </div>
-            <button class="text-xs text-blue-600 hover:underline font-semibold" onclick="showServiceCardModal('\${j.id}')"><i class="fas fa-redo mr-0.5"></i>Reissue</button>
-          </div>\` : \`
-          <div class="mt-3 pt-3 border-t border-blue-100">
-            <button class="w-full text-sm font-semibold rounded-xl px-3 py-2 bg-green-100 hover:bg-green-200 text-green-700 border border-green-300 flex items-center justify-center gap-2 transition-all" onclick="showServiceCardModal('\${j.id}')">
-              <i class="fas fa-id-card"></i> Issue Service Card
-            </button>
-          </div>\`}
-        </div>\` : ''}
-
-        <!-- Preliminary Check Summary Card -->
-        \${j.preliminaryCheck ? \`
-        <div class="card p-5 border-l-4 border-purple-400">
-          <div class="flex items-center justify-between mb-3">
-            <h4 class="font-bold text-gray-800 text-sm"><i class="fas fa-clipboard-check text-purple-500 mr-2"></i>Preliminary Check</h4>
-            <span class="badge text-xs bg-purple-100 text-purple-700"><i class="fas fa-check mr-1"></i>Completed</span>
-          </div>
-          <div class="space-y-1.5 text-sm">
-            <div class="flex justify-between"><span class="text-gray-400">Completed At</span><span class="font-semibold text-gray-700">\${fmtDateTime(j.preliminaryCheck.completedAt)}</span></div>
-            <div class="flex justify-between"><span class="text-gray-400">By</span><span class="font-semibold text-gray-700">\${j.preliminaryCheck.completedByName||j.preliminaryCheck.serviceAdvisorName||'—'}</span></div>
-            <div class="flex justify-between"><span class="text-gray-400">Mileage In</span><span class="font-semibold text-gray-700">\${j.preliminaryCheck.mileageAtHandover ? j.preliminaryCheck.mileageAtHandover.toLocaleString() + ' km' : '—'}</span></div>
-            <div class="flex justify-between"><span class="text-gray-400">Fuel Level</span><span class="font-semibold text-gray-700">\${j.preliminaryCheck.fuelLevelCheck||'—'}</span></div>
-            <div class="flex justify-between"><span class="text-gray-400">Condition</span><span class="font-semibold \${j.preliminaryCheck.vehicleCondition==='Good'?'text-green-700':j.preliminaryCheck.vehicleCondition==='Fair'?'text-amber-700':'text-red-700'}">\${j.preliminaryCheck.vehicleCondition||'—'}</span></div>
-            \${j.preliminaryCheck.existingDamage ? \`<div class="flex justify-between items-start gap-2"><span class="text-gray-400 flex-shrink-0">Damage</span><span class="font-semibold text-gray-700 text-right text-xs">\${j.preliminaryCheck.existingDamage}</span></div>\` : ''}
-          </div>
-          <div class="mt-3 pt-3 border-t border-gray-100">
-            <p class="text-xs font-semibold text-gray-400 uppercase mb-2 tracking-wide">Checklist Items</p>
-            <div class="grid grid-cols-2 gap-1">
-              \${['spareTyre','jack','wheelSpanner','triangle','toolbox','fireExtinguisher'].map(function(k){
-                const label = {spareTyre:'Spare Tyre',jack:'Jack',wheelSpanner:'Wheel Spanner',triangle:'Warning Triangle',toolbox:'Toolbox',fireExtinguisher:'Fire Extinguisher'}[k];
-                const present = j.preliminaryCheck[k]==='Present';
-                return '<div class="flex items-center gap-1.5 text-xs"><i class="fas '+(present?'fa-check-circle text-green-500':'fa-times-circle text-red-400')+'"></i><span class="text-gray-600">'+label+'</span></div>';
-              }).join('')}
-            </div>
-          </div>
-          \${(j.preliminaryCheck.valuables && j.preliminaryCheck.valuables.length > 0) ? \`
-          <div class="mt-3 pt-3 border-t border-gray-100">
-            <p class="text-xs font-semibold text-gray-400 uppercase mb-1.5 tracking-wide">Valuables</p>
-            <ul class="space-y-0.5">
-              \${j.preliminaryCheck.valuables.map(function(v){return '<li class="text-xs text-gray-700 flex items-center gap-1.5"><i class="fas fa-tag text-amber-400 text-xs"></i>'+v+'</li>';}).join('')}
-            </ul>
-          </div>\` : ''}
-          \${j.preliminaryCheck.customerSignature ? \`
-          <div class="mt-3 pt-3 border-t border-gray-100 grid grid-cols-2 gap-3">
-            \${j.preliminaryCheck.serviceAdvisorSignature ? \`
-            <div>
-              <p class="text-xs text-gray-400 mb-1 font-semibold">SA Signature</p>
-              <img src="\${j.preliminaryCheck.serviceAdvisorSignature}" alt="SA Sig" class="max-h-10 border border-gray-200 rounded bg-white p-1 w-full object-contain"/>
-            </div>\` : ''}
-            <div>
-              <p class="text-xs text-gray-400 mb-1 font-semibold">Customer Signature</p>
-              <img src="\${j.preliminaryCheck.customerSignature}" alt="Customer Sig" class="max-h-10 border border-gray-200 rounded bg-white p-1 w-full object-contain"/>
-            </div>
-          </div>\` : ''}
-        </div>\` : ''}
-
-        <!-- Inspection Summary Card -->
-        \${j.inspectionData ? \`
-        <div class="card p-5 border-l-4 border-amber-400">
-          <div class="flex items-center justify-between mb-3">
-            <h4 class="font-bold text-gray-800 text-sm"><i class="fas fa-search text-amber-500 mr-2"></i>Inspection</h4>
-            <span class="badge text-xs bg-amber-100 text-amber-700"><i class="fas fa-check mr-1"></i>Completed</span>
-          </div>
-          <div class="space-y-1.5 text-sm">
-            <div class="flex justify-between"><span class="text-gray-400">Completed At</span><span class="font-semibold text-gray-700">\${fmtDateTime(j.inspectionData.completedAt)}</span></div>
-            <div class="flex justify-between"><span class="text-gray-400">Technician</span><span class="font-semibold text-gray-700">\${j.inspectionData.technicianName||j.inspectionData.completedByName||'—'}</span></div>
-            \${j.inspectionData.recommendedService ? \`<div class="flex justify-between items-start gap-2"><span class="text-gray-400 flex-shrink-0">Recommended</span><span class="text-xs font-medium text-amber-700 text-right">\${j.inspectionData.recommendedService}</span></div>\` : ''}
-          </div>
-          <div class="mt-3 pt-3 border-t border-gray-100">
-            <p class="text-xs font-semibold text-gray-400 uppercase mb-2 tracking-wide">Checklist</p>
-            <div class="grid grid-cols-2 gap-1">
-              \${[
-                {k:'engineOilTopup',l:'Engine Oil'},{k:'airFilter',l:'Air Filter'},{k:'acFilter',l:'A/C Filter'},
-                {k:'sparkPlugs',l:'Spark Plugs'},{k:'bulbs',l:'Bulbs'},{k:'tiresCondition',l:'Tyres'},
-                {k:'brakeConditions',l:'Brakes'},{k:'coolantLevel',l:'Coolant'},{k:'battery',l:'Battery'},
-                {k:'leakages',l:'No Leakages'}
-              ].map(function(item){
-                const val = j.inspectionData[item.k];
-                const ok = val === 'OK' || val === 'Good';
-                return '<div class="flex items-center gap-1.5 text-xs"><i class="fas '+(ok?'fa-check-circle text-green-500':'fa-times-circle text-gray-300')+'"></i><span class="text-gray-600">'+item.l+'</span></div>';
-              }).join('')}
-            </div>
-          </div>
-          \${j.inspectionData.notes ? \`<div class="mt-2 pt-2 border-t border-gray-100"><p class="text-xs text-gray-400">Notes: <span class="text-gray-600">\${j.inspectionData.notes}</span></p></div>\` : ''}
-          \${j.inspectionData.technicianSignature ? \`
-          <div class="mt-3 pt-3 border-t border-gray-100">
-            <p class="text-xs text-gray-400 mb-1 font-semibold">Technician Signature</p>
-            <img src="\${j.inspectionData.technicianSignature}" alt="Tech Sig" class="max-h-10 border border-gray-200 rounded bg-white p-1 w-full object-contain"/>
-          </div>\` : ''}
-        </div>\` : ''}
-
-        <!-- Customer Approval Summary Card -->
-        \${j.customerApprovalData ? \`
-        <div class="card p-5 border-l-4 border-orange-400">
-          <div class="flex items-center justify-between mb-3">
-            <h4 class="font-bold text-gray-800 text-sm"><i class="fas fa-user-check text-orange-500 mr-2"></i>Customer Approval</h4>
-            <span class="badge text-xs bg-orange-100 text-orange-700"><i class="fas fa-check mr-1"></i>Approved</span>
-          </div>
-          <div class="space-y-1.5 text-sm">
-            <div class="flex justify-between"><span class="text-gray-400">Approved By</span><span class="font-semibold text-gray-700">\${j.customerApprovalData.approvedBy||'—'}</span></div>
-            <div class="flex justify-between"><span class="text-gray-400">Date</span><span class="font-semibold text-gray-700">\${fmtDateTime(j.customerApprovalData.approvedAt)}</span></div>
-            <div class="flex justify-between"><span class="text-gray-400">Amount Approved</span><span class="font-bold text-orange-700">TZS \${(j.customerApprovalData.totalApproved||0).toLocaleString()}</span></div>
-            \${j.customerApprovalData.approvalNotes ? \`<div class="flex justify-between items-start gap-2"><span class="text-gray-400 flex-shrink-0">Notes</span><span class="text-xs font-medium text-gray-600 text-right">\${j.customerApprovalData.approvalNotes}</span></div>\` : ''}
-          </div>
-          \${j.customerApprovalData.approvalSignature ? \`
-          <div class="mt-3 pt-3 border-t border-gray-100">
-            <p class="text-xs text-gray-400 mb-1 font-semibold">Customer Signature</p>
-            <img src="\${j.customerApprovalData.approvalSignature}" alt="Customer Sig" class="max-h-10 border border-gray-200 rounded bg-white p-1 w-full object-contain"/>
-          </div>\` : ''}
-        </div>\` : ''}
-
-        <!-- Work Timeline Card (PARTS_RELEASED → WORK_IN_PROGRESS → FINISHED) -->
-        \${(j.partsReleasedAt || j.workStartedAt || j.workFinishedAt) ? \`
-        <div class="card p-5 border-l-4 border-blue-400">
-          <h4 class="font-bold text-gray-800 text-sm mb-3"><i class="fas fa-wrench text-blue-500 mr-2"></i>Repair Progress</h4>
-          <div class="space-y-2">
-            \${j.partsReleasedAt ? \`
-            <div class="flex items-center gap-2.5 text-sm">
-              <i class="fas fa-box-open text-blue-400 w-4"></i>
-              <div>
-                <p class="font-semibold text-gray-700">Parts Released</p>
-                <p class="text-xs text-gray-400">\${fmtDateTime(j.partsReleasedAt)}\${j.partsReleasedByName?' · '+j.partsReleasedByName:''}</p>
-              </div>
-            </div>\` : ''}
-            \${j.workStartedAt ? \`
-            <div class="flex items-center gap-2.5 text-sm">
-              <i class="fas fa-tools text-indigo-400 w-4"></i>
-              <div>
-                <p class="font-semibold text-gray-700">Work Started</p>
-                <p class="text-xs text-gray-400">\${fmtDateTime(j.workStartedAt)}\${j.workStartedByName?' · '+j.workStartedByName:''}</p>
-              </div>
-            </div>\` : ''}
-            \${j.workFinishedAt ? \`
-            <div class="flex items-center gap-2.5 text-sm">
-              <i class="fas fa-flag-checkered text-emerald-500 w-4"></i>
-              <div>
-                <p class="font-semibold text-gray-700">Work Finished</p>
-                <p class="text-xs text-gray-400">\${fmtDateTime(j.workFinishedAt)}\${j.workFinishedByName?' · '+j.workFinishedByName:''}</p>
-              </div>
-            </div>\` : ''}
-          </div>
-        </div>\` : ''}
-
-        <!-- QC Summary Card -->
-        \${j.qcData ? \`
-        <div class="card p-5 border-l-4 border-teal-400">
-          <div class="flex items-center justify-between mb-3">
-            <h4 class="font-bold text-gray-800 text-sm"><i class="fas fa-award text-teal-500 mr-2"></i>Quality Control</h4>
-            <span class="badge text-xs bg-teal-100 text-teal-700"><i class="fas fa-check mr-1"></i>Passed</span>
-          </div>
-          <div class="space-y-1.5 text-sm">
-            <div class="flex justify-between"><span class="text-gray-400">QC Officer</span><span class="font-semibold text-gray-700">\${j.qcData.qcOfficerName||j.qcData.completedByName||'—'}</span></div>
-            <div class="flex justify-between"><span class="text-gray-400">Completed</span><span class="font-semibold text-gray-700">\${fmtDateTime(j.qcData.completedAt)}</span></div>
-          </div>
-          <div class="mt-3 pt-3 border-t border-gray-100 grid grid-cols-2 gap-1">
-            \${[
-              {k:'boltsTightened',l:'Bolts Tightened',good:'Yes'},
-              {k:'leakages',l:'No Leakages',good:'No'},
-              {k:'cleanWork',l:'Clean Work',good:'Yes'},
-              {k:'allWorksCompleted',l:'All Works Done',good:'Yes'},
-              {k:'engineOilLevel',l:'Engine Oil',good:'OK'},
-              {k:'fuelLevel',l:'Fuel Level',good:'OK'},
-            ].map(function(item){
-              const val = j.qcData[item.k];
-              const ok = val === item.good;
-              return '<div class="flex items-center gap-1.5 text-xs"><i class="fas '+(ok?'fa-check-circle text-green-500':'fa-exclamation-circle text-red-400')+'"></i><span class="text-gray-600">'+item.l+'</span></div>';
-            }).join('')}
-          </div>
-          \${j.qcData.notes ? \`<div class="mt-2 pt-2 border-t border-gray-100"><p class="text-xs text-gray-400">Notes: <span class="text-gray-600">\${j.qcData.notes}</span></p></div>\` : ''}
-          \${j.qcData.qcOfficerSignature ? \`
-          <div class="mt-3 pt-3 border-t border-gray-100">
-            <p class="text-xs text-gray-400 mb-1 font-semibold">QC Officer Signature</p>
-            <img src="\${j.qcData.qcOfficerSignature}" alt="QC Sig" class="max-h-10 border border-gray-200 rounded bg-white p-1 w-full object-contain"/>
-          </div>\` : ''}
-        </div>\` : ''}
-
-        <!-- Customer Sign-off Summary Card -->
-        \${j.customerSignoffData ? \`
-        <div class="card p-5 border-l-4 border-indigo-400">
-          <div class="flex items-center justify-between mb-3">
-            <h4 class="font-bold text-gray-800 text-sm"><i class="fas fa-signature text-indigo-500 mr-2"></i>Customer Sign-off</h4>
-            <span class="badge text-xs bg-indigo-100 text-indigo-700"><i class="fas fa-check mr-1"></i>Signed</span>
-          </div>
-          <div class="space-y-1.5 text-sm">
-            <div class="flex justify-between"><span class="text-gray-400">Customer</span><span class="font-semibold text-gray-700">\${j.customerSignoffData.customerName||'—'}</span></div>
-            <div class="flex justify-between"><span class="text-gray-400">Signed At</span><span class="font-semibold text-gray-700">\${fmtDateTime(j.customerSignoffData.signedAt)}</span></div>
-            \${j.customerSignoffData.satisfactionRating ? \`<div class="flex justify-between items-center"><span class="text-gray-400">Rating</span><span class="text-yellow-500 font-bold">\${'★'.repeat(j.customerSignoffData.satisfactionRating)}<span class="text-gray-300">\${'★'.repeat(5-j.customerSignoffData.satisfactionRating)}</span></span></div>\` : ''}
-            \${j.customerSignoffData.signoffNotes ? \`<div class="flex justify-between items-start gap-2"><span class="text-gray-400 flex-shrink-0">Feedback</span><span class="text-xs font-medium text-gray-600 text-right">\${j.customerSignoffData.signoffNotes}</span></div>\` : ''}
-          </div>
-          \${j.customerSignoffData.customerSignature ? \`
-          <div class="mt-3 pt-3 border-t border-gray-100">
-            <p class="text-xs text-gray-400 mb-1 font-semibold">Customer Signature</p>
-            <img src="\${j.customerSignoffData.customerSignature}" alt="Signoff Sig" class="max-h-10 border border-gray-200 rounded bg-white p-1 w-full object-contain"/>
-          </div>\` : ''}
-        </div>\` : ''}
-
-        <!-- Gate Pass Card -->
-        <div class="card p-5 border-l-4 \${_gpDetail ? (_gpDetail.status==='Cleared'?'border-green-400':_gpDetail.status==='Pending Exit'?'border-orange-400':'border-blue-400') : 'border-blue-400'}" id="gatePassCard-\${j.id}">
-          <div class="flex items-center justify-between mb-3">
-            <h4 class="font-bold text-gray-800 text-sm"><i class="fas fa-id-badge text-blue-500 mr-2"></i>Gate Pass</h4>
-            \${_gpDetail ? \`<span class="badge text-xs \${_gpDetail.status==='Cleared'?'bg-green-100 text-green-700':_gpDetail.status==='Pending Exit'?'bg-orange-100 text-orange-700':_gpDetail.status==='Voided'?'bg-red-100 text-red-700':'bg-blue-100 text-blue-700'}">\${_gpDetail.status}</span>\` : '<span class="badge bg-gray-100 text-gray-400 text-xs">Not Found</span>'}
-          </div>
-          \${_gpDetail ? \`
-          <div class="space-y-2 text-sm">
-            <div class="flex justify-between"><span class="text-gray-400">Pass #</span><span class="font-mono font-bold text-gray-800">\${_gpDetail.passNumber}</span></div>
-            <div class="flex justify-between"><span class="text-gray-400">Vehicle</span><span class="font-bold text-blue-700">\${_gpDetail.vehicleReg}</span></div>
-            <div class="flex justify-between"><span class="text-gray-400">Entry</span><span class="font-semibold text-gray-700">\${fmtDateTime(_gpDetail.entryTime)}</span></div>
-            \${_gpDetail.exitTime ? \`<div class="flex justify-between"><span class="text-gray-400">Exit</span><span class="font-semibold text-green-700">\${fmtDateTime(_gpDetail.exitTime)}</span></div>\` : ''}
-            \${_gpDetail.approvedBy ? \`<div class="flex justify-between"><span class="text-gray-400">Approved By</span><span class="font-semibold text-gray-700">\${_gpDetail.approvedBy}</span></div>\` : ''}
-          </div>
-          \${_gpDetail.signatureData ? \`
-          <div class="mt-3 pt-3 border-t border-gray-100">
-            <p class="text-xs text-gray-400 mb-1.5 font-semibold uppercase tracking-wide">Authorising Signature</p>
-            <img src="\${_gpDetail.signatureData}" alt="Signature" class="max-h-12 border border-gray-200 rounded-lg bg-white p-1" />
-          </div>\` : ''}
-          <div class="mt-3 pt-3 border-t border-gray-100 flex flex-wrap gap-2">
-            \${_gpDetail.status === 'Pending Exit' ? \`
-              <button class="btn-primary flex-1 text-xs py-1.5 bg-green-600 hover:bg-green-700" onclick="openGPApprovalModal('\${_gpDetail.id}')"><i class="fas fa-sign-out-alt mr-1"></i>Approve Exit</button>
-            \` : ''}
-            <button class="btn-secondary flex-1 text-xs py-1.5" onclick="downloadGatePassPDF('\${_gpDetail.id}')"><i class="fas fa-download mr-1"></i>Download PDF</button>
-            \${_gpDetail.status === 'Active' || _gpDetail.status === 'Pending Exit' ? \`
-              <button class="btn-secondary text-xs py-1.5 px-2 text-red-600 border-red-200 hover:bg-red-50" onclick="openVoidGPModal('\${_gpDetail.id}')"><i class="fas fa-ban"></i></button>
-            \` : ''}
-          </div>\` : '<p class="text-xs text-gray-400 text-center py-4">Gate pass not yet generated</p>'}
-        </div>
-
-        <!-- Time Tracking -->
-        <div class="card p-5 border-l-4 border-violet-400" id="timeTrackCard-\${j.id}">
-          <div class="flex items-center justify-between mb-3">
-            <h4 class="font-bold text-gray-800 text-sm"><i class="fas fa-stopwatch text-violet-500 mr-2"></i>Time Tracking</h4>
-            <button onclick="refreshTimeTrack('\${j.id}')" class="text-xs text-violet-500 hover:text-violet-700 font-semibold" title="Refresh"><i class="fas fa-sync-alt"></i></button>
-          </div>
-          <div id="timeTrackContent-\${j.id}">
-            <p class="text-xs text-gray-400 text-center py-3"><i class="fas fa-spinner fa-spin mr-1"></i>Loading…</p>
-          </div>
-        </div>
-
-        <!-- Job Notifications -->
-        <div class="card p-5 border-l-4 border-sky-400" id="jobNotifCard-\${j.id}">
-          <div class="flex items-center justify-between mb-3">
-            <h4 class="font-bold text-gray-800 text-sm"><i class="fas fa-bell text-sky-500 mr-2"></i>Notifications</h4>
-            <button onclick="loadJobNotifications('\${j.id}')" class="text-xs text-sky-500 hover:text-sky-700 font-semibold" title="Refresh"><i class="fas fa-sync-alt"></i></button>
-          </div>
-          <div id="jobNotifContent-\${j.id}">
-            <p class="text-xs text-gray-400 text-center py-3"><i class="fas fa-spinner fa-spin mr-1"></i>Loading…</p>
-          </div>
-        </div>
-
-        <!-- PFI -->
-        \${j.pfi ? \`
-          <div class="card p-5">
-            <h4 class="font-bold text-gray-800 mb-4"><i class="fas fa-file-invoice text-blue-500 mr-2"></i>PFI – Pro Forma Invoice</h4>
-            \${j.services && j.services.length ? \`
-              <p class="text-xs font-semibold text-gray-400 uppercase mb-2">Services</p>
-              <div class="space-y-1 mb-3">
-                \${j.services.map(sv => \`
-                  <div class="flex justify-between text-xs">
-                    <span class="text-gray-600 truncate max-w-[65%]"><i class="fas \${svcIcon(sv.category)} mr-1"></i>\${sv.serviceName} \${sv.quantity > 1 ? '<span class=\\"text-gray-400\\">×' + sv.quantity + '</span>' : ''}</span>
-                    <span class="font-semibold text-gray-700">\${fmt(sv.totalCost)}</span>
-                  </div>
-                \`).join('')}
-              </div>
-              <div class="border-t border-gray-100 mb-3"></div>
-            \` : ''}
-            \${j.parts && j.parts.length ? \`
-              <p class="text-xs font-semibold text-gray-400 uppercase mb-2">Parts Included</p>
-              <div class="space-y-1 mb-3">
-                \${j.parts.map(p => \`
-                  <div class="flex justify-between text-xs">
-                    <span class="text-gray-600 truncate max-w-[60%]">\${p.partName} <span class="text-gray-400">×\${p.quantity}</span></span>
-                    <span class="font-semibold text-gray-700">\${fmt(p.totalCost)}</span>
-                  </div>
-                \`).join('')}
-              </div>
-              <div class="border-t border-gray-100 pt-2 mb-3"></div>
-            \` : ''}
-            \${(function(){
-              // Always compute from live services + parts — never from stale PFI snapshot
-              const _liveSvcCost  = (j.services||[]).reduce(function(s,sv){return s+sv.totalCost;},0);
-              const _livePartCost = (j.parts||[]).reduce(function(s,p){return s+p.totalCost;},0);
-              const _liveBillable = _liveSvcCost + _livePartCost;
-              const _labour       = j.pfi.labourCost || 0;
-              const _subtotal     = _labour + _liveBillable;
-              const _disc         = j.pfi.discountAmount || 0;
-              const _discReason   = j.pfi.discountReason || '';
-              const _total        = Math.max(0, _subtotal - _disc);
-              // Use stored tax from PFI — do NOT recalculate; user may have set it to 0
-              const _tax        = typeof j.pfi.tax === 'number' ? j.pfi.tax : Math.round(_total * 0.18);
-              const _grandTotal = _total + _tax;
-              return \`<div class="space-y-2 text-sm">
-                <div class="flex justify-between"><span class="text-gray-400">Labour</span><span class="font-semibold">\${fmt(_labour)}</span></div>
-                <div class="flex justify-between"><span class="text-gray-400">Services + Parts</span><span class="font-semibold">\${fmt(_liveBillable)}</span></div>
-                \${_disc > 0 ? '<div class=\\"flex justify-between text-green-600\\"><span class=\\"flex items-center gap-1\\"><i class=\\"fas fa-tag text-xs\\"></i>Discount'+(_discReason ? ' <span class=\\"text-xs text-green-500\\">('+_discReason+')</span>' : '')+'</span><span class=\\"font-semibold\\">− '+fmt(_disc)+'</span></div>' : ''}
-                <div class="flex justify-between border-t pt-1 mt-1 text-gray-500"><span>Total Estimate</span><span class="font-medium">\${fmt(_total)}</span></div>
-                <div class="flex justify-between text-orange-600"><span class="flex items-center gap-1"><i class="fas fa-percent text-xs"></i>Tax / VAT\${_tax > 0 ? ' (18%)' : ''}</span><span class="font-semibold">\${fmt(_tax)}</span></div>
-                <div class="flex justify-between border-t pt-2 font-bold"><span>Grand Total</span><span class="text-blue-600">\${fmt(_grandTotal)}</span></div>
-              </div>\`;
-            })()}
-            <div class="mt-3 flex items-center justify-between gap-2">
-              <span class="badge" style="background:\${PFI_STATUS_CONFIG[j.pfi.status]?.bg};color:\${PFI_STATUS_CONFIG[j.pfi.status]?.text}">\${j.pfi.status}</span>
-              <div class="flex items-center gap-2">
-                \${!j.invoice ? '<button class=\\"text-xs text-amber-600 hover:underline font-semibold\\" onclick=\\"showEditPFIModal(\\'' + j.pfi.id + '\\')\\" ><i class=\\"fas fa-edit mr-1\\"></i>Edit</button>' : ''}
-                <button class="text-xs text-blue-600 hover:underline font-semibold" onclick="showSendPFIModal('\${j.pfi.id}')"><i class="fas fa-paper-plane mr-1"></i>Send / View</button>
-              </div>
-            </div>
-          </div>
-        \` : ''}
-        <!-- Invoice -->
-        \${j.invoice ? \`
-          <div class="card p-5 border-2 border-green-200">
-            <h4 class="font-bold text-gray-800 mb-4"><i class="fas fa-receipt text-green-500 mr-2"></i>Invoice</h4>
-            <p class="text-xs text-gray-400 mb-2">\${j.invoice.invoiceNumber}</p>
-            \${(function(){
-              // Always compute from live services + parts — never from stale Invoice snapshot
-              const _liveSvcCost  = (j.services||[]).reduce(function(s,sv){return s+sv.totalCost;},0);
-              const _livePartCost = (j.parts||[]).reduce(function(s,p){return s+p.totalCost;},0);
-              const _liveBillable = _liveSvcCost + _livePartCost;
-              const _labour       = j.invoice.labourCost || 0;
-              const _subtotal     = _labour + _liveBillable;
-              const _disc         = j.invoice.discountAmount || 0;
-              const _discReason   = j.invoice.discountReason || '';
-              const _afterDisc    = Math.max(0, _subtotal - _disc);
-              // Use stored tax from Invoice — do NOT recalculate; user may have set it to 0
-              const _tax          = typeof j.invoice.tax === 'number' ? j.invoice.tax : Math.round(_afterDisc * 0.18);
-              const _total        = _afterDisc + _tax;
-              return \`<div class="space-y-2 text-sm">
-                <div class="flex justify-between"><span class="text-gray-400">Labour</span><span>\${fmt(_labour)}</span></div>
-                <div class="flex justify-between"><span class="text-gray-400">Services + Parts</span><span>\${fmt(_liveBillable)}</span></div>
-                \${_disc > 0 ? '<div class=\\"flex justify-between text-green-600\\"><span class=\\"flex items-center gap-1\\"><i class=\\"fas fa-tag text-xs\\"></i>Discount'+(_discReason ? ' <span class=\\"text-xs text-green-500\\">('+_discReason+')</span>' : '')+'</span><span class=\\"font-semibold\\">− '+fmt(_disc)+'</span></div>' : ''}
-                <div class="flex justify-between"><span class="text-gray-400">Tax / VAT\${_tax > 0 ? ' (18%)' : ''}</span><span>\${fmt(_tax)}</span></div>
-                <div class="flex justify-between border-t pt-2 font-bold text-green-600"><span>Total</span><span>\${fmt(_total)}</span></div>
-              </div>\`;
-            })()}
-            \${j.invoice.dueDate ? \`<p class="text-xs text-gray-400 mt-2">Due: \${j.invoice.dueDate}</p>\` : ''}
-            \${j.invoice.paidAt ? \`<p class="text-xs text-green-600 mt-1"><i class="fas fa-check-circle mr-1"></i>Paid: \${fmtDate(j.invoice.paidAt)}</p>\` : ''}
-            \${j.invoice.paymentMethod ? \`<p class="text-xs text-gray-500 mt-0.5"><i class="fas fa-credit-card mr-1"></i>\${j.invoice.paymentMethod}\${j.invoice.paymentReference ? ' · ' + j.invoice.paymentReference : ''}</p>\` : ''}
-            <div class="mt-2 flex items-center justify-between gap-2">
-              <span class="badge \${j.invoice.status==='Paid'?'bg-green-100 text-green-700':j.invoice.status==='Partially Paid'?'bg-amber-100 text-amber-700':j.invoice.status==='Overdue'?'bg-red-100 text-red-700':'bg-gray-100 text-gray-600'}">\${j.invoice.status}</span>
-              \${j.invoice.status !== 'Paid' ? \`<button class="btn-primary text-xs py-1 px-3" onclick="markInvoicePaid('\${j.invoice.id}','\${j.id}')"><i class="fas fa-money-bill-wave mr-1"></i>\${j.invoice.status === 'Partially Paid' ? 'Pay Balance' : 'Record Payment'}</button>\` : ''}
-            </div>
-          </div>
-          <!-- Job P&L Panel -->
-          <div class="card p-5 border-2 border-indigo-100" id="jobPLPanel-\${j.id}">
-            <h4 class="font-bold text-gray-800 mb-3"><i class="fas fa-chart-line text-indigo-500 mr-2"></i>Job P&L</h4>
-            <p class="text-xs text-gray-400 text-center py-2"><i class="fas fa-spinner fa-spin mr-1"></i>Loading…</p>
-          </div>
-        \` : ''}
-        <!-- Expenses Panel (loaded async below) -->
-        <div class="card p-5">
-          <div id="jobExpenses"><p class="text-xs text-gray-400 text-center py-3"><i class="fas fa-spinner fa-spin mr-1"></i>Loading expenses…</p></div>
         </div>
       </div>
     </div>
   \`;
+
   // Load job expenses asynchronously into the sidebar panel
   loadJobExpenses(j.id);
   // Load per-job P&L if invoice exists
@@ -6669,6 +6678,31 @@ async function viewJobDetail(id) {
 }
 
 // Parts Modal
+// ── Option D: Collapsible section toggle ─────────────────────────────────────
+function toggleJDSection(id) {
+  const body    = document.getElementById('jd-body-' + id);
+  const chevron = document.getElementById('jd-chevron-' + id);
+  if (!body) return;
+  const isHidden = body.classList.contains('hidden');
+  body.classList.toggle('hidden', !isHidden);
+  if (chevron) {
+    chevron.classList.toggle('fa-chevron-down', isHidden);
+    chevron.classList.toggle('fa-chevron-up',   !isHidden);
+  }
+}
+
+// ── Option D: toggleSection for collapsible job-detail sections ──────────────
+function toggleSection(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const body    = el.querySelector('.sec-body');
+  const chevron = el.querySelector('.sec-chevron');
+  if (!body) return;
+  const isCollapsed = body.classList.contains('sec-collapsed');
+  body.classList.toggle('sec-collapsed', !isCollapsed);
+  if (chevron) chevron.style.transform = isCollapsed ? '' : 'rotate(180deg)';
+}
+
 // ── Add Part modal: search catalogue or enter manually ──
 let _catalogueCache = [];   // full catalogue list loaded once per modal open
 let _selectedCatPart = null; // currently highlighted catalogue part
