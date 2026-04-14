@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { readFileSync } from 'fs'
 import { join } from 'path'
+import { transformSync } from 'esbuild'
 import api from './routes/api'
 
 const app = new Hono()
@@ -18,11 +19,36 @@ app.get('/mockup-jobcard.html', (c) => {
   }
 })
 
+// ─── Server-side JS transpiler (esbuild) ─────────────────────────────────────
+// Downtargets ES2020 → ES2017 so optional chaining (?.), nullish coalescing (??),
+// and other modern syntax get polyfilled for older Chromium builds.
+// The result is cached after first call (shell HTML is static per process).
+let _cachedHtml: string | null = null
+
+function transpileHtml(html: string): string {
+  if (_cachedHtml !== null) return _cachedHtml
+  const result = html.replace(/<script>([\s\S]*?)<\/script>/g, (_match, body) => {
+    try {
+      const { code } = transformSync(body, {
+        loader: 'js',
+        target: ['chrome58', 'firefox57', 'safari11', 'edge18'],
+        minify: false,
+      })
+      return '<script>' + code + '</script>'
+    } catch (e: any) {
+      console.error('[GMS] esbuild transpile error:', e?.message || e)
+      return _match // fallback: return original if transpile fails
+    }
+  })
+  _cachedHtml = result
+  return result
+}
+
 // ─── Main HTML Shell ─────────────────────────────────────────────────────────
 // no-store ensures browser always fetches fresh JS (prevents stale-cache errors)
 const htmlHandler = (c: any) => {
   c.header('Cache-Control', 'no-store, must-revalidate')
-  return c.html(shell())
+  return c.html(transpileHtml(shell()))
 }
 app.get('/', htmlHandler)
 app.get('*', htmlHandler)
@@ -174,6 +200,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 .cust-picker-badge--corp{background:#ede9fe;color:#7c3aed}
 .cust-picker-badge--indiv{background:#dbeafe;color:#1d4ed8}
 .cust-picker-empty{padding:10px 14px;font-size:.85rem;color:#94a3b8;text-align:center}
+.role-banner-btn:hover{background:rgba(255,255,255,.28) !important}
 </style>
 </head>
 <body>
@@ -5898,7 +5925,7 @@ async function loadDashboard() {
 }
 
 // ─── Role-aware Quick-Action Banner ──────────────────────────────────────────
-function renderDashRoleBanner(dashData?) {
+function renderDashRoleBanner(dashData) {
   const el = document.getElementById('dashRoleBanner');
   if (!el || !currentUser) return;
   const role = currentUser.role || '';
@@ -5998,7 +6025,7 @@ function renderDashRoleBanner(dashData?) {
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:8px">
         \${cfg.actions.map(function(a) {
-          return '<button type="button" onclick="' + a.onclick + '" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:10px;border:none;cursor:pointer;font-size:.8rem;font-weight:600;color:' + a.color + ';background:' + a.bg + ';transition:all .15s;white-space:nowrap" onmouseover="this.style.background=\'rgba(255,255,255,.3)\'" onmouseout="this.style.background=\'' + a.bg + '\'">'
+          return '<button type="button" class="role-banner-btn" onclick="' + a.onclick + '" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:10px;border:none;cursor:pointer;font-size:.8rem;font-weight:600;color:' + a.color + ';background:' + a.bg + ';transition:all .15s;white-space:nowrap">'
             + '<i class="fas ' + a.icon + '" style="font-size:13px"></i>' + a.label + '</button>';
         }).join('')}
       </div>
