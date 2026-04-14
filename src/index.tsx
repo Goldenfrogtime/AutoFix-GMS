@@ -1,10 +1,22 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
+import { readFileSync } from 'fs'
+import { join } from 'path'
 import api from './routes/api'
 
 const app = new Hono()
 app.use('/api/*', cors())
 app.route('/api', api)
+
+// ─── Static mockup page (must be before wildcard) ────────────────────────────
+app.get('/mockup-jobcard.html', (c) => {
+  try {
+    const html = readFileSync(join(process.cwd(), 'public/mockup-jobcard.html'), 'utf-8')
+    return c.html(html)
+  } catch {
+    return c.text('Mockup not found', 404)
+  }
+})
 
 // ─── Main HTML Shell ─────────────────────────────────────────────────────────
 // no-store ensures browser always fetches fresh JS (prevents stale-cache errors)
@@ -5930,87 +5942,100 @@ async function viewJobDetail(id) {
   const isQualityControl = userRole === 'Quality Control';
   const isFinance = userRole === 'Finance';
 
-  // ── Phase 3 new-pipeline action buttons ─────────────────────────────────────
-  let actionButtons = '';
+  // ── Action buttons — structured as: [Primary] [Secondary...] [Service Card] ──
+  // Shared style helpers (dark-bar safe — light bg with coloured text)
+  const _btnPrimary = (icon, label, onclick) =>
+    \`<button onclick="\${onclick}" style="display:inline-flex;align-items:center;gap:7px;padding:8px 16px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;border:none;background:#2563eb;color:#fff;white-space:nowrap;box-shadow:0 2px 8px rgba(37,99,235,.4);">
+      <i class="\${icon}"></i>\${label}</button>\`;
+
+  const _btnSuccess = (icon, label, onclick) =>
+    \`<button onclick="\${onclick}" style="display:inline-flex;align-items:center;gap:7px;padding:8px 16px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;border:none;background:#16a34a;color:#fff;white-space:nowrap;box-shadow:0 2px 8px rgba(22,163,74,.35);">
+      <i class="\${icon}"></i>\${label}</button>\`;
+
+  const _btnWarning = (icon, label, onclick) =>
+    \`<button onclick="\${onclick}" style="display:inline-flex;align-items:center;gap:7px;padding:8px 16px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;border:none;background:#d97706;color:#fff;white-space:nowrap;box-shadow:0 2px 8px rgba(217,119,6,.35);">
+      <i class="\${icon}"></i>\${label}</button>\`;
+
+  const _btnSecondary = (icon, label, onclick) =>
+    \`<button onclick="\${onclick}" style="display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:9px;font-size:12px;font-weight:600;cursor:pointer;background:#1e293b;color:#cbd5e1;border:1px solid #334155;white-space:nowrap;">
+      <i class="\${icon}" style="font-size:11px;"></i>\${label}</button>\`;
+
+  const _btnGhost = (icon, label, onclick) =>
+    \`<button onclick="\${onclick}" style="display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:9px;font-size:12px;font-weight:600;cursor:pointer;background:transparent;color:#94a3b8;border:1px solid #334155;white-space:nowrap;">
+      <i class="\${icon}" style="font-size:11px;"></i>\${label}</button>\`;
+
+  // Separator for visual grouping
+  const _sep = '<div style="width:1px;height:28px;background:#1e293b;flex-shrink:0;"></div>';
+
+  let _primaryBtn   = '';   // One main CTA
+  let _secondaryBtns = '';  // Supporting actions
+  let _tertiaryBtns  = '';  // Service Card, Reopen, etc.
+
   const s = j.status;
 
-  // Phase 1: Pre-intake workflow
+  // ── PRIMARY: one dominant action per status ──────────────────────────────
   if (s === 'PENDING_APPROVAL' && isAdminOrManager) {
-    actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-green-100 hover:bg-green-200 text-green-700 border border-green-300 flex items-center gap-1.5" onclick="showApprovalPanel('\${j.id}')"><i class="fas fa-check-circle"></i> Review &amp; Approve</button>\`;
-  }
-  if (s === 'DRAFT' && (isAdminOrManager || isFrontDesk)) {
-    actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 border border-blue-300 flex items-center gap-1.5" onclick="submitJobForApproval('\${j.id}')"><i class="fas fa-paper-plane"></i> Submit for Approval</button>\`;
-  }
-  if ((s === 'APPROVED' || s === 'PRE_HANDOVER') && (isAdminOrManager || isFrontDesk)) {
-    actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-purple-100 hover:bg-purple-200 text-purple-700 border border-purple-300 flex items-center gap-1.5" onclick="showPrelimCheckModal('\${j.id}')"><i class="fas fa-clipboard-check"></i> \${s === 'PRE_HANDOVER' ? 'Complete Preliminary Check' : 'Start Pre-Handover'}</button>\`;
-  }
-
-  // Phase 2: Post-handover — Inspection
-  if (s === 'HANDED_OVER' && (isAdminOrManager || isFrontDesk || isTechnician)) {
-    actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-amber-100 hover:bg-amber-200 text-amber-700 border border-amber-300 flex items-center gap-1.5" onclick="showInspectionModal('\${j.id}')"><i class="fas fa-search"></i> Start Inspection</button>\`;
-  }
-  if (s === 'INSPECTION' && (isAdminOrManager || isFrontDesk || isTechnician)) {
-    actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-amber-100 hover:bg-amber-200 text-amber-700 border border-amber-300 flex items-center gap-1.5" onclick="showInspectionModal('\${j.id}')"><i class="fas fa-search"></i> Complete Inspection</button>\`;
-  }
-
-  // Phase 3: PFI workflow
-  if (s === 'PFI_PENDING' && (isAdminOrManager || isFrontDesk)) {
-    // Allow creating/editing PFI
+    _primaryBtn = _btnSuccess('fas fa-check-circle', 'Review &amp; Approve', \`showApprovalPanel('\${j.id}')\`);
+  } else if (s === 'DRAFT' && (isAdminOrManager || isFrontDesk)) {
+    _primaryBtn = _btnPrimary('fas fa-paper-plane', 'Submit for Approval', \`submitJobForApproval('\${j.id}')\`);
+  } else if ((s === 'APPROVED' || s === 'PRE_HANDOVER') && (isAdminOrManager || isFrontDesk)) {
+    _primaryBtn = _btnPrimary('fas fa-clipboard-check', s === 'PRE_HANDOVER' ? 'Complete Preliminary Check' : 'Start Pre-Handover', \`showPrelimCheckModal('\${j.id}')\`);
+  } else if (s === 'HANDED_OVER' && (isAdminOrManager || isFrontDesk || isTechnician)) {
+    _primaryBtn = _btnWarning('fas fa-search', 'Start Inspection', \`showInspectionModal('\${j.id}')\`);
+  } else if (s === 'INSPECTION' && (isAdminOrManager || isFrontDesk || isTechnician)) {
+    _primaryBtn = _btnWarning('fas fa-search', 'Complete Inspection', \`showInspectionModal('\${j.id}')\`);
+  } else if (s === 'PFI_PENDING' && (isAdminOrManager || isFrontDesk)) {
     if (canMakePFI) {
-      actionButtons += \`<button class="btn-secondary text-sm" onclick="showPFIModal('\${j.id}','\${j.category}')"><i class="fas fa-file-invoice"></i> Create PFI</button>\`;
+      _primaryBtn = _btnPrimary('fas fa-file-invoice', 'Create PFI', \`showPFIModal('\${j.id}','\${j.category}')\`);
+    } else if (isAdminOrManager && j.pfi) {
+      _primaryBtn = _btnSuccess('fas fa-stamp', 'Approve PFI', \`quickApprovePFI('\${j.pfi?.id||''}','\${j.id}')\`);
     }
-    if (isAdminOrManager && j.pfi) {
-      // Admin can approve PFI directly
-      actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-cyan-100 hover:bg-cyan-200 text-cyan-700 border border-cyan-300 flex items-center gap-1.5" onclick="quickApprovePFI('\${j.pfi?.id||''}','\${j.id}')"><i class="fas fa-stamp"></i> Approve PFI</button>\`;
-    }
-  }
-  if (s === 'PFI_APPROVED' && (isAdminOrManager || isFrontDesk)) {
-    actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-orange-100 hover:bg-orange-200 text-orange-700 border border-orange-300 flex items-center gap-1.5" onclick="showCustomerApprovalModal('\${j.id}')"><i class="fas fa-user-check"></i> Get Customer Approval</button>\`;
-  }
-  if (s === 'CUSTOMER_APPROVAL' && (isAdminOrManager || isFrontDesk)) {
-    actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-orange-100 hover:bg-orange-200 text-orange-700 border border-orange-300 flex items-center gap-1.5" onclick="showCustomerApprovalModal('\${j.id}')"><i class="fas fa-user-check"></i> Record Customer Approval</button>\`;
-  }
-
-  // Phase 4: Repair workflow
-  if (s === 'PARTS_RELEASED' && (isAdminOrManager || isTechnician)) {
-    actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-blue-100 hover:bg-blue-200 text-blue-700 border border-blue-300 flex items-center gap-1.5" onclick="startWork('\${j.id}')"><i class="fas fa-wrench"></i> Start Work</button>\`;
-  }
-  if (s === 'WORK_IN_PROGRESS' && (isAdminOrManager || isTechnician)) {
-    actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 border border-emerald-300 flex items-center gap-1.5" onclick="finishWork('\${j.id}')"><i class="fas fa-flag-checkered"></i> Mark Work Finished</button>\`;
-  }
-
-  // Phase 5: QC & Sign-off
-  if (s === 'FINISHED' && (isAdminOrManager || isFrontDesk || isQualityControl)) {
-    actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-teal-100 hover:bg-teal-200 text-teal-700 border border-teal-300 flex items-center gap-1.5" onclick="showQCFormModal('\${j.id}')"><i class="fas fa-award"></i> Quality Control</button>\`;
-  }
-  if (s === 'QUALITY_CONTROL' && (isAdminOrManager || isFrontDesk || isQualityControl)) {
-    actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-teal-100 hover:bg-teal-200 text-teal-700 border border-teal-300 flex items-center gap-1.5" onclick="showQCFormModal('\${j.id}')"><i class="fas fa-award"></i> Complete QC</button>\`;
-  }
-  if (s === 'CUSTOMER_SIGNOFF' && (isAdminOrManager || isFrontDesk || isQualityControl)) {
-    actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-indigo-100 hover:bg-indigo-200 text-indigo-700 border border-indigo-300 flex items-center gap-1.5" onclick="showCustomerSignoffModal('\${j.id}')"><i class="fas fa-signature"></i> Customer Sign-off</button>\`;
+  } else if (s === 'PFI_APPROVED' && (isAdminOrManager || isFrontDesk)) {
+    _primaryBtn = _btnWarning('fas fa-user-check', 'Get Customer Approval', \`showCustomerApprovalModal('\${j.id}')\`);
+  } else if (s === 'CUSTOMER_APPROVAL' && (isAdminOrManager || isFrontDesk)) {
+    _primaryBtn = _btnWarning('fas fa-user-check', 'Record Customer Approval', \`showCustomerApprovalModal('\${j.id}')\`);
+  } else if (s === 'PARTS_RELEASED' && (isAdminOrManager || isTechnician)) {
+    _primaryBtn = _btnPrimary('fas fa-wrench', 'Start Work', \`startWork('\${j.id}')\`);
+  } else if (s === 'WORK_IN_PROGRESS' && (isAdminOrManager || isTechnician)) {
+    _primaryBtn = _btnSuccess('fas fa-flag-checkered', 'Mark Work Finished', \`finishWork('\${j.id}')\`);
+  } else if (s === 'FINISHED' && (isAdminOrManager || isFrontDesk || isQualityControl)) {
+    _primaryBtn = _btnPrimary('fas fa-award', 'Quality Control', \`showQCFormModal('\${j.id}')\`);
+  } else if (s === 'QUALITY_CONTROL' && (isAdminOrManager || isFrontDesk || isQualityControl)) {
+    _primaryBtn = _btnPrimary('fas fa-award', 'Complete QC', \`showQCFormModal('\${j.id}')\`);
+  } else if (s === 'CUSTOMER_SIGNOFF' && (isAdminOrManager || isFrontDesk || isQualityControl)) {
+    _primaryBtn = _btnPrimary('fas fa-signature', 'Customer Sign-off', \`showCustomerSignoffModal('\${j.id}')\`);
+  } else if (s === 'INVOICED' && (isAdminOrManager || isFinance)) {
+    _primaryBtn = _btnSuccess('fas fa-money-bill-wave', 'Record Payment', \`showMarkPaidModal('\${j.id}')\`);
+  } else if (s === 'PAID' && (isAdminOrManager || isFrontDesk)) {
+    _primaryBtn = _btnSecondary('fas fa-archive', 'Close Job', \`closeJob('\${j.id}')\`);
+  } else if (canMakeInvoice) {
+    _primaryBtn = _btnPrimary('fas fa-receipt', 'Generate Invoice', \`showInvoiceModal('\${j.id}',\${j.pfi?.labourCost||0},\${j.parts?.reduce((sv,p)=>sv+p.totalCost,0)||0})\`);
+  } else if (STATUS_FLOW_LEGACY.includes(s)) {
+    _primaryBtn = _btnSecondary('fas fa-exchange-alt', 'Update Status', \`showStatusModal('\${j.id}','\${s}')\`);
   }
 
-  // Phase 6: Invoice & Payment
-  if (s === 'INVOICED' && (isAdminOrManager || userRole === 'Finance')) {
-    actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-green-100 hover:bg-green-200 text-green-700 border border-green-300 flex items-center gap-1.5" onclick="showMarkPaidModal('\${j.id}')"><i class="fas fa-money-bill-wave"></i> Record Payment</button>\`;
-  }
-  if (s === 'PAID' && (isAdminOrManager || isFrontDesk)) {
-    actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 flex items-center gap-1.5" onclick="closeJob('\${j.id}')"><i class="fas fa-archive"></i> Close Job</button>\`;
-  }
-
-  // Reopen (legacy + new)
+  // ── SECONDARY: Reopen (when job is in a terminal/closed state) ────────────
   if (canReopen) {
-    actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 transition-all bg-amber-100 hover:bg-amber-200 text-amber-700 border border-amber-300 flex items-center gap-1.5" onclick="showReopenModal('\${j.id}')"><i class="fas fa-folder-open"></i> Reopen Job</button>\`;
+    _secondaryBtns += _btnGhost('fas fa-folder-open', 'Reopen', \`showReopenModal('\${j.id}')\`);
   }
 
-  // Generic status update for legacy statuses
-  if (STATUS_FLOW_LEGACY.includes(s)) {
-    actionButtons += \`<button class="btn-secondary text-sm" onclick="showStatusModal('\${j.id}','\${s}')"><i class="fas fa-exchange-alt"></i> Update Status</button>\`;
+  // ── TERTIARY: Service Card (always show if applicable) ───────────────────
+  if (canServiceCard) {
+    const _scIcon = j.serviceCardIssuedAt ? 'fas fa-id-card text-green-400' : 'fas fa-id-card';
+    const _scLabel = 'Service Card' + (j.serviceCardIssuedAt ? ' <i class="fas fa-check-circle" style="color:#4ade80;font-size:10px;"></i>' : '');
+    _tertiaryBtns += _btnGhost(_scIcon, _scLabel, \`showServiceCardModal('\${j.id}')\`);
   }
 
-  // Legacy: canMakeInvoice (COMPLETED status)
-  if (canMakeInvoice) { actionButtons += \`<button class="btn-primary text-sm" onclick="showInvoiceModal('\${j.id}',\${j.pfi?.labourCost||0},\${j.parts?.reduce((s,p)=>s+p.totalCost,0)||0})"><i class="fas fa-receipt"></i> Generate Invoice</button>\`; }
-  if (canServiceCard) { actionButtons += \`<button class="text-sm font-semibold rounded-xl px-3 py-2 transition-all bg-green-100 hover:bg-green-200 text-green-700 border border-green-300 flex items-center gap-1.5" onclick="showServiceCardModal('\${j.id}')"><i class="fas fa-id-card"></i> Service Card\${j.serviceCardIssuedAt ? ' <i class=\\"fas fa-check-circle text-green-500 ml-0.5\\" title=\\"Issued: '+fmtDate(j.serviceCardIssuedAt)+'\\"></i>' : ''}</button>\`; }
+  // ── Legacy PFI approve for admin when PFI exists at PFI_PENDING ──────────
+  if (s === 'PFI_PENDING' && isAdminOrManager && j.pfi && !canMakePFI) {
+    // already handled above as primary; skip
+  }
+
+  // ── Compose final actionButtons string ────────────────────────────────────
+  let actionButtons = '';
+  if (_primaryBtn)    actionButtons += _primaryBtn;
+  if (_secondaryBtns) actionButtons += (_primaryBtn ? _sep : '') + _secondaryBtns;
+  if (_tertiaryBtns)  actionButtons += ((_primaryBtn || _secondaryBtns) ? _sep : '') + _tertiaryBtns;
 
   // actionButtons are now embedded in the sticky bar inside jobDetailContent
   
@@ -6056,33 +6081,48 @@ async function viewJobDetail(id) {
   document.getElementById('jobDetailContent').innerHTML = \`
     <!-- ═══ OPTION D: STICKY SUMMARY BAR + COLLAPSIBLE SECTIONS ═══ -->
 
-    <!-- Sticky Summary Bar -->
-    <div class="sticky top-0 z-30 bg-gray-900 text-white shadow-xl" style="margin:0">
-      <div class="px-4 py-3 flex flex-wrap items-center justify-between gap-3">
-        <div class="flex items-center gap-3 min-w-0 flex-1">
-          <div class="flex flex-col min-w-0">
-            <div class="flex items-center gap-2 flex-wrap">
-              <span class="font-bold text-lg leading-tight">\${j.jobCardNumber}</span>
-              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold" style="background:\${(STATUS_CONFIG[j.status]||{bg:'#6b7280'}).bg};color:\${(STATUS_CONFIG[j.status]||{text:'#fff'}).text}">\${(STATUS_CONFIG[j.status]||{label:j.status}).label}</span>
-              \${isReopened ? \`<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-500 text-white"><i class="fas fa-folder-open text-xs"></i>Reopened</span>\` : ''}
-            </div>
-            <div class="flex items-center gap-3 mt-1 flex-wrap">
-              <span class="text-gray-300 text-xs"><i class="fas fa-user mr-1 text-gray-400"></i>\${j.customer?.name||'—'}</span>
-              <span class="text-gray-300 text-xs"><i class="fas fa-car mr-1 text-gray-400"></i>\${j.vehicle?.registrationNumber||'—'} \${j.vehicle?.make||''} \${j.vehicle?.model||''}</span>
-              <span class="text-gray-400 text-xs"><i class="fas fa-calendar mr-1"></i>\${fmtDate(j.createdAt)}</span>
-            </div>
-          </div>
+    <!-- ── Sticky Summary Bar ── -->
+    <div class="sticky top-0 z-30 shadow-2xl" style="background:#0f172a;border-bottom:1px solid #1e293b;margin:0">
+
+      <!-- Row 1: Job identity + Est. Total + Primary Action -->
+      <div style="padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+
+        <!-- LEFT: Job # + Status + Reopened chip -->
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0;">
+          <button onclick="navigateTo('jobcards')" style="background:#1e293b;border:1px solid #334155;color:#94a3b8;border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px;flex-shrink:0;"><i class="fas fa-arrow-left" style="font-size:10px;"></i>Jobs</button>
+          <span style="font-size:20px;font-weight:800;color:#f1f5f9;letter-spacing:-0.5px;white-space:nowrap;">\${j.jobCardNumber}</span>
+          <span style="display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:\${(STATUS_CONFIG[j.status]||{bg:'#475569'}).bg};color:\${(STATUS_CONFIG[j.status]||{text:'#fff'}).text};">\${(STATUS_CONFIG[j.status]||{label:j.status}).label}</span>
+          \${isReopened ? '<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:#d97706;color:#fff;"><i class="fas fa-folder-open" style="font-size:9px;"></i>Reopened</span>' : ''}
         </div>
-        <div class="flex items-center gap-3 flex-shrink-0">
+
+        <!-- RIGHT: Est. Total + Primary Action + Secondary buttons -->
+        <div style="display:flex;align-items:center;gap:12px;flex-shrink:0;flex-wrap:wrap;">
           \${(totalServicesCost + totalPartsCost) > 0 ? \`
-          <div class="text-right hidden sm:block">
-            <p class="text-xs text-gray-400">Est. Total</p>
-            <p class="font-bold text-green-400 text-base">\${fmt(totalServicesCost + totalPartsCost)}</p>
+          <div style="text-align:right;border-right:1px solid #1e293b;padding-right:14px;">
+            <div style="font-size:10px;color:#475569;text-transform:uppercase;letter-spacing:.07em;font-weight:600;">Est. Total</div>
+            <div style="font-size:19px;font-weight:800;color:#4ade80;letter-spacing:-0.5px;">\${fmt(totalServicesCost + totalPartsCost)}</div>
           </div>\` : ''}
-          <div class="flex flex-wrap gap-1.5" style="max-width:340px">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             \${actionButtons}
           </div>
         </div>
+      </div>
+
+      <!-- Row 2: Metadata strip (customer · vehicle · date · technician) -->
+      <div style="padding:0 20px 10px;display:flex;align-items:center;gap:0;flex-wrap:wrap;border-top:1px solid #1e293b;">
+        <span style="color:#94a3b8;font-size:12px;padding:4px 14px 4px 0;border-right:1px solid #1e293b;display:flex;align-items:center;gap:6px;">
+          <i class="fas fa-user" style="color:#475569;font-size:10px;"></i>\${j.customer?.name||'—'}
+        </span>
+        <span style="color:#94a3b8;font-size:12px;padding:4px 14px;border-right:1px solid #1e293b;display:flex;align-items:center;gap:6px;">
+          <i class="fas fa-car" style="color:#475569;font-size:10px;"></i>
+          <strong style="color:#fbbf24;font-weight:700;">\${j.vehicle?.registrationNumber||'—'}</strong>
+          <span style="color:#64748b;">\${j.vehicle?.make||''} \${j.vehicle?.model||''}\${j.vehicle?.year?' '+j.vehicle.year:''}</span>
+        </span>
+        \${j.assignedTechnicianName ? \`<span style="color:#94a3b8;font-size:12px;padding:4px 14px;border-right:1px solid #1e293b;display:flex;align-items:center;gap:6px;"><i class="fas fa-user-hard-hat" style="color:#475569;font-size:10px;"></i>\${j.assignedTechnicianName}</span>\` : ''}
+        \${j.category ? \`<span style="color:#94a3b8;font-size:12px;padding:4px 14px;border-right:1px solid #1e293b;display:flex;align-items:center;gap:6px;"><i class="fas fa-tag" style="color:#475569;font-size:10px;"></i>\${j.category}</span>\` : ''}
+        <span style="color:#64748b;font-size:12px;padding:4px 14px;display:flex;align-items:center;gap:6px;">
+          <i class="fas fa-calendar" style="color:#475569;font-size:10px;"></i>\${fmtDate(j.createdAt)}
+        </span>
       </div>
     </div>
 
