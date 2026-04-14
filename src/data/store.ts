@@ -762,18 +762,69 @@ export const servicePackages: ServicePackage[] = [
   },
 ]
 
-// Default admin user — always present so the Owner can first log in.
-// Change email/password after first login via Users & Roles page.
+// ─── Demo / seed users — one per role so every role can be tested immediately ─
+// Change credentials after first login via Users & Roles page.
 export const users: User[] = [
+  // ── 1. Admin ──────────────────────────────────────────────────────────────
   {
     id: 'u-default-admin',
-    name: 'System Admin',
+    name: 'Sarah Mwangi',
     email: 'admin@autofix.co.tz',
     role: 'Admin',
     active: true,
     password: 'Admin2025!',
     createdAt: '2026-01-01T00:00:00.000Z',
-  }
+  },
+  // ── 2. Workshop Controller ────────────────────────────────────────────────
+  {
+    id: 'u-workshop-ctrl',
+    name: 'James Odhiambo',
+    email: 'workshop@autofix.co.tz',
+    role: 'Workshop Controller',
+    active: true,
+    password: 'Workshop2025!',
+    createdAt: '2026-01-01T00:00:00.000Z',
+  },
+  // ── 3. Service Advisor ────────────────────────────────────────────────────
+  {
+    id: 'u-service-advisor',
+    name: 'Amina Hassan',
+    email: 'advisor@autofix.co.tz',
+    role: 'Service Advisor',
+    active: true,
+    password: 'Advisor2025!',
+    createdAt: '2026-01-01T00:00:00.000Z',
+  },
+  // ── 4. Technician ─────────────────────────────────────────────────────────
+  {
+    id: 'u-technician',
+    name: 'Juma Mwangi',
+    email: 'technician@autofix.co.tz',
+    role: 'Technician',
+    active: true,
+    password: 'Tech2025!',
+    createdAt: '2026-01-01T00:00:00.000Z',
+  },
+  // ── 5. Finance ────────────────────────────────────────────────────────────
+  {
+    id: 'u-finance',
+    name: 'Grace Kimani',
+    email: 'finance@autofix.co.tz',
+    role: 'Finance',
+    active: true,
+    password: 'Finance2025!',
+    createdAt: '2026-01-01T00:00:00.000Z',
+  },
+  // ── 6. Quality Control ────────────────────────────────────────────────────
+  {
+    id: 'u-quality-control',
+    name: 'David Njoroge',
+    email: 'qc@autofix.co.tz',
+    role: 'Quality Control',
+    active: true,
+    password: 'QC2025!',
+    createdAt: '2026-01-01T00:00:00.000Z',
+  },
 ]
 
 // ─── Active Sessions (token → userId) ────────────────────────────────────────

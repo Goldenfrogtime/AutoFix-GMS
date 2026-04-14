@@ -179,50 +179,165 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 <body>
 
 <!-- ═══ LOGIN SCREEN ═══ -->
-<div id="loginScreen" class="fixed inset-0 z-[999] flex items-center justify-center p-4" style="background:linear-gradient(135deg,#1e3a8a 0%,#1d4ed8 60%,#0891b2 100%)">
-  <div style="background:#fff;border-radius:24px;max-width:420px;width:100%;padding:40px 36px;box-shadow:0 32px 80px rgba(0,0,0,.35)">
-    <div class="flex flex-col items-center mb-8">
-      <div class="w-16 h-16 rounded-2xl bg-blue-600 flex items-center justify-center mb-4 shadow-lg">
-        <i class="fas fa-car-side text-white text-2xl"></i>
-      </div>
-      <h1 class="text-2xl font-bold text-gray-900">AutoFix GMS</h1>
-      <p class="text-gray-500 text-sm mt-1">Garage Management System</p>
-    </div>
-    <div id="loginError" class="hidden mb-4 px-4 py-3 rounded-xl text-sm font-medium text-red-700" style="background:#fee2e2;border:1px solid #fca5a5"></div>
-    <form id="loginForm" onsubmit="doLogin(event)">
-      <div class="mb-4">
-        <label class="form-label">Email Address</label>
-        <div class="relative">
-          <i class="fas fa-envelope absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-          <input id="loginEmail" type="email" class="form-input pl-9" placeholder="you@autofix.co.tz" required autocomplete="username"/>
+<div id="loginScreen" class="fixed inset-0 z-[999] flex items-center justify-center p-4" style="background:linear-gradient(135deg,#0f172a 0%,#1e3a8a 40%,#1d4ed8 70%,#0891b2 100%);min-height:100vh">
+
+  <!-- Two-column layout: left branding + right form -->
+  <div style="max-width:900px;width:100%;display:flex;gap:0;border-radius:28px;overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,.5)">
+
+    <!-- ── Left branding panel ──────────────────────────────────────────── -->
+    <div class="hidden md:flex flex-col justify-between p-10" style="width:380px;flex-shrink:0;background:linear-gradient(160deg,#1e3a8a 0%,#1d4ed8 60%,#0891b2 100%)">
+      <div>
+        <div class="flex items-center gap-3 mb-10">
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:rgba(255,255,255,.2)">
+            <i class="fas fa-car-side text-white text-xl"></i>
+          </div>
+          <div>
+            <div class="text-white font-bold text-lg leading-none">AutoFix GMS</div>
+            <div class="text-blue-200 text-xs mt-0.5">Garage Management System</div>
+          </div>
         </div>
+        <h2 class="text-white text-3xl font-bold leading-tight mb-4">Manage your<br/>workshop smarter</h2>
+        <p class="text-blue-200 text-sm leading-relaxed">End-to-end workflow management — from job card creation to vehicle release — with role-based access for every team member.</p>
       </div>
-      <div class="mb-6">
-        <label class="form-label">Password</label>
-        <div class="relative">
-          <i class="fas fa-lock absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-          <input id="loginPassword" type="password" class="form-input pl-9" placeholder="Enter your password" required autocomplete="current-password"/>
-          <button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" onclick="togglePasswordVisibility()">
-            <i class="fas fa-eye" id="pwdEyeIcon"></i>
+
+      <!-- Role legend -->
+      <div>
+        <p class="text-blue-300 text-xs font-semibold uppercase tracking-widest mb-3">Team Roles</p>
+        <div class="space-y-2">
+          <div class="flex items-center gap-2 text-white text-xs"><span style="width:8px;height:8px;border-radius:50%;background:#f87171;flex-shrink:0"></span> Admin — Full system access</div>
+          <div class="flex items-center gap-2 text-white text-xs"><span style="width:8px;height:8px;border-radius:50%;background:#fbbf24;flex-shrink:0"></span> Workshop Controller — Operations oversight</div>
+          <div class="flex items-center gap-2 text-white text-xs"><span style="width:8px;height:8px;border-radius:50%;background:#60a5fa;flex-shrink:0"></span> Service Advisor — Customer &amp; job creation</div>
+          <div class="flex items-center gap-2 text-white text-xs"><span style="width:8px;height:8px;border-radius:50%;background:#34d399;flex-shrink:0"></span> Technician — Workshop floor tasks</div>
+          <div class="flex items-center gap-2 text-white text-xs"><span style="width:8px;height:8px;border-radius:50%;background:#a78bfa;flex-shrink:0"></span> Finance — Invoices &amp; payments</div>
+          <div class="flex items-center gap-2 text-white text-xs"><span style="width:8px;height:8px;border-radius:50%;background:#f472b6;flex-shrink:0"></span> Quality Control — Final sign-off</div>
+        </div>
+        <p class="text-blue-300 text-xs mt-6">© 2026 AutoFix GMS · Secure · Role-based</p>
+      </div>
+    </div>
+
+    <!-- ── Right form panel ────────────────────────────────────────────── -->
+    <div class="flex-1 flex flex-col" style="background:#fff;min-height:560px">
+
+      <!-- Mobile logo (hidden on md+) -->
+      <div class="flex md:hidden items-center gap-3 px-8 pt-8 pb-2">
+        <div class="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center">
+          <i class="fas fa-car-side text-white"></i>
+        </div>
+        <span class="font-bold text-gray-900">AutoFix GMS</span>
+      </div>
+
+      <div class="flex-1 flex flex-col justify-center px-8 md:px-10 py-8">
+        <h3 class="text-2xl font-bold text-gray-900 mb-1">Sign in</h3>
+        <p class="text-gray-500 text-sm mb-6">Enter your credentials or pick a demo role below</p>
+
+        <div id="loginError" class="hidden mb-4 px-4 py-3 rounded-xl text-sm font-medium text-red-700" style="background:#fee2e2;border:1px solid #fca5a5"></div>
+
+        <form id="loginForm" onsubmit="doLogin(event)">
+          <div class="mb-4">
+            <label class="form-label">Email Address</label>
+            <div class="relative">
+              <i class="fas fa-envelope absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+              <input id="loginEmail" type="email" class="form-input pl-9" placeholder="you@autofix.co.tz" required autocomplete="username"/>
+            </div>
+          </div>
+          <div class="mb-5">
+            <label class="form-label">Password</label>
+            <div class="relative">
+              <i class="fas fa-lock absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+              <input id="loginPassword" type="password" class="form-input pl-9" placeholder="Enter your password" required autocomplete="current-password"/>
+              <button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600" onclick="togglePasswordVisibility()">
+                <i class="fas fa-eye" id="pwdEyeIcon"></i>
+              </button>
+            </div>
+          </div>
+          <button type="submit" id="loginBtn" class="btn-primary w-full justify-center py-3 text-base">
+            <i class="fas fa-sign-in-alt"></i> Sign In
           </button>
+        </form>
+
+        <!-- ── Demo role quick-login cards ── -->
+        <div class="mt-6">
+          <div class="flex items-center gap-3 mb-3">
+            <div style="flex:1;height:1px;background:#e2e8f0"></div>
+            <span class="text-xs text-gray-400 font-semibold whitespace-nowrap">Demo Accounts — click to auto-fill</span>
+            <div style="flex:1;height:1px;background:#e2e8f0"></div>
+          </div>
+          <div id="demoRoleGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+
+            <!-- Admin -->
+            <button type="button" onclick="fillRole('admin@autofix.co.tz','Admin2025!')"
+              style="border:1.5px solid #fecaca;border-radius:12px;padding:10px 8px;background:#fff;cursor:pointer;text-align:center;transition:all .15s"
+              onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='#fff'">
+              <div style="width:32px;height:32px;border-radius:8px;background:#fee2e2;display:flex;align-items:center;justify-content:center;margin:0 auto 6px">
+                <i class="fas fa-crown" style="color:#dc2626;font-size:14px"></i>
+              </div>
+              <div style="font-size:11px;font-weight:700;color:#dc2626">Admin</div>
+              <div style="font-size:10px;color:#94a3b8;margin-top:2px">Sarah M.</div>
+            </button>
+
+            <!-- Workshop Controller -->
+            <button type="button" onclick="fillRole('workshop@autofix.co.tz','Workshop2025!')"
+              style="border:1.5px solid #fde68a;border-radius:12px;padding:10px 8px;background:#fff;cursor:pointer;text-align:center;transition:all .15s"
+              onmouseover="this.style.background='#fffbeb'" onmouseout="this.style.background='#fff'">
+              <div style="width:32px;height:32px;border-radius:8px;background:#fef3c7;display:flex;align-items:center;justify-content:center;margin:0 auto 6px">
+                <i class="fas fa-clipboard-list" style="color:#b45309;font-size:14px"></i>
+              </div>
+              <div style="font-size:11px;font-weight:700;color:#b45309">Workshop Ctrl</div>
+              <div style="font-size:10px;color:#94a3b8;margin-top:2px">James O.</div>
+            </button>
+
+            <!-- Service Advisor -->
+            <button type="button" onclick="fillRole('advisor@autofix.co.tz','Advisor2025!')"
+              style="border:1.5px solid #bfdbfe;border-radius:12px;padding:10px 8px;background:#fff;cursor:pointer;text-align:center;transition:all .15s"
+              onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background='#fff'">
+              <div style="width:32px;height:32px;border-radius:8px;background:#dbeafe;display:flex;align-items:center;justify-content:center;margin:0 auto 6px">
+                <i class="fas fa-concierge-bell" style="color:#2563eb;font-size:14px"></i>
+              </div>
+              <div style="font-size:11px;font-weight:700;color:#2563eb">Svc Advisor</div>
+              <div style="font-size:10px;color:#94a3b8;margin-top:2px">Amina H.</div>
+            </button>
+
+            <!-- Technician -->
+            <button type="button" onclick="fillRole('technician@autofix.co.tz','Tech2025!')"
+              style="border:1.5px solid #bbf7d0;border-radius:12px;padding:10px 8px;background:#fff;cursor:pointer;text-align:center;transition:all .15s"
+              onmouseover="this.style.background='#f0fdf4'" onmouseout="this.style.background='#fff'">
+              <div style="width:32px;height:32px;border-radius:8px;background:#dcfce7;display:flex;align-items:center;justify-content:center;margin:0 auto 6px">
+                <i class="fas fa-wrench" style="color:#16a34a;font-size:14px"></i>
+              </div>
+              <div style="font-size:11px;font-weight:700;color:#16a34a">Technician</div>
+              <div style="font-size:10px;color:#94a3b8;margin-top:2px">Juma M.</div>
+            </button>
+
+            <!-- Finance -->
+            <button type="button" onclick="fillRole('finance@autofix.co.tz','Finance2025!')"
+              style="border:1.5px solid #ddd6fe;border-radius:12px;padding:10px 8px;background:#fff;cursor:pointer;text-align:center;transition:all .15s"
+              onmouseover="this.style.background='#faf5ff'" onmouseout="this.style.background='#fff'">
+              <div style="width:32px;height:32px;border-radius:8px;background:#f5f3ff;display:flex;align-items:center;justify-content:center;margin:0 auto 6px">
+                <i class="fas fa-coins" style="color:#7c3aed;font-size:14px"></i>
+              </div>
+              <div style="font-size:11px;font-weight:700;color:#7c3aed">Finance</div>
+              <div style="font-size:10px;color:#94a3b8;margin-top:2px">Grace K.</div>
+            </button>
+
+            <!-- Quality Control -->
+            <button type="button" onclick="fillRole('qc@autofix.co.tz','QC2025!')"
+              style="border:1.5px solid #fbcfe8;border-radius:12px;padding:10px 8px;background:#fff;cursor:pointer;text-align:center;transition:all .15s"
+              onmouseover="this.style.background='#fdf2f8'" onmouseout="this.style.background='#fff'">
+              <div style="width:32px;height:32px;border-radius:8px;background:#fce7f3;display:flex;align-items:center;justify-content:center;margin:0 auto 6px">
+                <i class="fas fa-check-double" style="color:#db2777;font-size:14px"></i>
+              </div>
+              <div style="font-size:11px;font-weight:700;color:#db2777">Quality Ctrl</div>
+              <div style="font-size:10px;color:#94a3b8;margin-top:2px">David N.</div>
+            </button>
+
+          </div>
+          <p class="text-center text-xs text-gray-400 mt-3">Click any card to auto-fill · then press Sign In</p>
         </div>
       </div>
-      <button type="submit" id="loginBtn" class="btn-primary w-full justify-center py-3 text-base">
-        <i class="fas fa-sign-in-alt"></i> Sign In
-      </button>
-    </form>
-    <p class="text-center text-xs text-gray-400 mt-6">Secure access · Role-based permissions</p>
-    <div class="mt-4 p-3 rounded-xl text-center" style="background:#f8fafc;border:1px solid #e2e8f0">
-      <p class="text-xs text-gray-500 font-semibold mb-1"><i class="fas fa-info-circle mr-1 text-blue-400"></i>Default Admin Credentials</p>
-      <p class="text-xs text-gray-600">Email: <strong>admin@autofix.co.tz</strong></p>
-      <p class="text-xs text-gray-600">Password: <strong>Admin2025!</strong></p>
-      <button type="button" onclick="fillDefaultCredentials()" class="mt-2 text-xs px-3 py-1 rounded-lg text-blue-600 font-medium hover:bg-blue-50 border border-blue-200 transition-colors">
-        <i class="fas fa-magic mr-1"></i>Auto-fill credentials
-      </button>
-      <p class="text-xs text-gray-400 mt-1">Change these in Users &amp; Roles after first login</p>
-    </div>
-  </div>
-</div>
+    </div><!-- /right panel -->
+
+  </div><!-- /two-column -->
+</div><!-- /loginScreen -->
 
 <div class="flex h-screen overflow-hidden" id="appShell" style="display:none">
 
@@ -417,6 +532,9 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       </div>
       <!-- Stats Grid -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6" id="dashStats"></div>
+
+      <!-- Role Quick-Action Banner (rendered by JS based on role) -->
+      <div id="dashRoleBanner" class="mb-6" style="display:none"></div>
 
       <!-- Finance Snapshot Row -->
       <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6" id="dashFinanceCards" data-perm="finance.view">
@@ -5271,6 +5389,27 @@ function fillDefaultCredentials() {
   document.getElementById('loginEmail').focus();
 }
 
+// Fill login credentials for a demo role and visually highlight the card
+function fillRole(email, password) {
+  document.getElementById('loginEmail').value = email;
+  document.getElementById('loginPassword').value = password;
+  document.getElementById('loginError').classList.add('hidden');
+  // Brief highlight animation on all cards then reset
+  var cards = document.querySelectorAll('#demoRoleGrid button');
+  cards.forEach(function(c) { c.style.opacity = '0.5'; });
+  // Find clicked card by matching email in onclick attribute
+  cards.forEach(function(c) {
+    if (c.getAttribute('onclick') && c.getAttribute('onclick').includes(email)) {
+      c.style.opacity = '1';
+      c.style.transform = 'scale(1.04)';
+      setTimeout(function() { c.style.transform = ''; }, 300);
+    }
+  });
+  setTimeout(function() { cards.forEach(function(c) { c.style.opacity = '1'; }); }, 400);
+  // Auto-submit
+  document.getElementById('loginBtn').focus();
+}
+
 async function doLogin(e) {
   e.preventDefault();
   var email = document.getElementById('loginEmail').value;
@@ -5754,6 +5893,117 @@ async function loadDashboard() {
       navBadge.classList.remove('hidden');
     } else if (navBadge) { navBadge.classList.add('hidden'); }
   } catch(e) {}
+  // Role-specific quick-action banner
+  renderDashRoleBanner(data);
+}
+
+// ─── Role-aware Quick-Action Banner ──────────────────────────────────────────
+function renderDashRoleBanner(dashData?) {
+  const el = document.getElementById('dashRoleBanner');
+  if (!el || !currentUser) return;
+  const role = currentUser.role || '';
+  const name = currentUser.name.split(' ')[0];
+
+  // Define banner config per role
+  const ROLE_BANNER = {
+    'Admin': {
+      gradient: 'linear-gradient(135deg,#dc2626 0%,#b91c1c 100%)',
+      icon: 'fa-crown',
+      title: 'Admin Dashboard',
+      subtitle: 'Full system control — users, approvals, finance, settings',
+      actions: [
+        { label:'Pending Approvals', icon:'fa-hourglass-half', onclick:"showPage('jobcards');loadJobCards().then(()=>{document.getElementById('jobStatusFilter').value='PENDING_APPROVAL';filterJobCards();})", color:'#fff', bg:'rgba(255,255,255,.2)' },
+        { label:'Manage Users', icon:'fa-users-cog', onclick:"showPage('users')", color:'#fff', bg:'rgba(255,255,255,.2)' },
+        { label:'Finance Overview', icon:'fa-chart-bar', onclick:"showPage('finance')", color:'#fff', bg:'rgba(255,255,255,.2)' },
+        { label:'Analytics', icon:'fa-chart-pie', onclick:"showPage('analytics')", color:'#fff', bg:'rgba(255,255,255,.2)' },
+        { label:'Settings', icon:'fa-cog', onclick:"showPage('settings')", color:'#fff', bg:'rgba(255,255,255,.2)' },
+      ]
+    },
+    'Workshop Controller': {
+      gradient: 'linear-gradient(135deg,#b45309 0%,#d97706 100%)',
+      icon: 'fa-clipboard-list',
+      title: 'Workshop Controller',
+      subtitle: 'Oversee all workshop operations — approvals, assignments, parts',
+      actions: [
+        { label:'Review Approvals', icon:'fa-check-circle', onclick:"showPage('jobcards');loadJobCards().then(()=>{document.getElementById('jobStatusFilter').value='PENDING_APPROVAL';filterJobCards();})", color:'#fff', bg:'rgba(255,255,255,.2)' },
+        { label:'All Job Cards', icon:'fa-clipboard-list', onclick:"showPage('jobcards')", color:'#fff', bg:'rgba(255,255,255,.2)' },
+        { label:'Parts Catalogue', icon:'fa-boxes', onclick:"showPage('parts-catalogue')", color:'#fff', bg:'rgba(255,255,255,.2)' },
+        { label:'Analytics', icon:'fa-chart-bar', onclick:"showPage('analytics')", color:'#fff', bg:'rgba(255,255,255,.2)' },
+      ]
+    },
+    'Service Advisor': {
+      gradient: 'linear-gradient(135deg,#2563eb 0%,#1d4ed8 100%)',
+      icon: 'fa-concierge-bell',
+      title: 'Service Advisor',
+      subtitle: 'Customer intake, job creation & pre-handover checks',
+      actions: [
+        { label:'New Job Card', icon:'fa-plus-circle', onclick:"showNewJobModal()", color:'#fff', bg:'rgba(255,255,255,.2)' },
+        { label:'My Job Cards', icon:'fa-clipboard', onclick:"showPage('jobcards')", color:'#fff', bg:'rgba(255,255,255,.2)' },
+        { label:'Appointments', icon:'fa-calendar-check', onclick:"showPage('appointments')", color:'#fff', bg:'rgba(255,255,255,.2)' },
+        { label:'Customers', icon:'fa-users', onclick:"showPage('customers')", color:'#fff', bg:'rgba(255,255,255,.2)' },
+      ]
+    },
+    'Technician': {
+      gradient: 'linear-gradient(135deg,#16a34a 0%,#15803d 100%)',
+      icon: 'fa-wrench',
+      title: 'Technician',
+      subtitle: 'View assigned jobs, update progress, record parts used',
+      actions: [
+        { label:'My Assigned Jobs', icon:'fa-tools', onclick:"showPage('jobcards');loadJobCards().then(()=>{document.getElementById('jobStatusFilter').value='WORK_IN_PROGRESS';filterJobCards();})", color:'#fff', bg:'rgba(255,255,255,.2)' },
+        { label:'Inspection Queue', icon:'fa-search', onclick:"showPage('jobcards');loadJobCards().then(()=>{document.getElementById('jobStatusFilter').value='INSPECTION';filterJobCards();})", color:'#fff', bg:'rgba(255,255,255,.2)' },
+        { label:'Parts Catalogue', icon:'fa-box-open', onclick:"showPage('parts-catalogue')", color:'#fff', bg:'rgba(255,255,255,.2)' },
+      ]
+    },
+    'Finance': {
+      gradient: 'linear-gradient(135deg,#7c3aed 0%,#6d28d9 100%)',
+      icon: 'fa-coins',
+      title: 'Finance',
+      subtitle: 'Invoices, expenses, payments & financial reports',
+      actions: [
+        { label:'Finance Overview', icon:'fa-chart-bar', onclick:"showPage('finance')", color:'#fff', bg:'rgba(255,255,255,.2)' },
+        { label:'Invoices', icon:'fa-file-invoice-dollar', onclick:"showPage('invoices')", color:'#fff', bg:'rgba(255,255,255,.2)' },
+        { label:'Expenses', icon:'fa-receipt', onclick:"showPage('expenses')", color:'#fff', bg:'rgba(255,255,255,.2)' },
+        { label:'Analytics', icon:'fa-chart-pie', onclick:"showPage('analytics')", color:'#fff', bg:'rgba(255,255,255,.2)' },
+      ]
+    },
+    'Quality Control': {
+      gradient: 'linear-gradient(135deg,#db2777 0%,#be185d 100%)',
+      icon: 'fa-check-double',
+      title: 'Quality Control',
+      subtitle: 'Final inspection sign-off before vehicle release',
+      actions: [
+        { label:'QC Queue', icon:'fa-tasks', onclick:"showPage('jobcards');loadJobCards().then(()=>{document.getElementById('jobStatusFilter').value='QUALITY_CONTROL';filterJobCards();})", color:'#fff', bg:'rgba(255,255,255,.2)' },
+        { label:'Finished Jobs', icon:'fa-flag-checkered', onclick:"showPage('jobcards');loadJobCards().then(()=>{document.getElementById('jobStatusFilter').value='FINISHED';filterJobCards();})", color:'#fff', bg:'rgba(255,255,255,.2)' },
+        { label:'All Job Cards', icon:'fa-clipboard-list', onclick:"showPage('jobcards')", color:'#fff', bg:'rgba(255,255,255,.2)' },
+      ]
+    },
+  };
+
+  const cfg = ROLE_BANNER[role];
+  if (!cfg) { el.style.display = 'none'; return; }
+
+  el.style.display = '';
+  el.innerHTML = \`
+    <div style="background:\${cfg.gradient};border-radius:16px;padding:20px 24px;color:#fff;display:flex;flex-wrap:wrap;align-items:center;gap:16px">
+      <div style="flex:1;min-width:200px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+          <div style="width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <i class="fas \${cfg.icon}" style="font-size:16px"></i>
+          </div>
+          <div>
+            <div style="font-weight:700;font-size:.95rem">Good day, \${name} &nbsp;<span style="font-size:.7rem;font-weight:600;opacity:.7;background:rgba(255,255,255,.15);padding:2px 8px;border-radius:999px">\${cfg.title}</span></div>
+            <div style="font-size:.78rem;opacity:.8;margin-top:2px">\${cfg.subtitle}</div>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        \${cfg.actions.map(function(a) {
+          return '<button type="button" onclick="' + a.onclick + '" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:10px;border:none;cursor:pointer;font-size:.8rem;font-weight:600;color:' + a.color + ';background:' + a.bg + ';transition:all .15s;white-space:nowrap" onmouseover="this.style.background=\'rgba(255,255,255,.3)\'" onmouseout="this.style.background=\'' + a.bg + '\'">'
+            + '<i class="fas ' + a.icon + '" style="font-size:13px"></i>' + a.label + '</button>';
+        }).join('')}
+      </div>
+    </div>
+  \`;
 }
 
 async function _loadDashSubWidget() {
