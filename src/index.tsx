@@ -357,6 +357,17 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
               <div style="font-size:10px;color:#94a3b8;margin-top:2px">David N.</div>
             </button>
 
+            <!-- Sales Rep -->
+            <button type="button" onclick="fillRole('sales@autofix.co.tz','Sales2025!')"
+              style="border:1.5px solid #d1fae5;border-radius:12px;padding:10px 8px;background:#fff;cursor:pointer;text-align:center;transition:all .15s"
+              onmouseover="this.style.background='#ecfdf5'" onmouseout="this.style.background='#fff'">
+              <div style="width:32px;height:32px;border-radius:8px;background:#d1fae5;display:flex;align-items:center;justify-content:center;margin:0 auto 6px">
+                <i class="fas fa-handshake" style="color:#059669;font-size:14px"></i>
+              </div>
+              <div style="font-size:11px;font-weight:700;color:#059669">Sales Rep</div>
+              <div style="font-size:10px;color:#94a3b8;margin-top:2px">Omar S.</div>
+            </button>
+
           </div>
           <p class="text-center text-xs text-gray-400 mt-3">Click any card to auto-fill · then press Sign In</p>
         </div>
@@ -439,6 +450,22 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
     <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('subscriptions')" data-perm="packages.view">
       <i class="fas fa-sync-alt w-5 text-center"></i> Subscriptions
     </a>
+
+    <!-- ── Sales Section (Sales role + Admin/WC) ── -->
+    <div class="px-3 mt-3 mb-1" data-perm="sales.view_own" id="salesNavDivider">
+      <div style="height:1px;background:rgba(255,255,255,.15)"></div>
+      <span style="font-size:9px;font-weight:700;letter-spacing:.08em;color:rgba(255,255,255,.4);text-transform:uppercase;display:block;margin-top:6px">Sales</span>
+    </div>
+    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('sales-dashboard')" data-perm="sales.view_own">
+      <i class="fas fa-chart-line w-5 text-center"></i> My Sales Dashboard
+    </a>
+    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('sales-new-sale')" data-perm="sales.sell_package">
+      <i class="fas fa-plus-circle w-5 text-center"></i> New Sale
+    </a>
+    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('sales-commission')" data-perm="sales.view_commission">
+      <i class="fas fa-percentage w-5 text-center"></i> My Commission
+    </a>
+
     <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('analytics')" data-perm="analytics.view">
       <i class="fas fa-chart-bar w-5 text-center"></i> Analytics
     </a>
@@ -1214,6 +1241,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         <button id="analyticsTab-performance" class="analytics-tab-btn px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap" onclick="switchAnalyticsTab('performance')"><i class="fas fa-stopwatch mr-1.5"></i>Performance & TAT</button>
         <button id="analyticsTab-finance" class="analytics-tab-btn px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap" onclick="switchAnalyticsTab('finance')"><i class="fas fa-file-invoice-dollar mr-1.5"></i>Finance Report</button>
         <button id="analyticsTab-margin" class="analytics-tab-btn px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap" onclick="switchAnalyticsTab('margin')"><i class="fas fa-percentage mr-1.5"></i>Margin by Service</button>
+        <button id="analyticsTab-sales" class="analytics-tab-btn px-4 py-2 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 whitespace-nowrap" data-perm="analytics.view" onclick="switchAnalyticsTab('sales')"><i class="fas fa-handshake mr-1.5"></i>Sales Performance</button>
       </div>
 
       <!-- Overview Tab -->
@@ -1362,6 +1390,48 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
           <div class="card p-5">
             <h3 class="font-bold text-gray-800 mb-4">Service Category Breakdown</h3>
             <div id="marginBySvcTable" class="space-y-3"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sales Performance Tab -->
+      <div id="analyticsPane-sales" class="hidden">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-5">
+          <div>
+            <h3 class="font-bold text-gray-800">Sales Rep Performance Leaderboard</h3>
+            <p class="text-xs text-gray-500 mt-0.5">Revenue, targets and commissions by rep</p>
+          </div>
+          <div class="flex gap-2">
+            <select class="form-input text-sm" id="salesAnalyticsPeriod" onchange="refreshSalesAnalyticsTab()">
+              <option value="monthly">Monthly</option>
+              <option value="quarterly">Quarterly</option>
+              <option value="annual">Annual</option>
+            </select>
+            <select class="form-input text-sm" id="salesAnalyticsPeriodKey">
+              <!-- Filled by JS -->
+            </select>
+            <button class="btn-secondary text-sm" onclick="refreshSalesAnalyticsTab()"><i class="fas fa-sync-alt mr-1"></i>Refresh</button>
+            <button class="btn-primary text-sm" onclick="showSetTargetModal()"><i class="fas fa-bullseye mr-1"></i>Set Target</button>
+          </div>
+        </div>
+        <div class="card overflow-hidden">
+          <div class="table-scroll">
+            <table class="w-full text-sm" style="min-width:650px">
+              <thead>
+                <tr class="border-b border-gray-100 bg-gray-50">
+                  <th class="text-left px-4 py-3 font-semibold text-gray-600">#</th>
+                  <th class="text-left px-4 py-3 font-semibold text-gray-600">Rep</th>
+                  <th class="text-right px-4 py-3 font-semibold text-gray-600">Revenue</th>
+                  <th class="text-right px-4 py-3 font-semibold text-gray-600">Target</th>
+                  <th class="text-left px-4 py-3 font-semibold text-gray-600">Progress</th>
+                  <th class="text-right px-4 py-3 font-semibold text-gray-600">Commission</th>
+                  <th class="text-right px-4 py-3 font-semibold text-gray-600">Sales</th>
+                </tr>
+              </thead>
+              <tbody id="salesAnalyticsLeaderboard">
+                <tr><td colspan="7" class="text-center py-8 text-gray-400">Loading…</td></tr>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -2349,6 +2419,240 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
               Next <i class="fas fa-chevron-right"></i>
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <!-- SALES DASHBOARD PAGE                                                  -->
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <div id="page-sales-dashboard" class="page">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-900" id="salesDashTitle">Sales Dashboard</h2>
+          <p class="text-gray-500 text-sm mt-1" id="salesDashSubtitle">Your personal performance overview</p>
+        </div>
+        <div class="flex gap-2">
+          <button class="btn-secondary text-sm" onclick="showPage('sales-new-sale')"><i class="fas fa-plus mr-1"></i>New Sale</button>
+          <button class="btn-primary text-sm" onclick="loadSalesDashboard()"><i class="fas fa-sync-alt mr-1"></i>Refresh</button>
+        </div>
+      </div>
+
+      <!-- KPI Cards -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6" id="salesKpiCards">
+        <div class="card p-4 text-center"><div class="text-xs text-gray-500 mb-1">This Month Revenue</div><div class="text-xl font-bold text-blue-700" id="salesKpi_monthRevenue">—</div></div>
+        <div class="card p-4 text-center"><div class="text-xs text-gray-500 mb-1">Commission Earned</div><div class="text-xl font-bold text-green-600" id="salesKpi_monthComm">—</div></div>
+        <div class="card p-4 text-center"><div class="text-xs text-gray-500 mb-1">Total Jobs</div><div class="text-xl font-bold text-gray-800" id="salesKpi_totalJobs">—</div></div>
+        <div class="card p-4 text-center"><div class="text-xs text-gray-500 mb-1">Paid Jobs</div><div class="text-xl font-bold text-purple-700" id="salesKpi_paidJobs">—</div></div>
+      </div>
+
+      <!-- Targets Row -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6" id="salesTargetCards">
+        <!-- filled by JS -->
+        <div class="card p-4"><div class="text-xs text-gray-500 mb-2 font-semibold uppercase tracking-wide">Monthly Target</div><div id="salesTarget_monthly" class="text-gray-400 text-sm">No target set</div></div>
+        <div class="card p-4"><div class="text-xs text-gray-500 mb-2 font-semibold uppercase tracking-wide">Quarterly Target</div><div id="salesTarget_quarterly" class="text-gray-400 text-sm">No target set</div></div>
+        <div class="card p-4"><div class="text-xs text-gray-500 mb-2 font-semibold uppercase tracking-wide">Annual Target</div><div id="salesTarget_annual" class="text-gray-400 text-sm">No target set</div></div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <!-- Recent Jobs -->
+        <div class="card overflow-hidden">
+          <div class="p-4 border-b border-gray-100 flex items-center justify-between">
+            <h3 class="font-semibold text-gray-800">My Recent Jobs</h3>
+            <button class="text-xs text-brand-600 font-semibold hover:underline" onclick="showPage('jobcards')">View All →</button>
+          </div>
+          <div id="salesRecentJobs" class="divide-y divide-gray-50 text-sm">
+            <div class="p-4 text-gray-400 text-center">Loading…</div>
+          </div>
+        </div>
+
+        <!-- Recent Commissions -->
+        <div class="card overflow-hidden">
+          <div class="p-4 border-b border-gray-100 flex items-center justify-between">
+            <h3 class="font-semibold text-gray-800">Recent Commissions</h3>
+            <button class="text-xs text-brand-600 font-semibold hover:underline" onclick="showPage('sales-commission')">View All →</button>
+          </div>
+          <div id="salesRecentComms" class="divide-y divide-gray-50 text-sm">
+            <div class="p-4 text-gray-400 text-center">Loading…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin/WC Leaderboard (hidden for Sales reps) -->
+      <div id="salesLeaderboardSection" class="mt-6 hidden">
+        <h3 class="text-lg font-bold text-gray-800 mb-4">Sales Leaderboard — This Month</h3>
+        <div class="card overflow-hidden">
+          <div class="table-scroll">
+            <table class="w-full text-sm" style="min-width:600px">
+              <thead>
+                <tr class="border-b border-gray-100 bg-gray-50">
+                  <th class="text-left px-4 py-3 font-semibold text-gray-600">#</th>
+                  <th class="text-left px-4 py-3 font-semibold text-gray-600">Rep</th>
+                  <th class="text-right px-4 py-3 font-semibold text-gray-600">Revenue</th>
+                  <th class="text-right px-4 py-3 font-semibold text-gray-600">Target</th>
+                  <th class="text-left px-4 py-3 font-semibold text-gray-600">Progress</th>
+                  <th class="text-right px-4 py-3 font-semibold text-gray-600">Commission</th>
+                  <th class="text-right px-4 py-3 font-semibold text-gray-600">Jobs</th>
+                </tr>
+              </thead>
+              <tbody id="salesLeaderboardTable">
+                <tr><td colspan="7" class="text-center py-8 text-gray-400">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="mt-4 flex justify-end">
+          <button class="btn-primary text-sm" onclick="showSetTargetModal()"><i class="fas fa-bullseye mr-1"></i>Set Targets</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <!-- NEW SALE PAGE                                                          -->
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <div id="page-sales-new-sale" class="page">
+      <div class="flex items-center gap-3 mb-6">
+        <button class="btn-secondary text-sm" onclick="history.back()"><i class="fas fa-arrow-left mr-1"></i>Back</button>
+        <div>
+          <h2 class="text-2xl font-bold text-gray-900">New Sale</h2>
+          <p class="text-gray-500 text-sm mt-1">Create a customer sale — a job card will be auto-created for approval</p>
+        </div>
+      </div>
+
+      <div class="max-w-2xl mx-auto">
+        <div class="card p-6">
+          <form id="newSaleForm" onsubmit="submitNewSale(event)">
+
+            <!-- Step 1: Customer -->
+            <div class="mb-5">
+              <label class="form-label font-semibold">Customer <span class="text-red-500">*</span></label>
+              <div class="relative" id="saleCustPickerWrap">
+                <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none"></i>
+                <input type="text" id="sale-customer-search" class="form-input pl-9 pr-8"
+                  placeholder="Search by name or phone…" autocomplete="off"
+                  oninput="saleCustSearch(this.value)" onfocus="saleCustSearch(this.value)"
+                  onblur="setTimeout(()=>saleCustHideList(),180)"/>
+                <button type="button" id="sale-customer-clear" class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 hidden" onclick="saleCustClear()">
+                  <i class="fas fa-times-circle"></i>
+                </button>
+                <input type="hidden" id="sale-customerId"/>
+                <ul id="sale-customer-list" class="absolute z-50 left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-48 overflow-y-auto hidden"></ul>
+              </div>
+              <div class="mt-2">
+                <button type="button" class="text-xs text-brand-600 hover:underline font-semibold" onclick="showNewCustomerModal()">
+                  <i class="fas fa-plus mr-1"></i>Add New Customer
+                </button>
+              </div>
+            </div>
+
+            <!-- Step 2: Vehicle -->
+            <div class="mb-5">
+              <label class="form-label font-semibold">Vehicle <span class="text-red-500">*</span></label>
+              <select class="form-input" id="sale-vehicleId" required>
+                <option value="">Select customer first…</option>
+              </select>
+              <div class="mt-2" id="addVehicleLinkWrap" style="display:none">
+                <button type="button" class="text-xs text-brand-600 hover:underline font-semibold" onclick="showAddVehicleModal()">
+                  <i class="fas fa-car mr-1"></i>Add New Vehicle
+                </button>
+              </div>
+            </div>
+
+            <!-- Step 3: Product Type -->
+            <div class="mb-5">
+              <label class="form-label font-semibold">Product Type <span class="text-red-500">*</span></label>
+              <div class="grid grid-cols-3 gap-3">
+                <label class="cursor-pointer">
+                  <input type="radio" name="saleProductType" value="service_package" class="hidden peer" onchange="loadSaleProducts('service_package')"/>
+                  <div class="border-2 border-gray-200 rounded-xl p-3 text-center peer-checked:border-brand-500 peer-checked:bg-brand-50 transition-all">
+                    <i class="fas fa-tools text-brand-600 text-lg mb-1 block"></i>
+                    <div class="text-xs font-semibold text-gray-700">Service Package</div>
+                  </div>
+                </label>
+                <label class="cursor-pointer">
+                  <input type="radio" name="saleProductType" value="carwash" class="hidden peer" onchange="loadSaleProducts('carwash')"/>
+                  <div class="border-2 border-gray-200 rounded-xl p-3 text-center peer-checked:border-brand-500 peer-checked:bg-brand-50 transition-all">
+                    <i class="fas fa-car-side text-brand-600 text-lg mb-1 block"></i>
+                    <div class="text-xs font-semibold text-gray-700">Car Wash</div>
+                  </div>
+                </label>
+                <label class="cursor-pointer">
+                  <input type="radio" name="saleProductType" value="subscription" class="hidden peer" onchange="loadSaleProducts('subscription')"/>
+                  <div class="border-2 border-gray-200 rounded-xl p-3 text-center peer-checked:border-brand-500 peer-checked:bg-brand-50 transition-all">
+                    <i class="fas fa-sync-alt text-brand-600 text-lg mb-1 block"></i>
+                    <div class="text-xs font-semibold text-gray-700">Subscription</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- Step 4: Product -->
+            <div class="mb-5" id="saleProductWrap" style="display:none">
+              <label class="form-label font-semibold">Select Product <span class="text-red-500">*</span></label>
+              <select class="form-input" id="sale-productId" required>
+                <option value="">Choose product…</option>
+              </select>
+              <div class="mt-2" id="saleProductDetail" class="hidden"></div>
+            </div>
+
+            <!-- Notes -->
+            <div class="mb-6">
+              <label class="form-label">Notes / Special Instructions</label>
+              <textarea class="form-input" id="sale-notes" rows="3" placeholder="Any special requests or notes for this sale…"></textarea>
+            </div>
+
+            <div class="flex gap-3">
+              <button type="submit" class="btn-primary flex-1"><i class="fas fa-paper-plane mr-2"></i>Submit Sale</button>
+              <button type="button" class="btn-secondary" onclick="resetNewSaleForm()"><i class="fas fa-times mr-1"></i>Reset</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <!-- MY COMMISSION PAGE                                                     -->
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <div id="page-sales-commission" class="page">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-900">My Commission</h2>
+          <p class="text-gray-500 text-sm mt-1">Track your earnings and commission history</p>
+        </div>
+        <div class="flex gap-2">
+          <select class="form-input text-sm" id="commPeriodFilter" onchange="loadMyCommission()">
+            <!-- Filled by JS -->
+          </select>
+          <button class="btn-secondary text-sm" onclick="loadMyCommission()"><i class="fas fa-sync-alt mr-1"></i>Refresh</button>
+        </div>
+      </div>
+
+      <!-- Summary Cards -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+        <div class="card p-4 text-center"><div class="text-xs text-gray-500 mb-1">Period Revenue</div><div class="text-xl font-bold text-blue-700" id="commKpi_revenue">—</div></div>
+        <div class="card p-4 text-center"><div class="text-xs text-gray-500 mb-1">Commission Earned</div><div class="text-xl font-bold text-green-600" id="commKpi_earned">—</div></div>
+        <div class="card p-4 text-center"><div class="text-xs text-gray-500 mb-1">Sales Count</div><div class="text-xl font-bold text-gray-800" id="commKpi_count">—</div></div>
+        <div class="card p-4 text-center"><div class="text-xs text-gray-500 mb-1">Avg Commission Rate</div><div class="text-xl font-bold text-purple-700" id="commKpi_avgRate">—</div></div>
+      </div>
+
+      <!-- Commission Table -->
+      <div class="card overflow-hidden">
+        <div class="table-scroll">
+          <table class="w-full text-sm" style="min-width:700px">
+            <thead>
+              <tr class="border-b border-gray-100 bg-gray-50">
+                <th class="text-left px-4 py-3 font-semibold text-gray-600">Date</th>
+                <th class="text-left px-4 py-3 font-semibold text-gray-600">Job Card</th>
+                <th class="text-left px-4 py-3 font-semibold text-gray-600">Customer</th>
+                <th class="text-right px-4 py-3 font-semibold text-gray-600">Sale Amount</th>
+                <th class="text-right px-4 py-3 font-semibold text-gray-600">Rate</th>
+                <th class="text-right px-4 py-3 font-semibold text-gray-600">Commission</th>
+              </tr>
+            </thead>
+            <tbody id="commissionTable">
+              <tr><td colspan="6" class="text-center py-10 text-gray-400">Loading…</td></tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -5819,6 +6123,9 @@ function showPage(page) {
   if (page === 'dispatch-log') loadDispatchLog();
   if (page === 'settings') loadGarageSettings();
   if (page === 'audit-log') { loadAuditLog(); populateAuditUserFilter(); }
+  if (page === 'sales-dashboard') loadSalesDashboard();
+  if (page === 'sales-commission') loadMyCommission();
+  if (page === 'sales-new-sale') initNewSaleForm();
   window.scrollTo(0, 0);
 }
 
@@ -6161,6 +6468,7 @@ function renderJobCards(jobs) {
           \${statusBadge(j.status)}
           \${j.reopenCount ? '<span class="text-xs font-semibold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded whitespace-nowrap"><i class="fas fa-folder-open mr-0.5"></i>Reopened</span>' : ''}
           \${j.nextServiceMileage ? '<span class="text-xs font-semibold bg-green-100 text-green-700 px-1.5 py-0.5 rounded whitespace-nowrap" title="Next service at ' + j.nextServiceMileage.toLocaleString() + ' km"><i class="fas fa-bell mr-0.5"></i>Next Svc: ' + j.nextServiceMileage.toLocaleString() + ' km</span>' : ''}
+          \${j.salesRepName ? '<span class="text-xs font-semibold bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded whitespace-nowrap"><i class="fas fa-handshake mr-0.5"></i>' + j.salesRepName + '</span>' : ''}
         </div>
       </td>
       <td class="px-4 py-3 text-xs text-gray-500">\${fmtDate(j.updatedAt)}</td>
@@ -6397,6 +6705,7 @@ async function viewJobDetail(id) {
         </span>
         \${j.assignedTechnicianName ? \`<span style="color:#94a3b8;font-size:12px;padding:4px 14px;border-right:1px solid #1e293b;display:flex;align-items:center;gap:6px;"><i class="fas fa-user-hard-hat" style="color:#475569;font-size:10px;"></i>\${j.assignedTechnicianName}</span>\` : ''}
         \${j.category ? \`<span style="color:#94a3b8;font-size:12px;padding:4px 14px;border-right:1px solid #1e293b;display:flex;align-items:center;gap:6px;"><i class="fas fa-tag" style="color:#475569;font-size:10px;"></i>\${j.category}</span>\` : ''}
+        \${j.salesRepName ? \`<span style="color:#6ee7b7;font-size:12px;padding:4px 14px;border-right:1px solid #1e293b;display:flex;align-items:center;gap:6px;"><i class="fas fa-handshake" style="color:#34d399;font-size:10px;"></i>\${j.salesRepName}</span>\` : ''}
         <span style="color:#64748b;font-size:12px;padding:4px 14px;display:flex;align-items:center;gap:6px;">
           <i class="fas fa-calendar" style="color:#475569;font-size:10px;"></i>\${fmtDate(j.createdAt)}
         </span>
@@ -10229,6 +10538,7 @@ function renderCustomers(list) {
           <div class="flex items-center flex-wrap gap-1 mb-0.5">
             <h3 class="font-bold text-gray-900 text-sm leading-tight">\${c.name}</h3>
             \${typeBadge}
+            \${c.salesRepName ? \`<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700"><i class="fas fa-handshake text-xs"></i> \${c.salesRepName}</span>\` : ''}
           </div>
           \${isCorp && c.contactPerson ? \`<p class="text-xs text-gray-500"><i class="fas fa-user-tie text-xs mr-1 text-purple-400"></i>\${c.contactPerson}</p>\` : ''}
           <p class="text-xs text-gray-500"><i class="fas fa-phone text-xs mr-1 text-gray-400"></i>\${c.phone}</p>
@@ -14510,7 +14820,7 @@ function switchAnalyticsTab(tab) {
     activeBtn.classList.add('border-blue-600','text-blue-700');
   }
   // Show/hide panes
-  ['overview','performance','finance','margin'].forEach(function(p) {
+  ['overview','performance','finance','margin','sales'].forEach(function(p) {
     var el = document.getElementById('analyticsPane-' + p);
     if (el) el.classList.toggle('hidden', p !== tab);
   });
@@ -14518,6 +14828,55 @@ function switchAnalyticsTab(tab) {
   if (tab === 'performance') loadTATAnalytics();
   if (tab === 'finance') loadFinanceReport();
   if (tab === 'margin') loadMarginByService();
+  if (tab === 'sales') initSalesAnalyticsTab();
+}
+
+function initSalesAnalyticsTab() {
+  // Populate period key dropdown based on selected period type
+  var periodSel = document.getElementById('salesAnalyticsPeriod');
+  var keySel = document.getElementById('salesAnalyticsPeriodKey');
+  if (!periodSel || !keySel) return;
+  var period = periodSel.value || 'monthly';
+  populateSalesPeriodKeys(period, keySel);
+  refreshSalesAnalyticsTab();
+}
+
+function populateSalesPeriodKeys(period, keySel) {
+  var now = new Date();
+  var opts = [];
+  if (period === 'monthly') {
+    for (var i = 0; i < 6; i++) {
+      var d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      var key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+      var label = d.toLocaleString('default',{month:'long',year:'numeric'});
+      opts.push('<option value="' + key + '">' + label + '</option>');
+    }
+  } else if (period === 'quarterly') {
+    for (var i = 0; i < 4; i++) {
+      var d2 = new Date(now.getFullYear(), now.getMonth() - i*3, 1);
+      var qtr = 'Q' + Math.ceil((d2.getMonth()+1)/3);
+      var key2 = d2.getFullYear() + '-' + qtr;
+      opts.push('<option value="' + key2 + '">' + key2 + '</option>');
+    }
+  } else {
+    for (var i = 0; i < 3; i++) {
+      var y = now.getFullYear() - i;
+      opts.push('<option value="' + y + '">' + y + '</option>');
+    }
+  }
+  keySel.innerHTML = opts.join('');
+}
+
+async function refreshSalesAnalyticsTab() {
+  var periodSel = document.getElementById('salesAnalyticsPeriod');
+  var keySel = document.getElementById('salesAnalyticsPeriodKey');
+  if (!periodSel || !keySel) return;
+  var period = periodSel.value || 'monthly';
+  // Refresh period key options when period type changes
+  populateSalesPeriodKeys(period, keySel);
+  var periodKey = keySel.value;
+  if (!periodKey) return;
+  await loadSalesAnalyticsTab(period, periodKey);
 }
 
 async function loadTATAnalytics() {
@@ -19615,6 +19974,457 @@ async function submitStockAdjust() {
     showToast('Stock adjusted: ' + (adj > 0 ? '+' : '') + adj + ' units (now ' + r.data.stockQuantity + ')', 'success');
     if (_saLubId) loadLubricants(); else loadPartsCatalogue();
   } catch(e) { showToast('Failed to adjust stock', 'error'); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SALES MODULE
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+function fmtTZS(n) { return 'TZS ' + (n || 0).toLocaleString(); }
+
+function buildTargetBar(revenue, target) {
+  if (!target) return '<span class="text-gray-400 text-xs">No target set</span>';
+  const pct = Math.min(100, Math.round(revenue / target * 100));
+  const color = pct >= 100 ? '#16a34a' : pct >= 60 ? '#d97706' : '#dc2626';
+  return \`<div class="flex items-center gap-2">
+    <div style="flex:1;height:6px;background:#e5e7eb;border-radius:9999px;overflow:hidden">
+      <div style="width:\${pct}%;height:100%;background:\${color};border-radius:9999px;transition:width .4s"></div>
+    </div>
+    <span class="text-xs font-semibold" style="color:\${color}">\${pct}%</span>
+  </div>
+  <div class="text-xs text-gray-400 mt-1">\${fmtTZS(revenue)} of \${fmtTZS(target)}</div>\`;
+}
+
+// ── Sales Dashboard ───────────────────────────────────────────────────────────
+async function loadSalesDashboard() {
+  try {
+    const { data } = await axios.get('/api/sales/dashboard');
+    const isSalesRep = currentUser && currentUser.role === 'Sales';
+
+    if (isSalesRep) {
+      const s = data.stats;
+      document.getElementById('salesDashTitle').textContent = 'My Sales Dashboard';
+      document.getElementById('salesDashSubtitle').textContent = 'Welcome, ' + (currentUser.name || 'Sales Rep');
+      document.getElementById('salesKpi_monthRevenue').textContent = fmtTZS(s.monthRevenue);
+      document.getElementById('salesKpi_monthComm').textContent = fmtTZS(s.monthCommEarned);
+      document.getElementById('salesKpi_totalJobs').textContent = s.totalJobs;
+      document.getElementById('salesKpi_paidJobs').textContent = s.paidJobs;
+
+      // Targets
+      const periods = ['monthly','quarterly','annual'];
+      periods.forEach(p => {
+        const t = data.targets[p];
+        const el = document.getElementById('salesTarget_' + p);
+        if (!el) return;
+        if (!t) { el.innerHTML = '<span class="text-gray-400 text-sm">No target set</span>'; return; }
+        const rev = p === 'monthly' ? s.monthRevenue : s.totalRevenue;
+        el.innerHTML = buildTargetBar(rev, t.targetAmount) +
+          \`<div class="text-xs text-gray-500 mt-1">Commission rate: <b>\${t.commissionRate}%</b></div>\`;
+      });
+
+      // Recent Jobs
+      const jobsEl = document.getElementById('salesRecentJobs');
+      if (!data.recentJobs || !data.recentJobs.length) {
+        jobsEl.innerHTML = '<div class="p-4 text-center text-gray-400">No jobs yet. <a class="text-brand-600 font-semibold cursor-pointer" onclick="showPage(&apos;sales-new-sale&apos;)">Create your first sale →</a></div>';
+      } else {
+        jobsEl.innerHTML = data.recentJobs.map(j => {
+          const statusColors = { PENDING_APPROVAL:'bg-yellow-100 text-yellow-700', WORK_IN_PROGRESS:'bg-blue-100 text-blue-700', PAID:'bg-green-100 text-green-700', CLOSED:'bg-gray-100 text-gray-600' };
+          const sc = statusColors[j.status] || 'bg-gray-100 text-gray-600';
+          return \`<div class="p-3 flex items-center justify-between hover:bg-gray-50 cursor-pointer" onclick="viewJobDetail('\${j.id}')">
+            <div>
+              <div class="font-semibold text-gray-800 text-sm">\${j.jobCardNumber}</div>
+              <div class="text-xs text-gray-500">\${j.customerName}</div>
+            </div>
+            <span class="text-xs font-semibold px-2 py-0.5 rounded-full \${sc}">\${j.status.replace('_',' ')}</span>
+          </div>\`;
+        }).join('');
+      }
+
+      // Recent Commissions
+      const commEl = document.getElementById('salesRecentComms');
+      if (!data.recentCommissions || !data.recentCommissions.length) {
+        commEl.innerHTML = '<div class="p-4 text-center text-gray-400">No commissions recorded yet.</div>';
+      } else {
+        commEl.innerHTML = data.recentCommissions.map(sc =>
+          \`<div class="p-3 flex items-center justify-between hover:bg-gray-50">
+            <div>
+              <div class="font-semibold text-gray-800 text-sm">\${sc.jobCardNumber}</div>
+              <div class="text-xs text-gray-500">\${sc.customerName} · \${sc.periodKey}</div>
+            </div>
+            <div class="text-right">
+              <div class="text-sm font-bold text-green-600">\${fmtTZS(sc.commissionEarned)}</div>
+              <div class="text-xs text-gray-400">\${sc.commissionRate}% of \${fmtTZS(sc.saleAmount)}</div>
+            </div>
+          </div>\`
+        ).join('');
+      }
+
+      document.getElementById('salesLeaderboardSection').classList.add('hidden');
+
+    } else {
+      // Admin / Workshop Controller view
+      document.getElementById('salesDashTitle').textContent = 'Sales Performance';
+      document.getElementById('salesDashSubtitle').textContent = 'Team leaderboard and performance for ' + data.monthKey;
+
+      // Hide personal KPI section for admin
+      document.getElementById('salesKpiCards').style.display = 'none';
+      document.getElementById('salesTargetCards').style.display = 'none';
+
+      // Show leaderboard
+      const section = document.getElementById('salesLeaderboardSection');
+      section.classList.remove('hidden');
+
+      const tbody = document.getElementById('salesLeaderboardTable');
+      if (!data.leaderboard || !data.leaderboard.length) {
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-400">No Sales reps found.</td></tr>';
+      } else {
+        const medals = ['🥇','🥈','🥉'];
+        tbody.innerHTML = data.leaderboard.map((rep, i) =>
+          \`<tr class="border-b border-gray-50 hover:bg-gray-50">
+            <td class="px-4 py-3 text-sm font-bold">\${medals[i] || (i+1)}</td>
+            <td class="px-4 py-3">
+              <div class="font-semibold text-gray-800 text-sm">\${rep.repName}</div>
+              <div class="text-xs text-gray-400">\${rep.email}</div>
+            </td>
+            <td class="px-4 py-3 text-right font-semibold text-blue-700 text-sm">\${fmtTZS(rep.monthRevenue)}</td>
+            <td class="px-4 py-3 text-right text-sm text-gray-500">\${fmtTZS(rep.monthTarget)}</td>
+            <td class="px-4 py-3" style="min-width:120px">\${buildTargetBar(rep.monthRevenue, rep.monthTarget || null)}</td>
+            <td class="px-4 py-3 text-right font-semibold text-green-600 text-sm">\${fmtTZS(rep.totalCommission)}</td>
+            <td class="px-4 py-3 text-right text-sm text-gray-700">\${rep.totalJobs}</td>
+          </tr>\`
+        ).join('');
+      }
+
+      // Also fill "recent jobs" section with team summary
+      const jobsEl = document.getElementById('salesRecentJobs');
+      jobsEl.innerHTML = '<div class="p-4 text-gray-500 text-sm text-center">Use the leaderboard below to review individual rep performance.</div>';
+      const commEl = document.getElementById('salesRecentComms');
+      commEl.innerHTML = '<div class="p-4 text-gray-500 text-sm text-center">Commission details are available via the leaderboard.</div>';
+    }
+  } catch(e) {
+    console.error('loadSalesDashboard error', e);
+    showToast('Failed to load Sales Dashboard', 'error');
+  }
+}
+
+// ── Set Target Modal ──────────────────────────────────────────────────────────
+async function showSetTargetModal() {
+  // Build a simple inline modal
+  const salesReps = await axios.get('/api/users').then(r => r.data.filter(u => u.role === 'Sales')).catch(() => []);
+  if (!salesReps.length) { showToast('No Sales reps found', 'error'); return; }
+
+  // Get current month/quarter/year keys
+  const now = new Date();
+  const m = String(now.getMonth()+1).padStart(2,'0');
+  const monthKey = now.getFullYear() + '-' + m;
+  const qtr = 'Q' + Math.ceil((now.getMonth()+1)/3);
+  const quarterKey = now.getFullYear() + '-' + qtr;
+  const yearKey = String(now.getFullYear());
+
+  const repOptions = salesReps.map(r => \`<option value="\${r.id}">\${r.name}</option>\`).join('');
+
+  const modal = document.createElement('div');
+  modal.className = 'modal-overlay';
+  modal.id = 'modal-setTarget';
+  modal.innerHTML = \`
+    <div class="modal-box max-w-md">
+      <div class="flex items-center justify-between mb-5">
+        <div><h3 class="text-xl font-bold text-gray-900">Set Sales Target</h3>
+          <p class="text-sm text-gray-500">Assign revenue target & commission rate to a rep</p></div>
+        <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="document.getElementById('modal-setTarget').remove()"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="space-y-4">
+        <div>
+          <label class="form-label">Sales Rep</label>
+          <select class="form-input" id="st-repId">\${repOptions}</select>
+        </div>
+        <div>
+          <label class="form-label">Period Type</label>
+          <select class="form-input" id="st-period" onchange="stUpdatePeriodKey()">
+            <option value="monthly">Monthly</option>
+            <option value="quarterly">Quarterly</option>
+            <option value="annual">Annual</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Period Key</label>
+          <input class="form-input" id="st-periodKey" value="\${monthKey}" placeholder="e.g. 2026-04"/>
+          <p class="text-xs text-gray-400 mt-1">Monthly: YYYY-MM · Quarterly: YYYY-Q2 · Annual: YYYY</p>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="form-label">Target Amount (TZS)</label>
+            <input class="form-input" id="st-target" type="number" min="0" placeholder="e.g. 5000000"/>
+          </div>
+          <div>
+            <label class="form-label">Commission Rate (%)</label>
+            <input class="form-input" id="st-rate" type="number" min="0" max="100" step="0.5" placeholder="e.g. 5" value="5"/>
+          </div>
+        </div>
+      </div>
+      <div class="flex gap-3 mt-6">
+        <button class="btn-primary flex-1" onclick="submitSetTarget()"><i class="fas fa-save mr-1"></i>Save Target</button>
+        <button class="btn-secondary" onclick="document.getElementById('modal-setTarget').remove()">Cancel</button>
+      </div>
+    </div>\`;
+  document.body.appendChild(modal);
+
+  // Store period keys for the onchange handler
+  window._stPeriodKeys = { monthly: monthKey, quarterly: quarterKey, annual: yearKey };
+}
+
+function stUpdatePeriodKey() {
+  const period = document.getElementById('st-period').value;
+  const keyEl = document.getElementById('st-periodKey');
+  if (keyEl && window._stPeriodKeys) keyEl.value = window._stPeriodKeys[period] || '';
+}
+
+async function submitSetTarget() {
+  const repId = document.getElementById('st-repId').value;
+  const period = document.getElementById('st-period').value;
+  const periodKey = document.getElementById('st-periodKey').value.trim();
+  const targetAmount = parseFloat(document.getElementById('st-target').value) || 0;
+  const commissionRate = parseFloat(document.getElementById('st-rate').value) || 5;
+
+  if (!repId || !period || !periodKey || !targetAmount) {
+    showToast('Please fill all fields', 'error'); return;
+  }
+  try {
+    await axios.post('/api/sales/targets', { salesRepId: repId, period, periodKey, targetAmount, commissionRate });
+    document.getElementById('modal-setTarget').remove();
+    showToast('Target saved successfully', 'success');
+    loadSalesDashboard();
+  } catch(e) {
+    showToast('Failed to save target', 'error');
+  }
+}
+
+// ── My Commission ─────────────────────────────────────────────────────────────
+async function loadMyCommission() {
+  try {
+    // Build period filter options
+    const filterEl = document.getElementById('commPeriodFilter');
+    if (filterEl && !filterEl.options.length) {
+      const now = new Date();
+      const months = [];
+      for (let i = 0; i < 6; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+        months.push(\`<option value="\${key}">\${d.toLocaleString('default',{month:'long',year:'numeric'})}</option>\`);
+      }
+      months.unshift('<option value="">All Periods</option>');
+      filterEl.innerHTML = months.join('');
+    }
+
+    const period = filterEl ? filterEl.value : '';
+    const repId = currentUser.id;
+    const url = '/api/sales/commission/' + repId + (period ? '?period=' + period : '');
+    const { data } = await axios.get(url);
+
+    document.getElementById('commKpi_revenue').textContent = fmtTZS(data.totalRevenue);
+    document.getElementById('commKpi_earned').textContent = fmtTZS(data.totalEarned);
+    document.getElementById('commKpi_count').textContent = data.commissions.length;
+    const avgRate = data.commissions.length ? (data.commissions.reduce((s,c) => s+c.commissionRate, 0) / data.commissions.length).toFixed(1) : '—';
+    document.getElementById('commKpi_avgRate').textContent = avgRate + (avgRate !== '—' ? '%' : '');
+
+    const tbody = document.getElementById('commissionTable');
+    if (!data.commissions.length) {
+      tbody.innerHTML = \`<tr><td colspan="6" class="text-center py-10 text-gray-400"><i class="fas fa-info-circle mr-2"></i>No commissions found for this period.</td></tr>\`;
+    } else {
+      tbody.innerHTML = data.commissions.map(sc =>
+        \`<tr class="border-b border-gray-50 hover:bg-gray-50">
+          <td class="px-4 py-3 text-sm text-gray-500">\${new Date(sc.paidAt).toLocaleDateString('en-GB')}</td>
+          <td class="px-4 py-3">
+            <button class="text-brand-600 font-semibold text-sm hover:underline" onclick="viewJobDetail('\${sc.jobCardId}')">\${sc.jobCardNumber}</button>
+          </td>
+          <td class="px-4 py-3 text-sm text-gray-700">\${sc.customerName}</td>
+          <td class="px-4 py-3 text-right text-sm font-medium text-gray-800">\${fmtTZS(sc.saleAmount)}</td>
+          <td class="px-4 py-3 text-right text-sm text-gray-500">\${sc.commissionRate}%</td>
+          <td class="px-4 py-3 text-right font-bold text-green-600 text-sm">\${fmtTZS(sc.commissionEarned)}</td>
+        </tr>\`
+      ).join('');
+    }
+  } catch(e) {
+    console.error('loadMyCommission error', e);
+    showToast('Failed to load commission data', 'error');
+  }
+}
+
+// ── New Sale Form ─────────────────────────────────────────────────────────────
+var _saleSelectedCustId = null;
+
+function initNewSaleForm() {
+  // Reset form
+  _saleSelectedCustId = null;
+  const form = document.getElementById('newSaleForm');
+  if (form) form.reset();
+  const custSearch = document.getElementById('sale-customer-search');
+  if (custSearch) custSearch.value = '';
+  const custId = document.getElementById('sale-customerId');
+  if (custId) custId.value = '';
+  const vehSel = document.getElementById('sale-vehicleId');
+  if (vehSel) { vehSel.innerHTML = '<option value="">Select customer first…</option>'; }
+  const prodWrap = document.getElementById('saleProductWrap');
+  if (prodWrap) prodWrap.style.display = 'none';
+  const vehLink = document.getElementById('addVehicleLinkWrap');
+  if (vehLink) vehLink.style.display = 'none';
+}
+
+function saleCustSearch(q) {
+  const list = document.getElementById('sale-customer-list');
+  if (!list) return;
+  if (q.length < 1) { list.classList.add('hidden'); return; }
+  const matches = (allCustomers || []).filter(c =>
+    c.name.toLowerCase().includes(q.toLowerCase()) ||
+    (c.phone && c.phone.includes(q))
+  ).slice(0, 8);
+  if (!matches.length) { list.classList.add('hidden'); return; }
+  list.innerHTML = matches.map(c => {
+    const repBadge = c.salesRepName ? ' <span class="text-xs text-green-600 font-medium">\u00b7 ' + c.salesRepName + '</span>' : '';
+    return '<li class="px-3 py-2 hover:bg-gray-50 cursor-pointer text-sm sale-cust-item" data-cid="' + c.id + '" data-cname="' + (c.name||'').replace(/"/g,'&quot;') + '">' + (c.name||'') + repBadge + ' <span class="text-gray-400 text-xs">' + (c.phone||'') + '</span></li>';
+  }).join('');
+  list.classList.remove('hidden');
+  // Delegated click handler for items
+  list.onclick = function(ev) {
+    var li = ev.target.closest('.sale-cust-item');
+    if (li) {
+      var cid = li.getAttribute('data-cid');
+      var cname = li.getAttribute('data-cname');
+      saleCustSelect(cid, cname);
+    }
+  };
+}
+
+function saleCustSelect(id, name) {
+  _saleSelectedCustId = id;
+  document.getElementById('sale-customerId').value = id;
+  document.getElementById('sale-customer-search').value = name;
+  document.getElementById('sale-customer-clear').classList.remove('hidden');
+  document.getElementById('sale-customer-list').classList.add('hidden');
+  // Load vehicles for this customer
+  loadSaleVehicles(id);
+  const vehLink = document.getElementById('addVehicleLinkWrap');
+  if (vehLink) vehLink.style.display = 'block';
+}
+
+function saleCustHideList() {
+  const list = document.getElementById('sale-customer-list');
+  if (list) list.classList.add('hidden');
+}
+
+function saleCustClear() {
+  _saleSelectedCustId = null;
+  document.getElementById('sale-customerId').value = '';
+  document.getElementById('sale-customer-search').value = '';
+  document.getElementById('sale-customer-clear').classList.add('hidden');
+  document.getElementById('sale-vehicleId').innerHTML = '<option value="">Select customer first…</option>';
+  const vehLink = document.getElementById('addVehicleLinkWrap');
+  if (vehLink) vehLink.style.display = 'none';
+}
+
+async function loadSaleVehicles(customerId) {
+  const vehSel = document.getElementById('sale-vehicleId');
+  if (!vehSel) return;
+  try {
+    const { data } = await axios.get('/api/vehicles?customerId=' + customerId);
+    const vehs = Array.isArray(data) ? data : (data.vehicles || []);
+    if (!vehs.length) {
+      vehSel.innerHTML = '<option value="">No vehicles — add one first</option>';
+    } else {
+      vehSel.innerHTML = '<option value="">Select vehicle…</option>' +
+        vehs.map(v => \`<option value="\${v.id}">\${v.registrationNumber} — \${v.make} \${v.model} (\${v.year||''})</option>\`).join('');
+    }
+  } catch(e) {
+    vehSel.innerHTML = '<option value="">Failed to load vehicles</option>';
+  }
+}
+
+async function loadSaleProducts(productType) {
+  const sel = document.getElementById('sale-productId');
+  const wrap = document.getElementById('saleProductWrap');
+  if (!sel || !wrap) return;
+  wrap.style.display = 'block';
+  sel.innerHTML = '<option value="">Loading…</option>';
+  try {
+    let items = [];
+    if (productType === 'service_package') {
+      const { data } = await axios.get('/api/packages');
+      items = (data || []).map(p => ({ id: p.id, label: p.name + (p.sellingPrice ? \` — \${fmtTZS(p.sellingPrice)}\` : '') }));
+    } else if (productType === 'carwash') {
+      const { data } = await axios.get('/api/car-wash');
+      items = (data || []).map(p => ({ id: p.id, label: p.name + (p.price ? \` — \${fmtTZS(p.price)}\` : '') }));
+    } else if (productType === 'subscription') {
+      const { data } = await axios.get('/api/subscription-plans');
+      items = (data || []).map(p => ({ id: p.id, label: p.name + (p.monthlyPrice ? \` — \${fmtTZS(p.monthlyPrice)}/mo\` : '') }));
+    }
+    sel.innerHTML = '<option value="">Choose product…</option>' +
+      items.map(it => \`<option value="\${it.id}">\${it.label}</option>\`).join('');
+  } catch(e) {
+    sel.innerHTML = '<option value="">Failed to load products</option>';
+  }
+}
+
+function resetNewSaleForm() { initNewSaleForm(); }
+
+async function submitNewSale(e) {
+  e.preventDefault();
+  const customerId = document.getElementById('sale-customerId').value;
+  const vehicleId  = document.getElementById('sale-vehicleId').value;
+  const productType = document.querySelector('input[name="saleProductType"]:checked');
+  const productId  = document.getElementById('sale-productId').value;
+  const notes      = document.getElementById('sale-notes').value;
+
+  if (!customerId) { showToast('Please select a customer', 'error'); return; }
+  if (!vehicleId)  { showToast('Please select a vehicle', 'error'); return; }
+  if (!productType) { showToast('Please select a product type', 'error'); return; }
+  if (!productId)  { showToast('Please select a product', 'error'); return; }
+
+  try {
+    const { data } = await axios.post('/api/sales/sell', {
+      customerId, vehicleId,
+      productType: productType.value,
+      productId, notes,
+    });
+    showToast('Sale submitted! Job Card ' + data.jobCardNumber + ' created — awaiting approval', 'success');
+    initNewSaleForm();
+    // Navigate to job cards to track
+    setTimeout(() => showPage('sales-dashboard'), 1200);
+  } catch(e) {
+    const msg = e.response && e.response.data && e.response.data.error ? e.response.data.error : 'Failed to submit sale';
+    showToast(msg, 'error');
+  }
+}
+
+// ── Sales Analytics Tab (Admin/WC) — see Analytics page ──────────────────────
+// This is wired into loadAnalytics via a tab; defined as separate function here
+async function loadSalesAnalyticsTab(period, periodKey) {
+  const tbody = document.getElementById('salesAnalyticsLeaderboard');
+  if (!tbody) return;
+  try {
+    const { data } = await axios.get(\`/api/sales/leaderboard?period=\${period}&periodKey=\${periodKey}\`);
+    const medals = ['🥇','🥈','🥉'];
+    if (!data.leaderboard.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-gray-400">No Sales Reps found.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.leaderboard.map((rep, i) =>
+      \`<tr class="border-b border-gray-50 hover:bg-gray-50">
+        <td class="px-4 py-3 text-sm font-bold">\${medals[i] || (i+1)}</td>
+        <td class="px-4 py-3">
+          <div class="font-semibold text-gray-800 text-sm">\${rep.repName}</div>
+          <div class="text-xs text-gray-400">\${rep.email}</div>
+        </td>
+        <td class="px-4 py-3 text-right font-semibold text-blue-700 text-sm">\${fmtTZS(rep.revenue)}</td>
+        <td class="px-4 py-3 text-right text-sm text-gray-500">\${fmtTZS(rep.targetAmount)}</td>
+        <td class="px-4 py-3" style="min-width:120px">\${buildTargetBar(rep.revenue, rep.targetAmount || null)}</td>
+        <td class="px-4 py-3 text-right font-semibold text-green-600 text-sm">\${fmtTZS(rep.commission)}</td>
+        <td class="px-4 py-3 text-right text-sm text-gray-700">\${rep.salesCount}</td>
+      </tr>\`
+    ).join('');
+  } catch(e) {
+    if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="text-center py-8 text-red-400">Failed to load leaderboard</td></tr>';
+  }
 }
 
 // ═══ INIT ═══

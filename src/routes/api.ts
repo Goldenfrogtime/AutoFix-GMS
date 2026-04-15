@@ -10,6 +10,8 @@ import {
   jobCardPhotos,
   customerNotifDispatches,
   garageSettings,
+  salesTargets,
+  salesCommissions,
   updateGarageSettings,
   ROLE_PERMISSIONS,
   type Customer, type Vehicle, type JobCard, type PFI,
@@ -21,7 +23,8 @@ import {
   type SubscriptionPlan, type CustomerSubscription, type SubscriptionStatus,
   type JobCardPhoto, type PhotoCategory,
   type CustomerNotifDispatch, type NotifChannel, type NotifDispatchStatus,
-  type GarageSettings
+  type GarageSettings,
+  type SalesTarget, type SalesCommission, type TargetPeriod
 } from '../data/store'
 import { save } from '../data/persist'
 
@@ -428,7 +431,15 @@ api.get('/customers/:id', (c) => {
 
 api.post('/customers', async (c) => {
   const body = await c.req.json<Omit<Customer, 'id' | 'createdAt'>>()
-  const newCustomer: Customer = { ...body, id: 'c' + genId(), createdAt: now() }
+  const creator = (c as any).user as User | undefined
+  const newCustomer: Customer = {
+    ...body,
+    id: 'c' + genId(),
+    createdAt: now(),
+    // Auto-tag Sales rep if the creator is a Sales role
+    salesRepId:   body.salesRepId   || (creator?.role === 'Sales' ? creator.id   : undefined),
+    salesRepName: body.salesRepName || (creator?.role === 'Sales' ? creator.name : undefined),
+  }
   customers.push(newCustomer)
   return c.json(newCustomer, 201)
 })
@@ -1168,6 +1179,38 @@ api.post('/jobcards/:id/mark-paid', async (c) => {
   jobCards[idx] = { ...jc, status: 'PAID', statusTimeline: timeline, updatedAt: ts }
   activityLog.push({ id: 'a' + genId(), jobCardId: jc.id, action: 'STATUS_CHANGE', description: `Payment recorded by ${body.userName || 'system'}. Method: ${body.paymentMethod || 'Cash'}.`, userId: body.userId || 'system', userName: body.userName || 'System', timestamp: ts })
   addNotification('job_status', 'success', 'Payment Received', `${jc.jobCardNumber} — payment received. Job ready for closure.`, { jobCardId: jc.id, jobCardNumber: jc.jobCardNumber })
+
+  // ── Auto-record Sales Commission if job originated from a Sales Rep ──────
+  const salesRepId = (jc as any).salesRepId as string | undefined
+  if (salesRepId) {
+    const inv = invIdx !== -1 ? invoices[invIdx] : undefined
+    const saleAmount = inv ? (inv as any).totalAmount || (inv as any).total || 0 : 0
+    const periodKey = ts.slice(0, 7) // 'YYYY-MM'
+    // Find applicable commission rate from monthly target
+    const target = salesTargets.find(t => t.salesRepId === salesRepId && t.period === 'monthly' && t.periodKey === periodKey)
+    const commissionRate = target ? target.commissionRate : 5 // default 5%
+    const rep = users.find(u => u.id === salesRepId)
+    const commission: SalesCommission = {
+      id: 'sc' + genId(),
+      salesRepId,
+      salesRepName: (rep?.name || (jc as any).salesRepName || 'Sales Rep'),
+      invoiceId: inv ? (inv as any).id : '',
+      jobCardId: jc.id,
+      jobCardNumber: jc.jobCardNumber,
+      customerName: customers.find(x => x.id === jc.customerId)?.name || '',
+      saleAmount,
+      commissionRate,
+      commissionEarned: Math.round(saleAmount * commissionRate / 100),
+      periodKey,
+      paidAt: ts,
+      createdAt: ts,
+    }
+    salesCommissions.push(commission)
+    addNotification('job_status', 'info', 'Commission Recorded',
+      `Commission of TZS ${commission.commissionEarned.toLocaleString()} (${commissionRate}%) recorded for ${commission.salesRepName} on job ${jc.jobCardNumber}.`,
+      { jobCardId: jc.id, jobCardNumber: jc.jobCardNumber })
+  }
+
   return c.json(jobCards[idx])
 })
 
@@ -4423,6 +4466,299 @@ api.post('/appointments/:id/send-reminder', async (c) => {
   }
 
   return c.json({ ok: true, reminderSentAt: (appt as any).reminderSentAt })
+})
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ─── SALES ROUTES ─────────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ── Helper: periodKey for a date ─────────────────────────────────────────────
+function getPeriodKey(period: TargetPeriod, date: Date = new Date()): string {
+  const y = date.getFullYear()
+  const m = date.getMonth() + 1
+  if (period === 'monthly')   return `${y}-${String(m).padStart(2,'0')}`
+  if (period === 'quarterly') return `${y}-Q${Math.ceil(m / 3)}`
+  return `${y}`
+}
+
+// GET /sales/dashboard — Sales Rep personal summary + Admin/WC overview
+api.get('/sales/dashboard', async (c) => {
+  const user = (c as any).user as User
+  const isSalesRep = user.role === 'Sales'
+  const isAdmin    = user.role === 'Admin' || user.role === 'Workshop Controller'
+
+  if (!isSalesRep && !isAdmin) return c.json({ error: 'Forbidden' }, 403)
+
+  const monthKey = getPeriodKey('monthly')
+  const quarterKey = getPeriodKey('quarterly')
+  const yearKey = getPeriodKey('annual')
+
+  if (isSalesRep) {
+    // Personal dashboard for Sales Rep
+    const myJobs = jobCards.filter((j: any) => j.salesRepId === user.id)
+    const myInvoices = invoices.filter((i: any) => {
+      const job = jobCards.find(j => j.id === (i as any).jobCardId)
+      return job && (job as any).salesRepId === user.id
+    })
+    const myComms = salesCommissions.filter(sc => sc.salesRepId === user.id)
+    const monthComms = myComms.filter(sc => sc.periodKey === monthKey)
+    const monthTarget = salesTargets.find(t => t.salesRepId === user.id && t.period === 'monthly' && t.periodKey === monthKey)
+    const qtrTarget = salesTargets.find(t => t.salesRepId === user.id && t.period === 'quarterly' && t.periodKey === quarterKey)
+    const annTarget = salesTargets.find(t => t.salesRepId === user.id && t.period === 'annual' && t.periodKey === yearKey)
+
+    const monthRevenue = monthComms.reduce((s, sc) => s + sc.saleAmount, 0)
+    const monthCommEarned = monthComms.reduce((s, sc) => s + sc.commissionEarned, 0)
+
+    return c.json({
+      repId: user.id,
+      repName: user.name,
+      stats: {
+        totalJobs: myJobs.length,
+        activeJobs: myJobs.filter(j => !['CLOSED','PAID','CANCELLED'].includes(j.status)).length,
+        paidJobs: myJobs.filter(j => j.status === 'PAID' || j.status === 'CLOSED').length,
+        totalRevenue: myInvoices.filter((i: any) => i.status === 'Paid').reduce((s: number, i: any) => s + ((i as any).totalAmount || 0), 0),
+        monthRevenue,
+        monthCommEarned,
+        totalCommEarned: myComms.reduce((s, sc) => s + sc.commissionEarned, 0),
+      },
+      targets: {
+        monthly: monthTarget || null,
+        quarterly: qtrTarget || null,
+        annual: annTarget || null,
+      },
+      recentJobs: myJobs.slice(-5).reverse().map(j => ({
+        id: j.id,
+        jobCardNumber: j.jobCardNumber,
+        status: j.status,
+        customerName: customers.find(x => x.id === j.customerId)?.name || '',
+        createdAt: j.createdAt,
+      })),
+      recentCommissions: myComms.slice(-5).reverse(),
+    })
+  }
+
+  // Admin / Workshop Controller overview
+  const salesUsers = users.filter(u => u.role === 'Sales')
+  const leaderboard = salesUsers.map(rep => {
+    const repJobs = jobCards.filter((j: any) => j.salesRepId === rep.id)
+    const repComms = salesCommissions.filter(sc => sc.salesRepId === rep.id)
+    const monthComms = repComms.filter(sc => sc.periodKey === monthKey)
+    const monthTarget = salesTargets.find(t => t.salesRepId === rep.id && t.period === 'monthly' && t.periodKey === monthKey)
+    const monthRevenue = monthComms.reduce((s, sc) => s + sc.saleAmount, 0)
+    return {
+      repId: rep.id,
+      repName: rep.name,
+      email: rep.email,
+      totalJobs: repJobs.length,
+      paidJobs: repJobs.filter(j => j.status === 'PAID' || j.status === 'CLOSED').length,
+      totalRevenue: repComms.reduce((s, sc) => s + sc.saleAmount, 0),
+      totalCommission: repComms.reduce((s, sc) => s + sc.commissionEarned, 0),
+      monthRevenue,
+      monthTarget: monthTarget?.targetAmount || 0,
+      monthProgress: monthTarget ? Math.min(100, Math.round(monthRevenue / monthTarget.targetAmount * 100)) : 0,
+    }
+  }).sort((a, b) => b.monthRevenue - a.monthRevenue)
+
+  return c.json({ leaderboard, monthKey, quarterKey, yearKey })
+})
+
+// GET /sales/my-sales — Sales Rep own job cards & commissions
+api.get('/sales/my-sales', async (c) => {
+  const user = (c as any).user as User
+  const repId = user.role === 'Sales' ? user.id : (new URL(c.req.url).searchParams.get('repId') || '')
+  if (!repId) return c.json({ error: 'repId required' }, 400)
+  if (user.role === 'Sales' && repId !== user.id) return c.json({ error: 'Forbidden' }, 403)
+
+  const myJobs = jobCards.filter((j: any) => j.salesRepId === repId).map(j => ({
+    ...j,
+    customerName: customers.find(x => x.id === j.customerId)?.name || '',
+    vehicleReg: vehicles.find(x => x.id === j.vehicleId)?.registrationNumber || '',
+  }))
+  const myComms = salesCommissions.filter(sc => sc.salesRepId === repId)
+
+  return c.json({ jobs: myJobs, commissions: myComms })
+})
+
+// GET /sales/targets — list targets (Sales Rep sees own; Admin/WC sees all)
+api.get('/sales/targets', async (c) => {
+  const user = (c as any).user as User
+  const params = new URL(c.req.url).searchParams
+  let targets = [...salesTargets]
+  if (user.role === 'Sales') {
+    targets = targets.filter(t => t.salesRepId === user.id)
+  } else if (params.get('repId')) {
+    targets = targets.filter(t => t.salesRepId === params.get('repId'))
+  }
+  return c.json(targets)
+})
+
+// POST /sales/targets — Admin/WC creates or updates a target for a rep
+api.post('/sales/targets', async (c) => {
+  const user = (c as any).user as User
+  if (user.role !== 'Admin' && user.role !== 'Workshop Controller')
+    return c.json({ error: 'Forbidden' }, 403)
+
+  const body = await c.req.json<{
+    salesRepId: string
+    period: TargetPeriod
+    periodKey: string
+    targetAmount: number
+    commissionRate: number
+  }>()
+
+  const rep = users.find(u => u.id === body.salesRepId && u.role === 'Sales')
+  if (!rep) return c.json({ error: 'Sales rep not found' }, 404)
+
+  const ts = now()
+  // Upsert: update if same rep+period+periodKey already exists
+  const existIdx = salesTargets.findIndex(
+    t => t.salesRepId === body.salesRepId && t.period === body.period && t.periodKey === body.periodKey
+  )
+  if (existIdx !== -1) {
+    salesTargets[existIdx] = {
+      ...salesTargets[existIdx],
+      targetAmount: body.targetAmount,
+      commissionRate: body.commissionRate,
+      updatedAt: ts,
+    }
+    return c.json(salesTargets[existIdx])
+  }
+
+  const target: SalesTarget = {
+    id: 'st' + genId(),
+    salesRepId: body.salesRepId,
+    salesRepName: rep.name,
+    period: body.period,
+    periodKey: body.periodKey,
+    targetAmount: body.targetAmount,
+    commissionRate: body.commissionRate,
+    createdAt: ts,
+    updatedAt: ts,
+  }
+  salesTargets.push(target)
+  return c.json(target, 201)
+})
+
+// GET /sales/leaderboard — Admin/WC: ranked list of all reps by revenue
+api.get('/sales/leaderboard', async (c) => {
+  const user = (c as any).user as User
+  if (user.role !== 'Admin' && user.role !== 'Workshop Controller')
+    return c.json({ error: 'Forbidden' }, 403)
+
+  const params = new URL(c.req.url).searchParams
+  const period: TargetPeriod = (params.get('period') as TargetPeriod) || 'monthly'
+  const periodKey = params.get('periodKey') || getPeriodKey(period)
+
+  const salesUsers = users.filter(u => u.role === 'Sales')
+  const board = salesUsers.map(rep => {
+    const repComms = salesCommissions.filter(sc => sc.salesRepId === rep.id && sc.periodKey === periodKey)
+    const repJobs  = jobCards.filter((j: any) => j.salesRepId === rep.id)
+    const target   = salesTargets.find(t => t.salesRepId === rep.id && t.period === period && t.periodKey === periodKey)
+    const revenue  = repComms.reduce((s, sc) => s + sc.saleAmount, 0)
+    return {
+      repId: rep.id,
+      repName: rep.name,
+      email: rep.email,
+      salesCount: repComms.length,
+      revenue,
+      commission: repComms.reduce((s, sc) => s + sc.commissionEarned, 0),
+      targetAmount: target?.targetAmount || 0,
+      commissionRate: target?.commissionRate || 5,
+      progress: target ? Math.min(100, Math.round(revenue / target.targetAmount * 100)) : 0,
+      activeJobs: repJobs.filter(j => !['CLOSED','PAID','CANCELLED'].includes(j.status)).length,
+    }
+  }).sort((a, b) => b.revenue - a.revenue)
+
+  return c.json({ period, periodKey, leaderboard: board })
+})
+
+// GET /sales/commission/:repId — commissions for a rep
+api.get('/sales/commission/:repId', async (c) => {
+  const user = (c as any).user as User
+  const repId = c.req.param('repId')
+  if (user.role === 'Sales' && user.id !== repId) return c.json({ error: 'Forbidden' }, 403)
+
+  const params = new URL(c.req.url).searchParams
+  let comms = salesCommissions.filter(sc => sc.salesRepId === repId)
+  const period = params.get('period')
+  if (period) comms = comms.filter(sc => sc.periodKey === period)
+
+  const totalEarned = comms.reduce((s, sc) => s + sc.commissionEarned, 0)
+  const totalRevenue = comms.reduce((s, sc) => s + sc.saleAmount, 0)
+
+  return c.json({ repId, commissions: comms, totalEarned, totalRevenue })
+})
+
+// POST /sales/sell — Sales Rep creates a sale (new or existing customer/vehicle)
+// Creates a Job Card automatically tagged to the rep and set to PENDING_APPROVAL
+api.post('/sales/sell', async (c) => {
+  const user = (c as any).user as User
+  if (user.role !== 'Sales') return c.json({ error: 'Forbidden — only Sales reps can use this endpoint' }, 403)
+
+  const body = await c.req.json<{
+    customerId: string
+    vehicleId: string
+    productType: 'service_package' | 'carwash' | 'subscription'
+    productId: string
+    notes?: string
+    damageDescription?: string
+  }>()
+
+  const cust = customers.find(x => x.id === body.customerId)
+  if (!cust) return c.json({ error: 'Customer not found' }, 404)
+  const veh = vehicles.find(x => x.id === body.vehicleId)
+  if (!veh) return c.json({ error: 'Vehicle not found' }, 404)
+
+  const ts = now()
+  const num = 'GMS-' + new Date().getFullYear() + '-' + String(jobCards.length + 1).padStart(3, '0')
+
+  // Determine job category label from product type
+  const productLabel: Record<string, string> = {
+    service_package: 'Service Package',
+    carwash: 'Car Wash',
+    subscription: 'Subscription Service',
+  }
+
+  const newJob: JobCard = {
+    id: 'j' + genId(),
+    jobCardNumber: num,
+    vehicleId: body.vehicleId,
+    customerId: body.customerId,
+    category: 'Private',
+    assignedTechnician: '',
+    status: 'PENDING_APPROVAL',
+    statusTimeline: [{
+      status: 'PENDING_APPROVAL',
+      enteredAt: ts,
+    }],
+    damageDescription: body.damageDescription || `${productLabel[body.productType] || 'Sale'} — created by Sales Rep ${user.name}`,
+    createdAt: ts,
+    updatedAt: ts,
+    // Sales attribution
+    salesRepId: user.id,
+    salesRepName: user.name,
+    isSalesJob: true,
+    productType: body.productType,
+    productId: body.productId,
+    notes: body.notes,
+  } as any
+
+  jobCards.push(newJob)
+  activityLog.push({
+    id: 'a' + genId(),
+    jobCardId: newJob.id,
+    action: 'JOB_CREATED',
+    description: `Sales job created by ${user.name} (${productLabel[body.productType]}). Awaiting Admin/Workshop approval.`,
+    userId: user.id,
+    userName: user.name,
+    timestamp: ts,
+  })
+
+  addNotification('job_created', 'warning', 'New Sales Job — Approval Required',
+    `${num} created by Sales Rep ${user.name} for ${cust.name} — ${productLabel[body.productType]} — awaiting approval`,
+    { jobCardId: newJob.id, jobCardNumber: num })
+
+  return c.json(newJob, 201)
 })
 
 export default api

@@ -45,6 +45,8 @@ import {
   jobCardPhotos,
   customerNotifDispatches,
   garageSettings,
+  salesTargets,
+  salesCommissions,
   updateGarageSettings,
 } from './store.js'
 
@@ -77,6 +79,8 @@ const PERSIST_KEYS = [
   'customerSubscriptions',
   'jobCardPhotos',
   'customerNotifDispatches',
+  'salesTargets',
+  'salesCommissions',
 ] as const
 
 type PersistKey = typeof PERSIST_KEYS[number]
@@ -108,6 +112,8 @@ function getLiveArrays(): Record<PersistKey, unknown[]> {
     customerSubscriptions,
     jobCardPhotos,
     customerNotifDispatches,
+    salesTargets,
+    salesCommissions,
   }
 }
 

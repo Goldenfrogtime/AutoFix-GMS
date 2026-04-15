@@ -40,6 +40,7 @@ export type UserRole =
   | 'Technician'
   | 'Finance'
   | 'Quality Control'
+  | 'Sales'
 
 // ─── RBAC: Permission Keys ─────────────────────────────────────────────────────
 // Each permission key maps to a feature/action in the system.
@@ -117,6 +118,10 @@ export type Permission =
   // Settings
   | 'settings.view'
   | 'settings.manage'
+  // Sales
+  | 'sales.view_own'          // see own sales dashboard & history
+  | 'sales.manage_targets'    // Admin/WC: set targets for reps
+  | 'sales.view_leaderboard'  // Admin/WC: view all-rep performance
 
 // ─── RBAC: Role → Permissions Map ─────────────────────────────────────────────
 export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
@@ -144,6 +149,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'users.view','users.create','users.edit','users.delete','users.manage_roles',
     'notifications.view',
     'settings.view','settings.manage',
+    'sales.view_own','sales.manage_targets','sales.view_leaderboard',
   ],
 
   // ── 2. Workshop Controller ────────────────────────────────────────────────
@@ -169,6 +175,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'users.view',
     'notifications.view',
     'settings.view',
+    'sales.view_own','sales.manage_targets','sales.view_leaderboard',
   ],
 
   // ── 3. Service Advisor ────────────────────────────────────────────────────
@@ -242,6 +249,27 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'packages.view',
     'notifications.view',
   ],
+
+  // ── 7. Sales ──────────────────────────────────────────────────────────────
+  // Customer acquisition & product sales: service packages, car wash,
+  // subscriptions. Cannot access finance, parts, or admin settings.
+  // Job cards auto-created from sales go through normal approval workflow.
+  Sales: [
+    'dashboard.view',
+    'customers.view','customers.create','customers.edit',
+    'vehicles.view','vehicles.create','vehicles.edit',
+    'jobcards.view',
+    'packages.view',
+    'carwash.view',
+    'addons.view',
+    'notifications.view',
+    'sales.view_own',
+    'sales.sell_package',
+    'sales.sell_carwash',
+    'sales.sell_subscription',
+    'sales.view_commission',
+    'sales.create_customer',
+  ],
 }
 export type PFIStatus = 'Draft' | 'Submitted' | 'Approved' | 'Rejected' | 'Revision Requested' | 'Sent'
 export type InvoiceStatus = 'Draft' | 'Issued' | 'Paid' | 'Partially Paid' | 'Overdue'
@@ -260,6 +288,8 @@ export interface Customer {
   companyName?: string
   contactPerson?: string
   taxPin?: string
+  salesRepId?: string           // Sales rep who brought in this customer
+  salesRepName?: string
   createdAt: string
 }
 
@@ -411,6 +441,10 @@ export interface JobCard {
     recordedBy:       string
     recordedByName:   string
   }
+  // ── Sales attribution ───────────────────────────────────────────────────
+  salesRepId?: string           // Sales rep who created the sale that led to this job
+  salesRepName?: string
+  isSalesJob?: boolean          // true = originated from a Sales rep sale
   createdAt: string
   updatedAt: string
 }
@@ -526,7 +560,40 @@ export interface ActivityLog {
   description: string
   userId: string
   userName: string
+  userRole?: string
   timestamp: string
+}
+
+// ─── Sales Targets ───────────────────────────────────────────────────────────
+export type TargetPeriod = 'monthly' | 'quarterly' | 'annual'
+
+export interface SalesTarget {
+  id: string
+  salesRepId: string
+  salesRepName: string
+  period: TargetPeriod
+  periodKey: string        // e.g. '2026-04' (monthly) | '2026-Q2' (quarterly) | '2026' (annual)
+  targetAmount: number     // TZS revenue target
+  commissionRate: number   // % of revenue earned as commission (e.g. 5 = 5%)
+  createdAt: string
+  updatedAt: string
+}
+
+// ─── Sales Commissions ────────────────────────────────────────────────────────
+export interface SalesCommission {
+  id: string
+  salesRepId: string
+  salesRepName: string
+  invoiceId: string
+  jobCardId: string
+  jobCardNumber: string
+  customerName: string
+  saleAmount: number        // invoice totalAmount at time of payment
+  commissionRate: number    // % applied
+  commissionEarned: number  // saleAmount * commissionRate / 100
+  periodKey: string         // 'YYYY-MM' of the payment date
+  paidAt: string            // ISO timestamp of invoice payment
+  createdAt: string
 }
 
 // ─── Twiga Group Catalogue Types ────────────────────────────────────────────
@@ -825,12 +892,26 @@ export const users: User[] = [
     password: 'QC2025!',
     createdAt: '2026-01-01T00:00:00.000Z',
   },
+  // ── 7. Sales ──────────────────────────────────────────────────────────────
+  {
+    id: 'u-sales-rep',
+    name: 'Omar Sharif',
+    email: 'sales@autofix.co.tz',
+    role: 'Sales',
+    active: true,
+    password: 'Sales2025!',
+    createdAt: '2026-01-01T00:00:00.000Z',
+  },
 ]
 
 // ─── Active Sessions (token → userId) ────────────────────────────────────────
 export const sessions: Map<string, string> = new Map()
 
 export const activityLog: ActivityLog[] = []
+
+export const salesTargets: SalesTarget[] = []
+
+export const salesCommissions: SalesCommission[] = []
 
 // ─── Lubricants Catalogue Inventory ──────────────────────────────────────────
 export const lubricantProducts: LubricantProduct[] = [
