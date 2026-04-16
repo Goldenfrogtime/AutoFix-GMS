@@ -5787,22 +5787,6 @@ function _dfRebuildBar(containerId, stateObj, callbackFn) {
   var icon = document.createElement('i');
   icon.className = 'fas fa-calendar-alt text-blue-400 text-sm flex-shrink-0';
   bar.appendChild(icon);
-  // Preset buttons
-  var presets = [
-    ['today','Today'],['week','This Week'],['month','This Month'],['last_month','Last Month'],
-    ['quarter','This Quarter'],['last_quarter','Last Quarter'],['year','This Year']
-  ];
-  presets.forEach(function(p) {
-    var btn = document.createElement('button');
-    btn.className = 'df-preset' + (stateObj.preset === p[0] ? ' active' : '');
-    btn.textContent = p[1];
-    btn.setAttribute('onclick', '_dfSetPreset(' + JSON.stringify(containerId) + ',' + JSON.stringify(p[0]) + ',' + cbStr + ')');
-    bar.appendChild(btn);
-  });
-  // Separator
-  var sep = document.createElement('div');
-  sep.className = 'df-sep';
-  bar.appendChild(sep);
   // Custom date range
   var custom = document.createElement('div');
   custom.className = 'df-custom';
@@ -5825,7 +5809,7 @@ function _dfRebuildBar(containerId, stateObj, callbackFn) {
   custom.appendChild(inEnd);
   bar.appendChild(custom);
   // Clear button (when filter active)
-  if (stateObj.preset || stateObj.start) {
+  if (stateObj.start || stateObj.end) {
     var sep2 = document.createElement('div'); sep2.className = 'df-sep'; bar.appendChild(sep2);
     var clearBtn = document.createElement('button');
     clearBtn.className = 'df-clear';
