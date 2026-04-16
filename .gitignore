@@ -32,5 +32,5 @@ lerna-debug.log*
 # misc
 .DS_Store
 
-# Runtime data — user's live data, never overwrite via git
-gms-data.json
+# Runtime data — tracked for initial seed, Railway persists it on disk
+# gms-data.json
