@@ -10122,10 +10122,18 @@ function _isGPCanvasEmpty() {
 }
 
 async function loadGatePasses() {
-  showPage('gate-passes');
-  // Load stats
+  // NOTE: showPage() is NOT called here — it is already invoked by the sidebar
+  // nav click handler (showPage → loadGatePasses). Calling it again would
+  // re-trigger loadGatePasses a second time and double all DOM scans.
+
+  // Fire summary + passes list IN PARALLEL — cuts perceived load time in half
+  const tab = window._gpCurrentTab || 'all';
+  const passUrl = tab === 'all' ? '/api/gate-passes' : '/api/gate-passes?status=' + encodeURIComponent(tab);
   try {
-    const { data: s } = await axios.get('/api/gate-passes/summary');
+    const [{ data: s }, { data: passes }] = await Promise.all([
+      axios.get('/api/gate-passes/summary'),
+      axios.get(passUrl),
+    ]);
     document.getElementById('gpStats').innerHTML = \`
       <div class="card p-4 text-center border-t-4 border-blue-500">
         <p class="text-2xl font-bold text-blue-700">\${s.active}</p>
@@ -10145,15 +10153,16 @@ async function loadGatePasses() {
       </div>
     \`;
     // Update tab counts
-    document.getElementById('gpTabCnt-Active').textContent      = s.active      || '';
-    document.getElementById('gpTabCnt-Pending Exit').textContent = s.pendingExit || '';
-    document.getElementById('gpTabCnt-Cleared').textContent      = s.cleared     || '';
+    document.getElementById('gpTabCnt-Active').textContent       = s.active      || '';
+    document.getElementById('gpTabCnt-Pending Exit').textContent  = s.pendingExit || '';
+    document.getElementById('gpTabCnt-Cleared').textContent       = s.cleared     || '';
     // Update sidebar badge
     const badge = document.getElementById('gpNavBadge');
     if (badge) { if (s.active + s.pendingExit > 0) { badge.textContent = s.active + s.pendingExit; badge.classList.remove('hidden'); } else { badge.classList.add('hidden'); } }
+
+    // Render table rows (data already fetched in parallel above)
+    _renderGPRows(passes);
   } catch(e) {}
-  // Load table
-  _renderGPTable(window._gpCurrentTab || 'all');
 }
 
 let _gpCurrentTab = 'all';
@@ -10168,9 +10177,15 @@ function setGPTab(tab) {
   _renderGPTable(tab);
 }
 
+// Called by setGPTab (tab switch) — fetches only the passes list, not summary
 async function _renderGPTable(tab) {
   const url = tab === 'all' ? '/api/gate-passes' : '/api/gate-passes?status=' + encodeURIComponent(tab);
   const { data: passes } = await axios.get(url);
+  _renderGPRows(passes);
+}
+
+// Pure render — accepts pre-fetched passes array, no network call needed
+function _renderGPRows(passes) {
   const tbody = document.getElementById('gpTableBody');
   const empty = document.getElementById('gpEmpty');
   if (!passes.length) { tbody.innerHTML = ''; empty.classList.remove('hidden'); return; }
