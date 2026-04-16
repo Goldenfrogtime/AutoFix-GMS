@@ -34,3 +34,4 @@ lerna-debug.log*
 
 # Runtime data — tracked for initial seed, Railway persists it on disk
 # gms-data.json
+core
