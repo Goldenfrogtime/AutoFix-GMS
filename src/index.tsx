@@ -201,6 +201,12 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 .cust-picker-badge--indiv{background:#dbeafe;color:#1d4ed8}
 .cust-picker-empty{padding:10px 14px;font-size:.85rem;color:#94a3b8;text-align:center}
 .role-banner-btn:hover{background:rgba(255,255,255,.28) !important}
+/* ── Approval toast animations ──────────────────────────────────────────── */
+@keyframes toastSlideIn{from{opacity:0;transform:translateX(110%)}to{opacity:1;transform:translateX(0)}}
+@keyframes toastSlideOut{from{opacity:1;transform:translateX(0)}to{opacity:0;transform:translateX(110%)}}
+@keyframes toastProgress{from{width:100%}to{width:0%}}
+.approval-toast{transition:box-shadow .2s}
+.approval-toast:hover{box-shadow:0 8px 32px rgba(0,0,0,.18)}
 </style>
 </head>
 <body>
@@ -2660,6 +2666,13 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
   </div>
 </main>
 </div><!-- end appShell -->
+
+<!-- ── Approval Alert Toast ─────────────────────────────────────────────────
+     Shown to Admin / Workshop Controller when a job card is PENDING_APPROVAL.
+     Positioned at bottom-right so it doesn't block the main content.
+     Auto-dismisses after 12 s; can also be closed manually.
+──────────────────────────────────────────────────────────────────────────── -->
+<div id="approvalToastWrap" class="hidden fixed bottom-6 right-6 z-[9999] flex flex-col gap-2" style="max-width:360px"></div>
 
 <!-- New Job Card Modal -->
 <div id="modal-newJob" class="modal-overlay hidden">
@@ -5766,7 +5779,8 @@ async function doLogin(e) {
     applyNavPermissions();
     loadDashboard();
     loadNotifDropdown();
-    // Start notification polling
+    // Start notification polling (reset alert tracker so existing pending jobs show toasts)
+    _alertedPendingIds = {};
     startNotifPolling();
   } catch(err) {
     var msg;
@@ -5832,13 +5846,104 @@ async function tryAutoLogin() {
   }
 }
 
+// Track which pending-approval job IDs we've already alerted about
+var _alertedPendingIds = {};
+
+// ── Web Audio chime (no audio file needed) ───────────────────────────────────
+function playApprovalChime() {
+  try {
+    var AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    var ctx = new AudioCtx();
+    // Three ascending notes: C5 → E5 → G5
+    var notes = [523.25, 659.25, 783.99];
+    notes.forEach(function(freq, i) {
+      var osc  = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      var start = ctx.currentTime + i * 0.18;
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.35, start + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.001, start + 0.32);
+      osc.start(start);
+      osc.stop(start + 0.35);
+    });
+  } catch(e) {}
+}
+
+// ── Show approval toast card ──────────────────────────────────────────────────
+function showApprovalToast(job) {
+  var wrap = document.getElementById('approvalToastWrap');
+  if (!wrap) return;
+  var toastId = 'apt-' + job.id;
+  if (document.getElementById(toastId)) return; // already visible
+  var div = document.createElement('div');
+  div.id = toastId;
+  div.className = 'approval-toast bg-white rounded-2xl shadow-2xl border-l-4 border-amber-400 overflow-hidden';
+  div.style.cssText = 'animation:toastSlideIn 0.35s ease;pointer-events:auto;';
+  // Use data attributes + delegated listeners — avoids inline JS quote issues
+  var makeModelStr = job.makeModel ? ' \u00b7 ' + escHtml(job.makeModel) : '';
+  div.innerHTML =
+    '<div class="flex items-start gap-3 p-4">' +
+      '<div class="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center bg-amber-50 border border-amber-200 mt-0.5">' +
+        '<i class="fas fa-clipboard-check text-amber-500 text-sm"></i>' +
+      '</div>' +
+      '<div class="flex-1 min-w-0">' +
+        '<p class="text-xs font-bold text-amber-700 uppercase tracking-wide mb-0.5">Awaiting Your Approval</p>' +
+        '<p class="text-sm font-bold text-gray-900 leading-tight">' + escHtml(job.jobCardNumber) + ' \u2014 ' + escHtml(job.customerName) + '</p>' +
+        '<p class="text-xs text-gray-500 mt-0.5">' +
+          '<i class="fas fa-car text-xs mr-1 text-gray-400"></i>' +
+          escHtml(job.vehicleReg) + makeModelStr +
+        '</p>' +
+        '<div class="flex gap-2 mt-3">' +
+          '<button class="apt-approve-btn flex-1 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors" data-job-id="' + escHtml(job.id) + '" data-toast-id="' + toastId + '">' +
+            '<i class="fas fa-check mr-1"></i>Approve Now' +
+          '</button>' +
+          '<button class="apt-dismiss-btn text-gray-400 hover:text-gray-600 text-xs px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors" data-toast-id="' + toastId + '">' +
+            '<i class="fas fa-times"></i>' +
+          '</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="approval-toast-bar bg-amber-400" style="height:3px;animation:toastProgress 12s linear forwards"></div>';
+  // Wire up buttons
+  div.querySelector('.apt-approve-btn').addEventListener('click', function() {
+    dismissApprovalToast(this.getAttribute('data-toast-id'));
+    viewJobDetail(this.getAttribute('data-job-id'));
+  });
+  div.querySelector('.apt-dismiss-btn').addEventListener('click', function() {
+    dismissApprovalToast(this.getAttribute('data-toast-id'));
+  });
+  wrap.appendChild(div);
+  wrap.classList.remove('hidden');
+  // Auto-dismiss after 12 s
+  setTimeout(function() { dismissApprovalToast(toastId); }, 12000);
+}
+
+function dismissApprovalToast(toastId) {
+  var el = document.getElementById(toastId);
+  if (!el) return;
+  el.style.animation = 'toastSlideOut 0.25s ease forwards';
+  setTimeout(function() {
+    if (el.parentNode) el.parentNode.removeChild(el);
+    var wrap = document.getElementById('approvalToastWrap');
+    if (wrap && !wrap.children.length) wrap.classList.add('hidden');
+  }, 260);
+}
+
 function startNotifPolling() {
   if (_notifInterval) clearInterval(_notifInterval);
   _updateGPNavBadge();
-  _notifInterval = setInterval(function() {
+  var role = (currentUser && currentUser.role) || '';
+  var canApprove = (role === 'Admin' || role === 'Workshop Controller');
+
+  function pollOnce() {
     axios.get('/api/notifications/summary').then(function(r) {
       var unread = r.data.unreadCount;
-      var badge   = document.getElementById('notifBadge');
+      var badge     = document.getElementById('notifBadge');
       var dropBadge = document.getElementById('notifDropBadge');
       if (unread > 0) {
         var label = unread > 99 ? '99+' : String(unread);
@@ -5848,9 +5953,23 @@ function startNotifPolling() {
         badge.classList.add('hidden'); badge.classList.remove('flex');
         dropBadge.classList.add('hidden');
       }
+      // Approval alerts for Admin / Workshop Controller
+      if (canApprove && r.data.pendingApprovalJobs && r.data.pendingApprovalJobs.length) {
+        var hasNew = false;
+        r.data.pendingApprovalJobs.forEach(function(job) {
+          if (!_alertedPendingIds[job.id]) {
+            _alertedPendingIds[job.id] = true;
+            hasNew = true;
+            showApprovalToast(job);
+          }
+        });
+        if (hasNew) playApprovalChime();
+      }
     }).catch(function(){});
     _updateGPNavBadge();
-  }, 30000);
+  }
+  pollOnce(); // immediate first poll
+  _notifInterval = setInterval(pollOnce, 30000);
 }
 
 function _updateGPNavBadge() {
@@ -18904,7 +19023,7 @@ async function loadNotifDropdown() {
   }
   el.innerHTML = list.map(function(n) {
     var m = NOTIF_META[n.priority] || NOTIF_META.info;
-    return '<div class="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer ' + (n.read ? 'opacity-60' : '') + '" data-notif-id="' + n.id + '">' +
+    return '<div class="flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors cursor-pointer ' + (n.read ? 'opacity-60' : '') + '" data-notif-id="' + n.id + '" data-job-card-id="' + (n.jobCardId||'') + '" data-entity-type="' + (n.entityType||'') + '" data-entity-id="' + (n.entityId||'') + '" data-n-type="' + (n.type||'') + '">' +
       '<div class="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center mt-0.5" style="background:' + m.bg + ';border:1px solid ' + m.border + '">' +
         '<i class="' + m.icon + ' text-xs" style="color:' + m.iconColor + '"></i>' +
       '</div>' +
@@ -18920,13 +19039,34 @@ async function loadNotifDropdown() {
       (!n.read ? '<button class="text-gray-300 hover:text-blue-500 text-xs flex-shrink-0 mt-1" data-mark-read="' + n.id + '" title="Mark read"><i class="fas fa-check"></i></button>' : '') +
     '</div>';
   }).join('');
-  // Click handlers
+  // Click handlers — mark read then navigate to relevant page
   el.querySelectorAll('[data-notif-id]').forEach(function(row) {
     row.addEventListener('click', async function(e) {
       if (e.target.closest('[data-mark-read]')) return;
       var id = this.dataset.notifId;
+      var jobCardId   = this.dataset.jobCardId   || '';
+      var entityType  = this.dataset.entityType  || '';
+      var entityId    = this.dataset.entityId    || '';
+      var nType       = this.dataset.nType       || '';
       await axios.patch('/api/notifications/' + id + '/read');
+      closeNotifDropdown();
       loadNotifDropdown();
+      // Navigate to relevant page
+      if (jobCardId) {
+        viewJobDetail(jobCardId);
+      } else if (entityType === 'invoice' || nType === 'invoice_created' || nType === 'invoice_paid' || nType === 'invoice_overdue') {
+        showPage('invoices');
+      } else if (entityType === 'appointment' || nType === 'appointment_created' || nType === 'appointment_reminder' || nType === 'appointment_cancelled') {
+        showPage('appointments');
+      } else if (entityType === 'expense' || nType === 'expense_created' || nType === 'expense_approved') {
+        showPage('expenses');
+      } else if (entityType === 'gate_pass' || nType === 'gate_pass_exit_pending' || nType === 'gate_pass_cleared') {
+        showPage('gate-passes');
+      } else if (nType === 'low_stock' || nType === 'parts_added') {
+        showPage('parts-catalogue');
+      } else {
+        showPage('notifications');
+      }
     });
   });
   el.querySelectorAll('[data-mark-read]').forEach(function(btn) {
@@ -20436,6 +20576,7 @@ document.getElementById('todayDate').textContent = new Date().toLocaleDateString
   if (loggedIn) {
     loadDashboard();
     loadNotifDropdown();
+    _alertedPendingIds = {};
     startNotifPolling();
   }
   // If not logged in, the login screen is already visible (default state)

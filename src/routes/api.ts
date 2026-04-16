@@ -3271,9 +3271,30 @@ api.get('/notifications', (c) => {
   return c.json({ notifications: list.slice(0, limit), unreadCount })
 })
 
-// GET /notifications/summary — just the unread count (cheap poll)
+// GET /notifications/summary — unread count + pending-approval jobs (cheap poll)
 api.get('/notifications/summary', (c) => {
-  return c.json({ unreadCount: notifications.filter(n => !n.read).length })
+  const pendingJobs = jobCards
+    .filter(j => j.status === 'PENDING_APPROVAL')
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  const pendingApprovalCount = pendingJobs.length
+  // Return the three most-recent pending jobs for the approval toast
+  const pendingApprovalJobs = pendingJobs.slice(0, 3).map(j => {
+    const v = vehicles.find(vv => vv.id === j.vehicleId)
+    const c2 = customers.find(cc => cc.id === j.customerId)
+    return {
+      id: j.id,
+      jobCardNumber: j.jobCardNumber,
+      customerName: j.customerName,
+      vehicleReg: v?.registrationNumber || j.vehicleId,
+      makeModel: v ? (v.make + ' ' + v.model) : '',
+      createdAt: j.createdAt,
+    }
+  })
+  return c.json({
+    unreadCount: notifications.filter(n => !n.read).length,
+    pendingApprovalCount,
+    pendingApprovalJobs,
+  })
 })
 
 // PATCH /notifications/read-all — mark all as read  (MUST be before /:id routes)
