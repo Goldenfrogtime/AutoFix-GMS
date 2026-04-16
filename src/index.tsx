@@ -207,6 +207,18 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 @keyframes toastProgress{from{width:100%}to{width:0%}}
 .approval-toast{transition:box-shadow .2s}
 .approval-toast:hover{box-shadow:0 8px 32px rgba(0,0,0,.18)}
+/* ── Date Filter Bar ────────────────────────────────────────────────────── */
+.df-bar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:10px 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;margin-bottom:16px}
+.df-preset{padding:4px 12px;border-radius:8px;font-size:.78rem;font-weight:600;border:1.5px solid #e2e8f0;background:#fff;color:#64748b;cursor:pointer;transition:all .15s;white-space:nowrap}
+.df-preset:hover{border-color:#3b82f6;color:#2563eb;background:#eff6ff}
+.df-preset.active{background:#2563eb;color:#fff;border-color:#2563eb}
+.df-sep{width:1px;height:20px;background:#e2e8f0;flex-shrink:0}
+.df-custom{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.df-custom input[type=date]{padding:4px 8px;border-radius:8px;border:1.5px solid #e2e8f0;font-size:.78rem;color:#374151;background:#fff;cursor:pointer;outline:none}
+.df-custom input[type=date]:focus{border-color:#3b82f6}
+.df-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:.73rem;font-weight:700;background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe}
+.df-clear{padding:3px 10px;border-radius:8px;font-size:.75rem;font-weight:600;border:none;background:#fee2e2;color:#dc2626;cursor:pointer;transition:all .15s}
+.df-clear:hover{background:#fca5a5;color:#fff}
 </style>
 </head>
 <body>
@@ -590,6 +602,11 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
           <p class="text-sm font-semibold text-gray-700" id="todayDate"></p>
         </div>
       </div>
+      <!-- Date Filter Bar -->
+      <div class="df-bar" id="df-dashboard">
+        <i class="fas fa-calendar-alt text-blue-400 text-sm flex-shrink-0"></i>
+        <span class="text-xs text-gray-400 font-semibold">Loading filter…</span>
+      </div>
       <!-- Stats Grid -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6" id="dashStats"></div>
 
@@ -839,6 +856,11 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
           <button class="btn-primary flex-shrink-0" onclick="showNewJobModal()"><i class="fas fa-plus"></i> New Job</button>
         </div>
       </div>
+      <!-- Date Filter Bar -->
+      <div class="df-bar" id="df-jobcards">
+        <i class="fas fa-calendar-alt text-blue-400 text-sm flex-shrink-0"></i>
+        <span class="text-xs text-gray-400 font-semibold">Loading filter…</span>
+      </div>
       <!-- Kanban-style status strips -->
       <div class="flex gap-2 mb-5 flex-wrap" id="jobStatusStrips"></div>
       <!-- Jobs Table -->
@@ -879,6 +901,11 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
           </div>
           <button class="btn-primary flex-shrink-0" onclick="showNewCustomerModal()"><i class="fas fa-user-plus"></i> Add Customer</button>
         </div>
+      </div>
+      <!-- Date Filter Bar -->
+      <div class="df-bar" id="df-customers">
+        <i class="fas fa-calendar-alt text-blue-400 text-sm flex-shrink-0"></i>
+        <span class="text-xs text-gray-400 font-semibold">Loading filter…</span>
       </div>
       <!-- Customer Type Tabs -->
       <div class="flex gap-2 mb-5" id="customerTypeTabs">
@@ -936,6 +963,11 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
           <h2 class="text-2xl font-bold text-gray-900">Pro Forma Invoices</h2>
           <p class="text-gray-500 text-sm mt-1">PFIs for insurance claims and private / individual customers</p>
         </div>
+      </div>
+      <!-- Date Filter Bar -->
+      <div class="df-bar" id="df-pfi">
+        <i class="fas fa-calendar-alt text-blue-400 text-sm flex-shrink-0"></i>
+        <span class="text-xs text-gray-400 font-semibold">Loading filter…</span>
       </div>
       <!-- Filter row: category tabs + status tabs -->
       <div class="flex flex-wrap gap-2 mb-3" id="pfi-catTabs">
@@ -1010,6 +1042,11 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         </div>
       </div>
 
+      <!-- Date Filter Bar -->
+      <div class="df-bar" id="df-invoices">
+        <i class="fas fa-calendar-alt text-blue-400 text-sm flex-shrink-0"></i>
+        <span class="text-xs text-gray-400 font-semibold">Loading filter…</span>
+      </div>
       <!-- Section toggle: Regular Invoices ↔ Fleet Invoices -->
       <div class="flex items-center gap-1 mb-5 p-1 bg-gray-100 rounded-xl w-fit">
         <button id="invSection-regular" onclick="invSectionSwitch('regular')"
@@ -1952,6 +1989,11 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         <button class="btn-secondary text-sm" onclick="loadGatePasses()"><i class="fas fa-sync-alt mr-1"></i>Refresh</button>
       </div>
 
+      <!-- Date Filter Bar -->
+      <div class="df-bar" id="df-gatepasses">
+        <i class="fas fa-calendar-alt text-blue-400 text-sm flex-shrink-0"></i>
+        <span class="text-xs text-gray-400 font-semibold">Loading filter…</span>
+      </div>
       <!-- Stats Row -->
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6" id="gpStats"></div>
 
@@ -5639,6 +5681,190 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 <script>
 // ═══ GLOBAL STATE ═══
 let allJobCards = [], allCustomers = [], allVehicles = [], allPFIs = [], allInvoices = [], allPackages = [], allUsers = [], allAppointments = [];
+
+// ─── Shared Date-Range Filter Helpers ────────────────────────────────────────
+// Each page stores its active range here; null = "All Time"
+var _dfDashboard   = { preset: null, start: null, end: null };
+var _dfJobCards    = { preset: null, start: null, end: null };
+var _dfCustomers   = { preset: null, start: null, end: null };
+var _dfPFI         = { preset: null, start: null, end: null };
+var _dfInvoices    = { preset: null, start: null, end: null };
+var _dfGatePasses  = { preset: null, start: null, end: null };
+
+/** Returns { start: Date, end: Date } for a named preset, or null/null for 'all'. */
+function _dfPresetRange(preset) {
+  const now = new Date();
+  const y = now.getFullYear(), m = now.getMonth(), d = now.getDate();
+  const weekDay = now.getDay(); // 0=Sun
+  const mondayOffset = (weekDay === 0 ? -6 : 1 - weekDay);
+  switch (preset) {
+    case 'today':
+      return { start: new Date(y, m, d), end: new Date(y, m, d, 23, 59, 59, 999) };
+    case 'week': {
+      const mon = new Date(y, m, d + mondayOffset);
+      const sun = new Date(y, m, d + mondayOffset + 6, 23, 59, 59, 999);
+      return { start: mon, end: sun };
+    }
+    case 'month':
+      return { start: new Date(y, m, 1), end: new Date(y, m + 1, 0, 23, 59, 59, 999) };
+    case 'quarter': {
+      const qStart = Math.floor(m / 3) * 3;
+      return { start: new Date(y, qStart, 1), end: new Date(y, qStart + 3, 0, 23, 59, 59, 999) };
+    }
+    case 'year':
+      return { start: new Date(y, 0, 1), end: new Date(y, 11, 31, 23, 59, 59, 999) };
+    case 'last_month':
+      return { start: new Date(y, m - 1, 1), end: new Date(y, m, 0, 23, 59, 59, 999) };
+    case 'last_quarter': {
+      const lqStart = (Math.floor(m / 3) - 1 + 4) % 4 * 3;
+      const lqYear  = Math.floor(m / 3) === 0 ? y - 1 : y;
+      return { start: new Date(lqYear, lqStart, 1), end: new Date(lqYear, lqStart + 3, 0, 23, 59, 59, 999) };
+    }
+    default: return { start: null, end: null };
+  }
+}
+
+/** Called when a preset button is clicked. */
+function _dfSetPreset(containerId, preset, callbackFn) {
+  const stateMap = {
+    'df-dashboard': _dfDashboard, 'df-jobcards': _dfJobCards,
+    'df-customers': _dfCustomers, 'df-pfi': _dfPFI,
+    'df-invoices': _dfInvoices,  'df-gatepasses': _dfGatePasses,
+  };
+  const s = stateMap[containerId];
+  if (!s) return;
+  if (s.preset === preset) {
+    // Toggle off (click active preset again)
+    s.preset = null; s.start = null; s.end = null;
+  } else {
+    const r = _dfPresetRange(preset);
+    s.preset = preset; s.start = r.start; s.end = r.end;
+  }
+  _dfRebuildBar(containerId, s, callbackFn);
+  callbackFn();
+}
+
+function _dfSetCustom(containerId, callbackFn) {
+  const stateMap = {
+    'df-dashboard': _dfDashboard, 'df-jobcards': _dfJobCards,
+    'df-customers': _dfCustomers, 'df-pfi': _dfPFI,
+    'df-invoices': _dfInvoices,  'df-gatepasses': _dfGatePasses,
+  };
+  const s = stateMap[containerId];
+  if (!s) return;
+  const sv = document.getElementById(containerId + '-start')?.value;
+  const ev = document.getElementById(containerId + '-end')?.value;
+  s.preset = null;
+  s.start = sv ? new Date(sv + 'T00:00:00') : null;
+  s.end   = ev ? new Date(ev + 'T23:59:59') : null;
+  _dfRebuildBar(containerId, s, callbackFn);
+  callbackFn();
+}
+
+function _dfClear(containerId, callbackFn) {
+  const stateMap = {
+    'df-dashboard': _dfDashboard, 'df-jobcards': _dfJobCards,
+    'df-customers': _dfCustomers, 'df-pfi': _dfPFI,
+    'df-invoices': _dfInvoices,  'df-gatepasses': _dfGatePasses,
+  };
+  const s = stateMap[containerId];
+  if (!s) return;
+  s.preset = null; s.start = null; s.end = null;
+  _dfRebuildBar(containerId, s, callbackFn);
+  callbackFn();
+}
+
+/** Rebuild a bar in-place given state and callback. */
+function _dfRebuildBar(containerId, stateObj, callbackFn) {
+  var el = document.getElementById(containerId);
+  if (!el) return;
+  var cbStr = (typeof callbackFn === 'function') ? callbackFn.name : String(callbackFn);
+  var toInput = function(d) { return d ? d.toISOString().slice(0,10) : ''; };
+  var bar = document.createElement('div');
+  bar.className = 'df-bar';
+  bar.id = containerId;
+  // Calendar icon
+  var icon = document.createElement('i');
+  icon.className = 'fas fa-calendar-alt text-blue-400 text-sm flex-shrink-0';
+  bar.appendChild(icon);
+  // Preset buttons
+  var presets = [
+    ['today','Today'],['week','This Week'],['month','This Month'],['last_month','Last Month'],
+    ['quarter','This Quarter'],['last_quarter','Last Quarter'],['year','This Year']
+  ];
+  presets.forEach(function(p) {
+    var btn = document.createElement('button');
+    btn.className = 'df-preset' + (stateObj.preset === p[0] ? ' active' : '');
+    btn.textContent = p[1];
+    btn.setAttribute('onclick', '_dfSetPreset(' + JSON.stringify(containerId) + ',' + JSON.stringify(p[0]) + ',' + cbStr + ')');
+    bar.appendChild(btn);
+  });
+  // Separator
+  var sep = document.createElement('div');
+  sep.className = 'df-sep';
+  bar.appendChild(sep);
+  // Custom date range
+  var custom = document.createElement('div');
+  custom.className = 'df-custom';
+  var lbl = document.createElement('span');
+  lbl.className = 'text-xs text-gray-400 font-semibold';
+  lbl.textContent = 'Custom:';
+  custom.appendChild(lbl);
+  var inStart = document.createElement('input');
+  inStart.type = 'date'; inStart.id = containerId + '-start'; inStart.value = toInput(stateObj.start);
+  inStart.title = 'From date';
+  inStart.setAttribute('onchange', '_dfSetCustom(' + JSON.stringify(containerId) + ',' + cbStr + ')');
+  custom.appendChild(inStart);
+  var dash = document.createElement('span');
+  dash.className = 'text-xs text-gray-400'; dash.textContent = '\u2013';
+  custom.appendChild(dash);
+  var inEnd = document.createElement('input');
+  inEnd.type = 'date'; inEnd.id = containerId + '-end'; inEnd.value = toInput(stateObj.end);
+  inEnd.title = 'To date';
+  inEnd.setAttribute('onchange', '_dfSetCustom(' + JSON.stringify(containerId) + ',' + cbStr + ')');
+  custom.appendChild(inEnd);
+  bar.appendChild(custom);
+  // Clear button (when filter active)
+  if (stateObj.preset || stateObj.start) {
+    var sep2 = document.createElement('div'); sep2.className = 'df-sep'; bar.appendChild(sep2);
+    var clearBtn = document.createElement('button');
+    clearBtn.className = 'df-clear';
+    clearBtn.innerHTML = '<i class="fas fa-times mr-1"></i>Clear';
+    clearBtn.setAttribute('onclick', '_dfClear(' + JSON.stringify(containerId) + ',' + cbStr + ')');
+    bar.appendChild(clearBtn);
+    var badge = document.createElement('span');
+    badge.className = 'df-badge';
+    badge.innerHTML = '<i class="fas fa-filter mr-1"></i>Filtered';
+    bar.appendChild(badge);
+  }
+  el.parentNode.replaceChild(bar, el);
+}
+
+/** Returns true if a date (string or Date) falls within the active filter range. */
+function _dfInRange(dateVal, stateObj) {
+  if (!stateObj.start && !stateObj.end) return true;
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return true; // can't parse → include
+  if (stateObj.start && d < stateObj.start) return false;
+  if (stateObj.end   && d > stateObj.end)   return false;
+  return true;
+}
+
+/** Injects a date-filter bar placeholder div into a page. Called once on page load. */
+function _dfInitBar(containerId, stateObj, callbackFn) {
+  _dfRebuildBar(containerId, stateObj, callbackFn);
+}
+
+/** Returns a short human-readable label for the active date range. */
+function _dfRangeLabel(stateObj) {
+  const presetLabels = {
+    today: 'Today', week: 'This Week', month: 'This Month', last_month: 'Last Month',
+    quarter: 'This Quarter', last_quarter: 'Last Quarter', year: 'This Year'
+  };
+  if (stateObj.preset && presetLabels[stateObj.preset]) return presetLabels[stateObj.preset];
+  const fmt = (d) => d ? d.toLocaleDateString('en-GB', {day:'2-digit', month:'short', year:'numeric'}) : '?';
+  return fmt(stateObj.start) + ' – ' + fmt(stateObj.end);
+}
 let _allPartsConsumption = [];
 let allExpenses = [];
 let _expenseEditId = null;
@@ -6250,13 +6476,40 @@ function showPage(page) {
 
 // ═══ DASHBOARD ═══
 async function loadDashboard() {
+  // Initialize / rebuild the date filter bar
+  _dfRebuildBar('df-dashboard', _dfDashboard, _dashApplyFilter);
+
   const { data } = await axios.get('/api/dashboard');
   document.getElementById('todayDate').textContent = new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  // Apply date filter to dashboard data
+  _dashApplyData(data);
+}
+
+// Holds full dashboard data for re-filtering without re-fetching
+var _dashRawData = null;
+
+function _dashApplyFilter() {
+  if (_dashRawData) _dashApplyData(_dashRawData);
+}
+
+async function _dashApplyData(data) {
+  _dashRawData = data;
+  const df = _dfDashboard;
+
+  // Filter recent jobs by date range
+  const filteredJobs = (data.recentJobs || []).filter(j => _dfInRange(j.createdAt, df));
+
+  // Recalculate revenue from filtered jobs' invoices when a range is active
+  // (dashboard /api/dashboard returns pre-aggregated — show label change)
+  const hasFilter = !!(df.start || df.end);
+  const rangeLabel = hasFilter ? ' (' + _dfRangeLabel(df) + ')' : '';
+
+  // Update stat labels to reflect active range
   const stats = [
-    { label:'Active Jobs', value:data.active, icon:'fa-clipboard-list', g1:'#2563eb', g2:'#3b82f6' },
+    { label: 'Active Jobs' + rangeLabel, value: data.active, icon:'fa-clipboard-list', g1:'#2563eb', g2:'#3b82f6' },
     { label:'Pending Approval', value:data.pendingApproval, icon:'fa-hourglass-half', g1:'#d97706', g2:'#f59e0b', clickable: data.pendingApproval > 0 },
     { label:'Work In Progress', value:data.inProgress, icon:'fa-tools', g1:'#16a34a', g2:'#22c55e' },
-    { label:'Monthly Revenue', value:fmt(data.totalRevenue), icon:'fa-coins', g1:'#7c3aed', g2:'#8b5cf6' }
+    { label:'Revenue' + rangeLabel, value:fmt(data.totalRevenue), icon:'fa-coins', g1:'#7c3aed', g2:'#8b5cf6' }
   ];
   document.getElementById('dashStats').innerHTML = stats.map((s, i) => \`
     <div class="stat-card \${s.clickable ? 'cursor-pointer hover:scale-105 transition-transform' : ''}" style="--g1:\${s.g1};--g2:\${s.g2}" \${s.clickable ? 'data-stat-click="pending-approval"' : ''}>
@@ -6282,7 +6535,7 @@ async function loadDashboard() {
       });
     });
   });
-  document.getElementById('recentJobsList').innerHTML = data.recentJobs.map(j => \`
+  document.getElementById('recentJobsList').innerHTML = (hasFilter ? filteredJobs : data.recentJobs).map(j => \`
     <div class="table-row flex items-center justify-between py-3 border-b border-gray-50 cursor-pointer rounded-lg px-2 hover:bg-blue-50 transition-colors" onclick="viewJobDetail('\${j.id}')">
       <div class="flex items-center gap-3">
         <div class="w-9 h-9 rounded-lg flex items-center justify-center text-sm" style="background:\${STATUS_CONFIG[j.status]?.bg||'#f1f5f9'};color:\${STATUS_CONFIG[j.status]?.color||'#64748b'}">
@@ -6539,9 +6792,10 @@ async function _loadDashExpenseSnapshot() {
 
 // ═══ JOB CARDS ═══
 async function loadJobCards() {
+  _dfRebuildBar('df-jobcards', _dfJobCards, filterJobCards);
   const { data } = await axios.get('/api/jobcards');
   allJobCards = data;
-  renderJobCards(data);
+  filterJobCards();
   renderStatusStrips(data);
 }
 
@@ -6608,10 +6862,14 @@ function renderJobCards(jobs) {
 }
 
 function filterJobCards(search) {
-  const q = (search || document.getElementById('jobSearch').value || '').toLowerCase();
-  const statusFilter = document.getElementById('jobStatusFilter').value;
+  const q = (search || document.getElementById('jobSearch')?.value || '').toLowerCase();
+  const statusFilter = document.getElementById('jobStatusFilter')?.value || '';
   let filtered = allJobCards;
+  // Date filter
+  filtered = filtered.filter(j => _dfInRange(j.createdAt, _dfJobCards));
+  // Status filter
   if (statusFilter) filtered = filtered.filter(j => j.status === statusFilter);
+  // Text search
   if (q) filtered = filtered.filter(j =>
     j.jobCardNumber.toLowerCase().includes(q) ||
     (j.customer?.name||'').toLowerCase().includes(q) ||
@@ -10126,6 +10384,9 @@ async function loadGatePasses() {
   // nav click handler (showPage → loadGatePasses). Calling it again would
   // re-trigger loadGatePasses a second time and double all DOM scans.
 
+  // Initialize date filter bar
+  _dfRebuildBar('df-gatepasses', _dfGatePasses, _gpApplyDateFilter);
+
   // Fire summary + passes list IN PARALLEL — cuts perceived load time in half
   const tab = window._gpCurrentTab || 'all';
   const passUrl = tab === 'all' ? '/api/gate-passes' : '/api/gate-passes?status=' + encodeURIComponent(tab);
@@ -10160,9 +10421,22 @@ async function loadGatePasses() {
     const badge = document.getElementById('gpNavBadge');
     if (badge) { if (s.active + s.pendingExit > 0) { badge.textContent = s.active + s.pendingExit; badge.classList.remove('hidden'); } else { badge.classList.add('hidden'); } }
 
-    // Render table rows (data already fetched in parallel above)
-    _renderGPRows(passes);
+    // Cache all passes and render with date filter applied
+    window._gpAllPasses = passes;
+    _gpAllPasses = passes;
+    const dfFiltered = passes.filter(gp => _dfInRange(gp.createdAt, _dfGatePasses));
+    _renderGPRows(dfFiltered);
   } catch(e) {}
+}
+
+var _gpAllPasses = [];
+
+function _gpApplyDateFilter() {
+  const tab = window._gpCurrentTab || 'all';
+  let filtered = _gpAllPasses;
+  if (tab !== 'all') filtered = filtered.filter(gp => gp.status === tab);
+  filtered = filtered.filter(gp => _dfInRange(gp.createdAt, _dfGatePasses));
+  _renderGPRows(filtered);
 }
 
 let _gpCurrentTab = 'all';
@@ -10181,7 +10455,10 @@ function setGPTab(tab) {
 async function _renderGPTable(tab) {
   const url = tab === 'all' ? '/api/gate-passes' : '/api/gate-passes?status=' + encodeURIComponent(tab);
   const { data: passes } = await axios.get(url);
-  _renderGPRows(passes);
+  // Cache and apply date filter
+  _gpAllPasses = passes;
+  const dateFiltered = passes.filter(gp => _dfInRange(gp.createdAt, _dfGatePasses));
+  _renderGPRows(dateFiltered);
 }
 
 // Pure render — accepts pre-fetched passes array, no network call needed
@@ -10624,10 +10901,10 @@ async function submitNewJob(e) {
 let activeCustomerTab = 'all';
 
 async function loadCustomers() {
+  _dfRebuildBar('df-customers', _dfCustomers, filterCustomers);
   const { data } = await axios.get('/api/customers');
   allCustomers = data;
-  updateCustomerCounts(data);
-  renderCustomers(data);
+  filterCustomers('');
 }
 
 function updateCustomerCounts(list) {
@@ -10704,10 +10981,14 @@ function renderCustomers(list) {
 }
 
 function filterCustomers(q) {
-  const lq = (q || '').toLowerCase();
+  const lq = (typeof q === 'string' ? q : (document.getElementById('customerSearchInput')?.value || '')).toLowerCase();
   let list = allCustomers;
+  // Date filter (by customer registration date)
+  list = list.filter(c => _dfInRange(c.createdAt, _dfCustomers));
+  // Type tab filter
   if (activeCustomerTab === 'Individual') list = list.filter(c => c.customerType === 'Individual' || !c.customerType);
   if (activeCustomerTab === 'Corporate') list = list.filter(c => c.customerType === 'Corporate');
+  // Text search
   if (lq) list = list.filter(c =>
     c.name.toLowerCase().includes(lq) ||
     c.phone.includes(lq) ||
@@ -10716,6 +10997,7 @@ function filterCustomers(q) {
     (c.companyName||'').toLowerCase().includes(lq) ||
     (c.contactPerson||'').toLowerCase().includes(lq)
   );
+  updateCustomerCounts(list);
   renderCustomers(list);
 }
 
@@ -12438,6 +12720,7 @@ async function submitSendPFI() {
 
 // ═══ CLAIMS ═══
 async function loadClaims() {
+  _dfRebuildBar('df-pfi', _dfPFI, _applyPFIFilters);
   const [pfiData, jobData, partsData] = await Promise.all([
     axios.get('/api/pfis'),
     axios.get('/api/jobcards'),
@@ -12448,7 +12731,7 @@ async function loadClaims() {
   _allPartsConsumption = partsData.data;
   _pfiActiveCategory = 'all';
   _pfiActiveStatus   = 'all';
-  renderClaims(allPFIs);
+  _applyPFIFilters();
 }
 
 function renderClaims(pfis) {
@@ -12564,12 +12847,16 @@ function filterPFIs(status, btn) {
 
 function _applyPFIFilters() {
   let list = allPFIs;
+  // Date filter (by PFI creation date)
+  list = list.filter(p => _dfInRange(p.createdAt, _dfPFI));
+  // Category filter
   if (_pfiActiveCategory !== 'all') {
     list = list.filter(p => {
       const job = allJobCards.find(j => j.id === p.jobCardId);
       return job?.category === _pfiActiveCategory;
     });
   }
+  // Status filter
   if (_pfiActiveStatus !== 'all') {
     list = list.filter(p => p.status === _pfiActiveStatus);
   }
@@ -12776,29 +13063,29 @@ function navToInvoices(filter) {
 }
 
 async function loadInvoices() {
+  _dfRebuildBar('df-invoices', _dfInvoices, _invApplyDateFilter);
   const { data } = await axios.get('/api/invoices');
   allInvoices = data;
+  _invRefreshStats(data);
+  invFilterBy(_invCurrentFilter);
+  loadFinanceSummaryCards();
+}
+
+function _invApplyDateFilter() {
+  const filtered = allInvoices.filter(i => _dfInRange(i.issuedAt || i.createdAt, _dfInvoices));
+  _invRefreshStats(filtered);
+  _renderInvoicesTable(filtered, _invCurrentFilter);
+}
+
+function _invRefreshStats(data) {
   const total = data.filter(i => i.status === 'Paid').reduce((s, i) => s + i.totalAmount, 0)
               + data.filter(i => i.status === 'Partially Paid').reduce((s, i) => s + (i.amountPaid || 0), 0);
   document.getElementById('totalRevDisplay').textContent = fmt(total);
-
-  // Populate stat pills
-  const allCount     = data.length;
-  const paidCount    = data.filter(i => i.status === 'Paid').length;
-  const overdueCount = data.filter(i => i.status === 'Overdue').length;
-  const outstandingCount = data.filter(i => i.status === 'Issued' || i.status === 'Draft' || i.status === 'Partially Paid').length;
-
   const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
-  el('invStatAll',         allCount);
-  el('invStatPaid',        paidCount);
-  el('invStatOverdue',     overdueCount);
-  el('invStatOutstanding', outstandingCount);
-
-  // Render with current filter AND sync tab button styles
-  invFilterBy(_invCurrentFilter);
-
-  // Auto-refresh finance summary cards
-  loadFinanceSummaryCards();
+  el('invStatAll',         data.length);
+  el('invStatPaid',        data.filter(i => i.status === 'Paid').length);
+  el('invStatOverdue',     data.filter(i => i.status === 'Overdue').length);
+  el('invStatOutstanding', data.filter(i => i.status === 'Issued' || i.status === 'Draft' || i.status === 'Partially Paid').length);
 }
 
 function invFilterBy(filter) {
@@ -12818,7 +13105,10 @@ function invFilterBy(filter) {
       b.className = \`inv-tab-btn px-4 py-1.5 rounded-full text-sm font-semibold border-2 border-gray-200 text-gray-600 hover:border-\${c}-400 transition-all\`;
     }
   });
-  _renderInvoicesTable(allInvoices, filter);
+  // Apply date filter before passing to table renderer
+  const dateFiltered = allInvoices.filter(i => _dfInRange(i.issuedAt || i.createdAt, _dfInvoices));
+  _invRefreshStats(dateFiltered);
+  _renderInvoicesTable(dateFiltered, filter);
 }
 
 function _renderInvoicesTable(data, filter) {
