@@ -237,7 +237,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
             <i class="fas fa-car-side text-white text-xl"></i>
           </div>
           <div>
-            <div class="text-white font-bold text-lg leading-none">AutoFix GMS</div>
+            <div class="text-white font-bold text-lg leading-none">Kangaroo Autofix</div>
             <div class="text-blue-200 text-xs mt-0.5">Garage Management System</div>
           </div>
         </div>
@@ -256,7 +256,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
           <div class="flex items-center gap-2 text-white text-xs"><span style="width:8px;height:8px;border-radius:50%;background:#a78bfa;flex-shrink:0"></span> Finance — Invoices &amp; payments</div>
           <div class="flex items-center gap-2 text-white text-xs"><span style="width:8px;height:8px;border-radius:50%;background:#f472b6;flex-shrink:0"></span> Quality Control — Final sign-off</div>
         </div>
-        <p class="text-blue-300 text-xs mt-6">© 2026 AutoFix GMS · Secure · Role-based</p>
+        <p class="text-blue-300 text-xs mt-6">© 2026 Kangaroo Autofix · Secure · Role-based</p>
       </div>
     </div>
 
@@ -268,12 +268,12 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         <div class="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center">
           <i class="fas fa-car-side text-white"></i>
         </div>
-        <span class="font-bold text-gray-900">AutoFix GMS</span>
+        <span class="font-bold text-gray-900">Kangaroo Autofix</span>
       </div>
 
       <div class="flex-1 flex flex-col justify-center px-8 md:px-10 py-8">
         <h3 class="text-2xl font-bold text-gray-900 mb-1">Sign in</h3>
-        <p class="text-gray-500 text-sm mb-6">Enter your credentials or pick a demo role below</p>
+        <p class="text-gray-500 text-sm mb-6">Enter your credentials to access your dashboard</p>
 
         <div id="loginError" class="hidden mb-4 px-4 py-3 rounded-xl text-sm font-medium text-red-700" style="background:#fee2e2;border:1px solid #fca5a5"></div>
 
@@ -282,7 +282,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
             <label class="form-label">Email Address</label>
             <div class="relative">
               <i class="fas fa-envelope absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-              <input id="loginEmail" type="email" class="form-input pl-9" placeholder="you@autofix.co.tz" required autocomplete="username"/>
+              <input id="loginEmail" type="email" class="form-input pl-9" placeholder="you@kangaroo.co.tz" required autocomplete="username"/>
             </div>
           </div>
           <div class="mb-5">
@@ -300,95 +300,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
           </button>
         </form>
 
-        <!-- ── Demo role quick-login cards ── -->
-        <div class="mt-6">
-          <div class="flex items-center gap-3 mb-3">
-            <div style="flex:1;height:1px;background:#e2e8f0"></div>
-            <span class="text-xs text-gray-400 font-semibold whitespace-nowrap">Demo Accounts — click to auto-fill</span>
-            <div style="flex:1;height:1px;background:#e2e8f0"></div>
-          </div>
-          <div id="demoRoleGrid" style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
 
-            <!-- Admin -->
-            <button type="button" onclick="fillRole('admin@autofix.co.tz','Admin2025!')"
-              style="border:1.5px solid #fecaca;border-radius:12px;padding:10px 8px;background:#fff;cursor:pointer;text-align:center;transition:all .15s"
-              onmouseover="this.style.background='#fef2f2'" onmouseout="this.style.background='#fff'">
-              <div style="width:32px;height:32px;border-radius:8px;background:#fee2e2;display:flex;align-items:center;justify-content:center;margin:0 auto 6px">
-                <i class="fas fa-crown" style="color:#dc2626;font-size:14px"></i>
-              </div>
-              <div style="font-size:11px;font-weight:700;color:#dc2626">Admin</div>
-              <div style="font-size:10px;color:#94a3b8;margin-top:2px">Sarah M.</div>
-            </button>
-
-            <!-- Workshop Controller -->
-            <button type="button" onclick="fillRole('workshop@autofix.co.tz','Workshop2025!')"
-              style="border:1.5px solid #fde68a;border-radius:12px;padding:10px 8px;background:#fff;cursor:pointer;text-align:center;transition:all .15s"
-              onmouseover="this.style.background='#fffbeb'" onmouseout="this.style.background='#fff'">
-              <div style="width:32px;height:32px;border-radius:8px;background:#fef3c7;display:flex;align-items:center;justify-content:center;margin:0 auto 6px">
-                <i class="fas fa-clipboard-list" style="color:#b45309;font-size:14px"></i>
-              </div>
-              <div style="font-size:11px;font-weight:700;color:#b45309">Workshop Ctrl</div>
-              <div style="font-size:10px;color:#94a3b8;margin-top:2px">James O.</div>
-            </button>
-
-            <!-- Service Advisor -->
-            <button type="button" onclick="fillRole('advisor@autofix.co.tz','Advisor2025!')"
-              style="border:1.5px solid #bfdbfe;border-radius:12px;padding:10px 8px;background:#fff;cursor:pointer;text-align:center;transition:all .15s"
-              onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background='#fff'">
-              <div style="width:32px;height:32px;border-radius:8px;background:#dbeafe;display:flex;align-items:center;justify-content:center;margin:0 auto 6px">
-                <i class="fas fa-concierge-bell" style="color:#2563eb;font-size:14px"></i>
-              </div>
-              <div style="font-size:11px;font-weight:700;color:#2563eb">Svc Advisor</div>
-              <div style="font-size:10px;color:#94a3b8;margin-top:2px">Amina H.</div>
-            </button>
-
-            <!-- Technician -->
-            <button type="button" onclick="fillRole('technician@autofix.co.tz','Tech2025!')"
-              style="border:1.5px solid #bbf7d0;border-radius:12px;padding:10px 8px;background:#fff;cursor:pointer;text-align:center;transition:all .15s"
-              onmouseover="this.style.background='#f0fdf4'" onmouseout="this.style.background='#fff'">
-              <div style="width:32px;height:32px;border-radius:8px;background:#dcfce7;display:flex;align-items:center;justify-content:center;margin:0 auto 6px">
-                <i class="fas fa-wrench" style="color:#16a34a;font-size:14px"></i>
-              </div>
-              <div style="font-size:11px;font-weight:700;color:#16a34a">Technician</div>
-              <div style="font-size:10px;color:#94a3b8;margin-top:2px">Juma M.</div>
-            </button>
-
-            <!-- Finance -->
-            <button type="button" onclick="fillRole('finance@autofix.co.tz','Finance2025!')"
-              style="border:1.5px solid #ddd6fe;border-radius:12px;padding:10px 8px;background:#fff;cursor:pointer;text-align:center;transition:all .15s"
-              onmouseover="this.style.background='#faf5ff'" onmouseout="this.style.background='#fff'">
-              <div style="width:32px;height:32px;border-radius:8px;background:#f5f3ff;display:flex;align-items:center;justify-content:center;margin:0 auto 6px">
-                <i class="fas fa-coins" style="color:#7c3aed;font-size:14px"></i>
-              </div>
-              <div style="font-size:11px;font-weight:700;color:#7c3aed">Finance</div>
-              <div style="font-size:10px;color:#94a3b8;margin-top:2px">Grace K.</div>
-            </button>
-
-            <!-- Quality Control -->
-            <button type="button" onclick="fillRole('qc@autofix.co.tz','QC2025!')"
-              style="border:1.5px solid #fbcfe8;border-radius:12px;padding:10px 8px;background:#fff;cursor:pointer;text-align:center;transition:all .15s"
-              onmouseover="this.style.background='#fdf2f8'" onmouseout="this.style.background='#fff'">
-              <div style="width:32px;height:32px;border-radius:8px;background:#fce7f3;display:flex;align-items:center;justify-content:center;margin:0 auto 6px">
-                <i class="fas fa-check-double" style="color:#db2777;font-size:14px"></i>
-              </div>
-              <div style="font-size:11px;font-weight:700;color:#db2777">Quality Ctrl</div>
-              <div style="font-size:10px;color:#94a3b8;margin-top:2px">David N.</div>
-            </button>
-
-            <!-- Sales Rep -->
-            <button type="button" onclick="fillRole('sales@autofix.co.tz','Sales2025!')"
-              style="border:1.5px solid #d1fae5;border-radius:12px;padding:10px 8px;background:#fff;cursor:pointer;text-align:center;transition:all .15s"
-              onmouseover="this.style.background='#ecfdf5'" onmouseout="this.style.background='#fff'">
-              <div style="width:32px;height:32px;border-radius:8px;background:#d1fae5;display:flex;align-items:center;justify-content:center;margin:0 auto 6px">
-                <i class="fas fa-handshake" style="color:#059669;font-size:14px"></i>
-              </div>
-              <div style="font-size:11px;font-weight:700;color:#059669">Sales Rep</div>
-              <div style="font-size:10px;color:#94a3b8;margin-top:2px">Omar S.</div>
-            </button>
-
-          </div>
-          <p class="text-center text-xs text-gray-400 mt-3">Click any card to auto-fill · then press Sign In</p>
-        </div>
       </div>
     </div><!-- /right panel -->
 
@@ -408,7 +320,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         <i class="fas fa-car-side text-white text-lg"></i>
       </div>
       <div>
-        <h1 class="font-bold text-base leading-tight">AutoFix GMS</h1>
+        <h1 class="font-bold text-base leading-tight">Kangaroo Autofix</h1>
         <p class="text-xs text-blue-200">Garage Management</p>
       </div>
     </div>
@@ -3669,7 +3581,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
     <form id="newUserForm" onsubmit="submitNewUser(event)">
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <div><label class="form-label">Full Name *</label><input class="form-input" id="usr-name" placeholder="e.g. John Mwangi" required/></div>
-        <div><label class="form-label">Email Address *</label><input class="form-input" type="email" id="usr-email" placeholder="john@autofix.co.tz" required/></div>
+        <div><label class="form-label">Email Address *</label><input class="form-input" type="email" id="usr-email" placeholder="john@kangaroo.co.tz" required/></div>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <div><label class="form-label">Phone Number</label><input class="form-input" id="usr-phone" placeholder="+255 7xx xxx xxx"/></div>
@@ -3837,7 +3749,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <!-- Header band -->
       <div class="bg-gradient-to-r from-blue-700 to-blue-500 px-6 py-4 flex items-center justify-between">
         <div class="text-white">
-          <p class="font-bold text-lg tracking-wide">AutoFix GMS</p>
+          <p class="font-bold text-lg tracking-wide">Kangaroo Autofix</p>
           <p class="text-blue-200 text-xs">Garage Management System</p>
         </div>
         <div class="text-right text-white">
@@ -3899,7 +3811,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 
       <!-- Footer note -->
       <div class="bg-blue-700 px-6 py-3 text-center">
-        <p class="text-blue-100 text-xs">Thank you for choosing AutoFix GMS · Tel: +255 700 000 000 · info@autofixgms.co.tz</p>
+        <p class="text-blue-100 text-xs">Thank you for choosing Kangaroo Autofix · Tel: +255 700 000 000 · kangero@kangaroo.co.tz</p>
       </div>
     </div>
 
@@ -5980,32 +5892,12 @@ function togglePasswordVisibility() {
 }
 
 function fillDefaultCredentials() {
-  document.getElementById('loginEmail').value = 'admin@autofix.co.tz';
+  document.getElementById('loginEmail').value = 'admin@kangaroo.co.tz';
   document.getElementById('loginPassword').value = 'Admin2025!';
   document.getElementById('loginError').classList.add('hidden');
   document.getElementById('loginEmail').focus();
 }
 
-// Fill login credentials for a demo role and visually highlight the card
-function fillRole(email, password) {
-  document.getElementById('loginEmail').value = email;
-  document.getElementById('loginPassword').value = password;
-  document.getElementById('loginError').classList.add('hidden');
-  // Brief highlight animation on all cards then reset
-  var cards = document.querySelectorAll('#demoRoleGrid button');
-  cards.forEach(function(c) { c.style.opacity = '0.5'; });
-  // Find clicked card by matching email in onclick attribute
-  cards.forEach(function(c) {
-    if (c.getAttribute('onclick') && c.getAttribute('onclick').includes(email)) {
-      c.style.opacity = '1';
-      c.style.transform = 'scale(1.04)';
-      setTimeout(function() { c.style.transform = ''; }, 300);
-    }
-  });
-  setTimeout(function() { cards.forEach(function(c) { c.style.opacity = '1'; }); }, 400);
-  // Auto-submit
-  document.getElementById('loginBtn').focus();
-}
 
 async function doLogin(e) {
   e.preventDefault();
@@ -10180,8 +10072,8 @@ function _buildServiceCardText(mileageOut) {
     if (job.nextServiceLubricant) t += '   (' + job.nextServiceLubricant + ')' + NL;
   }
   t += LINE + NL;
-  t += 'Thank you for choosing AutoFix GMS!' + NL;
-  t += 'Tel: +255 700 000 000 | info@autofixgms.co.tz' + NL;
+  t += 'Thank you for choosing Kangaroo Autofix!' + NL;
+  t += 'Tel: +255 700 000 000 | kangero@kangaroo.co.tz' + NL;
   return t;
 }
 
@@ -10201,7 +10093,7 @@ function downloadServiceCardPDF() {
   doc.rect(0, 0, pageW, 30, 'F');
   doc.setTextColor(255,255,255);
   doc.setFont('helvetica','bold'); doc.setFontSize(16);
-  doc.text('AutoFix GMS', margin, 12);
+  doc.text('Kangaroo Autofix', margin, 12);
   doc.setFont('helvetica','normal'); doc.setFontSize(8);
   doc.setTextColor(186, 214, 255);
   doc.text('Garage Management System', margin, 18);
@@ -10299,7 +10191,7 @@ function downloadServiceCardPDF() {
   doc.setFillColor(29, 78, 216);
   doc.rect(0, pageH - 14, pageW, 14, 'F');
   doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(186,214,255);
-  doc.text('Thank you for choosing AutoFix GMS  ·  Tel: +255 700 000 000  ·  info@autofixgms.co.tz', pageW/2, pageH - 6, { align:'center' });
+  doc.text('Thank you for choosing Kangaroo Autofix  ·  Tel: +255 700 000 000  ·  kangero@kangaroo.co.tz', pageW/2, pageH - 6, { align:'center' });
 
   const filename = 'ServiceCard-' + (job.jobCardNumber||'GMS') + '-' + (vehicle?.registrationNumber||'').replace(/\s/g,'')+'.pdf';
   doc.save(filename);
@@ -10314,7 +10206,7 @@ function shareServiceCardWhatsApp() {
   const NL = String.fromCharCode(10);
   const DIV = '\u2500'.repeat(29);
 
-  let msg = '\uD83D\uDD27 *AutoFix GMS \u2014 Service Card*' + NL;
+  let msg = '\uD83D\uDD27 *Kangaroo Autofix \u2014 Service Card*' + NL;
   msg += DIV + NL;
   msg += '*Job Card:*  ' + (job.jobCardNumber || '\u2014') + NL;
   msg += '*Date:*      ' + fmtDate(job.updatedAt || job.createdAt) + NL;
@@ -10328,7 +10220,7 @@ function shareServiceCardWhatsApp() {
     if (job.nextServiceLubricant) msg += '   _(' + job.nextServiceLubricant + ')_' + NL;
   }
   msg += DIV + NL;
-  msg += '_Thank you for choosing AutoFix GMS!_' + NL;
+  msg += '_Thank you for choosing Kangaroo Autofix!_' + NL;
   msg += '_\uD83D\uDCDE +255 700 000 000_';
 
   const url = 'https://wa.me/' + (phone || '') + '?text=' + encodeURIComponent(msg);
@@ -10340,7 +10232,7 @@ function shareServiceCardEmail() {
   const { job, customer, vehicle } = _svcCardData;
   const mileageOut = +document.getElementById('svcCard-mileageOut').value || 0;
   const email = customer?.email || '';
-  const subject = 'Your Service Card — ' + (job.jobCardNumber || 'AutoFix GMS') + ' | ' + (vehicle?.registrationNumber || '');
+  const subject = 'Your Service Card — ' + (job.jobCardNumber || 'Kangaroo Autofix') + ' | ' + (vehicle?.registrationNumber || '');
   const body = _buildServiceCardText(mileageOut);
   window.location.href = 'mailto:' + email + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
 }
@@ -10709,7 +10601,7 @@ function _buildGatePassPDF(gp) {
   doc.rect(0, pageH - 10, pageW, 10, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(7); doc.setFont('helvetica', 'normal');
-  doc.text('AutoFix GMS  |  www.autofixgms.co.tz  |  +255 700 000 000', pageW / 2, pageH - 4, { align: 'center' });
+  doc.text('Kangaroo Autofix  |  www.kangaroo.co.tz  |  +255 700 000 000', pageW / 2, pageH - 4, { align: 'center' });
 
   doc.save('GatePass-' + gp.passNumber + '.pdf');
 }
@@ -12335,11 +12227,11 @@ function buildPFIDoc(detail) {
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(22);
-  doc.text('AutoFix GMS', margin, 16);
+  doc.text('Kangaroo Autofix', margin, 16);
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.text('Garage Management System', margin, 23);
-  doc.text('Tel: +255 700 000 000 | info@autofixgms.co.tz', margin, 29);
+  doc.text('Tel: +255 700 000 000 | kangero@kangaroo.co.tz', margin, 29);
   doc.text('P.O. Box 12345, Dar es Salaam, Tanzania', margin, 35);
   // PFI label on right
   const isInsuranceJob = job?.category === 'Insurance';
@@ -12517,7 +12409,7 @@ function buildPFIDoc(detail) {
   doc.rect(0, pageH - 22, pageW, 22, 'F');
   doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(100, 116, 139);
   doc.text('This is a Pro Forma Invoice and does not constitute a tax invoice.', pageW / 2, pageH - 14, { align: 'center' });
-  doc.text('AutoFix GMS  |  Tel: +255 700 000 000  |  info@autofixgms.co.tz', pageW / 2, pageH - 8, { align: 'center' });
+  doc.text('Kangaroo Autofix  |  Tel: +255 700 000 000  |  kangero@kangaroo.co.tz', pageW / 2, pageH - 8, { align: 'center' });
 
   return doc;
 }
@@ -12669,7 +12561,7 @@ async function showSendPFIModal(pfiId) {
   // Pre-fill email
   document.getElementById('sendPFI-email').value   = customer?.email || '';
   // Pre-fill subject
-  document.getElementById('sendPFI-subject').value = \`Pro Forma Invoice – \${job?.jobCardNumber||'PFI-'+pfi.id.toUpperCase()} | AutoFix GMS\`;
+  document.getElementById('sendPFI-subject').value = \`Pro Forma Invoice – \${job?.jobCardNumber||'PFI-'+pfi.id.toUpperCase()} | Kangaroo Autofix\`;
 
   // Build services lines for email body
   const servicesLines = services.length
@@ -12710,10 +12602,10 @@ Summary:
 
 \${pfi.notes ? 'Notes: ' + pfi.notes + '\\n\\n' : ''}\${closingLine}
 
-For any queries, please contact us at +255 700 000 000 or info@autofixgms.co.tz.
+For any queries, please contact us at +255 700 000 000 or kangero@kangaroo.co.tz.
 
 Kind regards,
-AutoFix GMS Team\`;
+Kangaroo Autofix Team\`;
 
   // Text preview
   document.getElementById('sendPFI-previewBox').textContent = buildPFITextPreview(_currentPFIDetail);
@@ -13415,11 +13307,11 @@ function buildInvoiceDoc(inv, job) {
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(22);
-  doc.text('AutoFix GMS', margin, 16);
+  doc.text('Kangaroo Autofix', margin, 16);
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.text('Garage Management System', margin, 23);
-  doc.text('Tel: +255 700 000 000  |  info@autofixgms.co.tz', margin, 29);
+  doc.text('Tel: +255 700 000 000  |  kangero@kangaroo.co.tz', margin, 29);
   doc.text('P.O. Box 12345, Dar es Salaam, Tanzania', margin, 35);
 
   // INVOICE label top-right
@@ -13683,7 +13575,7 @@ function buildInvoiceDoc(inv, job) {
   doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(100, 116, 139);
   doc.text('This is an official tax invoice. Please retain for your records.', pageW / 2, pageH - 16, { align: 'center' });
   doc.setFont('helvetica', 'normal');
-  doc.text('AutoFix GMS  |  Tel: +255 700 000 000  |  info@autofixgms.co.tz  |  P.O. Box 12345, Dar es Salaam', pageW / 2, pageH - 10, { align: 'center' });
+  doc.text('Kangaroo Autofix  |  Tel: +255 700 000 000  |  kangero@kangaroo.co.tz  |  P.O. Box 12345, Dar es Salaam', pageW / 2, pageH - 10, { align: 'center' });
   doc.text('Generated: ' + new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }), pageW / 2, pageH - 4, { align: 'center' });
 
   return doc;
@@ -15018,7 +14910,7 @@ async function downloadFleetInvoicePDF(fiId) {
   doc.setTextColor(180, 180, 180);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
-  doc.text('Generated by AutoFix GMS · ' + new Date().toLocaleString('en-GB'), ml, ph - 8);
+  doc.text('Generated by Kangaroo Autofix · ' + new Date().toLocaleString('en-GB'), ml, ph - 8);
   doc.text('Page 1', pw - mr, ph - 8, { align: 'right' });
 
   doc.save(fi.fleetInvoiceNumber + '.pdf');
