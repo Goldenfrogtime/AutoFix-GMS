@@ -483,6 +483,9 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
     <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('sales-commission')" data-perm="sales.view_commission">
       <i class="fas fa-percentage w-5 text-center"></i> My Commission
     </a>
+    <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('staff-performance')" id="nav-staff-performance" data-perm="staff_performance.view">
+      <i class="fas fa-award w-5 text-center"></i> Staff Performance
+    </a>
 
     <a class="nav-item flex items-center gap-3 px-3 py-2.5 rounded-xl cursor-pointer text-sm font-medium text-blue-100" onclick="showPage('analytics')" data-perm="analytics.view">
       <i class="fas fa-chart-bar w-5 text-center"></i> Analytics
@@ -2705,6 +2708,42 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       </div>
     </div>
 
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <!-- STAFF PERFORMANCE PAGE                                                  -->
+    <!-- ══════════════════════════════════════════════════════════════════════ -->
+    <div id="page-staff-performance" class="page">
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+        <div>
+          <h2 class="text-2xl font-bold text-gray-900">Staff Performance</h2>
+          <p class="text-gray-500 text-sm mt-1">Track upsells and referrals by Service Advisors and Technicians</p>
+        </div>
+        <div class="flex gap-2 items-center">
+          <input type="month" id="sp-period" class="form-input text-sm" onchange="loadStaffPerformance()">
+          <button class="btn-secondary text-sm" onclick="loadStaffPerformance()"><i class="fas fa-sync-alt mr-1"></i>Refresh</button>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="flex gap-1 border-b border-gray-200 mb-6">
+        <button id="sp-tab-sa" class="px-5 py-2.5 text-sm font-semibold border-b-2 border-blue-600 text-blue-600 -mb-px bg-white" onclick="switchSPTab('sa')">
+          <i class="fas fa-user-tie mr-1.5"></i>Service Advisor Upsells
+        </button>
+        <button id="sp-tab-tech" class="px-5 py-2.5 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 -mb-px" onclick="switchSPTab('tech')">
+          <i class="fas fa-tools mr-1.5"></i>Technician Referrals
+        </button>
+      </div>
+
+      <!-- SA Upsells Tab -->
+      <div id="sp-panel-sa">
+        <div id="sp-sa-content"><div class="text-center py-12 text-gray-400"><i class="fas fa-spinner fa-spin text-2xl"></i></div></div>
+      </div>
+
+      <!-- Technician Referrals Tab -->
+      <div id="sp-panel-tech" class="hidden">
+        <div id="sp-tech-content"><div class="text-center py-12 text-gray-400"><i class="fas fa-spinner fa-spin text-2xl"></i></div></div>
+      </div>
+    </div>
+
   </div>
 </main>
 </div><!-- end appShell -->
@@ -2785,6 +2824,10 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         </div>
       </div>
 
+      <div class="mb-4"><label class="form-label">Referred by Technician <span class="text-gray-400 font-normal">(optional)</span></label>
+        <select class="form-input" id="job-referredBy"><option value="">— None —</option></select>
+        <p class="text-xs text-gray-400 mt-1">Select if a technician referred this customer to the garage.</p>
+      </div>
       <div class="mb-6"><label class="form-label">Initial Inspection Notes</label><textarea class="form-input" id="job-notes" rows="2" placeholder="Technician inspection notes…"></textarea></div>
       <div class="flex gap-3 justify-end">
         <button type="button" class="btn-secondary" onclick="closeModal('modal-newJob')">Cancel</button>
@@ -6454,6 +6497,7 @@ function showPage(page) {
   if (page === 'audit-log') { loadAuditLog(); populateAuditUserFilter(); }
   if (page === 'sales-dashboard') loadSalesDashboard();
   if (page === 'sales-commission') loadMyCommission();
+  if (page === 'staff-performance') loadStaffPerformance();
   if (page === 'sales-new-sale') initNewSaleForm();
   window.scrollTo(0, 0);
 }
@@ -10706,6 +10750,7 @@ async function showNewJobModal() {
   // Reset customer picker
   jobCustClear();
   document.getElementById('job-technician').innerHTML = '<option value="">Select…</option>' + techs.data.filter(u => u.role === 'Technician').map(u => \`<option value="\${u.id}">\${u.name}</option>\`).join('');
+  document.getElementById('job-referredBy').innerHTML = '<option value="">— None —</option>' + techs.data.filter(u => u.role === 'Technician').map(u => \`<option value="\${u.id}">\${u.name}</option>\`).join('');
   // Reset fuel level buttons to unselected state
   document.getElementById('job-fuelLevel').value = '';
   // Clear any previous validation error states
@@ -10850,6 +10895,11 @@ async function submitNewJob(e) {
   // ─────────────────────────────────────────────────────────────────────────
 
   const cat = document.getElementById('job-category').value;
+  const referredByEl = document.getElementById('job-referredBy');
+  const referredById = referredByEl ? referredByEl.value : '';
+  const referredByName = referredById && referredByEl
+    ? referredByEl.options[referredByEl.selectedIndex].text
+    : '';
   const payload = {
     customerId: document.getElementById('job-customerId').value,
     vehicleId: document.getElementById('job-vehicleId').value,
@@ -10859,6 +10909,7 @@ async function submitNewJob(e) {
     inspectionNotes:   toSentenceCase(document.getElementById('job-notes').value),
     mileageIn: parseInt(mileageVal),
     fuelLevel: fuelVal,
+    ...(referredById ? { referredById, referredByName } : {}),
     ...(cat === 'Insurance' ? {
       claimReference: document.getElementById('job-claimRef').value.trim().toUpperCase(),
       insurer:        toTitleCase(document.getElementById('job-insurer').value),
@@ -10869,6 +10920,7 @@ async function submitNewJob(e) {
   closeModal('modal-newJob');
   document.getElementById('newJobForm').reset();
   jobCustClear(); // reset customer picker hidden state
+  var rbEl = document.getElementById('job-referredBy'); if (rbEl) rbEl.value = '';
   // Reset fuel level buttons
   const _fuelCols2 = { 'Empty': 'red', '1/4': 'orange', '1/2': 'amber', '3/4': 'green', 'Full': 'emerald' };
   document.querySelectorAll('#fuelLevelBtns .fuel-btn').forEach(function(btn) {
@@ -20870,7 +20922,303 @@ document.getElementById('todayDate').textContent = new Date().toLocaleDateString
   }
   // If not logged in, the login screen is already visible (default state)
 })();
+
+// ═══════════════════════════════════════════════════════════════════════════
+// STAFF PERFORMANCE MODULE
+// ═══════════════════════════════════════════════════════════════════════════
+
+var _spCurrentTab = 'sa';
+
+function switchSPTab(tab) {
+  _spCurrentTab = tab;
+  ['sa','tech'].forEach(function(t) {
+    var btn = document.getElementById('sp-tab-' + t);
+    var panel = document.getElementById('sp-panel-' + t);
+    if (!btn || !panel) return;
+    if (t === tab) {
+      btn.className = 'px-5 py-2.5 text-sm font-semibold border-b-2 border-blue-600 text-blue-600 -mb-px bg-white';
+      panel.classList.remove('hidden');
+    } else {
+      btn.className = 'px-5 py-2.5 text-sm font-semibold border-b-2 border-transparent text-gray-500 hover:text-gray-700 -mb-px';
+      panel.classList.add('hidden');
+    }
+  });
+  _renderCurrentSPTab();
+}
+
+async function loadStaffPerformance() {
+  var periodEl = document.getElementById('sp-period');
+  if (!periodEl.value) {
+    var now = new Date();
+    periodEl.value = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  }
+  _renderCurrentSPTab();
+}
+
+function _renderCurrentSPTab() {
+  if (_spCurrentTab === 'sa') _loadSATab();
+  else _loadTechTab();
+}
+
+async function _loadSATab() {
+  var period = document.getElementById('sp-period').value;
+  var container = document.getElementById('sp-sa-content');
+  container.innerHTML = '<div class="text-center py-12 text-gray-400"><i class="fas fa-spinner fa-spin text-2xl"></i></div>';
+  try {
+    var res = await axios.get('/api/staff-performance/sa-kpi?period=' + encodeURIComponent(period));
+    var data = res.data;
+    var isAdminOrWC = currentUser && (currentUser.role === 'Admin' || currentUser.role === 'Workshop Controller');
+
+    if (!data.advisors || data.advisors.length === 0) {
+      container.innerHTML = '<div class="text-center py-12 text-gray-400"><i class="fas fa-user-tie text-4xl mb-3 block"></i>No Service Advisors found.</div>';
+      return;
+    }
+
+    // Summary cards (totals across all advisors)
+    var totalUpsell = data.advisors.reduce(function(s, a) { return s + a.totalUpsellRevenue; }, 0);
+    var totalComm = data.advisors.reduce(function(s, a) { return s + a.totalCommissionEarned; }, 0);
+    var totalItems = data.advisors.reduce(function(s, a) { return s + a.upsellCount; }, 0);
+
+    var summaryHtml = '<div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">' +
+      '<div class="card p-4 text-center"><div class="text-xs text-gray-500 mb-1">Total Upsell Revenue</div><div class="text-xl font-bold text-blue-700">TZS ' + totalUpsell.toLocaleString() + '</div></div>' +
+      '<div class="card p-4 text-center"><div class="text-xs text-gray-500 mb-1">Total Commission</div><div class="text-xl font-bold text-green-600">TZS ' + totalComm.toLocaleString() + '</div></div>' +
+      '<div class="card p-4 text-center"><div class="text-xs text-gray-500 mb-1">Total Upsell Items</div><div class="text-xl font-bold text-gray-800">' + totalItems + '</div></div>' +
+      '</div>';
+
+    // Admin: "Set Target" button
+    var adminBtnHtml = isAdminOrWC
+      ? '<div class="flex justify-end mb-4"><button class="btn-primary text-sm" onclick="openSetSATargetModal()"><i class="fas fa-plus mr-1"></i>Set Target</button></div>'
+      : '';
+
+    // Advisor rows
+    var rowsHtml = data.advisors.map(function(a) {
+      var progress = a.targetAmount ? Math.min(100, Math.round((a.totalUpsellRevenue / a.targetAmount) * 100)) : null;
+      var progressBar = progress !== null
+        ? '<div class="w-full bg-gray-100 rounded-full h-2 mt-1"><div class="h-2 rounded-full ' + (progress >= 100 ? 'bg-green-500' : progress >= 60 ? 'bg-blue-500' : 'bg-yellow-400') + '" style="width:' + progress + '%"></div></div><span class="text-xs text-gray-400">' + progress + '% of target</span>'
+        : '<span class="text-xs text-gray-400 italic">No target set</span>';
+
+      var targetCell = a.targetAmount
+        ? '<span class="font-semibold text-gray-800">TZS ' + a.targetAmount.toLocaleString() + '</span><br><span class="text-xs text-gray-400">' + (a.commissionRate || 0) + '% commission</span>'
+        : '<span class="text-xs text-gray-400 italic">—</span>';
+
+      var actionCell = isAdminOrWC
+        ? '<button class="sp-set-target-btn btn-secondary btn-sm text-xs" data-advisor-id="' + escAttr(a.advisorId) + '" data-advisor-name="' + escAttr(a.advisorName) + '"><i class="fas fa-edit mr-1"></i>Target</button>'
+        : '';
+
+      return '<tr class="border-b border-gray-100 hover:bg-gray-50">' +
+        '<td class="px-4 py-3 font-semibold text-gray-800">' + escHtml(a.advisorName) + '</td>' +
+        '<td class="px-4 py-3 text-center"><span class="font-bold text-gray-800">' + a.upsellCount + '</span></td>' +
+        '<td class="px-4 py-3 text-right font-semibold text-blue-700">TZS ' + a.totalUpsellRevenue.toLocaleString() + '</td>' +
+        '<td class="px-4 py-3">' + targetCell + '</td>' +
+        '<td class="px-4 py-3">' + progressBar + '</td>' +
+        '<td class="px-4 py-3 text-right font-semibold text-green-600">TZS ' + a.totalCommissionEarned.toLocaleString() + '</td>' +
+        '<td class="px-4 py-3 text-center"><span class="text-xs font-semibold ' + (a.upsellRate >= 50 ? 'text-green-600' : 'text-yellow-600') + '">' + a.upsellRate + '%</span></td>' +
+        '<td class="px-4 py-3">' + actionCell + '</td>' +
+        '</tr>';
+    }).join('');
+
+    var tableHtml = '<div class="card overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-sm" style="min-width:700px">' +
+      '<thead><tr class="border-b border-gray-100 bg-gray-50">' +
+      '<th class="text-left px-4 py-3 font-semibold text-gray-600">Advisor</th>' +
+      '<th class="text-center px-4 py-3 font-semibold text-gray-600">Upsells</th>' +
+      '<th class="text-right px-4 py-3 font-semibold text-gray-600">Upsell Revenue</th>' +
+      '<th class="text-left px-4 py-3 font-semibold text-gray-600">Target</th>' +
+      '<th class="text-left px-4 py-3 font-semibold text-gray-600">Progress</th>' +
+      '<th class="text-right px-4 py-3 font-semibold text-gray-600">Commission Earned</th>' +
+      '<th class="text-center px-4 py-3 font-semibold text-gray-600">Upsell Rate</th>' +
+      (isAdminOrWC ? '<th class="text-center px-4 py-3 font-semibold text-gray-600">Actions</th>' : '') +
+      '</tr></thead><tbody>' + rowsHtml + '</tbody></table></div></div>';
+
+    container.innerHTML = summaryHtml + adminBtnHtml + tableHtml;
+    // Attach delegated click handlers for "Set Target" buttons
+    container.querySelectorAll('.sp-set-target-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        openSetSATargetModal(btn.getAttribute('data-advisor-id'), btn.getAttribute('data-advisor-name'));
+      });
+    });
+  } catch(e) {
+    container.innerHTML = '<div class="text-center py-12 text-red-400"><i class="fas fa-exclamation-circle mr-2"></i>Failed to load SA KPI data.</div>';
+    console.error('SA KPI load error', e);
+  }
+}
+
+async function _loadTechTab() {
+  var period = document.getElementById('sp-period').value;
+  var container = document.getElementById('sp-tech-content');
+  container.innerHTML = '<div class="text-center py-12 text-gray-400"><i class="fas fa-spinner fa-spin text-2xl"></i></div>';
+  try {
+    var res = await axios.get('/api/staff-performance/tech-referrals?period=' + encodeURIComponent(period));
+    var data = res.data;
+    var isAdminOrWC = currentUser && (currentUser.role === 'Admin' || currentUser.role === 'Workshop Controller');
+
+    // Global rate card (Admin only)
+    var rateCardHtml = '';
+    if (isAdminOrWC) {
+      rateCardHtml = '<div class="card p-4 mb-5 flex items-center justify-between gap-4">' +
+        '<div><span class="text-sm text-gray-500">Global Referral Commission Rate: </span>' +
+        '<span class="text-xl font-bold text-green-600" id="sp-referral-rate-display">' + (data.globalRate || 3) + '%</span></div>' +
+        '<button class="btn-secondary text-sm" onclick="openReferralRateModal(' + (data.globalRate || 3) + ')"><i class="fas fa-edit mr-1"></i>Edit Rate</button>' +
+        '</div>';
+    }
+
+    if (!data.technicians || data.technicians.length === 0) {
+      container.innerHTML = rateCardHtml + '<div class="text-center py-12 text-gray-400"><i class="fas fa-tools text-4xl mb-3 block"></i>No Technicians found.</div>';
+      return;
+    }
+
+    // Summary cards
+    var totalRefs = data.technicians.reduce(function(s, t) { return s + t.referralCount; }, 0);
+    var totalInv = data.technicians.reduce(function(s, t) { return s + t.totalInvoiceValue; }, 0);
+    var totalComm = data.technicians.reduce(function(s, t) { return s + t.totalCommission; }, 0);
+
+    var summaryHtml = '<div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">' +
+      '<div class="card p-4 text-center"><div class="text-xs text-gray-500 mb-1">Total Referrals</div><div class="text-xl font-bold text-gray-800">' + totalRefs + '</div></div>' +
+      '<div class="card p-4 text-center"><div class="text-xs text-gray-500 mb-1">Total Invoice Value</div><div class="text-xl font-bold text-blue-700">TZS ' + totalInv.toLocaleString() + '</div></div>' +
+      '<div class="card p-4 text-center"><div class="text-xs text-gray-500 mb-1">Total Commission</div><div class="text-xl font-bold text-green-600">TZS ' + totalComm.toLocaleString() + '</div></div>' +
+      '</div>';
+
+    var rowsHtml = data.technicians.map(function(t) {
+      return '<tr class="border-b border-gray-100 hover:bg-gray-50">' +
+        '<td class="px-4 py-3 font-semibold text-gray-800">' + escHtml(t.technicianName) + '</td>' +
+        '<td class="px-4 py-3 text-center"><span class="font-bold text-gray-800">' + t.referralCount + '</span></td>' +
+        '<td class="px-4 py-3 text-right font-semibold text-blue-700">TZS ' + t.totalInvoiceValue.toLocaleString() + '</td>' +
+        '<td class="px-4 py-3 text-right font-semibold text-green-600">TZS ' + t.totalCommission.toLocaleString() + '</td>' +
+        '<td class="px-4 py-3 text-center"><span class="text-xs font-semibold text-gray-600">' + (data.globalRate || 3) + '%</span></td>' +
+        '</tr>';
+    }).join('');
+
+    var tableHtml = '<div class="card overflow-hidden"><div class="overflow-x-auto"><table class="w-full text-sm" style="min-width:550px">' +
+      '<thead><tr class="border-b border-gray-100 bg-gray-50">' +
+      '<th class="text-left px-4 py-3 font-semibold text-gray-600">Technician</th>' +
+      '<th class="text-center px-4 py-3 font-semibold text-gray-600">Referrals</th>' +
+      '<th class="text-right px-4 py-3 font-semibold text-gray-600">Invoice Value</th>' +
+      '<th class="text-right px-4 py-3 font-semibold text-gray-600">Commission Earned</th>' +
+      '<th class="text-center px-4 py-3 font-semibold text-gray-600">Rate</th>' +
+      '</tr></thead><tbody>' + rowsHtml + '</tbody></table></div></div>';
+
+    container.innerHTML = rateCardHtml + summaryHtml + tableHtml;
+  } catch(e) {
+    container.innerHTML = '<div class="text-center py-12 text-red-400"><i class="fas fa-exclamation-circle mr-2"></i>Failed to load Tech Referral data.</div>';
+    console.error('Tech referral load error', e);
+  }
+}
+
+// ── Set SA Target Modal ───────────────────────────────────────────────────────
+async function openSetSATargetModal(advisorId, advisorName) {
+  // Populate advisor dropdown with all Service Advisors
+  var selEl = document.getElementById('sat-advisor');
+  try {
+    var res = await axios.get('/api/users');
+    var advisors = res.data.filter(function(u) { return u.role === 'Service Advisor'; });
+    selEl.innerHTML = '<option value="">Select advisor…</option>' +
+      advisors.map(function(u) { return '<option value="' + u.id + '">' + escHtml(u.name) + '</option>'; }).join('');
+    if (advisorId) selEl.value = advisorId;
+  } catch(e) {
+    selEl.innerHTML = '<option value="">Could not load advisors</option>';
+  }
+  // Default period to current month
+  var now = new Date();
+  document.getElementById('sat-period').value = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  document.getElementById('sat-target').value = '';
+  document.getElementById('sat-rate').value = '5';
+  openModal('modal-sa-target');
+}
+
+async function saveSATarget() {
+  var advisorId = document.getElementById('sat-advisor').value;
+  var periodKey = document.getElementById('sat-period').value;
+  var targetAmount = parseFloat(document.getElementById('sat-target').value);
+  var commissionRate = parseFloat(document.getElementById('sat-rate').value);
+  if (!advisorId) { showToast('Please select a Service Advisor.', 'warning'); return; }
+  if (!periodKey) { showToast('Please select a period.', 'warning'); return; }
+  if (isNaN(targetAmount) || targetAmount < 0) { showToast('Please enter a valid target amount.', 'warning'); return; }
+  if (isNaN(commissionRate) || commissionRate < 0 || commissionRate > 100) { showToast('Please enter a valid commission rate (0-100).', 'warning'); return; }
+  try {
+    await axios.post('/api/staff-performance/sa-targets', { advisorId, periodKey, targetAmount, commissionRate });
+    closeModal('modal-sa-target');
+    showToast('Target saved successfully!', 'success');
+    _loadSATab();
+  } catch(e) {
+    var msg = e.response && e.response.data && e.response.data.error ? e.response.data.error : 'Failed to save target';
+    showToast(msg, 'error');
+  }
+}
+
+// ── Edit Referral Rate Modal ──────────────────────────────────────────────────
+function openReferralRateModal(currentRate) {
+  document.getElementById('rr-rate').value = currentRate || 3;
+  openModal('modal-referral-rate');
+}
+
+async function saveReferralRate() {
+  var rate = parseFloat(document.getElementById('rr-rate').value);
+  if (isNaN(rate) || rate < 0 || rate > 100) {
+    showToast('Please enter a valid rate between 0 and 100.', 'warning');
+    return;
+  }
+  try {
+    await axios.put('/api/staff-performance/referral-rate', { rate });
+    closeModal('modal-referral-rate');
+    showToast('Referral commission rate updated!', 'success');
+    _loadTechTab();
+  } catch(e) {
+    var msg = e.response && e.response.data && e.response.data.error ? e.response.data.error : 'Failed to save rate';
+    showToast(msg, 'error');
+  }
+}
 </script>
+
+<!-- ── Set SA Upsell Target Modal ────────────────────────────────────────── -->
+<div id="modal-sa-target" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:460px">
+    <div class="flex items-center justify-between mb-5">
+      <h3 class="text-lg font-bold text-gray-900"><i class="fas fa-bullseye mr-2 text-blue-600"></i>Set Upsell Target</h3>
+      <button class="text-gray-400 hover:text-gray-600" onclick="closeModal('modal-sa-target')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="form-group mb-4">
+      <label class="form-label">Service Advisor</label>
+      <select id="sat-advisor" class="form-input"><option value="">Select advisor…</option></select>
+    </div>
+    <div class="form-group mb-4">
+      <label class="form-label">Period (Month)</label>
+      <input type="month" id="sat-period" class="form-input">
+    </div>
+    <div class="grid grid-cols-2 gap-4 mb-6">
+      <div class="form-group">
+        <label class="form-label">Target Amount (TZS)</label>
+        <input type="number" id="sat-target" class="form-input" placeholder="e.g. 500000" min="0">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Commission Rate (%)</label>
+        <input type="number" id="sat-rate" class="form-input" placeholder="e.g. 5" min="0" max="100" step="0.1">
+      </div>
+    </div>
+    <div class="flex gap-3 justify-end">
+      <button class="btn-secondary" onclick="closeModal('modal-sa-target')">Cancel</button>
+      <button class="btn-primary" onclick="saveSATarget()"><i class="fas fa-save mr-1"></i>Save Target</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Edit Referral Rate Modal ─────────────────────────────────────────── -->
+<div id="modal-referral-rate" class="modal-overlay hidden">
+  <div class="modal-box" style="max-width:380px">
+    <div class="flex items-center justify-between mb-5">
+      <h3 class="text-lg font-bold text-gray-900"><i class="fas fa-percentage mr-2 text-green-600"></i>Referral Commission Rate</h3>
+      <button class="text-gray-400 hover:text-gray-600" onclick="closeModal('modal-referral-rate')"><i class="fas fa-times"></i></button>
+    </div>
+    <div class="form-group mb-6">
+      <label class="form-label">Global Rate (%)</label>
+      <input type="number" id="rr-rate" class="form-input" placeholder="e.g. 3" min="0" max="100" step="0.1">
+      <p class="text-xs text-gray-400 mt-1">This rate applies to all technician referral commissions.</p>
+    </div>
+    <div class="flex gap-3 justify-end">
+      <button class="btn-secondary" onclick="closeModal('modal-referral-rate')">Cancel</button>
+      <button class="btn-primary" onclick="saveReferralRate()"><i class="fas fa-save mr-1"></i>Save Rate</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>`;
 }

@@ -12,6 +12,9 @@ import {
   garageSettings,
   salesTargets,
   salesCommissions,
+  saUpsellTargets,
+  saUpsellCommissions,
+  techReferralCommissions,
   updateGarageSettings,
   ROLE_PERMISSIONS,
   type Customer, type Vehicle, type JobCard, type PFI,
@@ -24,7 +27,8 @@ import {
   type JobCardPhoto, type PhotoCategory,
   type CustomerNotifDispatch, type NotifChannel, type NotifDispatchStatus,
   type GarageSettings,
-  type SalesTarget, type SalesCommission, type TargetPeriod
+  type SalesTarget, type SalesCommission, type TargetPeriod,
+  type SAUpsellTarget, type SAUpsellCommission, type TechReferralCommission
 } from '../data/store'
 import { save } from '../data/persist'
 
@@ -1211,6 +1215,93 @@ api.post('/jobcards/:id/mark-paid', async (c) => {
       { jobCardId: jc.id, jobCardNumber: jc.jobCardNumber })
   }
 
+  // ── Auto-record SA Upsell Commissions ─────────────────────────────────────
+  const periodKeyPaid = ts.slice(0, 7) // 'YYYY-MM'
+  const custNamePaid = customers.find(x => x.id === jc.customerId)?.name || ''
+  const invPaid = invIdx !== -1 ? invoices[invIdx] : undefined
+
+  // Parts upsells — any part added by a Service Advisor on this job
+  const jobParts = partsConsumption.filter(p => p.jobCardId === jc.id && p.addedById)
+  for (const part of jobParts) {
+    const advisor = users.find(u => u.id === part.addedById && u.role === 'Service Advisor')
+    if (!advisor) continue
+    // Find SA's target for this period to get commission rate
+    const saTarget = saUpsellTargets.find(t => t.advisorId === advisor.id && t.periodKey === periodKeyPaid)
+    const saRate = saTarget ? saTarget.commissionRate : 0
+    if (saRate === 0) continue // no target set, no commission
+    const saComm: SAUpsellCommission = {
+      id: 'sau' + genId(),
+      advisorId: advisor.id,
+      advisorName: advisor.name,
+      jobCardId: jc.id,
+      jobCardNumber: jc.jobCardNumber,
+      customerName: custNamePaid,
+      itemType: 'part',
+      itemName: part.partName,
+      saleAmount: part.totalCost,
+      commissionRate: saRate,
+      commissionEarned: Math.round(part.totalCost * saRate / 100),
+      periodKey: periodKeyPaid,
+      invoiceId: invPaid ? (invPaid as any).id : '',
+      createdAt: ts,
+    }
+    saUpsellCommissions.push(saComm)
+  }
+
+  // Add-on upsells — any Add-on JobService added by a Service Advisor
+  const jobAddons = jobServices.filter(s => s.jobCardId === jc.id && s.category === 'Add-on' && s.addedById)
+  for (const addon of jobAddons) {
+    const advisor = users.find(u => u.id === addon.addedById && u.role === 'Service Advisor')
+    if (!advisor) continue
+    const saTarget = saUpsellTargets.find(t => t.advisorId === advisor.id && t.periodKey === periodKeyPaid)
+    const saRate = saTarget ? saTarget.commissionRate : 0
+    if (saRate === 0) continue
+    const saComm: SAUpsellCommission = {
+      id: 'sau' + genId(),
+      advisorId: advisor.id,
+      advisorName: advisor.name,
+      jobCardId: jc.id,
+      jobCardNumber: jc.jobCardNumber,
+      customerName: custNamePaid,
+      itemType: 'addon',
+      itemName: addon.serviceName,
+      saleAmount: addon.totalCost,
+      commissionRate: saRate,
+      commissionEarned: Math.round(addon.totalCost * saRate / 100),
+      periodKey: periodKeyPaid,
+      invoiceId: invPaid ? (invPaid as any).id : '',
+      createdAt: ts,
+    }
+    saUpsellCommissions.push(saComm)
+  }
+
+  // ── Auto-record Technician Referral Commission ─────────────────────────────
+  const referredById = (jc as any).referredById as string | undefined
+  if (referredById) {
+    const techRef = users.find(u => u.id === referredById)
+    const invAmountRef = invPaid ? (invPaid as any).totalAmount || 0 : 0
+    const refRate = garageSettings.techReferralCommissionRate ?? 3
+    const refComm: TechReferralCommission = {
+      id: 'trc' + genId(),
+      technicianId: referredById,
+      technicianName: techRef?.name || (jc as any).referredByName || 'Technician',
+      jobCardId: jc.id,
+      jobCardNumber: jc.jobCardNumber,
+      customerName: custNamePaid,
+      invoiceAmount: invAmountRef,
+      commissionRate: refRate,
+      commissionEarned: Math.round(invAmountRef * refRate / 100),
+      periodKey: periodKeyPaid,
+      invoiceId: invPaid ? (invPaid as any).id : '',
+      createdAt: ts,
+    }
+    techReferralCommissions.push(refComm)
+    addNotification('job_status', 'info', 'Referral Commission Recorded',
+      `Referral commission of TZS ${refComm.commissionEarned.toLocaleString()} (${refRate}%) recorded for ${refComm.technicianName} on job ${jc.jobCardNumber}.`,
+      { jobCardId: jc.id, jobCardNumber: jc.jobCardNumber })
+  }
+
+  save()
   return c.json(jobCards[idx])
 })
 
@@ -1585,7 +1676,14 @@ api.get('/jobcards/:id/parts', (c) => {
 api.post('/jobcards/:id/parts', async (c) => {
   const body = await c.req.json<Omit<PartConsumption, 'id' | 'jobCardId'>>()
   const jobCardId = c.req.param('id')
-  const newPart: PartConsumption = { ...body, id: 'pc' + genId(), jobCardId }
+  const partAdder = (c as any).user as User | undefined
+  const newPart: PartConsumption = {
+    ...body,
+    id: 'pc' + genId(),
+    jobCardId,
+    addedById: partAdder?.id,
+    addedByName: partAdder?.name,
+  }
 
   // ── Traceability: copy batch # and part serial # from catalogue item ─────────
   // Look up the source catalogue item by partId (sent from the UI when a catalogue
@@ -1651,7 +1749,15 @@ api.get('/jobcards/:id/services', (c) => {
 api.post('/jobcards/:id/services', async (c) => {
   const body = await c.req.json<Omit<JobService, 'id' | 'jobCardId'>>()
   const jobCardId = c.req.param('id')
-  const newSvc: JobService = { ...body, id: 'svc' + genId(), jobCardId }
+  const svcAdder = (c as any).user as User | undefined
+  // Only stamp addedById for Add-on category (for SA upsell KPI)
+  const isAddon = body.category === 'Add-on'
+  const newSvc: JobService = {
+    ...body,
+    id: 'svc' + genId(),
+    jobCardId,
+    ...(isAddon ? { addedById: svcAdder?.id, addedByName: svcAdder?.name } : {}),
+  }
 
   // ── Traceability: stamp batch number for lubricant/oil services ──────────────
   if (body.lubricantId) {
@@ -4780,6 +4886,181 @@ api.post('/sales/sell', async (c) => {
     { jobCardId: newJob.id, jobCardNumber: num })
 
   return c.json(newJob, 201)
+})
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ── STAFF PERFORMANCE ────────────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// GET /staff-performance/sa-targets — list all SA upsell targets (Admin/WC sees all; SA sees own)
+api.get('/staff-performance/sa-targets', async (c) => {
+  const user = (c as any).user as User
+  if (!user) return c.json({ error: 'Unauthorized' }, 401)
+  const isAdminOrWC = user.role === 'Admin' || user.role === 'Workshop Controller'
+  const list = isAdminOrWC
+    ? saUpsellTargets
+    : saUpsellTargets.filter(t => t.advisorId === user.id)
+  return c.json(list)
+})
+
+// POST /staff-performance/sa-targets — Admin sets upsell target for an SA
+api.post('/staff-performance/sa-targets', async (c) => {
+  const user = (c as any).user as User
+  if (!user || (user.role !== 'Admin' && user.role !== 'Workshop Controller')) {
+    return c.json({ error: 'Forbidden' }, 403)
+  }
+  const body = await c.req.json<{ advisorId: string; periodKey: string; targetAmount: number; commissionRate: number }>()
+  if (!body.advisorId || !body.periodKey || body.targetAmount == null || body.commissionRate == null) {
+    return c.json({ error: 'advisorId, periodKey, targetAmount and commissionRate are required' }, 400)
+  }
+  const advisor = users.find(u => u.id === body.advisorId && u.role === 'Service Advisor')
+  if (!advisor) return c.json({ error: 'Service Advisor not found' }, 404)
+  const ts = now()
+  // Upsert: replace if same advisor+period exists
+  const existingIdx = saUpsellTargets.findIndex(t => t.advisorId === body.advisorId && t.periodKey === body.periodKey)
+  if (existingIdx !== -1) {
+    saUpsellTargets[existingIdx] = {
+      ...saUpsellTargets[existingIdx],
+      targetAmount: body.targetAmount,
+      commissionRate: body.commissionRate,
+      updatedAt: ts,
+    }
+    save()
+    return c.json(saUpsellTargets[existingIdx])
+  }
+  const newTarget: SAUpsellTarget = {
+    id: 'sat' + genId(),
+    advisorId: body.advisorId,
+    advisorName: advisor.name,
+    periodKey: body.periodKey,
+    targetAmount: body.targetAmount,
+    commissionRate: body.commissionRate,
+    createdAt: ts,
+    updatedAt: ts,
+  }
+  saUpsellTargets.push(newTarget)
+  save()
+  return c.json(newTarget, 201)
+})
+
+// DELETE /staff-performance/sa-targets/:id
+api.delete('/staff-performance/sa-targets/:id', async (c) => {
+  const user = (c as any).user as User
+  if (!user || (user.role !== 'Admin' && user.role !== 'Workshop Controller')) {
+    return c.json({ error: 'Forbidden' }, 403)
+  }
+  const idx = saUpsellTargets.findIndex(t => t.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  saUpsellTargets.splice(idx, 1)
+  save()
+  return c.json({ success: true })
+})
+
+// GET /staff-performance/sa-kpi?period=YYYY-MM — SA upsell KPI summary
+api.get('/staff-performance/sa-kpi', async (c) => {
+  const user = (c as any).user as User
+  if (!user) return c.json({ error: 'Unauthorized' }, 401)
+  const isAdminOrWC = user.role === 'Admin' || user.role === 'Workshop Controller'
+  const period = c.req.query('period') || now().slice(0, 7)
+
+  // Determine which advisors to include
+  const advisors = isAdminOrWC
+    ? users.filter(u => u.role === 'Service Advisor' && u.active !== false)
+    : users.filter(u => u.id === user.id && u.role === 'Service Advisor')
+
+  const result = advisors.map(advisor => {
+    const target = saUpsellTargets.find(t => t.advisorId === advisor.id && t.periodKey === period)
+    const comms = saUpsellCommissions.filter(sc => sc.advisorId === advisor.id && sc.periodKey === period)
+    const totalUpsellRevenue = comms.reduce((s, c) => s + c.saleAmount, 0)
+    const totalCommissionEarned = comms.reduce((s, c) => s + c.commissionEarned, 0)
+    const upsellCount = comms.length
+
+    // Upsell rate: % of their job cards in that period that had at least one upsell
+    const periodStart = new Date(period + '-01')
+    const periodEnd = new Date(periodStart.getFullYear(), periodStart.getMonth() + 1, 0, 23, 59, 59)
+    // Jobs where this SA added parts — derive by checking partsConsumption and jobServices
+    const relevantJobIds = new Set([
+      ...partsConsumption.filter(p => p.addedById === advisor.id).map(p => p.jobCardId),
+      ...jobServices.filter(s => s.addedById === advisor.id && s.category === 'Add-on').map(s => s.jobCardId),
+    ])
+    // Jobs created by this SA in the period (by checking jobCards' createdAt)
+    const saJobIds = new Set(
+      jobCards
+        .filter(j => {
+          const d = new Date(j.createdAt)
+          return d >= periodStart && d <= periodEnd
+        })
+        .map(j => j.id)
+    )
+    const upsellJobCount = [...relevantJobIds].filter(id => saJobIds.has(id)).length
+    const upsellRate = saJobIds.size > 0 ? Math.round((upsellJobCount / saJobIds.size) * 100) : 0
+
+    return {
+      advisorId: advisor.id,
+      advisorName: advisor.name,
+      period,
+      targetAmount: target?.targetAmount ?? null,
+      commissionRate: target?.commissionRate ?? null,
+      totalUpsellRevenue,
+      totalCommissionEarned,
+      upsellCount,
+      upsellRate,
+      jobsInPeriod: saJobIds.size,
+      commissions: isAdminOrWC ? comms : comms, // always return for own view
+    }
+  })
+
+  return c.json({ period, advisors: result })
+})
+
+// GET /staff-performance/tech-referrals?period=YYYY-MM — tech referral KPI
+api.get('/staff-performance/tech-referrals', async (c) => {
+  const user = (c as any).user as User
+  if (!user) return c.json({ error: 'Unauthorized' }, 401)
+  const isAdminOrWC = user.role === 'Admin' || user.role === 'Workshop Controller'
+  const period = c.req.query('period') || now().slice(0, 7)
+
+  const technicians = isAdminOrWC
+    ? users.filter(u => u.role === 'Technician' && u.active !== false)
+    : users.filter(u => u.id === user.id && u.role === 'Technician')
+
+  const result = technicians.map(tech => {
+    const comms = techReferralCommissions.filter(t => t.technicianId === tech.id && t.periodKey === period)
+    const totalInvoiceValue = comms.reduce((s, c) => s + c.invoiceAmount, 0)
+    const totalCommission = comms.reduce((s, c) => s + c.commissionEarned, 0)
+    return {
+      technicianId: tech.id,
+      technicianName: tech.name,
+      period,
+      referralCount: comms.length,
+      totalInvoiceValue,
+      totalCommission,
+      commissions: comms,
+    }
+  })
+
+  const globalRate = garageSettings.techReferralCommissionRate ?? 3
+  return c.json({ period, technicians: result, globalRate })
+})
+
+// GET /staff-performance/referral-rate — get global tech referral commission rate
+api.get('/staff-performance/referral-rate', async (c) => {
+  return c.json({ rate: garageSettings.techReferralCommissionRate ?? 3 })
+})
+
+// PUT /staff-performance/referral-rate — Admin sets global tech referral commission rate
+api.put('/staff-performance/referral-rate', async (c) => {
+  const user = (c as any).user as User
+  if (!user || (user.role !== 'Admin' && user.role !== 'Workshop Controller')) {
+    return c.json({ error: 'Forbidden' }, 403)
+  }
+  const body = await c.req.json<{ rate: number }>()
+  if (body.rate == null || body.rate < 0 || body.rate > 100) {
+    return c.json({ error: 'rate must be between 0 and 100' }, 400)
+  }
+  updateGarageSettings({ techReferralCommissionRate: body.rate })
+  save()
+  return c.json({ rate: body.rate })
 })
 
 export default api

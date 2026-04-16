@@ -47,6 +47,9 @@ import {
   garageSettings,
   salesTargets,
   salesCommissions,
+  saUpsellTargets,
+  saUpsellCommissions,
+  techReferralCommissions,
   updateGarageSettings,
 } from './store.js'
 
@@ -81,6 +84,9 @@ const PERSIST_KEYS = [
   'customerNotifDispatches',
   'salesTargets',
   'salesCommissions',
+  'saUpsellTargets',
+  'saUpsellCommissions',
+  'techReferralCommissions',
 ] as const
 
 type PersistKey = typeof PERSIST_KEYS[number]
@@ -114,6 +120,9 @@ function getLiveArrays(): Record<PersistKey, unknown[]> {
     customerNotifDispatches,
     salesTargets,
     salesCommissions,
+    saUpsellTargets,
+    saUpsellCommissions,
+    techReferralCommissions,
   }
 }
 

@@ -122,6 +122,8 @@ export type Permission =
   | 'sales.view_own'          // see own sales dashboard & history
   | 'sales.manage_targets'    // Admin/WC: set targets for reps
   | 'sales.view_leaderboard'  // Admin/WC: view all-rep performance
+  // Staff Performance
+  | 'staff_performance.view'  // Admin/WC: see all; SA/Technician: see own
 
 // ─── RBAC: Role → Permissions Map ─────────────────────────────────────────────
 export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
@@ -150,6 +152,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'notifications.view',
     'settings.view','settings.manage',
     'sales.view_own','sales.manage_targets','sales.view_leaderboard',
+    'staff_performance.view',
   ],
 
   // ── 2. Workshop Controller ────────────────────────────────────────────────
@@ -176,6 +179,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'notifications.view',
     'settings.view',
     'sales.view_own','sales.manage_targets','sales.view_leaderboard',
+    'staff_performance.view',
   ],
 
   // ── 3. Service Advisor ────────────────────────────────────────────────────
@@ -197,6 +201,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'carwash.view',
     'addons.view',
     'notifications.view',
+    'staff_performance.view',
   ],
 
   // ── 4. Technician ─────────────────────────────────────────────────────────
@@ -215,6 +220,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'carwash.view',
     'addons.view',
     'notifications.view',
+    'staff_performance.view',
   ],
 
   // ── 5. Finance ────────────────────────────────────────────────────────────
@@ -445,6 +451,9 @@ export interface JobCard {
   salesRepId?: string           // Sales rep who created the sale that led to this job
   salesRepName?: string
   isSalesJob?: boolean          // true = originated from a Sales rep sale
+  // ── Technician referral ─────────────────────────────────────────────────
+  referredById?: string         // Technician who referred the customer (optional)
+  referredByName?: string
   createdAt: string
   updatedAt: string
 }
@@ -479,6 +488,8 @@ export interface PartConsumption {
   batchNumber?: string        // copied from catalogue item at time of use (e.g. BAT-2026-0042)
   partSerialNumber?: string   // supplier-assigned part/serial number copied from catalogue
   partId?: string             // id of the source catalogue item (for traceability)
+  addedById?: string          // user who added this part (for SA upsell KPI)
+  addedByName?: string
 }
 
 export interface Invoice {
@@ -529,6 +540,8 @@ export interface JobService {
   lubricantId?: string     // id of the LubricantProduct used (for oil services)
   autoExpenseId?: string   // id of the auto-generated buying-cost expense
   batchNumber?: string     // batch number copied from lubricant/catalogue item at time of use
+  addedById?: string       // user who added this service (for SA upsell KPI — Add-ons only)
+  addedByName?: string
 }
 
 export interface ServicePackage {
@@ -593,6 +606,54 @@ export interface SalesCommission {
   commissionEarned: number  // saleAmount * commissionRate / 100
   periodKey: string         // 'YYYY-MM' of the payment date
   paidAt: string            // ISO timestamp of invoice payment
+  createdAt: string
+}
+
+// ─── Staff Performance Types ─────────────────────────────────────────────────
+
+/** Monthly upsell revenue target for a Service Advisor */
+export interface SAUpsellTarget {
+  id: string
+  advisorId: string
+  advisorName: string
+  periodKey: string       // 'YYYY-MM'
+  targetAmount: number    // TZS upsell revenue target
+  commissionRate: number  // % of upsell revenue earned as commission (e.g. 5 = 5%)
+  createdAt: string
+  updatedAt: string
+}
+
+/** Commission record for a single upsell item (part or add-on) by a Service Advisor */
+export interface SAUpsellCommission {
+  id: string
+  advisorId: string
+  advisorName: string
+  jobCardId: string
+  jobCardNumber: string
+  customerName: string
+  itemType: 'part' | 'addon'  // PartConsumption or Add-on JobService
+  itemName: string
+  saleAmount: number           // totalCost of the item at invoice payment time
+  commissionRate: number       // % applied from the SA's target for that month
+  commissionEarned: number     // saleAmount * commissionRate / 100
+  periodKey: string            // 'YYYY-MM' of the invoice payment date
+  invoiceId: string
+  createdAt: string
+}
+
+/** Commission record for a Technician who referred a customer */
+export interface TechReferralCommission {
+  id: string
+  technicianId: string
+  technicianName: string
+  jobCardId: string
+  jobCardNumber: string
+  customerName: string
+  invoiceAmount: number   // total invoice amount
+  commissionRate: number  // global flat rate applied
+  commissionEarned: number
+  periodKey: string       // 'YYYY-MM' of the invoice payment date
+  invoiceId: string
   createdAt: string
 }
 
@@ -912,6 +973,11 @@ export const activityLog: ActivityLog[] = []
 export const salesTargets: SalesTarget[] = []
 
 export const salesCommissions: SalesCommission[] = []
+
+// ── Staff Performance arrays ──────────────────────────────────────────────────
+export const saUpsellTargets: SAUpsellTarget[] = []
+export const saUpsellCommissions: SAUpsellCommission[] = []
+export const techReferralCommissions: TechReferralCommission[] = []
 
 // ─── Lubricants Catalogue Inventory ──────────────────────────────────────────
 export const lubricantProducts: LubricantProduct[] = [
@@ -1392,6 +1458,9 @@ export interface GarageSettings {
   whatsappEnabled: boolean
   whatsappNumber?: string     // Twilio / 360dialog number
 
+  // ── Staff Performance ─────────────────────────────────────────────────────
+  techReferralCommissionRate: number  // flat global % rate for technician referral commissions (default 3)
+
   updatedAt: string
 }
 
@@ -1415,6 +1484,7 @@ export const defaultGarageSettings: GarageSettings = {
   emailEnabled: false,
   emailProvider: 'none',
   whatsappEnabled: false,
+  techReferralCommissionRate: 3,
   updatedAt: new Date().toISOString(),
 }
 
