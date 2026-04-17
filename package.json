@@ -8,7 +8,7 @@
     "dev": "vite",
     "build": "vite build",
     "postbuild": "echo 'Build complete'",
-    "start": "npx tsx server.mjs",
+    "start": "bash start.sh",
     "preview": "wrangler pages dev",
     "deploy": "npm run build && wrangler pages deploy",
     "cf-typegen": "wrangler types --env-interface CloudflareBindings"

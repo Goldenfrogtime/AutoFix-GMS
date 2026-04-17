@@ -3,6 +3,6 @@ builder = "nixpacks"
 buildCommand = "npm install"
 
 [deploy]
-startCommand = "npx tsx server.mjs"
+startCommand = "bash start.sh"
 restartPolicyType = "always"
 restartPolicyMaxRetries = 10
