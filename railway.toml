@@ -6,6 +6,3 @@ buildCommand = "npm install"
 startCommand = "npx tsx server.mjs"
 restartPolicyType = "always"
 restartPolicyMaxRetries = 10
-
-[environments.production.deploy]
-startCommand = "npx tsx server.mjs"

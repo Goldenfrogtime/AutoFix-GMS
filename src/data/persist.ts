@@ -54,8 +54,9 @@ import {
 } from './store.js'
 
 // ── Path to the data file ─────────────────────────────────────────────────────
-// On Railway, data volume is mounted at /data. Locally falls back to project root.
-const DATA_DIR = process.env.RAILWAY_VOLUME_MOUNT_PATH || process.cwd()
+// DATA_DIR is set by server.mjs before this module loads.
+// On Railway with volume: /var/data — Locally: project root
+const DATA_DIR = process.env.DATA_DIR || process.cwd()
 const DATA_FILE_PATH = resolve(DATA_DIR, 'gms-data.json')
 
 // ── Keys that are persisted ───────────────────────────────────────────────────

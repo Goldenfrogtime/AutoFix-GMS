@@ -1,14 +1,10 @@
 /**
  * server.mjs — Node.js entry point for the GMS webapp.
+ * Run with:  npx tsx server.mjs
  *
- * Run with:  tsx server.mjs
- *
- * Uses @hono/node-server so the persist layer has full access to the real
- * filesystem (readFileSync / writeFileSync).  All application logic in src/
- * is unchanged — only the HTTP adapter is different from wrangler pages dev.
- *
- * On Railway: data volume is mounted at /data (RAILWAY_VOLUME_MOUNT_PATH).
- * On first boot, if /data/gms-data.json doesn't exist, we copy the seed file.
+ * Data persistence strategy:
+ * - On Railway with volume: data stored at /var/data/gms-data.json
+ * - Locally: data stored at <project-root>/gms-data.json
  */
 
 import { serve } from '@hono/node-server'
@@ -18,24 +14,31 @@ import { fileURLToPath } from 'url'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
-// ── Ensure data directory and seed file exist ─────────────────────────────────
-const dataDir = process.env.RAILWAY_VOLUME_MOUNT_PATH || __dirname
+// ── Data directory setup ──────────────────────────────────────────────────────
+// RAILWAY_VOLUME_MOUNT_PATH is set via Railway environment variable
+// pointing to wherever the volume is mounted (e.g. /var/data)
+const dataDir  = process.env.DATA_DIR || __dirname
 const dataFile = resolve(dataDir, 'gms-data.json')
 const seedFile = resolve(__dirname, 'gms-data.json')
 
+// Ensure data directory exists
 if (!existsSync(dataDir)) {
   mkdirSync(dataDir, { recursive: true })
   console.log(`[GMS] Created data directory: ${dataDir}`)
 }
 
-if (!existsSync(dataFile) && existsSync(seedFile)) {
-  copyFileSync(seedFile, dataFile)
-  console.log(`[GMS] Seeded data file from ${seedFile} → ${dataFile}`)
-} else if (existsSync(dataFile)) {
-  console.log(`[GMS] Using existing data file: ${dataFile}`)
+// Seed data file on first boot if volume is empty
+if (!existsSync(dataFile)) {
+  if (existsSync(seedFile) && dataFile !== seedFile) {
+    copyFileSync(seedFile, dataFile)
+    console.log(`[GMS] First boot — seeded ${dataFile} from ${seedFile}`)
+  }
 } else {
-  console.log(`[GMS] No seed file found, starting fresh at: ${dataFile}`)
+  console.log(`[GMS] Using existing data file: ${dataFile}`)
 }
+
+// Set env var so persist.ts picks up the correct path
+process.env.DATA_DIR = dataDir
 
 import app from './src/index.tsx'
 
