@@ -54,10 +54,7 @@ import {
 } from './store.js'
 
 // ── Path to the data file ─────────────────────────────────────────────────────
-// DATA_DIR is set by server.mjs before this module loads.
-// On Railway with volume: /var/data — Locally: project root
-const DATA_DIR = process.env.DATA_DIR || process.cwd()
-const DATA_FILE_PATH = resolve(DATA_DIR, 'gms-data.json')
+const DATA_FILE_PATH = resolve(process.cwd(), 'gms-data.json')
 
 // ── Keys that are persisted ───────────────────────────────────────────────────
 const PERSIST_KEYS = [
