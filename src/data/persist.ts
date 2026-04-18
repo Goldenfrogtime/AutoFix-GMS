@@ -54,7 +54,9 @@ import {
 } from './store.js'
 
 // ── Path to the data file ─────────────────────────────────────────────────────
-const DATA_FILE_PATH = resolve(process.cwd(), 'gms-data.json')
+// On Railway with a volume: GMS_DATA_DIR is set by server.mjs → /data
+// Locally: falls back to the project root (next to server.mjs)
+const DATA_FILE_PATH = resolve(process.env.GMS_DATA_DIR || process.cwd(), 'gms-data.json')
 
 // ── Keys that are persisted ───────────────────────────────────────────────────
 const PERSIST_KEYS = [
