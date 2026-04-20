@@ -2817,7 +2817,7 @@ api.delete('/catalogue/parts/:id', (c) => {
 // DELETE /admin/catalogue/clear?collections=parts,carwash,addons
 // Requires Admin role. Wipes the chosen collections immediately.
 api.delete('/admin/catalogue/clear', (c) => {
-  const user = c.get('user') as any
+  const user = (c as any).user as any
   if (!user || user.role !== 'Admin') return c.json({ error: 'Forbidden' }, 403)
   const raw = (c.req.query('collections') || 'parts,carwash,addons').split(',').map(s => s.trim())
   const cleared: string[] = []
