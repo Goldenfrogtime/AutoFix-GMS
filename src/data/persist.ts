@@ -41,7 +41,8 @@ import {
 } from './store.js'
 
 // ── Path to the data file ─────────────────────────────────────────────────────
-const DATA_FILE_PATH = resolve(process.env.GMS_DATA_DIR || process.cwd(), 'gms-data.json')
+// Supports DATA_DIR (Railway volume mount path) or legacy GMS_DATA_DIR env var
+const DATA_FILE_PATH = resolve(process.env.DATA_DIR || process.env.GMS_DATA_DIR || process.cwd(), 'gms-data.json')
 
 // ── Gist config ───────────────────────────────────────────────────────────────
 const GIST_TOKEN  = process.env.GIST_TOKEN || ''
