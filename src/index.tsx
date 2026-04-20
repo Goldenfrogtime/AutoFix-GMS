@@ -255,6 +255,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
           <div class="flex items-center gap-2 text-white text-xs"><span style="width:8px;height:8px;border-radius:50%;background:#34d399;flex-shrink:0"></span> Technician — Workshop floor tasks</div>
           <div class="flex items-center gap-2 text-white text-xs"><span style="width:8px;height:8px;border-radius:50%;background:#a78bfa;flex-shrink:0"></span> Finance — Invoices &amp; payments</div>
           <div class="flex items-center gap-2 text-white text-xs"><span style="width:8px;height:8px;border-radius:50%;background:#f472b6;flex-shrink:0"></span> Quality Control — Final sign-off</div>
+          <div class="flex items-center gap-2 text-white text-xs"><span style="width:8px;height:8px;border-radius:50%;background:#34d399;flex-shrink:0"></span> Sales — Business development</div>
         </div>
         <p class="text-blue-300 text-xs mt-6">© 2026 Kangaroo Autofix · Secure · Role-based</p>
       </div>
@@ -3594,6 +3595,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
             <option>Technician</option>
             <option>Finance</option>
             <option>Quality Control</option>
+            <option>Sales</option>
           </select>
         </div>
       </div>
@@ -3645,6 +3647,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
           <option>Technician</option>
           <option>Finance</option>
           <option>Quality Control</option>
+          <option>Sales</option>
         </select>
       </div>
     </div>
@@ -6184,6 +6187,7 @@ const ROLE_CONFIG = {
   Technician:             { bg:'#dcfce7', text:'#16a34a',  icon:'fa-wrench' },
   Finance:                { bg:'#f5f3ff', text:'#7c3aed',  icon:'fa-coins' },
   'Quality Control':      { bg:'#fdf2f8', text:'#db2777',  icon:'fa-check-double' },
+  Sales:                  { bg:'#ecfdf5', text:'#059669',  icon:'fa-handshake' },
 };
 
 // ═══ UTILS ═══
@@ -16073,6 +16077,7 @@ var ROLE_DESCRIPTIONS = {
   Technician:            'Workshop floor access: views assigned jobs, updates status (start/finish work), performs vehicle inspections. No financial or admin access.',
   Finance:               'Manages all money flows: invoices, expenses, payments and financial reports. Cannot create job cards or modify workshop operations.',
   'Quality Control':     'Final inspection gate: performs QC sign-off before vehicle release. View-only on job cards, parts and catalogues.',
+  Sales:                 'Business development: creates and tracks sales leads, manages customer acquisition, views own sales dashboard and commission targets. No workshop or finance access.',
 };
 
 var PERMISSION_GROUPS = [
@@ -16105,7 +16110,7 @@ async function loadUsers() {
   allUsers = data;
 
   // Role stats
-  var roles = ['Admin','Workshop Controller','Service Advisor','Technician','Finance','Quality Control'];
+  var roles = ['Admin','Workshop Controller','Service Advisor','Technician','Finance','Quality Control','Sales'];
   var roleCounts = {};
   roles.forEach(function(r){ roleCounts[r] = data.filter(function(u){ return u.role===r; }).length; });
   document.getElementById('roleStatsRow').innerHTML = roles.map(function(r) {
@@ -16264,14 +16269,14 @@ async function deleteUser() {
 }
 
 function renderPermissionsMatrix(permsMap) {
-  var roles = ['Admin','Workshop Controller','Service Advisor','Technician','Finance','Quality Control'];
+  var roles = ['Admin','Workshop Controller','Service Advisor','Technician','Finance','Quality Control','Sales'];
   var html = '<thead><tr><th class="text-left px-4 py-3 font-bold text-gray-700 bg-gray-50 sticky left-0 z-10">Permission</th>' +
     roles.map(function(r) {
       var rc = ROLE_CONFIG[r] || { bg:'#f1f5f9', text:'#64748b' };
       return '<th class="px-4 py-3 text-center font-bold" style="background:'+rc.bg+';color:'+rc.text+'">'+r+'</th>';
     }).join('') + '</tr></thead><tbody>';
   PERMISSION_GROUPS.forEach(function(grp) {
-    html += '<tr><td colspan="7" class="px-4 py-2 bg-gray-100 text-xs font-bold text-gray-600 uppercase tracking-wide">'+grp.label+'</td></tr>';
+    html += '<tr><td colspan="8" class="px-4 py-2 bg-gray-100 text-xs font-bold text-gray-600 uppercase tracking-wide">'+grp.label+'</td></tr>';
     grp.perms.forEach(function(perm) {
       var label = perm.split('.')[1].replace(/_/g,' ');
       html += '<tr class="border-b hover:bg-gray-50"><td class="px-4 py-2 text-xs text-gray-700 sticky left-0 bg-white">'+label+'</td>' +
