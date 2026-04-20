@@ -2804,6 +2804,30 @@ api.patch('/catalogue/parts/:id/restock', async (c) => {
   return c.json(catalogueParts[idx])
 })
 
+// Delete a single catalogue part
+api.delete('/catalogue/parts/:id', (c) => {
+  const idx = catalogueParts.findIndex(p => p.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+  catalogueParts.splice(idx, 1)
+  save()
+  return c.json({ success: true })
+})
+
+// ─── Admin: Bulk-clear catalogue collections ──────────────────────────────────
+// DELETE /admin/catalogue/clear?collections=parts,carwash,addons
+// Requires Admin role. Wipes the chosen collections immediately.
+api.delete('/admin/catalogue/clear', (c) => {
+  const user = c.get('user') as any
+  if (!user || user.role !== 'Admin') return c.json({ error: 'Forbidden' }, 403)
+  const raw = (c.req.query('collections') || 'parts,carwash,addons').split(',').map(s => s.trim())
+  const cleared: string[] = []
+  if (raw.includes('parts'))   { catalogueParts.splice(0);  cleared.push('parts')   }
+  if (raw.includes('carwash')) { carWashPackages.splice(0); cleared.push('carwash') }
+  if (raw.includes('addons'))  { addOnServices.splice(0);   cleared.push('addons')  }
+  save()
+  return c.json({ success: true, cleared })
+})
+
 // ─── Twiga Catalogue: Car Wash ────────────────────────────────────────────────
 api.get('/catalogue/carwash', (c) => c.json(carWashPackages))
 
