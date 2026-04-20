@@ -107,9 +107,14 @@ function countRecords(data: any): number {
 // ── Gist: restore ─────────────────────────────────────────────────────────────
 export async function restoreFromGist(): Promise<boolean> {
   if (!gistEnabled()) {
-    console.log('[GMS gist] ⚠️  No GIST_TOKEN/GIST_ID set — data will not survive redeploys!')
-    console.log('[GMS gist]    To fix: create a GitHub PAT with "gist" scope, create a Gist,')
-    console.log('[GMS gist]    then add GIST_TOKEN and GIST_ID as Railway env variables.')
+    // Only warn if there's no volume mount configured either
+    if (!process.env.DATA_DIR && !process.env.GMS_DATA_DIR) {
+      console.log('[GMS gist] ⚠️  No GIST_TOKEN/GIST_ID set — data will not survive redeploys!')
+      console.log('[GMS gist]    To fix: create a GitHub PAT with "gist" scope, create a Gist,')
+      console.log('[GMS gist]    then add GIST_TOKEN and GIST_ID as Railway env variables.')
+    } else {
+      console.log('[GMS gist] Gist backup disabled — data is protected by Railway volume at ' + (process.env.DATA_DIR || process.env.GMS_DATA_DIR))
+    }
     return false
   }
 
