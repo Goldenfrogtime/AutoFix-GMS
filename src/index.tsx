@@ -59,7 +59,7 @@ function shell() {
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>GMS – Garage Management System</title>
+<title>AutoFix GMS – Garage Management System</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.0/css/all.min.css" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -237,7 +237,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
             <i class="fas fa-car-side text-white text-xl"></i>
           </div>
           <div>
-            <div class="text-white font-bold text-lg leading-none">Kangaroo Autofix</div>
+            <div class="text-white font-bold text-lg leading-none">AutoFix GMS</div>
             <div class="text-blue-200 text-xs mt-0.5">Garage Management System</div>
           </div>
         </div>
@@ -257,7 +257,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
           <div class="flex items-center gap-2 text-white text-xs"><span style="width:8px;height:8px;border-radius:50%;background:#f472b6;flex-shrink:0"></span> Quality Control — Final sign-off</div>
           <div class="flex items-center gap-2 text-white text-xs"><span style="width:8px;height:8px;border-radius:50%;background:#34d399;flex-shrink:0"></span> Sales — Business development</div>
         </div>
-        <p class="text-blue-300 text-xs mt-6">© 2026 Kangaroo Autofix · Secure · Role-based</p>
+        <p class="text-blue-300 text-xs mt-6">© 2026 AutoFix GMS · Secure · Role-based</p>
       </div>
     </div>
 
@@ -269,7 +269,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         <div class="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center">
           <i class="fas fa-car-side text-white"></i>
         </div>
-        <span class="font-bold text-gray-900">Kangaroo Autofix</span>
+        <span class="font-bold text-gray-900">AutoFix GMS</span>
       </div>
 
       <div class="flex-1 flex flex-col justify-center px-8 md:px-10 py-8">
@@ -283,7 +283,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
             <label class="form-label">Email Address</label>
             <div class="relative">
               <i class="fas fa-envelope absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-              <input id="loginEmail" type="email" class="form-input pl-9" placeholder="you@kangaroo.co.tz" required autocomplete="username"/>
+              <input id="loginEmail" type="email" class="form-input pl-9" placeholder="you@yourgarage.com" required autocomplete="username"/>
             </div>
           </div>
           <div class="mb-5">
@@ -321,7 +321,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         <i class="fas fa-car-side text-white text-lg"></i>
       </div>
       <div>
-        <h1 class="font-bold text-base leading-tight">Kangaroo Autofix</h1>
+        <h1 class="font-bold text-base leading-tight">AutoFix GMS</h1>
         <p class="text-xs text-blue-200">Garage Management</p>
       </div>
     </div>
@@ -3582,7 +3582,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
     <form id="newUserForm" onsubmit="submitNewUser(event)">
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <div><label class="form-label">Full Name *</label><input class="form-input" id="usr-name" placeholder="e.g. John Mwangi" required/></div>
-        <div><label class="form-label">Email Address *</label><input class="form-input" type="email" id="usr-email" placeholder="john@kangaroo.co.tz" required/></div>
+        <div><label class="form-label">Email Address *</label><input class="form-input" type="email" id="usr-email" placeholder="john@yourgarage.com" required/></div>
       </div>
       <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <div><label class="form-label">Phone Number</label><input class="form-input" id="usr-phone" placeholder="+255 7xx xxx xxx"/></div>
@@ -3752,7 +3752,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <!-- Header band -->
       <div class="bg-gradient-to-r from-blue-700 to-blue-500 px-6 py-4 flex items-center justify-between">
         <div class="text-white">
-          <p class="font-bold text-lg tracking-wide">Kangaroo Autofix</p>
+          <p class="font-bold text-lg tracking-wide" id="svcCard-garageName">AutoFix GMS</p>
           <p class="text-blue-200 text-xs">Garage Management System</p>
         </div>
         <div class="text-right text-white">
@@ -3814,7 +3814,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 
       <!-- Footer note -->
       <div class="bg-blue-700 px-6 py-3 text-center">
-        <p class="text-blue-100 text-xs">Thank you for choosing Kangaroo Autofix · Tel: +255 700 000 000 · kangero@kangaroo.co.tz</p>
+        <p class="text-blue-100 text-xs" id="svcCard-garageContact">Thank you for choosing AutoFix GMS</p>
       </div>
     </div>
 
@@ -5820,6 +5820,29 @@ var authToken = localStorage.getItem('gms_token') || '';
 var _sessionExpiredShown = false;
 var _notifInterval = null;
 
+// ─── Garage Settings Cache ────────────────────────────────────────────────────
+// Fetched once after login; used by PDFs, WhatsApp messages and email templates
+// so each tenant's own name/contact info appears on their documents.
+var _garageSettings = {
+  garageName: 'AutoFix GMS',
+  phone: '+255 700 000 000',
+  email: 'info@autofixgms.com',
+  website: 'www.autofixgms.com',
+  address: 'Dar es Salaam, Tanzania',
+};
+async function _loadGarageSettings() {
+  try {
+    const r = await axios.get('/api/settings');
+    if (r.data) {
+      _garageSettings.garageName = r.data.garageName || _garageSettings.garageName;
+      _garageSettings.phone      = r.data.phone      || _garageSettings.phone;
+      _garageSettings.email      = r.data.email      || _garageSettings.email;
+      _garageSettings.website    = r.data.website    || _garageSettings.website;
+      _garageSettings.address    = r.data.address    || _garageSettings.address;
+    }
+  } catch(e) { /* keep defaults */ }
+}
+
 function can(perm) {
   return currentPermissions.includes(perm);
 }
@@ -5895,7 +5918,7 @@ function togglePasswordVisibility() {
 }
 
 function fillDefaultCredentials() {
-  document.getElementById('loginEmail').value = 'admin@kangaroo.co.tz';
+  document.getElementById('loginEmail').value = '';
   document.getElementById('loginPassword').value = 'Admin2025!';
   document.getElementById('loginError').classList.add('hidden');
   document.getElementById('loginEmail').focus();
@@ -5925,6 +5948,7 @@ async function doLogin(e) {
     document.getElementById('appShell').style.display = 'flex';
     updateSidebarUser();
     applyNavPermissions();
+    _loadGarageSettings();
     loadDashboard();
     loadNotifDropdown();
     // Start notification polling (reset alert tracker so existing pending jobs show toasts)
@@ -5975,6 +5999,7 @@ async function tryAutoLogin() {
     document.getElementById('appShell').style.display = 'flex';
     updateSidebarUser();
     applyNavPermissions();
+    _loadGarageSettings();
     return true;
   } catch(e) {
     localStorage.removeItem('gms_token');
@@ -10076,8 +10101,8 @@ function _buildServiceCardText(mileageOut) {
     if (job.nextServiceLubricant) t += '   (' + job.nextServiceLubricant + ')' + NL;
   }
   t += LINE + NL;
-  t += 'Thank you for choosing Kangaroo Autofix!' + NL;
-  t += 'Tel: +255 700 000 000 | kangero@kangaroo.co.tz' + NL;
+  t += 'Thank you for choosing ' + _garageSettings.garageName + '!' + NL;
+  t += 'Tel: ' + _garageSettings.phone + ' | ' + _garageSettings.email + NL;
   return t;
 }
 
@@ -10097,7 +10122,7 @@ function downloadServiceCardPDF() {
   doc.rect(0, 0, pageW, 30, 'F');
   doc.setTextColor(255,255,255);
   doc.setFont('helvetica','bold'); doc.setFontSize(16);
-  doc.text('Kangaroo Autofix', margin, 12);
+  doc.text(_garageSettings.garageName, margin, 12);
   doc.setFont('helvetica','normal'); doc.setFontSize(8);
   doc.setTextColor(186, 214, 255);
   doc.text('Garage Management System', margin, 18);
@@ -10195,7 +10220,7 @@ function downloadServiceCardPDF() {
   doc.setFillColor(29, 78, 216);
   doc.rect(0, pageH - 14, pageW, 14, 'F');
   doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(186,214,255);
-  doc.text('Thank you for choosing Kangaroo Autofix  ·  Tel: +255 700 000 000  ·  kangero@kangaroo.co.tz', pageW/2, pageH - 6, { align:'center' });
+  doc.text('Thank you for choosing ' + _garageSettings.garageName + '  ·  Tel: ' + _garageSettings.phone + '  ·  ' + _garageSettings.email, pageW/2, pageH - 6, { align:'center' });
 
   const filename = 'ServiceCard-' + (job.jobCardNumber||'GMS') + '-' + (vehicle?.registrationNumber||'').replace(/\s/g,'')+'.pdf';
   doc.save(filename);
@@ -10210,7 +10235,7 @@ function shareServiceCardWhatsApp() {
   const NL = String.fromCharCode(10);
   const DIV = '\u2500'.repeat(29);
 
-  let msg = '\uD83D\uDD27 *Kangaroo Autofix \u2014 Service Card*' + NL;
+  let msg = '\uD83D\uDD27 *' + _garageSettings.garageName + ' \u2014 Service Card*' + NL;
   msg += DIV + NL;
   msg += '*Job Card:*  ' + (job.jobCardNumber || '\u2014') + NL;
   msg += '*Date:*      ' + fmtDate(job.updatedAt || job.createdAt) + NL;
@@ -10224,7 +10249,7 @@ function shareServiceCardWhatsApp() {
     if (job.nextServiceLubricant) msg += '   _(' + job.nextServiceLubricant + ')_' + NL;
   }
   msg += DIV + NL;
-  msg += '_Thank you for choosing Kangaroo Autofix!_' + NL;
+  msg += '_Thank you for choosing ' + _garageSettings.garageName + '!_' + NL;
   msg += '_\uD83D\uDCDE +255 700 000 000_';
 
   const url = 'https://wa.me/' + (phone || '') + '?text=' + encodeURIComponent(msg);
@@ -10236,7 +10261,7 @@ function shareServiceCardEmail() {
   const { job, customer, vehicle } = _svcCardData;
   const mileageOut = +document.getElementById('svcCard-mileageOut').value || 0;
   const email = customer?.email || '';
-  const subject = 'Your Service Card — ' + (job.jobCardNumber || 'Kangaroo Autofix') + ' | ' + (vehicle?.registrationNumber || '');
+  const subject = 'Your Service Card — ' + (job.jobCardNumber || _garageSettings.garageName) + ' | ' + (vehicle?.registrationNumber || '');
   const body = _buildServiceCardText(mileageOut);
   window.location.href = 'mailto:' + email + '?subject=' + encodeURIComponent(subject) + '&body=' + encodeURIComponent(body);
 }
@@ -10605,7 +10630,7 @@ function _buildGatePassPDF(gp) {
   doc.rect(0, pageH - 10, pageW, 10, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(7); doc.setFont('helvetica', 'normal');
-  doc.text('Kangaroo Autofix  |  www.kangaroo.co.tz  |  +255 700 000 000', pageW / 2, pageH - 4, { align: 'center' });
+  doc.text(_garageSettings.garageName + '  |  ' + _garageSettings.website + '  |  ' + _garageSettings.phone, pageW / 2, pageH - 4, { align: 'center' });
 
   doc.save('GatePass-' + gp.passNumber + '.pdf');
 }
@@ -12231,11 +12256,11 @@ function buildPFIDoc(detail) {
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(22);
-  doc.text('Kangaroo Autofix', margin, 16);
+  doc.text(_garageSettings.garageName, margin, 16);
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.text('Garage Management System', margin, 23);
-  doc.text('Tel: +255 700 000 000 | kangero@kangaroo.co.tz', margin, 29);
+  doc.text('Tel: ' + _garageSettings.phone + ' | ' + _garageSettings.email, margin, 29);
   doc.text('P.O. Box 12345, Dar es Salaam, Tanzania', margin, 35);
   // PFI label on right
   const isInsuranceJob = job?.category === 'Insurance';
@@ -12413,7 +12438,7 @@ function buildPFIDoc(detail) {
   doc.rect(0, pageH - 22, pageW, 22, 'F');
   doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(100, 116, 139);
   doc.text('This is a Pro Forma Invoice and does not constitute a tax invoice.', pageW / 2, pageH - 14, { align: 'center' });
-  doc.text('Kangaroo Autofix  |  Tel: +255 700 000 000  |  kangero@kangaroo.co.tz', pageW / 2, pageH - 8, { align: 'center' });
+  doc.text(_garageSettings.garageName + '  |  Tel: ' + _garageSettings.phone + '  |  ' + _garageSettings.email, pageW / 2, pageH - 8, { align: 'center' });
 
   return doc;
 }
@@ -12565,7 +12590,7 @@ async function showSendPFIModal(pfiId) {
   // Pre-fill email
   document.getElementById('sendPFI-email').value   = customer?.email || '';
   // Pre-fill subject
-  document.getElementById('sendPFI-subject').value = \`Pro Forma Invoice – \${job?.jobCardNumber||'PFI-'+pfi.id.toUpperCase()} | Kangaroo Autofix\`;
+  document.getElementById('sendPFI-subject').value = \`Pro Forma Invoice – \${job?.jobCardNumber||'PFI-'+pfi.id.toUpperCase()} | \${_garageSettings.garageName}\`;
 
   // Build services lines for email body
   const servicesLines = services.length
@@ -12606,10 +12631,10 @@ Summary:
 
 \${pfi.notes ? 'Notes: ' + pfi.notes + '\\n\\n' : ''}\${closingLine}
 
-For any queries, please contact us at +255 700 000 000 or kangero@kangaroo.co.tz.
+For any queries, please contact us at \${_garageSettings.phone} or \${_garageSettings.email}.
 
 Kind regards,
-Kangaroo Autofix Team\`;
+\${_garageSettings.garageName} Team\`;
 
   // Text preview
   document.getElementById('sendPFI-previewBox').textContent = buildPFITextPreview(_currentPFIDetail);
@@ -13311,11 +13336,11 @@ function buildInvoiceDoc(inv, job) {
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(22);
-  doc.text('Kangaroo Autofix', margin, 16);
+  doc.text(_garageSettings.garageName, margin, 16);
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.text('Garage Management System', margin, 23);
-  doc.text('Tel: +255 700 000 000  |  kangero@kangaroo.co.tz', margin, 29);
+  doc.text('Tel: ' + _garageSettings.phone + '  |  ' + _garageSettings.email, margin, 29);
   doc.text('P.O. Box 12345, Dar es Salaam, Tanzania', margin, 35);
 
   // INVOICE label top-right
@@ -13579,7 +13604,7 @@ function buildInvoiceDoc(inv, job) {
   doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(100, 116, 139);
   doc.text('This is an official tax invoice. Please retain for your records.', pageW / 2, pageH - 16, { align: 'center' });
   doc.setFont('helvetica', 'normal');
-  doc.text('Kangaroo Autofix  |  Tel: +255 700 000 000  |  kangero@kangaroo.co.tz  |  P.O. Box 12345, Dar es Salaam', pageW / 2, pageH - 10, { align: 'center' });
+  doc.text(_garageSettings.garageName + '  |  Tel: ' + _garageSettings.phone + '  |  ' + _garageSettings.email + '  |  ' + _garageSettings.address, pageW / 2, pageH - 10, { align: 'center' });
   doc.text('Generated: ' + new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }), pageW / 2, pageH - 4, { align: 'center' });
 
   return doc;
@@ -14914,7 +14939,7 @@ async function downloadFleetInvoicePDF(fiId) {
   doc.setTextColor(180, 180, 180);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7);
-  doc.text('Generated by Kangaroo Autofix · ' + new Date().toLocaleString('en-GB'), ml, ph - 8);
+  doc.text('Generated by ' + _garageSettings.garageName + ' · ' + new Date().toLocaleString('en-GB'), ml, ph - 8);
   doc.text('Page 1', pw - mr, ph - 8, { align: 'right' });
 
   doc.save(fi.fleetInvoiceNumber + '.pdf');
