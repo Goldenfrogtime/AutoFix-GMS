@@ -2814,16 +2814,19 @@ api.delete('/catalogue/parts/:id', (c) => {
 })
 
 // ─── Admin: Bulk-clear catalogue collections ──────────────────────────────────
-// DELETE /admin/catalogue/clear?collections=parts,carwash,addons
+// DELETE /admin/catalogue/clear?collections=parts,carwash,addons,lubricants,servicepackages,all
 // Requires Admin role. Wipes the chosen collections immediately.
 api.delete('/admin/catalogue/clear', (c) => {
   const user = (c as any).user as any
   if (!user || user.role !== 'Admin') return c.json({ error: 'Forbidden' }, 403)
-  const raw = (c.req.query('collections') || 'parts,carwash,addons').split(',').map(s => s.trim())
+  const raw = (c.req.query('collections') || 'parts,carwash,addons').split(',').map(s => s.trim().toLowerCase())
+  const all = raw.includes('all')
   const cleared: string[] = []
-  if (raw.includes('parts'))   { catalogueParts.splice(0);  cleared.push('parts')   }
-  if (raw.includes('carwash')) { carWashPackages.splice(0); cleared.push('carwash') }
-  if (raw.includes('addons'))  { addOnServices.splice(0);   cleared.push('addons')  }
+  if (all || raw.includes('parts'))          { catalogueParts.splice(0);    cleared.push('parts')          }
+  if (all || raw.includes('carwash'))        { carWashPackages.splice(0);   cleared.push('carwash')        }
+  if (all || raw.includes('addons'))         { addOnServices.splice(0);     cleared.push('addons')         }
+  if (all || raw.includes('lubricants'))     { lubricantProducts.splice(0); cleared.push('lubricants')     }
+  if (all || raw.includes('servicepackages')){ servicePackages.splice(0);   cleared.push('servicePackages')}
   save()
   return c.json({ success: true, cleared })
 })
