@@ -1,7 +1,7 @@
 /**
  * persist.ts — File-based persistence for the GMS in-memory store.
  *
- * PRIMARY STORAGE: gms-data.json on local disk (DATA_FILE_PATH)
+ * PRIMARY STORAGE: gms-data.json on local disk (DATA_FILE_PATH())
  *
  * BACKUP STRATEGY — Multiple options, used in priority order:
  *
@@ -41,8 +41,12 @@ import {
 } from './store.js'
 
 // ── Path to the data file ─────────────────────────────────────────────────────
-// Supports DATA_DIR (Railway volume mount path) or legacy GMS_DATA_DIR env var
-const DATA_FILE_PATH = resolve(process.env.DATA_DIR || process.env.GMS_DATA_DIR || process.cwd(), 'gms-data.json')
+// IMPORTANT: Use a function (not a const) so the path is resolved fresh at
+// call-time, not frozen at module-load time. This ensures that GMS_DATA_DIR
+// set by server.mjs before calling load()/save() is always picked up correctly.
+function DATA_FILE_PATH(): string {
+  return resolve(process.env.DATA_DIR || process.env.GMS_DATA_DIR || process.cwd(), 'gms-data.json')
+}
 
 // ── Gist config ───────────────────────────────────────────────────────────────
 const GIST_TOKEN  = process.env.GIST_TOKEN || ''
@@ -87,7 +91,10 @@ function applySnapshot(saved: any): number {
   const live = getLiveArrays()
   let total = 0
   for (const key of PERSIST_KEYS) {
-    if (Array.isArray(saved[key]) && saved[key].length > 0) {
+    // Accept any saved array (including empty []) — the key just has to exist in the snapshot.
+    // Previously required length > 0 which meant empty arrays from the volume were ignored
+    // and the app fell back to hardcoded store.ts defaults, causing data loss.
+    if (Array.isArray(saved[key])) {
       live[key].splice(0, live[key].length, ...saved[key])
       total += saved[key].length
     }
@@ -143,16 +150,16 @@ export async function restoreFromGist(): Promise<boolean> {
 
     // Count local records
     let localCount = 0
-    if (existsSync(DATA_FILE_PATH)) {
+    if (existsSync(DATA_FILE_PATH())) {
       try {
-        const localData = JSON.parse(readFileSync(DATA_FILE_PATH, 'utf-8'))
+        const localData = JSON.parse(readFileSync(DATA_FILE_PATH(), 'utf-8'))
         localCount = countRecords(localData)
       } catch { /* ignore */ }
     }
 
     if (gistCount > localCount) {
       const total = applySnapshot(gistData)
-      writeFileSync(DATA_FILE_PATH, content, 'utf-8')
+      writeFileSync(DATA_FILE_PATH(), content, 'utf-8')
       console.log(`[GMS gist] ✅ Restored ${total} records from Gist (Gist:${gistCount} > Local:${localCount})`)
       return true
     }
@@ -182,14 +189,14 @@ function pushToGist(json: string): void {
 
 // ── load ──────────────────────────────────────────────────────────────────────
 export function load(): void {
-  if (!existsSync(DATA_FILE_PATH)) {
+  if (!existsSync(DATA_FILE_PATH())) {
     console.log('[GMS persist] No data file found — starting fresh.')
     return
   }
   try {
-    const saved = JSON.parse(readFileSync(DATA_FILE_PATH, 'utf-8'))
+    const saved = JSON.parse(readFileSync(DATA_FILE_PATH(), 'utf-8'))
     const total = applySnapshot(saved)
-    console.log(`[GMS persist] Loaded ${total} records from ${DATA_FILE_PATH}`)
+    console.log(`[GMS persist] Loaded ${total} records from ${DATA_FILE_PATH()}`)
   } catch (err) {
     console.error('[GMS persist] Failed to load — starting fresh.', err)
   }
@@ -199,7 +206,7 @@ export function load(): void {
 export function save(): void {
   try {
     const json = JSON.stringify(buildSnapshot(), null, 2)
-    writeFileSync(DATA_FILE_PATH, json, 'utf-8')
+    writeFileSync(DATA_FILE_PATH(), json, 'utf-8')
     pushToGist(json)   // non-blocking backup
   } catch (err) {
     console.error('[GMS persist] Save failed.', err)
