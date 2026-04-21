@@ -5829,7 +5829,10 @@ var _garageSettings = {
   email: 'info@autofixgms.com',
   website: 'www.autofixgms.com',
   address: 'Dar es Salaam, Tanzania',
+  vatRate: 18,
 };
+// Helper: returns VAT as a decimal multiplier, e.g. 18 → 0.18
+function _vatMult() { return (_garageSettings.vatRate || 18) / 100; }
 async function _loadGarageSettings() {
   try {
     const r = await axios.get('/api/settings');
@@ -5839,6 +5842,7 @@ async function _loadGarageSettings() {
       _garageSettings.email      = r.data.email      || _garageSettings.email;
       _garageSettings.website    = r.data.website    || _garageSettings.website;
       _garageSettings.address    = r.data.address    || _garageSettings.address;
+      if (r.data.vatRate != null) _garageSettings.vatRate = r.data.vatRate;
     }
   } catch(e) { /* keep defaults */ }
 }
@@ -7425,7 +7429,7 @@ async function viewJobDetail(id) {
                 <div class="flex justify-between"><span class="text-gray-400">Services + Parts</span><span class="font-semibold">\${fmt(_lb)}</span></div>
                 \${_d>0?\`<div class="flex justify-between text-green-600"><span>Discount\${_dr?' ('+_dr+')':''}</span><span class="font-semibold">− \${fmt(_d)}</span></div>\`:''}
                 <div class="flex justify-between text-gray-500 border-t pt-1 mt-1"><span>Subtotal</span><span class="font-medium">\${fmt(_t)}</span></div>
-                <div class="flex justify-between text-orange-600"><span>Tax / VAT\${_tx>0?' (18%)':''}</span><span class="font-semibold">\${fmt(_tx)}</span></div>
+                <div class="flex justify-between text-orange-600"><span>Tax / VAT\${_tx>0?' (' + (_garageSettings.vatRate||18) + '%)':''}</span><span class="font-semibold">\${fmt(_tx)}</span></div>
                 <div class="flex justify-between border-t pt-1.5 font-bold text-sm"><span>Grand Total</span><span class="text-blue-700">\${fmt(_gt)}</span></div>
               </div>\`;
             })()}
@@ -7459,7 +7463,7 @@ async function viewJobDetail(id) {
                 <div class="flex justify-between"><span class="text-gray-400">Labour</span><span>\${fmt(_la)}</span></div>
                 <div class="flex justify-between"><span class="text-gray-400">Services + Parts</span><span>\${fmt(_lb)}</span></div>
                 \${_d>0?\`<div class="flex justify-between text-green-600"><span>Discount\${_dr?' ('+_dr+')':''}</span><span class="font-semibold">− \${fmt(_d)}</span></div>\`:''}
-                <div class="flex justify-between"><span class="text-gray-400">Tax / VAT\${_tx>0?' (18%)':''}</span><span>\${fmt(_tx)}</span></div>
+                <div class="flex justify-between"><span class="text-gray-400">Tax / VAT\${_tx>0?' (' + (_garageSettings.vatRate||18) + '%)':''}</span><span>\${fmt(_tx)}</span></div>
                 <div class="flex justify-between border-t pt-1.5 font-bold text-green-700 text-sm"><span>Total</span><span>\${fmt(_t)}</span></div>
               </div>\`;
             })()}
@@ -8067,7 +8071,7 @@ async function showPFIModal(jobId, category) {
             <span id="pfi-total-display" class="font-medium text-gray-700"></span>
           </div>
           <div class="flex justify-between text-orange-600">
-            <span><i class="fas fa-percent mr-1 text-xs"></i>Tax / VAT (18%)</span>
+            <span><i class="fas fa-percent mr-1 text-xs"></i>Tax / VAT (<span id="vat-rate-label">' + (_garageSettings.vatRate||18) + '</span>%)</span>
             <span id="pfi-tax-display" class="font-semibold"></span>
           </div>
           <div class="flex justify-between font-bold text-gray-800 border-t border-blue-200 pt-1 mt-1">
@@ -8114,7 +8118,7 @@ async function showPFIModal(jobId, category) {
     }
     const totalEstimate = Math.max(0, subtotal - discountAmount);
     const applyVAT      = !!(window._pfiVAT);
-    const tax           = applyVAT ? Math.round(totalEstimate * 0.18) : 0;
+    const tax           = applyVAT ? Math.round(totalEstimate * _vatMult()) : 0;
     const totalAmount   = totalEstimate + tax;
     const initialStatus = isInsurance ? 'Submitted' : 'Draft';
     await axios.post('/api/jobcards/' + jobId + '/pfi', {
@@ -8175,7 +8179,7 @@ function pfiCalcTotal() {
   const total = Math.max(0, subtotal - discountAmount);
 
   // VAT only when toggle is ON
-  const tax       = applyVAT ? Math.round(total * 0.18) : 0;
+  const tax       = applyVAT ? Math.round(total * _vatMult()) : 0;
   const grandTotal = total + tax;
 
   var subEl      = document.getElementById('pfi-subtotal-display');
@@ -8377,7 +8381,7 @@ async function showEditPFIModal(pfiId) {
     '</div>' +
     '<div class="mb-3 flex items-center justify-between px-3 py-2.5 bg-orange-50 border border-orange-200 rounded-xl">' +
       '<label class="flex items-center gap-2 text-sm font-semibold text-orange-800 cursor-pointer select-none" for="pfi-vat-toggle">' +
-        '<i class="fas fa-percent text-orange-500"></i>Apply VAT (18%)' +
+        '<i class="fas fa-percent text-orange-500"></i>Apply VAT (' + (_garageSettings.vatRate||18) + '%)' +
         '<span class="text-xs font-normal text-orange-600">(optional)</span>' +
       '</label>' +
       '<button type="button" id="pfi-vat-toggle" role="switch" aria-checked="' + existingHasVAT + '"' +
@@ -8392,7 +8396,7 @@ async function showEditPFIModal(pfiId) {
         '<div class="flex justify-between text-gray-500"><span>Subtotal</span><span id="pfi-subtotal-display" class="font-medium text-gray-700"></span></div>' +
         '<div class="flex justify-between text-green-600" id="pfi-disc-line" style="display:none!important"><span><i class="fas fa-tag mr-1 text-xs"></i>Discount</span><span id="pfi-disc-amount-display" class="font-semibold">— TZS 0</span></div>' +
         '<div class="flex justify-between text-gray-600 border-t border-blue-200 pt-1 mt-1"><span>Total Estimate (before tax)</span><span id="pfi-total-display" class="font-medium text-gray-700"></span></div>' +
-        '<div class="flex justify-between text-orange-600" id="pfi-tax-row" style="display:none"><span><i class="fas fa-percent mr-1 text-xs"></i>Tax / VAT (18%)</span><span id="pfi-tax-display" class="font-semibold"></span></div>' +
+        '<div class="flex justify-between text-orange-600" id="pfi-tax-row" style="display:none"><span><i class="fas fa-percent mr-1 text-xs"></i>Tax / VAT (' + (_garageSettings.vatRate||18) + '%)</span><span id="pfi-tax-display" class="font-semibold"></span></div>' +
         '<div class="flex justify-between font-bold text-gray-800 border-t border-blue-200 pt-1 mt-1"><span id="pfi-grand-label">Grand Total</span><span id="pfi-grand-total-display" class="text-blue-700 text-base"></span></div>' +
       '</div>' +
     '</div>' +
@@ -8430,7 +8434,7 @@ async function showEditPFIModal(pfiId) {
     }
     const totalEstimate = Math.max(0, subtotal - discountAmount);
     const applyVAT      = !!(window._pfiVAT);
-    const tax           = applyVAT ? Math.round(totalEstimate * 0.18) : 0;
+    const tax           = applyVAT ? Math.round(totalEstimate * _vatMult()) : 0;
     const totalAmount   = totalEstimate + tax;
 
     try {
@@ -8473,7 +8477,7 @@ async function showInvoiceModal(jobId, labourCost, partsCost, pfiDiscount) {
   const discountAmount = disc.discountAmount || 0;
   const subtotal = labourCost + totalBillable;
   const afterDiscount = Math.max(0, subtotal - discountAmount);
-  const tax = Math.round(afterDiscount * 0.18);
+  const tax = Math.round(afterDiscount * _vatMult());
 
   // Build services HTML
   let servicesHtml = '';
@@ -8558,7 +8562,7 @@ async function showInvoiceModal(jobId, labourCost, partsCost, pfiDiscount) {
     </div>
     \${discountRowHtml}
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
-      <div><label class="form-label">Tax (18%) (TZS)</label><input class="form-input" type="number" id="inv-tax" value="\${tax}"/></div>
+      <div><label class="form-label">Tax (' + (_garageSettings.vatRate||18) + '%) (TZS)</label><input class="form-input" type="number" id="inv-tax" value="\${tax}"/></div>
       <div><label class="form-label">Status</label><select class="form-input" id="inv-status"><option>Issued</option><option>Paid</option></select></div>
     </div>
     <div class="flex gap-3">
@@ -8571,7 +8575,7 @@ async function showInvoiceModal(jobId, labourCost, partsCost, pfiDiscount) {
   const recalcTax = () => {
     const l = +document.getElementById('inv-labour').value || 0;
     const p = +document.getElementById('inv-parts').value || 0;
-    document.getElementById('inv-tax').value = Math.round(Math.max(0, l + p - discountAmount) * 0.18);
+    document.getElementById('inv-tax').value = Math.round(Math.max(0, l + p - discountAmount) * _vatMult());
   };
   document.getElementById('inv-labour').oninput = recalcTax;
   document.getElementById('inv-parts').oninput = recalcTax;
@@ -9741,7 +9745,7 @@ async function showCustomerApprovalModal(jobId) {
       '<div class="flex justify-between"><span class="text-gray-500">Labour</span><span class="font-semibold">TZS ' + labourCost.toLocaleString() + '</span></div>' +
       '<div class="flex justify-between"><span class="text-gray-500">Parts</span><span class="font-semibold">TZS ' + partsCost.toLocaleString() + '</span></div>' +
       (discount > 0 ? '<div class="flex justify-between text-green-700"><span>Discount</span><span>- TZS ' + discount.toLocaleString() + '</span></div>' : '') +
-      (tax > 0 ? '<div class="flex justify-between"><span class="text-gray-500">VAT (18%)</span><span class="font-semibold">TZS ' + tax.toLocaleString() + '</span></div>' : '');
+      (tax > 0 ? '<div class="flex justify-between"><span class="text-gray-500">VAT (' + (_garageSettings.vatRate||18) + '%)</span><span class="font-semibold">TZS ' + tax.toLocaleString() + '</span></div>' : '');
     document.getElementById('custappr-total').textContent = 'TZS ' + total.toLocaleString();
     document.getElementById('custappr-submit-btn').dataset.total = total;
   } catch(err) { console.error('showCustomerApprovalModal error', err); }
@@ -12415,9 +12419,9 @@ function buildPFIDoc(detail) {
   // orange tax row
   doc.setFillColor(255, 247, 237); doc.rect(sumX, y, sumW, 8, 'F');
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(194, 120, 3);
-  const taxAmt = pfi.tax != null ? pfi.tax : Math.round(pfi.totalEstimate * 0.18);
+  const taxAmt = pfi.tax != null ? pfi.tax : Math.round(pfi.totalEstimate * _vatMult());
   const grandTotal = pfi.totalAmount != null ? pfi.totalAmount : pfi.totalEstimate + taxAmt;
-  doc.text('Tax / VAT (18%)', sumX + 4, y + 5.5);
+  doc.text('Tax / VAT (' + (_garageSettings.vatRate || 18) + '%)', sumX + 4, y + 5.5);
   doc.text(fmt(taxAmt), sumX + sumW - 3, y + 5.5, { align: 'right' });
   y += 8;
   // divider
@@ -12489,10 +12493,10 @@ function buildPFITextPreview(detail) {
     t += '  Discount' + discNote + ': -' + fmt(pfi.discountAmount) + NL;
   }
   t += '  ' + dash25 + NL;
-  const _taxAmt2     = pfi.tax != null ? pfi.tax : Math.round(pfi.totalEstimate * 0.18);
+  const _taxAmt2     = pfi.tax != null ? pfi.tax : Math.round(pfi.totalEstimate * _vatMult());
   const _grandTotal2 = pfi.totalAmount != null ? pfi.totalAmount : pfi.totalEstimate + _taxAmt2;
   t += '  Total Estimate: ' + fmt(pfi.totalEstimate) + NL;
-  t += '  Tax/VAT' + (_taxAmt2 > 0 ? ' (18%)' : '') + ':  ' + fmt(_taxAmt2) + NL;
+  t += '  Tax/VAT' + (_taxAmt2 > 0 ? ' (' + (_garageSettings.vatRate||18) + '%)' : '') + ':  ' + fmt(_taxAmt2) + NL;
   t += '  ' + dash25 + NL;
   t += '  GRAND TOTAL:    ' + fmt(_grandTotal2) + NL;
   if (pfi.notes) t += NL + 'Notes: ' + pfi.notes + NL;
@@ -12580,7 +12584,7 @@ async function showSendPFIModal(pfiId) {
       <div><span class="text-gray-500">Labour:</span> <strong>\${fmt(pfi.labourCost)}</strong></div>
       <div><span class="text-gray-500">Services+Parts:</span> <strong>\${fmt(pfi.partsCost)}</strong></div>
       <div><span class="text-gray-500">Total Estimate:</span> <strong>\${fmt(pfi.totalEstimate)}</strong></div>
-      <div><span class="text-gray-500">Tax / VAT\${(pfi.tax||0) > 0 ? ' (18%)' : ''}:</span> <strong class="text-orange-600">\${fmt(pfi.tax||0)}</strong></div>
+      <div><span class="text-gray-500">Tax / VAT\${(pfi.tax||0) > 0 ? ' (' + (_garageSettings.vatRate||18) + '%)' : ''}:</span> <strong class="text-orange-600">\${fmt(pfi.tax||0)}</strong></div>
       <div><span class="text-gray-500">Grand Total:</span> <strong class="text-blue-700">\${fmt(pfi.totalAmount||(pfi.totalEstimate+(pfi.tax||0)))}</strong></div>
     </div>
     \${servicesBreakdownHtml}
@@ -12626,7 +12630,7 @@ Summary:
   Labour Cost:    \${fmt(pfi.labourCost)}
   Services+Parts: \${fmt(pfi.partsCost)}
   Total Estimate: \${fmt(pfi.totalEstimate)}
-  Tax/VAT\${(pfi.tax||0) > 0 ? ' (18%)' : ''}:  \${fmt(pfi.tax||0)}
+  Tax/VAT\${(pfi.tax||0) > 0 ? ' (' + (_garageSettings.vatRate||18) + '%)' : ''}:  \${fmt(pfi.tax||0)}
   Grand Total:    \${fmt(pfi.totalAmount||(pfi.totalEstimate+(pfi.tax||0)))}
 
 \${pfi.notes ? 'Notes: ' + pfi.notes + '\\n\\n' : ''}\${closingLine}
@@ -12744,7 +12748,7 @@ function renderClaims(pfis) {
           <div class="flex justify-between text-sm mb-1"><span class="text-gray-500">Parts Total</span><span class="font-semibold">\${fmt(pfi.partsCost)}</span></div>
           \${(pfi.discountAmount||0) > 0 ? \`<div class="flex justify-between text-sm mb-1 text-green-600"><span class="flex items-center gap-1"><i class="fas fa-tag text-xs"></i>Discount\${pfi.discountReason ? ' <span class="text-xs">('+pfi.discountReason+')</span>' : ''}</span><span class="font-semibold">− \${fmt(pfi.discountAmount)}</span></div>\` : ''}
           <div class="flex justify-between text-sm border-t pt-1 mt-1 text-gray-500"><span>Total Estimate</span><span class="font-medium">\${fmt(pfi.totalEstimate)}</span></div>
-          <div class="flex justify-between text-sm text-orange-600"><span class="flex items-center gap-1"><i class="fas fa-percent text-xs"></i>Tax / VAT\${(pfi.tax||0) > 0 ? ' (18%)' : ''}</span><span class="font-semibold">\${fmt(pfi.tax||0)}</span></div>
+          <div class="flex justify-between text-sm text-orange-600"><span class="flex items-center gap-1"><i class="fas fa-percent text-xs"></i>Tax / VAT\${(pfi.tax||0) > 0 ? ' (' + (_garageSettings.vatRate||18) + '%)' : ''}</span><span class="font-semibold">\${fmt(pfi.tax||0)}</span></div>
           <div class="flex justify-between text-sm font-bold border-t pt-2"><span>Grand Total</span><span class="text-blue-600">\${fmt(pfi.totalAmount||(pfi.totalEstimate+(pfi.tax||0)))}</span></div>
         </div>
         \${pfi.notes ? \`<p class="text-xs text-gray-500 mb-3 italic">"\${pfi.notes}"</p>\` : ''}
@@ -13524,7 +13528,7 @@ function buildInvoiceDoc(inv, job) {
     doc.text('− ' + fmt(disc), sumX + sumW - 3, y + 5.5, { align: 'right' });
     y += 8;
   }
-  drawSumRow('Tax / VAT (18%)',   fmt(tax),      false, null);
+  drawSumRow('Tax / VAT (' + (_garageSettings.vatRate||18) + '%)',   fmt(tax),      false, null);
   // Divider
   doc.setDrawColor(226, 232, 240);
   doc.setLineWidth(0.3);
@@ -14333,7 +14337,7 @@ function showFleetDetail(id, event) {
   document.getElementById('fid-totals').innerHTML =
     '<div class="flex justify-between text-gray-500"><span>Subtotal</span><span>' + fmt2(fi.subtotal) + '</span></div>' +
     discHtml +
-    '<div class="flex justify-between text-gray-500"><span>Tax / VAT (18%)</span><span>' + fmt2(fi.tax) + '</span></div>' +
+    '<div class="flex justify-between text-gray-500"><span>Tax / VAT (' + (_garageSettings.vatRate||18) + '%)</span><span>' + fmt2(fi.tax) + '</span></div>' +
     '<div class="flex justify-between border-t border-gray-200 pt-2 font-bold text-gray-800"><span>Total</span><span class="text-green-600">' + fmt2(fi.totalAmount) + '</span></div>';
 
   // Notes
@@ -14724,7 +14728,7 @@ function fiCalcTotals() {
   if (discType === 'percentage') discAmt = Math.round(subtotal * Math.min(discValue, 100) / 100);
   else if (discType === 'fixed') discAmt = Math.min(Math.round(discValue), subtotal);
   var afterDisc = Math.max(0, subtotal - discAmt);
-  var tax       = Math.round(afterDisc * 0.18);
+  var tax       = Math.round(afterDisc * _vatMult());
   var total     = afterDisc + tax;
 
   var discLine = discAmt > 0
@@ -14733,7 +14737,7 @@ function fiCalcTotals() {
   document.getElementById('fi-review-totals').innerHTML =
     '<div class="flex justify-between text-gray-600"><span>Subtotal (' + _fiSelectedJobs.length + ' jobs)</span><span>' + fmt(subtotal) + '</span></div>' +
     discLine +
-    '<div class="flex justify-between text-gray-600"><span>Tax / VAT (18%)</span><span>' + fmt(tax) + '</span></div>' +
+    '<div class="flex justify-between text-gray-600"><span>Tax / VAT (' + (_garageSettings.vatRate||18) + '%)</span><span>' + fmt(tax) + '</span></div>' +
     '<div class="flex justify-between font-bold text-gray-800 border-t border-gray-200 pt-2"><span>Grand Total</span><span class="text-green-600 text-base">' + fmt(total) + '</span></div>';
 }
 
@@ -14910,7 +14914,7 @@ async function downloadFleetInvoicePDF(fiId) {
   };
   drawTotalRow('Subtotal', fmt2(fi.subtotal));
   if ((fi.discountAmount || 0) > 0) drawTotalRow('Discount' + (fi.discountReason ? ' (' + fi.discountReason + ')' : ''), '− ' + fmt2(fi.discountAmount), false, [22, 163, 74]);
-  drawTotalRow('Tax / VAT (18%)', fmt2(fi.tax));
+  drawTotalRow('Tax / VAT (' + (_garageSettings.vatRate||18) + '%)', fmt2(fi.tax));
   doc.setDrawColor(30, 64, 175);
   doc.line(totalsX, y, pw - mr, y); y += 2;
   drawTotalRow('TOTAL', fmt2(fi.totalAmount), true, [30, 64, 175]);

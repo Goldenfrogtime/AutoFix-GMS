@@ -34,6 +34,11 @@ import { save } from '../data/persist'
 
 const api = new Hono()
 
+// ─── VAT rate helper ─────────────────────────────────────────────────────────
+// Always reads from garageSettings so clients can change it in Settings.
+// Returns a decimal multiplier, e.g. 18 → 0.18
+const vatMultiplier = () => (garageSettings.vatRate ?? 18) / 100
+
 // ─── Auto-persist middleware ─────────────────────────────────────────────────
 // After every mutating request (POST, PUT, PATCH, DELETE) that returns a
 // successful response (status < 400), write all live arrays to disk so that
@@ -360,7 +365,7 @@ function syncJobFinancials(jobCardId: string) {
       discountAmount = pfi.discountAmount || 0
     }
     const pfiTotalEstimate = Math.max(0, subtotal - discountAmount)
-    const pfiTax           = Math.round(pfiTotalEstimate * 0.18)
+    const pfiTax           = Math.round(pfiTotalEstimate * vatMultiplier())
     const pfiTotalAmount   = pfiTotalEstimate + pfiTax
     pfis[pfiIdx] = {
       ...pfi,
@@ -380,7 +385,7 @@ function syncJobFinancials(jobCardId: string) {
       const subtotal = (inv.labourCost || 0) + liveBillable
       const discountAmount = inv.discountAmount || 0
       const afterDiscount  = Math.max(0, subtotal - discountAmount)
-      const tax            = Math.round(afterDiscount * 0.18)
+      const tax            = Math.round(afterDiscount * vatMultiplier())
       const totalAmount    = afterDiscount + tax
       invoices[invIdx] = {
         ...inv,
@@ -1118,7 +1123,7 @@ api.post('/jobcards/:id/customer-signoff', async (c) => {
   const discountAmt = pfi?.discountAmount || 0
   const applyVAT    = pfi?.tax > 0
   const taxBase     = subtotal - discountAmt
-  const taxAmt      = applyVAT ? Math.round(taxBase * 0.18) : 0
+  const taxAmt      = applyVAT ? Math.round(taxBase * vatMultiplier()) : 0
   const totalAmount = taxBase + taxAmt
 
   const invYear = new Date().getFullYear()
@@ -1538,7 +1543,7 @@ api.post('/jobcards/:id/pfi', async (c) => {
     discountAmount = Math.min(Math.round(body.discountValue), subtotal)
   }
   const totalEstimate = Math.max(0, subtotal - discountAmount)
-  const tax           = Math.round(totalEstimate * 0.18)
+  const tax           = Math.round(totalEstimate * vatMultiplier())
   const totalAmount   = totalEstimate + tax
 
   const newPFI: PFI = {
@@ -3682,7 +3687,7 @@ api.post('/fleet-invoices', async (c) => {
     }
   }
   const afterDiscount = Math.max(0, subtotal - discountAmount)
-  const tax           = Math.round(afterDiscount * 0.18)
+  const tax           = Math.round(afterDiscount * vatMultiplier())
   const totalAmount   = afterDiscount + tax
 
   const ts  = now()
