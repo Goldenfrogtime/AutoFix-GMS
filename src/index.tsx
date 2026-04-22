@@ -230,34 +230,71 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
   <div style="max-width:900px;width:100%;display:flex;gap:0;border-radius:28px;overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,.5)">
 
     <!-- ── Left branding panel ──────────────────────────────────────────── -->
-    <div class="hidden md:flex flex-col justify-between p-10" style="width:380px;flex-shrink:0;background:linear-gradient(160deg,#1e3a8a 0%,#1d4ed8 60%,#0891b2 100%)">
+    <div class="hidden md:flex flex-col justify-between p-10" style="width:380px;flex-shrink:0;background:linear-gradient(160deg,#0f172a 0%,#1e3a8a 55%,#0e7490 100%)">
       <div>
-        <div class="flex items-center gap-3 mb-10">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:rgba(255,255,255,.2)">
+        <!-- Logo -->
+        <div class="flex items-center gap-3 mb-12">
+          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2)">
             <i class="fas fa-car-side text-white text-xl"></i>
           </div>
           <div>
             <div class="text-white font-bold text-lg leading-none">AutoFix GMS</div>
-            <div class="text-blue-200 text-xs mt-0.5">Garage Management System</div>
+            <div class="text-blue-300 text-xs mt-0.5">Garage Management System</div>
           </div>
         </div>
-        <h2 class="text-white text-3xl font-bold leading-tight mb-4">Manage your<br/>workshop smarter</h2>
-        <p class="text-blue-200 text-sm leading-relaxed">End-to-end workflow management — from job card creation to vehicle release — with role-based access for every team member.</p>
+
+        <!-- Headline -->
+        <h2 class="text-white text-3xl font-bold leading-tight mb-4">Run your workshop<br/>with confidence.</h2>
+        <p class="text-blue-200 text-sm leading-relaxed mb-10">A complete operations platform built for modern garages — from the front desk to the workshop floor.</p>
+
+        <!-- Feature highlights (no role info) -->
+        <div class="space-y-4">
+          <div class="flex items-start gap-3">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background:rgba(255,255,255,.1)">
+              <i class="fas fa-file-alt text-blue-300 text-sm"></i>
+            </div>
+            <div>
+              <div class="text-white text-sm font-semibold">Job Cards &amp; Invoicing</div>
+              <div class="text-blue-300 text-xs mt-0.5">Track every job from intake to payment</div>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background:rgba(255,255,255,.1)">
+              <i class="fas fa-boxes text-blue-300 text-sm"></i>
+            </div>
+            <div>
+              <div class="text-white text-sm font-semibold">Parts &amp; Inventory</div>
+              <div class="text-blue-300 text-xs mt-0.5">Live stock levels and cost tracking</div>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background:rgba(255,255,255,.1)">
+              <i class="fas fa-chart-line text-blue-300 text-sm"></i>
+            </div>
+            <div>
+              <div class="text-white text-sm font-semibold">Analytics &amp; Reporting</div>
+              <div class="text-blue-300 text-xs mt-0.5">Revenue, margins and performance at a glance</div>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style="background:rgba(255,255,255,.1)">
+              <i class="fas fa-shield-alt text-blue-300 text-sm"></i>
+            </div>
+            <div>
+              <div class="text-white text-sm font-semibold">Secure &amp; Multi-user</div>
+              <div class="text-blue-300 text-xs mt-0.5">Controlled access for every team member</div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <!-- Role legend -->
-      <div>
-        <p class="text-blue-300 text-xs font-semibold uppercase tracking-widest mb-3">Team Roles</p>
-        <div class="space-y-2">
-          <div class="flex items-center gap-2 text-white text-xs"><span style="width:8px;height:8px;border-radius:50%;background:#f87171;flex-shrink:0"></span> Admin — Full system access</div>
-          <div class="flex items-center gap-2 text-white text-xs"><span style="width:8px;height:8px;border-radius:50%;background:#fbbf24;flex-shrink:0"></span> Workshop Controller — Operations oversight</div>
-          <div class="flex items-center gap-2 text-white text-xs"><span style="width:8px;height:8px;border-radius:50%;background:#60a5fa;flex-shrink:0"></span> Service Advisor — Customer &amp; job creation</div>
-          <div class="flex items-center gap-2 text-white text-xs"><span style="width:8px;height:8px;border-radius:50%;background:#34d399;flex-shrink:0"></span> Technician — Workshop floor tasks</div>
-          <div class="flex items-center gap-2 text-white text-xs"><span style="width:8px;height:8px;border-radius:50%;background:#a78bfa;flex-shrink:0"></span> Finance — Invoices &amp; payments</div>
-          <div class="flex items-center gap-2 text-white text-xs"><span style="width:8px;height:8px;border-radius:50%;background:#f472b6;flex-shrink:0"></span> Quality Control — Final sign-off</div>
-          <div class="flex items-center gap-2 text-white text-xs"><span style="width:8px;height:8px;border-radius:50%;background:#34d399;flex-shrink:0"></span> Sales — Business development</div>
+      <!-- Footer -->
+      <div class="flex items-center justify-between mt-8">
+        <p class="text-blue-400 text-xs">© 2026 AutoFix GMS</p>
+        <div class="flex items-center gap-1 text-blue-400 text-xs">
+          <i class="fas fa-lock text-xs"></i>
+          <span>Encrypted &amp; Secure</span>
         </div>
-        <p class="text-blue-300 text-xs mt-6">© 2026 AutoFix GMS · Secure · Role-based</p>
       </div>
     </div>
 
