@@ -42,10 +42,15 @@ import {
 
 // ── Path to the data file ─────────────────────────────────────────────────────
 // IMPORTANT: Use a function (not a const) so the path is resolved fresh at
-// call-time, not frozen at module-load time. This ensures that GMS_DATA_DIR
-// set by server.mjs before calling load()/save() is always picked up correctly.
+// call-time, not frozen at module-load time.
+// Priority: RAILWAY_VOLUME_MOUNT_PATH → DATA_DIR → GMS_DATA_DIR → /app/data
+// NEVER falls back to process.cwd() (/app) which is wiped on every redeploy.
 function DATA_FILE_PATH(): string {
-  return resolve(process.env.DATA_DIR || process.env.GMS_DATA_DIR || process.cwd(), 'gms-data.json')
+  const dir = process.env.RAILWAY_VOLUME_MOUNT_PATH
+           || process.env.DATA_DIR
+           || process.env.GMS_DATA_DIR
+           || '/app/data'
+  return resolve(dir, 'gms-data.json')
 }
 
 // ── Gist config ───────────────────────────────────────────────────────────────
