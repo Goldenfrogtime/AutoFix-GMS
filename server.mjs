@@ -40,13 +40,18 @@ if (!existsSync(DATA_DIR)) {
 }
 
 // ── 2. Seed gms-data.json on first boot ──────────────────────────────────────
-const targetDataFile = resolve(DATA_DIR, 'gms-data.json')
-const seedDataFile   = resolve(__dirname, 'gms-data.json')
+// TENANT_SEED env var allows per-client seed files (e.g. gms-data.rouge-motors.json)
+// If not set, falls back to the default gms-data.json
+const targetDataFile  = resolve(DATA_DIR, 'gms-data.json')
+const tenantSeedName  = process.env.TENANT_SEED || 'gms-data.json'
+const seedDataFile    = resolve(__dirname, tenantSeedName)
+const fallbackSeed    = resolve(__dirname, 'gms-data.json')
 
 if (!existsSync(targetDataFile)) {
-  if (existsSync(seedDataFile)) {
-    copyFileSync(seedDataFile, targetDataFile)
-    console.log(`[GMS] First boot — seeded data → ${targetDataFile}`)
+  const chosenSeed = existsSync(seedDataFile) ? seedDataFile : fallbackSeed
+  if (existsSync(chosenSeed)) {
+    copyFileSync(chosenSeed, targetDataFile)
+    console.log(`[GMS] First boot — seeded data from ${tenantSeedName} → ${targetDataFile}`)
   }
 } else {
   console.log(`[GMS] Using existing data file: ${targetDataFile}`)
