@@ -7,7 +7,8 @@ module.exports = {
       cwd: '/home/user/webapp',
       env: {
         NODE_ENV: 'development',
-        PORT: 3000
+        PORT: 3000,
+        DATA_DIR: '/home/user/webapp/data'
       },
       watch: false,
       instances: 1,
