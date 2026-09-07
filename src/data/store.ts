@@ -1287,7 +1287,7 @@ export interface GarageSettings {
 }
 
 // ─── Brand defaults ──────────────────────────────────────────────────────────
-// Twiga Autogroup house style. Any tenant can override every one of these from
+// Twiga AutoGroup house style. Any tenant can override every one of these from
 // Settings → Branding; these values are only the out-of-the-box starting point.
 export const TWIGA_BRAND = {
   primary: '#122886',   // Twiga navy — sampled from the supplied logo artwork
@@ -1299,7 +1299,7 @@ export const TWIGA_BRAND = {
 } as const
 
 export const defaultGarageSettings: GarageSettings = {
-  garageName: 'Twiga Autogroup',
+  garageName: 'Twiga AutoGroup',
   address: '',
   phone: '',
   email: '',
@@ -1309,8 +1309,8 @@ export const defaultGarageSettings: GarageSettings = {
   jobCardPrefix: 'GMS',
   pfiPrefix: 'GMS-PFI',
 
-  // Branding defaults — Twiga Autogroup
-  tradingName:  'Twiga Autogroup',
+  // Branding defaults — Twiga AutoGroup
+  tradingName:  'Twiga AutoGroup',
   tagline:      'Garage Management System',
   brandPrimary: TWIGA_BRAND.primary,
   brandAccent:  TWIGA_BRAND.accent,

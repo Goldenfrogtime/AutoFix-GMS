@@ -30,6 +30,7 @@ const MIME: Record<string, string> = {
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon',
   '.webp': 'image/webp',
+  '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
   '.js': 'application/javascript; charset=utf-8',
   '.json': 'application/json; charset=utf-8',
@@ -75,7 +76,7 @@ app.get('/apple-touch-icon.png', (c) => serveAsset(c, 'static/brand/icon-180.png
 app.get('/manifest.webmanifest', (c) => {
   c.header('Content-Type', 'application/manifest+json')
   return c.body(JSON.stringify({
-    name: 'Twiga Autogroup — Garage Management',
+    name: 'Twiga AutoGroup — Garage Management',
     short_name: 'Twiga GMS',
     start_url: '/',
     display: 'standalone',
@@ -128,7 +129,7 @@ function shell() {
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>Twiga Autogroup – Garage Management System</title>
+<title>Twiga AutoGroup – Garage Management System</title>
 <link rel="icon" href="/static/brand/favicon.ico" sizes="any"/>
 <link rel="icon" type="image/png" sizes="32x32" href="/static/brand/icon-32.png"/>
 <link rel="icon" type="image/png" sizes="16x16" href="/static/brand/icon-16.png"/>
@@ -146,7 +147,7 @@ tailwind.config = {
   theme: {
     extend: {
       colors: {
-        // Twiga Autogroup navy scale — 700/800/900 match the logo artwork
+        // Twiga AutoGroup navy scale — 700/800/900 match the logo artwork
         brand: { 50:'#eef1fb',100:'#dbe1f6',200:'#b8c3ec',300:'#8e9ee0',400:'#5f74d4',500:'#3b53c4',600:'#2f4fd0',700:'#1c318f',800:'#122886',900:'#0b1a5c' },
         twiga: { navy:'#122886', accent:'#2f4fd0', dark:'#0b1a5c', light:'#f5f6fc' },
         garage: { 50:'#f0fdf4',100:'#dcfce7',500:'#22c55e',600:'#16a34a',700:'#15803d',900:'#14532d' }
@@ -376,7 +377,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 
       <!-- Footer -->
       <div class="flex items-center justify-between mt-8">
-        <p class="text-blue-300 text-xs" id="loginBrandCopyright">© 2026 Twiga Autogroup</p>
+        <p class="text-blue-300 text-xs" id="loginBrandCopyright">© 2026 Twiga AutoGroup</p>
         <div class="flex items-center gap-1 text-blue-400 text-xs">
           <i class="fas fa-lock text-xs"></i>
           <span>Encrypted &amp; Secure</span>
@@ -441,7 +442,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         <img id="sidebarBrandMark" src="/static/brand/logo-mark.png" alt=""/>
       </div>
       <div class="min-w-0">
-        <h1 class="font-bold text-base leading-tight truncate" id="sidebarBrandName">Twiga Autogroup</h1>
+        <h1 class="font-bold text-base leading-tight truncate" id="sidebarBrandName">Twiga AutoGroup</h1>
         <p class="text-xs text-blue-200 truncate" id="sidebarBrandTagline">Garage Management</p>
       </div>
     </div>
@@ -2370,7 +2371,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
             <div class="space-y-3">
               <div>
                 <label class="form-label">Display Name <span class="text-gray-400 font-normal">— shown in the app</span></label>
-                <input class="form-input" id="sett-tradingName" placeholder="e.g. Twiga Autogroup"/>
+                <input class="form-input" id="sett-tradingName" placeholder="e.g. Twiga AutoGroup"/>
               </div>
               <div>
                 <label class="form-label">Tagline</label>
@@ -2399,7 +2400,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
                     <img id="brandPrev-previewMark" src="/static/brand/logo-mark.png" alt=""/>
                   </div>
                   <div class="min-w-0">
-                    <div class="text-white text-sm font-bold truncate" id="brandPrev-name">Twiga Autogroup</div>
+                    <div class="text-white text-sm font-bold truncate" id="brandPrev-name">Twiga AutoGroup</div>
                     <div class="text-xs truncate" style="color:rgba(255,255,255,.7)" id="brandPrev-tagline">Garage Management System</div>
                   </div>
                 </div>
@@ -2426,11 +2427,11 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
               </div>
               <div>
                 <label class="form-label">Bank / Payment Details <span class="text-gray-400 font-normal">— printed on invoices</span></label>
-                <textarea class="form-input" rows="4" id="sett-bankDetails" placeholder="Bank: CRDB Bank&#10;Account Name: Twiga Autogroup Ltd&#10;Account No: 0150XXXXXXXX"></textarea>
+                <textarea class="form-input" rows="4" id="sett-bankDetails" placeholder="Bank: CRDB Bank&#10;Account Name: Twiga AutoGroup Ltd&#10;Account No: 0150XXXXXXXX"></textarea>
               </div>
               <div>
                 <label class="form-label">Email Signature</label>
-                <textarea class="form-input" rows="4" id="sett-emailSignature" placeholder="Twiga Autogroup Team&#10;+255 700 000 000"></textarea>
+                <textarea class="form-input" rows="4" id="sett-emailSignature" placeholder="Twiga AutoGroup Team&#10;+255 700 000 000"></textarea>
               </div>
             </div>
             <div class="flex flex-wrap items-center gap-2 mt-4">
@@ -3474,7 +3475,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
   <div class="modal-box" style="--mw:640px">
     <div class="flex items-center justify-between mb-5">
       <div>
-        <h3 class="text-xl font-bold text-gray-900"><i class="fas fa-paper-plane text-blue-500 mr-2"></i>Send PFI to Customer</h3>
+        <h3 class="text-xl font-bold text-gray-900"><i class="fas fa-paper-plane text-blue-500 mr-2"></i><span id="sendPFI-heading">Send Quotation to Customer</span></h3>
         <p class="text-sm text-gray-500 mt-0.5" id="sendPFI-subtitle">Pro Forma Invoice</p>
       </div>
       <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-sendPFI')"><i class="fas fa-times"></i></button>
@@ -3498,14 +3499,28 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <p class="text-xs text-gray-400 mt-1">The PDF will be attached automatically when downloaded. Use the "Copy & Open Email" option to send via your email client with the PDF attached.</p>
     </div>
 
-    <!-- PDF Preview box -->
-    <div class="border border-gray-200 rounded-xl overflow-hidden mb-5">
-      <div class="bg-gray-50 px-4 py-2.5 flex items-center justify-between border-b border-gray-200">
-        <span class="text-xs font-semibold text-gray-600"><i class="fas fa-file-pdf text-red-500 mr-1.5"></i>PDF Preview</span>
-        <button class="text-xs text-blue-600 hover:underline font-semibold" onclick="downloadPFIFromModal()"><i class="fas fa-download mr-1"></i>Download PDF</button>
+    <!-- Preview box — branded email / PDF text -->
+    <div class="border border-gray-200 rounded-xl overflow-hidden mb-4">
+      <div class="bg-gray-50 px-4 py-2.5 flex items-center justify-between border-b border-gray-200 gap-2">
+        <div class="flex gap-1">
+          <button id="sendPFI-previewTab-html" class="settings-tab-btn active text-xs" style="padding:2px 10px" onclick="switchPFIPreview('html')"><i class="fas fa-envelope-open-text mr-1"></i>Branded Email</button>
+          <button id="sendPFI-previewTab-text" class="settings-tab-btn text-xs" style="padding:2px 10px" onclick="switchPFIPreview('text')"><i class="fas fa-file-pdf mr-1"></i>PDF Text</button>
+        </div>
+        <button class="text-xs text-blue-600 hover:underline font-semibold flex-shrink-0" onclick="downloadPFIFromModal()"><i class="fas fa-download mr-1"></i>Download PDF</button>
       </div>
-      <div id="sendPFI-previewBox" class="p-4 font-mono text-xs text-gray-600 bg-white max-h-64 overflow-y-auto leading-relaxed whitespace-pre-wrap"></div>
+      <div id="sendPFI-htmlPreviewWrap" class="bg-gray-100">
+        <iframe id="sendPFI-htmlPreview" title="Branded email preview" style="width:100%;height:340px;border:0;display:block;background:#f1f5f9" sandbox=""></iframe>
+      </div>
+      <div id="sendPFI-previewBox" class="hidden p-4 font-mono text-xs text-gray-600 bg-white max-h-64 overflow-y-auto leading-relaxed whitespace-pre-wrap"></div>
     </div>
+
+    <!-- Branded email actions -->
+    <div class="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-4 flex flex-wrap items-center gap-2">
+      <span class="text-xs text-blue-800 font-semibold flex-1 min-w-[180px]"><i class="fas fa-paint-roller mr-1"></i>Send it branded:</span>
+      <button class="btn-secondary text-xs" onclick="copyBrandedEmailHtml()"><i class="fas fa-copy mr-1"></i>Copy branded email</button>
+      <button class="btn-secondary text-xs" onclick="downloadBrandedEmailHtml()"><i class="fas fa-file-code mr-1"></i>Download .html</button>
+    </div>
+    <p class="text-xs text-gray-400 mb-4 -mt-2">Paste the copied email into Gmail or Outlook to keep the full branded layout. Plain email clients opened via "Open Email Client" receive the text version only.</p>
 
     <div class="flex flex-wrap gap-2 justify-end">
       <button class="btn-secondary" onclick="closeModal('modal-sendPFI')">Cancel</button>
@@ -4013,7 +4028,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <!-- Header band -->
       <div class="bg-gradient-to-r from-blue-700 to-blue-500 px-6 py-4 flex items-center justify-between">
         <div class="text-white">
-          <p class="font-bold text-lg tracking-wide" id="svcCard-garageName">Twiga Autogroup</p>
+          <p class="font-bold text-lg tracking-wide" id="svcCard-garageName">Twiga AutoGroup</p>
           <p class="text-blue-200 text-xs">Garage Management System</p>
         </div>
         <div class="text-right text-white">
@@ -4075,7 +4090,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 
       <!-- Footer note -->
       <div class="bg-blue-700 px-6 py-3 text-center">
-        <p class="text-blue-100 text-xs" id="svcCard-garageContact">Thank you for choosing Twiga Autogroup</p>
+        <p class="text-blue-100 text-xs" id="svcCard-garageContact">Thank you for choosing Twiga AutoGroup</p>
       </div>
     </div>
 
@@ -6085,7 +6100,7 @@ var _notifInterval = null;
 // Fetched once after login; used by PDFs, WhatsApp messages and email templates
 // so each tenant's own name/contact info appears on their documents.
 var _garageSettings = {
-  garageName: 'Twiga Autogroup',
+  garageName: 'Twiga AutoGroup',
   phone: '',
   email: '',
   website: '',
@@ -6138,8 +6153,8 @@ var TWIGA_DEFAULTS = {
 };
 
 var _brand = {
-  garageName:   'Twiga Autogroup',
-  tradingName:  'Twiga Autogroup',
+  garageName:   'Twiga AutoGroup',
+  tradingName:  'Twiga AutoGroup',
   tagline:      'Garage Management System',
   brandPrimary: TWIGA_DEFAULTS.primary,
   brandAccent:  TWIGA_DEFAULTS.accent,
@@ -10812,8 +10827,9 @@ function _buildServiceCardText(mileageOut) {
   return t;
 }
 
-function downloadServiceCardPDF() {
+async function downloadServiceCardPDF() {
   if (!_svcCardData) return;
+  await _ensureBrandLogos();            // embed the brand logo in the letterhead
   const { jsPDF } = window.jspdf;
   const { job, customer, vehicle, parts, services } = _svcCardData;
   const mileageOut = +document.getElementById('svcCard-mileageOut').value || 0;
@@ -11200,7 +11216,8 @@ async function submitVoidGP() {
   }
 }
 
-function downloadGatePassPDF(gpId) {
+async function downloadGatePassPDF(gpId) {
+  await _ensureBrandLogos();            // embed the brand logo in the letterhead
   axios.get('/api/gate-passes/' + gpId).then(({ data: gp }) => _buildGatePassPDF(gp));
 }
 
@@ -13222,6 +13239,7 @@ async function downloadPFI(pfiId) {
 // ── Download from inside the Send modal ──
 async function downloadPFIFromModal() {
   if (!_currentPFIDetail) return;
+  await _ensureBrandLogos();            // embed the brand logo in the letterhead
   const doc = buildPFIDoc(_currentPFIDetail);
   const filename = \`PFI-\${_currentPFIDetail.pfi.id.toUpperCase()}.pdf\`;
   doc.save(filename);
@@ -13278,7 +13296,10 @@ async function showSendPFIModal(pfiId) {
   const catLabel = isInsurance
     ? '<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700"><i class="fas fa-shield-alt"></i> Insurance</span>'
     : '<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700"><i class="fas fa-user"></i> Private</span>';
-  document.getElementById('sendPFI-subtitle').textContent = (job?.jobCardNumber || 'PFI') + ' – ' + (customer?.name || '');
+  // Heading + subtitle reflect the document type (insurance PFI vs quotation)
+  var _hd = document.getElementById('sendPFI-heading');
+  if (_hd) _hd.textContent = isInsurance ? 'Send Pro Forma Invoice to Customer' : 'Send Quotation to Customer';
+  document.getElementById('sendPFI-subtitle').textContent = (job?.jobCardNumber || (isInsurance ? 'PFI' : 'Quotation')) + ' \u2013 ' + (customer?.name || '');
   document.getElementById('sendPFI-summary').innerHTML = \`
     <div class="flex flex-wrap gap-4 text-sm items-center mb-2">
       \${catLabel}
@@ -13298,7 +13319,7 @@ async function showSendPFIModal(pfiId) {
   // Pre-fill email
   document.getElementById('sendPFI-email').value   = customer?.email || '';
   // Pre-fill subject
-  document.getElementById('sendPFI-subject').value = \`Pro Forma Invoice – \${job?.jobCardNumber||'PFI-'+pfi.id.toUpperCase()} | \${_garageSettings.garageName}\`;
+  document.getElementById('sendPFI-subject').value = \`\${isInsurance ? 'Pro Forma Invoice' : 'Quotation'} – \${job?.jobCardNumber||(isInsurance?'PFI-':'QTE-')+pfi.id.toUpperCase()} | \${_garageSettings.garageName}\`;
 
   // Build services lines for email body
   const servicesLines = services.length
@@ -13348,10 +13369,169 @@ Kind regards,
   document.getElementById('sendPFI-previewBox').textContent = buildPFITextPreview(_currentPFIDetail);
   document.getElementById('sendPFI-btnLabel').textContent = pfi.sentAt ? 'Resend & Record' : 'Send & Record';
 
+  // Branded HTML email preview
+  renderPFIEmailPreview();
+
   openModal('modal-sendPFI');
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// BRANDED QUOTE / PFI EMAIL
+// Builds the full branded HTML email for the current quote or PFI using the
+// shared buildBrandedEmail() shell, so it matches the PDF letterhead exactly.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** Compose the branded HTML email for the quote/PFI open in the send modal. */
+function buildPFIEmailHtml() {
+  if (!_currentPFIDetail) return '';
+  const { pfi, job, customer, vehicle, parts, services } = _currentPFIDetail;
+  const isInsurance = job?.category === 'Insurance';
+  const docLabel = isInsurance ? 'Pro Forma Invoice' : 'Quotation';
+
+  // Line items — services then parts
+  const rows = [];
+  (services || []).forEach(function(sv) {
+    rows.push({
+      label: sv.serviceName + (sv.quantity > 1 ? ' \u00D7' + sv.quantity : '') + (sv.category ? '  (' + sv.category + ')' : ''),
+      value: fmt(sv.totalCost)
+    });
+  });
+  (parts || []).forEach(function(p) {
+    rows.push({
+      label: p.partName + ' \u00D7' + p.quantity + '  @ ' + fmt(p.unitCost),
+      value: fmt(p.totalCost)
+    });
+  });
+
+  const taxAmt     = pfi.tax != null ? pfi.tax : 0;
+  const grandTotal = pfi.totalAmount != null ? pfi.totalAmount : (pfi.totalEstimate + taxAmt);
+  const totals = [
+    { label: 'Labour',          value: fmt(pfi.labourCost) },
+    { label: 'Services + Parts', value: fmt(pfi.partsCost) },
+    { label: 'Total Estimate',  value: fmt(pfi.totalEstimate) }
+  ];
+  if (taxAmt > 0) totals.push({ label: 'Tax / VAT (' + (_garageSettings.vatRate || 18) + '%)', value: fmt(taxAmt) });
+  totals.push({ label: 'Grand Total', value: fmt(grandTotal), bold: true });
+
+  // Vehicle / job facts block
+  const facts = [
+    ['Job Card', job?.jobCardNumber || '\u2014'],
+    ['Vehicle',  (vehicle?.registrationNumber || '\u2014') + ' \u2014 ' + [vehicle?.make, vehicle?.model].filter(Boolean).join(' ')]
+  ];
+  if (isInsurance && job?.insurer)        facts.push(['Insurer', job.insurer]);
+  if (isInsurance && job?.claimReference) facts.push(['Claim Ref', job.claimReference]);
+
+  const factsHtml = '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 4px;">' +
+    facts.map(function(f) {
+      return '<tr><td style="padding:2px 14px 2px 0;font-size:12px;color:#94a3b8;">' + _esc(f[0]) + '</td>' +
+             '<td style="padding:2px 0;font-size:13px;color:#0f172a;font-weight:600;">' + _esc(f[1]) + '</td></tr>';
+    }).join('') + '</table>';
+
+  const closing = isInsurance
+    ? 'Please review and revert with your approval at your earliest convenience. Repair work begins once written approval is received.'
+    : 'Kindly review the estimate below. This quotation is valid for 14 days. Please contact us to confirm and schedule the repair.';
+
+  const bodyHtml =
+    '<p style="margin:0 0 14px;">Dear ' + _esc(customer?.name || 'Valued Customer') + ',</p>' +
+    '<p style="margin:0 0 16px;">Please find below the ' + _esc(docLabel).toLowerCase() +
+      ' for the work on your vehicle' +
+      (vehicle?.registrationNumber ? ' <strong>' + _esc(vehicle.registrationNumber) + '</strong>' : '') +
+      '. A PDF copy is attached for your records.</p>' +
+    factsHtml +
+    buildEmailItemsTable(rows, { itemLabel: 'Services &amp; Parts', totals: totals }) +
+    (pfi.notes ? '<p style="margin:14px 0 0;padding:10px 12px;background:#f5f6fc;border-radius:8px;font-size:13px;color:#475569;"><strong>Notes:</strong> ' + _esc(pfi.notes) + '</p>' : '') +
+    '<p style="margin:16px 0 0;">' + _esc(closing) + '</p>' +
+    ((_garageSettings.phone || _garageSettings.email)
+      ? '<p style="margin:14px 0 0;font-size:13px;color:#64748b;">For any queries, contact us' +
+        (_garageSettings.phone ? ' on ' + _esc(_garageSettings.phone) : '') +
+        (_garageSettings.email ? ' or at ' + _esc(_garageSettings.email) : '') + '.</p>'
+      : '');
+
+  return buildBrandedEmail({
+    subject:  document.getElementById('sendPFI-subject')?.value || docLabel,
+    docLabel: docLabel,
+    headline: docLabel + (job?.jobCardNumber ? ' \u2014 ' + job.jobCardNumber : ''),
+    subhead:  vehicle?.registrationNumber
+                ? [vehicle.registrationNumber, vehicle.make, vehicle.model].filter(Boolean).join(' \u00B7 ')
+                : '',
+    bodyHtml: bodyHtml
+  });
+}
+
+/** Render the branded email into the modal's live iframe preview. */
+function renderPFIEmailPreview() {
+  var frame = document.getElementById('sendPFI-htmlPreview');
+  if (!frame) return;
+  try {
+    frame.srcdoc = buildPFIEmailHtml();
+  } catch(e) { /* preview is non-critical */ }
+}
+
+/** Toggle between the branded HTML preview and the plain-text PDF preview. */
+function switchPFIPreview(mode) {
+  var html = document.getElementById('sendPFI-htmlPreviewWrap');
+  var text = document.getElementById('sendPFI-previewBox');
+  var bh   = document.getElementById('sendPFI-previewTab-html');
+  var bt   = document.getElementById('sendPFI-previewTab-text');
+  if (!html || !text) return;
+  var isHtml = mode === 'html';
+  html.classList.toggle('hidden', !isHtml);
+  text.classList.toggle('hidden', isHtml);
+  if (bh) bh.classList.toggle('active', isHtml);
+  if (bt) bt.classList.toggle('active', !isHtml);
+  if (isHtml) renderPFIEmailPreview();
+}
+
+/**
+ * Copy the branded email as rich HTML to the clipboard.
+ * Pasting into Gmail/Outlook preserves the full branded layout — this is the
+ * only way to deliver a branded email without an SMTP/API provider, since
+ * mailto: links cannot carry HTML.
+ */
+async function copyBrandedEmailHtml() {
+  var html = buildPFIEmailHtml();
+  if (!html) { showToast('Nothing to copy', 'error'); return; }
+  // Strip the document wrapper — clipboard wants a fragment
+  var inner = html.replace(/^[\s\S]*?<body[^>]*>/i, '').replace(/<\/body>[\s\S]*$/i, '');
+  try {
+    if (navigator.clipboard && window.ClipboardItem) {
+      await navigator.clipboard.write([new ClipboardItem({
+        'text/html':  new Blob([inner], { type: 'text/html' }),
+        'text/plain': new Blob([document.getElementById('sendPFI-message').value || ''], { type: 'text/plain' })
+      })]);
+      showToast('\u2705 Branded email copied \u2014 paste into Gmail or Outlook');
+      return;
+    }
+    throw new Error('Clipboard API unavailable');
+  } catch(e) {
+    // Fallback: select the rendered iframe content so the user can copy manually
+    try {
+      await navigator.clipboard.writeText(document.getElementById('sendPFI-message').value || '');
+      showToast('Plain-text message copied (your browser blocked rich copy)', 'success');
+    } catch(e2) {
+      showToast('Could not access the clipboard \u2014 use "Download .html" instead', 'error');
+    }
+  }
+}
+
+/** Download the branded email as a .html file (attach or forward as-is). */
+function downloadBrandedEmailHtml() {
+  var html = buildPFIEmailHtml();
+  if (!html) return;
+  var job = _currentPFIDetail?.job;
+  var name = 'Email-' + (job?.jobCardNumber || 'quote') + '.html';
+  var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  var url  = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
+  showToast('\u2705 ' + name + ' downloaded');
+}
+
 // ── Open system email client with pre-filled content + PDF hint ──
+// NOTE: mailto: cannot carry HTML, so this sends the plain-text version.
+// Use "Copy branded email" for the full branded HTML layout.
 function copyAndOpenEmail() {
   const email   = document.getElementById('sendPFI-email').value;
   const subject = encodeURIComponent(document.getElementById('sendPFI-subject').value);
@@ -14006,6 +14186,7 @@ async function downloadInvoice(invId) {
   try {
     // Fetch full job detail (services + parts + customer + vehicle)
     const { data: job } = await axios.get('/api/jobcards/' + inv.jobCardId);
+    await _ensureBrandLogos();          // embed the brand logo in the letterhead
     const doc = buildInvoiceDoc(inv, job);
     const filename = inv.invoiceNumber.split('/').join('-') + '-' + (job.customer?.name || 'Customer').split(' ').join('_') + '.pdf';
     doc.save(filename);
@@ -15484,6 +15665,7 @@ async function downloadFleetInvoicePDF(fiId) {
   if (typeof window.jspdf === 'undefined' && typeof window.jsPDF === 'undefined') {
     showToast('PDF library not loaded yet — try again in a moment', 'error'); return;
   }
+  await _ensureBrandLogos();            // embed the brand logo in the letterhead
   var jsPDFClass = (window.jspdf && window.jspdf.jsPDF) || window.jsPDF;
   var doc = new jsPDFClass({ orientation: 'portrait', unit: 'mm', format: 'a4' });
 
@@ -15494,23 +15676,16 @@ async function downloadFleetInvoicePDF(fiId) {
   var fmt2 = function(n) { return 'TZS ' + Number(n || 0).toLocaleString(); };
   var fmtDt = function(s) { return s ? new Date(s).toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' }) : '—'; };
 
-  // ── Header band ──────────────────────────────────────────────────────────────
-  doc.setFillColor(30, 64, 175); // blue-800
-  doc.rect(0, 0, pw, 28, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(16);
-  doc.text(_garageSettings.garageName || _brand.tradingName, ml, 12);
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Fleet Consolidated Invoice', ml, 19);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(13);
-  doc.text(fi.fleetInvoiceNumber, pw - mr, 12, { align: 'right' });
-  doc.setFontSize(8);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Issued: ' + fmtDt(fi.issuedAt) + (fi.dueDate ? '   Due: ' + fi.dueDate : ''), pw - mr, 19, { align: 'right' });
-  y = 36;
+  // ── Branded letterhead ───────────────────────────────────────────────────────
+  y = pdfBrandHeader(doc, {
+    pageW: pw,
+    margin: ml,
+    height: 34,
+    compact: true,
+    title: 'FLEET INVOICE',
+    subtitle: fi.fleetInvoiceNumber,
+    metaLines: ['Issued: ' + fmtDt(fi.issuedAt) + (fi.dueDate ? '   Due: ' + fi.dueDate : '')]
+  });
 
   // ── Customer block ───────────────────────────────────────────────────────────
   doc.setTextColor(30, 64, 175);
@@ -15641,12 +15816,12 @@ async function downloadFleetInvoicePDF(fiId) {
     y += 6;
   }
 
-  // Footer
-  doc.setTextColor(180, 180, 180);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7);
-  doc.text('Generated by ' + _garageSettings.garageName + ' · ' + new Date().toLocaleString('en-GB'), ml, ph - 8);
-  doc.text('Page 1', pw - mr, ph - 8, { align: 'right' });
+  // ── Branded footer ───────────────────────────────────────────────────────────
+  pdfBrandFooter(doc, {
+    pageW: pw,
+    pageH: ph,
+    note: _garageSettings.documentFooter || 'Consolidated fleet invoice. Please retain for your records.'
+  });
 
   doc.save(fi.fleetInvoiceNumber + '.pdf');
   showToast(fi.fleetInvoiceNumber + ' PDF downloaded!', 'success');
@@ -20682,7 +20857,7 @@ function brandPreviewColors() {
   if (tg) tg.textContent = tgv || _brand.tagline;
 }
 
-/** Restore the default Twiga Autogroup palette in the form. */
+/** Restore the default Twiga AutoGroup palette in the form. */
 function brandApplyPreset() {
   var m = { 'sett-brandPrimary': TWIGA_DEFAULTS.primary,
             'sett-brandAccent':  TWIGA_DEFAULTS.accent,

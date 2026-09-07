@@ -40,7 +40,7 @@
   "saUpsellCommissions": [],
   "techReferralCommissions": [],
   "garageSettings": {
-    "garageName": "Kangaroo Autofix",
+    "garageName": "Twiga AutoGroup",
     "address": "",
     "phone": "",
     "email": "",
@@ -65,6 +65,18 @@
     "garagePhone": "",
     "garageAddress": "",
     "logoUrl": "",
-    "notifyOnInvoiceSent": false
+    "notifyOnInvoiceSent": false,
+    "tradingName": "Twiga AutoGroup",
+    "tagline": "Garage Management System",
+    "brandPrimary": "#122886",
+    "brandAccent": "#2f4fd0",
+    "brandDark": "#0b1a5c",
+    "logoMarkUrl": "/static/brand/logo-mark.png",
+    "logoFullUrl": "/static/brand/logo-full.png",
+    "logoLightUrl": "/static/brand/logo-full-white.png",
+    "poBox": "",
+    "documentFooter": "",
+    "emailSignature": "",
+    "bankDetails": ""
   }
 }
