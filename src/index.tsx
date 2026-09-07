@@ -19,6 +19,75 @@ app.get('/mockup-jobcard.html', (c) => {
   }
 })
 
+// ─── Brand & static asset serving (must be before the catch-all wildcard) ────
+// Serves files from public/static/** — logos, favicons, app icons and CSS.
+// Assets are immutable-ish so they get a long cache TTL; the filename changes
+// when a logo is replaced, so this is safe.
+const MIME: Record<string, string> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.svg': 'image/svg+xml',
+  '.ico': 'image/x-icon',
+  '.webp': 'image/webp',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.woff2': 'font/woff2',
+}
+
+// In-process cache so we read each asset from disk only once.
+const _assetCache = new Map<string, { body: Buffer; type: string }>()
+
+function serveAsset(c: any, relPath: string) {
+  // Reject path traversal outright
+  if (relPath.includes('..') || relPath.includes('\0')) return c.text('Not found', 404)
+
+  const cached = _assetCache.get(relPath)
+  if (cached) {
+    c.header('Content-Type', cached.type)
+    c.header('Cache-Control', 'public, max-age=31536000')
+    return c.body(cached.body)
+  }
+
+  try {
+    const abs = join(process.cwd(), 'public', relPath)
+    const body = readFileSync(abs)
+    const ext = relPath.slice(relPath.lastIndexOf('.')).toLowerCase()
+    const type = MIME[ext] || 'application/octet-stream'
+    _assetCache.set(relPath, { body, type })
+    c.header('Content-Type', type)
+    c.header('Cache-Control', 'public, max-age=31536000')
+    return c.body(body)
+  } catch {
+    return c.text('Not found', 404)
+  }
+}
+
+app.get('/static/*', (c) => {
+  const path = new URL(c.req.url).pathname.replace(/^\//, '')  // static/brand/logo.png
+  return serveAsset(c, path)
+})
+
+// Root-level icon conventions browsers request automatically
+app.get('/favicon.ico',          (c) => serveAsset(c, 'static/brand/favicon.ico'))
+app.get('/apple-touch-icon.png', (c) => serveAsset(c, 'static/brand/icon-180.png'))
+app.get('/manifest.webmanifest', (c) => {
+  c.header('Content-Type', 'application/manifest+json')
+  return c.body(JSON.stringify({
+    name: 'Twiga Autogroup — Garage Management',
+    short_name: 'Twiga GMS',
+    start_url: '/',
+    display: 'standalone',
+    background_color: '#122886',
+    theme_color: '#122886',
+    icons: [
+      { src: '/static/brand/icon-180.png', sizes: '180x180', type: 'image/png' },
+      { src: '/static/brand/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+  }))
+})
+
 // ─── Server-side JS transpiler (esbuild) ─────────────────────────────────────
 // Downtargets ES2020 → ES2017 so optional chaining (?.), nullish coalescing (??),
 // and other modern syntax get polyfilled for older Chromium builds.
@@ -59,7 +128,13 @@ function shell() {
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-<title>AutoFix GMS – Garage Management System</title>
+<title>Twiga Autogroup – Garage Management System</title>
+<link rel="icon" href="/static/brand/favicon.ico" sizes="any"/>
+<link rel="icon" type="image/png" sizes="32x32" href="/static/brand/icon-32.png"/>
+<link rel="icon" type="image/png" sizes="16x16" href="/static/brand/icon-16.png"/>
+<link rel="apple-touch-icon" sizes="180x180" href="/static/brand/icon-180.png"/>
+<link rel="manifest" href="/manifest.webmanifest"/>
+<meta name="theme-color" content="#122886"/>
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.5.0/css/all.min.css" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -71,7 +146,9 @@ tailwind.config = {
   theme: {
     extend: {
       colors: {
-        brand: { 50:'#eff6ff',100:'#dbeafe',200:'#bfdbfe',300:'#93c5fd',400:'#60a5fa',500:'#3b82f6',600:'#2563eb',700:'#1d4ed8',800:'#1e40af',900:'#1e3a8a' },
+        // Twiga Autogroup navy scale — 700/800/900 match the logo artwork
+        brand: { 50:'#eef1fb',100:'#dbe1f6',200:'#b8c3ec',300:'#8e9ee0',400:'#5f74d4',500:'#3b53c4',600:'#2f4fd0',700:'#1c318f',800:'#122886',900:'#0b1a5c' },
+        twiga: { navy:'#122886', accent:'#2f4fd0', dark:'#0b1a5c', light:'#f5f6fc' },
         garage: { 50:'#f0fdf4',100:'#dcfce7',500:'#22c55e',600:'#16a34a',700:'#15803d',900:'#14532d' }
       }
     }
@@ -79,6 +156,16 @@ tailwind.config = {
 }
 </script>
 <style>
+/* ── Brand tokens ───────────────────────────────────────────────────────────
+   Set from the tenant's Branding settings at runtime by applyBranding().
+   Every branded surface reads these variables, so changing the colour in
+   Settings → Branding restyles the whole app with no rebuild.            */
+:root{
+  --brand-primary:#122886;
+  --brand-accent:#2f4fd0;
+  --brand-dark:#0b1a5c;
+  --brand-primary-soft:#eef1fb;
+}
 *{box-sizing:border-box}
 body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f9;margin:0}
 .sidebar{transition:transform .3s ease}
@@ -88,8 +175,12 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 .card{background:#fff;border-radius:16px;box-shadow:0 1px 3px rgba(0,0,0,.08),0 8px 24px rgba(0,0,0,.04);transition:box-shadow .2s}
 .card:hover{box-shadow:0 4px 16px rgba(0,0,0,.12)}
 .badge{display:inline-flex;align-items:center;padding:2px 10px;border-radius:99px;font-size:.72rem;font-weight:600;letter-spacing:.03em}
-.btn-primary{background:linear-gradient(135deg,#2563eb,#1d4ed8);color:#fff;border:none;border-radius:10px;padding:9px 18px;font-weight:600;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px;font-size:.9rem}
-.btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(37,99,235,.4)}
+.btn-primary{background:linear-gradient(135deg,var(--brand-accent),var(--brand-primary));color:#fff;border:none;border-radius:10px;padding:9px 18px;font-weight:600;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px;font-size:.9rem}
+.btn-primary:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(18,40,134,.4)}
+/* ── Branded logo surfaces ─────────────────────────────────────────────────── */
+.brand-logo-tile{background:#fff;border-radius:12px;display:flex;align-items:center;justify-content:center;padding:5px;box-shadow:0 1px 4px rgba(0,0,0,.12)}
+.brand-logo-tile img{width:100%;height:100%;object-fit:contain;display:block}
+.brand-logo-img{display:block;object-fit:contain}
 .btn-secondary{background:#f1f5f9;color:#374151;border:1px solid #e2e8f0;border-radius:10px;padding:9px 18px;font-weight:600;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px;font-size:.9rem}
 .btn-secondary:hover{background:#e2e8f0}
 .btn-danger{background:#fee2e2;color:#dc2626;border:1px solid #fca5a5;border-radius:10px;padding:9px 18px;font-weight:600;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:6px;font-size:.9rem}
@@ -224,23 +315,18 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 <body>
 
 <!-- ═══ LOGIN SCREEN ═══ -->
-<div id="loginScreen" class="fixed inset-0 z-[999] flex items-center justify-center p-4" style="background:linear-gradient(135deg,#0f172a 0%,#1e3a8a 40%,#1d4ed8 70%,#0891b2 100%);min-height:100vh">
+<div id="loginScreen" class="fixed inset-0 z-[999] flex items-center justify-center p-4" style="background:linear-gradient(135deg,var(--brand-dark) 0%,var(--brand-primary) 55%,var(--brand-accent) 100%);min-height:100vh">
 
   <!-- Two-column layout: left branding + right form -->
   <div style="max-width:900px;width:100%;display:flex;gap:0;border-radius:28px;overflow:hidden;box-shadow:0 40px 100px rgba(0,0,0,.5)">
 
     <!-- ── Left branding panel ──────────────────────────────────────────── -->
-    <div class="hidden md:flex flex-col justify-between p-10" style="width:380px;flex-shrink:0;background:linear-gradient(160deg,#0f172a 0%,#1e3a8a 55%,#0e7490 100%)">
+    <div class="hidden md:flex flex-col justify-between p-10" style="width:380px;flex-shrink:0;background:linear-gradient(160deg,var(--brand-dark) 0%,var(--brand-primary) 60%,var(--brand-accent) 100%)">
       <div>
-        <!-- Logo -->
-        <div class="flex items-center gap-3 mb-12">
-          <div class="w-11 h-11 rounded-xl flex items-center justify-center" style="background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2)">
-            <i class="fas fa-car-side text-white text-xl"></i>
-          </div>
-          <div>
-            <div class="text-white font-bold text-lg leading-none">AutoFix GMS</div>
-            <div class="text-blue-300 text-xs mt-0.5">Garage Management System</div>
-          </div>
+        <!-- Brand lockup (white variant on the navy panel) -->
+        <div class="mb-10">
+          <img id="loginBrandLogo" src="/static/brand/logo-full-white.png" alt="" class="brand-logo-img" style="height:118px;width:auto;max-width:230px"/>
+          <div id="loginBrandTagline" class="text-blue-200 text-xs mt-3 tracking-wider uppercase font-semibold">Garage Management System</div>
         </div>
 
         <!-- Headline -->
@@ -290,7 +376,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 
       <!-- Footer -->
       <div class="flex items-center justify-between mt-8">
-        <p class="text-blue-400 text-xs">© 2026 AutoFix GMS</p>
+        <p class="text-blue-300 text-xs" id="loginBrandCopyright">© 2026 Twiga Autogroup</p>
         <div class="flex items-center gap-1 text-blue-400 text-xs">
           <i class="fas fa-lock text-xs"></i>
           <span>Encrypted &amp; Secure</span>
@@ -303,10 +389,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 
       <!-- Mobile logo (hidden on md+) -->
       <div class="flex md:hidden items-center gap-3 px-8 pt-8 pb-2">
-        <div class="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center">
-          <i class="fas fa-car-side text-white"></i>
-        </div>
-        <span class="font-bold text-gray-900">AutoFix GMS</span>
+        <img id="loginBrandLogoMobile" src="/static/brand/logo-full.png" alt="" class="brand-logo-img" style="height:56px;width:auto"/>
       </div>
 
       <div class="flex-1 flex flex-col justify-center px-8 md:px-10 py-8">
@@ -351,15 +434,15 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 <div id="sidebar-backdrop" onclick="closeSidebar()" class="fixed inset-0 bg-black/40 z-40 backdrop-blur-sm" style="display:none"></div>
 
 <!-- SIDEBAR -->
-<aside id="sidebar" class="sidebar w-64 flex-shrink-0 flex flex-col text-white overflow-y-auto z-50" style="background:linear-gradient(180deg,#1e3a8a 0%,#1d4ed8 50%,#1e40af 100%)">
+<aside id="sidebar" class="sidebar w-64 flex-shrink-0 flex flex-col text-white overflow-y-auto z-50" style="background:linear-gradient(180deg,var(--brand-dark) 0%,var(--brand-primary) 55%,var(--brand-accent) 100%)">
   <div class="p-5 border-b border-white/10">
     <div class="flex items-center gap-3">
-      <div class="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
-        <i class="fas fa-car-side text-white text-lg"></i>
+      <div class="brand-logo-tile w-10 h-10 flex-shrink-0">
+        <img id="sidebarBrandMark" src="/static/brand/logo-mark.png" alt=""/>
       </div>
-      <div>
-        <h1 class="font-bold text-base leading-tight">AutoFix GMS</h1>
-        <p class="text-xs text-blue-200">Garage Management</p>
+      <div class="min-w-0">
+        <h1 class="font-bold text-base leading-tight truncate" id="sidebarBrandName">Twiga Autogroup</h1>
+        <p class="text-xs text-blue-200 truncate" id="sidebarBrandTagline">Garage Management</p>
       </div>
     </div>
   </div>
@@ -474,6 +557,8 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
   <header class="bg-white border-b border-gray-100 px-3 sm:px-6 py-3 flex items-center justify-between flex-shrink-0 gap-2">
     <div class="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
       <button class="lg:hidden text-gray-500 flex-shrink-0 w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-100" onclick="toggleSidebar()"><i class="fas fa-bars text-lg"></i></button>
+      <!-- Brand mark — visible on mobile where the sidebar is collapsed -->
+      <img id="topbarBrandMark" src="/static/brand/logo-mark.png" alt="" class="lg:hidden brand-logo-img flex-shrink-0" style="height:30px;width:auto"/>
       <div class="relative hidden sm:block flex-1 max-w-md" id="globalSearchWrap">
         <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none"></i>
         <input class="search-input pr-8" type="text" placeholder="Search jobs, customers, vehicles, parts…" id="globalSearch"
@@ -2152,6 +2237,9 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         <button class="settings-tab-btn active" onclick="switchSettingsTab('profile')" data-tab="profile">
           <i class="fas fa-building mr-1"></i> Garage Profile
         </button>
+        <button class="settings-tab-btn" onclick="switchSettingsTab('branding')" data-tab="branding">
+          <i class="fas fa-palette mr-1"></i> Branding
+        </button>
         <button class="settings-tab-btn" onclick="switchSettingsTab('invoicing')" data-tab="invoicing">
           <i class="fas fa-file-invoice mr-1"></i> Invoicing
         </button>
@@ -2215,6 +2303,142 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- Branding tab -->
+      <div id="settingsPane-branding" class="hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+          <!-- Logos -->
+          <div class="card p-5">
+            <h3 class="text-base font-bold text-gray-800 mb-1"><i class="fas fa-image text-blue-500 mr-2"></i>Logos</h3>
+            <p class="text-xs text-gray-500 mb-4">These appear on the login screen, the sidebar, and every PDF and email your customers receive. PNG with a transparent background works best.</p>
+
+            <div class="space-y-4">
+              <!-- Icon / mark -->
+              <div>
+                <label class="form-label">Icon / Mark <span class="text-gray-400 font-normal">— sidebar &amp; favicon</span></label>
+                <div class="flex items-center gap-3">
+                  <div class="brand-logo-tile flex-shrink-0" style="width:56px;height:56px;background:#f5f6fc">
+                    <img id="brandPrev-mark" src="/static/brand/logo-mark.png" alt=""/>
+                  </div>
+                  <div class="flex-1">
+                    <input type="file" id="brandFile-mark" accept="image/png,image/jpeg,image/svg+xml,image/webp" class="hidden" onchange="brandPickLogo(event,'logoMarkUrl','brandPrev-mark')"/>
+                    <button class="btn-secondary text-xs" onclick="document.getElementById('brandFile-mark').click()"><i class="fas fa-upload mr-1"></i>Upload</button>
+                    <button class="btn-secondary text-xs ml-1" onclick="brandResetLogo('logoMarkUrl','brandPrev-mark')"><i class="fas fa-undo mr-1"></i>Reset</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Full lockup -->
+              <div>
+                <label class="form-label">Full Logo <span class="text-gray-400 font-normal">— documents &amp; light backgrounds</span></label>
+                <div class="flex items-center gap-3">
+                  <div class="brand-logo-tile flex-shrink-0" style="width:56px;height:56px;background:#f5f6fc">
+                    <img id="brandPrev-full" src="/static/brand/logo-full.png" alt=""/>
+                  </div>
+                  <div class="flex-1">
+                    <input type="file" id="brandFile-full" accept="image/png,image/jpeg,image/svg+xml,image/webp" class="hidden" onchange="brandPickLogo(event,'logoFullUrl','brandPrev-full')"/>
+                    <button class="btn-secondary text-xs" onclick="document.getElementById('brandFile-full').click()"><i class="fas fa-upload mr-1"></i>Upload</button>
+                    <button class="btn-secondary text-xs ml-1" onclick="brandResetLogo('logoFullUrl','brandPrev-full')"><i class="fas fa-undo mr-1"></i>Reset</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Light/white lockup -->
+              <div>
+                <label class="form-label">Light Logo <span class="text-gray-400 font-normal">— login screen &amp; dark backgrounds</span></label>
+                <div class="flex items-center gap-3">
+                  <div class="brand-logo-tile flex-shrink-0" style="width:56px;height:56px;background:var(--brand-primary)">
+                    <img id="brandPrev-light" src="/static/brand/logo-full-white.png" alt=""/>
+                  </div>
+                  <div class="flex-1">
+                    <input type="file" id="brandFile-light" accept="image/png,image/jpeg,image/svg+xml,image/webp" class="hidden" onchange="brandPickLogo(event,'logoLightUrl','brandPrev-light')"/>
+                    <button class="btn-secondary text-xs" onclick="document.getElementById('brandFile-light').click()"><i class="fas fa-upload mr-1"></i>Upload</button>
+                    <button class="btn-secondary text-xs ml-1" onclick="brandResetLogo('logoLightUrl','brandPrev-light')"><i class="fas fa-undo mr-1"></i>Reset</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p class="text-xs text-gray-400 mt-4"><i class="fas fa-info-circle mr-1"></i>Max file size 1&nbsp;MB. Images are stored with your garage profile.</p>
+          </div>
+
+          <!-- Identity + colours -->
+          <div class="card p-5">
+            <h3 class="text-base font-bold text-gray-800 mb-4"><i class="fas fa-swatchbook text-purple-500 mr-2"></i>Identity &amp; Colours</h3>
+            <div class="space-y-3">
+              <div>
+                <label class="form-label">Display Name <span class="text-gray-400 font-normal">— shown in the app</span></label>
+                <input class="form-input" id="sett-tradingName" placeholder="e.g. Twiga Autogroup"/>
+              </div>
+              <div>
+                <label class="form-label">Tagline</label>
+                <input class="form-input" id="sett-tagline" placeholder="e.g. Garage Management System"/>
+              </div>
+              <div class="grid grid-cols-3 gap-3">
+                <div>
+                  <label class="form-label">Primary</label>
+                  <input type="color" class="form-input p-1 h-10 cursor-pointer" id="sett-brandPrimary" value="#122886" oninput="brandPreviewColors()"/>
+                </div>
+                <div>
+                  <label class="form-label">Accent</label>
+                  <input type="color" class="form-input p-1 h-10 cursor-pointer" id="sett-brandAccent" value="#2f4fd0" oninput="brandPreviewColors()"/>
+                </div>
+                <div>
+                  <label class="form-label">Dark</label>
+                  <input type="color" class="form-input p-1 h-10 cursor-pointer" id="sett-brandDark" value="#0b1a5c" oninput="brandPreviewColors()"/>
+                </div>
+              </div>
+              <button class="btn-secondary text-xs" onclick="brandApplyPreset()"><i class="fas fa-rotate-left mr-1"></i>Restore Twiga colours</button>
+
+              <!-- Live preview -->
+              <div class="rounded-xl overflow-hidden border border-gray-200 mt-2">
+                <div class="px-4 py-3 flex items-center gap-3" style="background:linear-gradient(135deg,var(--brand-dark),var(--brand-primary))">
+                  <div class="brand-logo-tile flex-shrink-0" style="width:34px;height:34px">
+                    <img id="brandPrev-previewMark" src="/static/brand/logo-mark.png" alt=""/>
+                  </div>
+                  <div class="min-w-0">
+                    <div class="text-white text-sm font-bold truncate" id="brandPrev-name">Twiga Autogroup</div>
+                    <div class="text-xs truncate" style="color:rgba(255,255,255,.7)" id="brandPrev-tagline">Garage Management System</div>
+                  </div>
+                </div>
+                <div class="px-4 py-3 bg-white flex items-center justify-between">
+                  <span class="text-xs text-gray-500">Live preview</span>
+                  <button class="btn-primary text-xs">Sample button</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Document & email text -->
+          <div class="card p-5 lg:col-span-2">
+            <h3 class="text-base font-bold text-gray-800 mb-1"><i class="fas fa-file-signature text-amber-500 mr-2"></i>Document &amp; Email Text</h3>
+            <p class="text-xs text-gray-500 mb-4">Printed on invoices, quotes and Pro Forma Invoices, and included in outgoing emails.</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="form-label">P.O. Box / Postal Line</label>
+                <input class="form-input" id="sett-poBox" placeholder="e.g. P.O. Box 12345, Dar es Salaam"/>
+              </div>
+              <div>
+                <label class="form-label">Document Footer Note</label>
+                <input class="form-input" id="sett-documentFooter" placeholder="e.g. Thank you for your business."/>
+              </div>
+              <div>
+                <label class="form-label">Bank / Payment Details <span class="text-gray-400 font-normal">— printed on invoices</span></label>
+                <textarea class="form-input" rows="4" id="sett-bankDetails" placeholder="Bank: CRDB Bank&#10;Account Name: Twiga Autogroup Ltd&#10;Account No: 0150XXXXXXXX"></textarea>
+              </div>
+              <div>
+                <label class="form-label">Email Signature</label>
+                <textarea class="form-input" rows="4" id="sett-emailSignature" placeholder="Twiga Autogroup Team&#10;+255 700 000 000"></textarea>
+              </div>
+            </div>
+            <div class="flex flex-wrap items-center gap-2 mt-4">
+              <button class="btn-primary" onclick="saveBranding()"><i class="fas fa-save mr-1"></i>Save Branding</button>
+              <button class="btn-secondary" onclick="loadBrandingForm()"><i class="fas fa-undo mr-1"></i>Discard changes</button>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -3789,7 +4013,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <!-- Header band -->
       <div class="bg-gradient-to-r from-blue-700 to-blue-500 px-6 py-4 flex items-center justify-between">
         <div class="text-white">
-          <p class="font-bold text-lg tracking-wide" id="svcCard-garageName">AutoFix GMS</p>
+          <p class="font-bold text-lg tracking-wide" id="svcCard-garageName">Twiga Autogroup</p>
           <p class="text-blue-200 text-xs">Garage Management System</p>
         </div>
         <div class="text-right text-white">
@@ -3851,7 +4075,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 
       <!-- Footer note -->
       <div class="bg-blue-700 px-6 py-3 text-center">
-        <p class="text-blue-100 text-xs" id="svcCard-garageContact">Thank you for choosing AutoFix GMS</p>
+        <p class="text-blue-100 text-xs" id="svcCard-garageContact">Thank you for choosing Twiga Autogroup</p>
       </div>
     </div>
 
@@ -5861,12 +6085,17 @@ var _notifInterval = null;
 // Fetched once after login; used by PDFs, WhatsApp messages and email templates
 // so each tenant's own name/contact info appears on their documents.
 var _garageSettings = {
-  garageName: 'AutoFix GMS',
-  phone: '+255 700 000 000',
-  email: 'info@autofixgms.com',
-  website: 'www.autofixgms.com',
-  address: 'Dar es Salaam, Tanzania',
+  garageName: 'Twiga Autogroup',
+  phone: '',
+  email: '',
+  website: '',
+  address: '',
   vatRate: 18,
+  tinNumber: '',
+  poBox: '',
+  documentFooter: '',
+  emailSignature: '',
+  bankDetails: '',
 };
 // Helper: returns VAT as a decimal multiplier, e.g. 18 → 0.18
 function _vatMult() { return (_garageSettings.vatRate || 18) / 100; }
@@ -5880,8 +6109,444 @@ async function _loadGarageSettings() {
       _garageSettings.website    = r.data.website    || _garageSettings.website;
       _garageSettings.address    = r.data.address    || _garageSettings.address;
       if (r.data.vatRate != null) _garageSettings.vatRate = r.data.vatRate;
+      _garageSettings.tinNumber      = r.data.tinNumber      || '';
+      _garageSettings.poBox          = r.data.poBox          || '';
+      _garageSettings.documentFooter = r.data.documentFooter || '';
+      _garageSettings.emailSignature = r.data.emailSignature || '';
+      _garageSettings.bankDetails    = r.data.bankDetails    || '';
+      // Keep the brand cache in sync with the authoritative settings record
+      _applyBrandingData(r.data);
     }
   } catch(e) { /* keep defaults */ }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BRANDING RUNTIME
+// Fetches the tenant's visual identity and applies it to every branded
+// surface: CSS colour tokens, login screen, sidebar, header and favicons.
+// Runs BEFORE login (public /api/branding) so the login page is already
+// branded, then refreshes from /api/settings once authenticated.
+// ═══════════════════════════════════════════════════════════════════════════
+
+var TWIGA_DEFAULTS = {
+  primary:  '#122886',
+  accent:   '#2f4fd0',
+  dark:     '#0b1a5c',
+  markUrl:  '/static/brand/logo-mark.png',
+  fullUrl:  '/static/brand/logo-full.png',
+  lightUrl: '/static/brand/logo-full-white.png'
+};
+
+var _brand = {
+  garageName:   'Twiga Autogroup',
+  tradingName:  'Twiga Autogroup',
+  tagline:      'Garage Management System',
+  brandPrimary: TWIGA_DEFAULTS.primary,
+  brandAccent:  TWIGA_DEFAULTS.accent,
+  brandDark:    TWIGA_DEFAULTS.dark,
+  logoMarkUrl:  TWIGA_DEFAULTS.markUrl,
+  logoFullUrl:  TWIGA_DEFAULTS.fullUrl,
+  logoLightUrl: TWIGA_DEFAULTS.lightUrl
+};
+
+/** Lighten/darken a hex colour by pct (-100..100). Used to derive soft tints. */
+function _shadeHex(hex, pct) {
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex || '')) return hex;
+  var r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  var t = pct < 0 ? 0 : 255, p = Math.abs(pct)/100;
+  function mix(c){ return Math.round((t - c) * p + c); }
+  function hx(c){ return ('0' + mix(c).toString(16)).slice(-2); }
+  return '#' + hx(r) + hx(g) + hx(b);
+}
+
+/** Merge an API payload into the brand cache (ignoring blank values). */
+function _applyBrandingData(d) {
+  if (!d) return;
+  ['garageName','tradingName','tagline','brandPrimary','brandAccent','brandDark',
+   'logoMarkUrl','logoFullUrl','logoLightUrl'].forEach(function(k) {
+    if (d[k]) _brand[k] = d[k];
+  });
+  if (!d.tradingName && d.garageName) _brand.tradingName = d.garageName;
+  applyBranding();
+}
+
+/** Paint the brand onto the DOM: CSS tokens, logos, names, favicon. */
+function applyBranding() {
+  var root = document.documentElement;
+  root.style.setProperty('--brand-primary', _brand.brandPrimary);
+  root.style.setProperty('--brand-accent',  _brand.brandAccent);
+  root.style.setProperty('--brand-dark',    _brand.brandDark);
+  root.style.setProperty('--brand-primary-soft', _shadeHex(_brand.brandPrimary, 92));
+
+  function setSrc(id, url) { var el = document.getElementById(id); if (el && url) el.src = url; }
+  function setTxt(id, txt) { var el = document.getElementById(id); if (el && txt) el.textContent = txt; }
+
+  // Login screen
+  setSrc('loginBrandLogo',       _brand.logoLightUrl);
+  setSrc('loginBrandLogoMobile', _brand.logoFullUrl);
+  setTxt('loginBrandTagline',    _brand.tagline);
+  setTxt('loginBrandCopyright',  '\\u00A9 ' + new Date().getFullYear() + ' ' + _brand.tradingName);
+
+  // App shell
+  setSrc('sidebarBrandMark',    _brand.logoMarkUrl);
+  setTxt('sidebarBrandName',    _brand.tradingName);
+  setTxt('sidebarBrandTagline', _brand.tagline);
+  setSrc('topbarBrandMark',     _brand.logoMarkUrl);
+
+  // Service card preview
+  setTxt('svcCard-garageName', _brand.tradingName);
+
+  // Page title + theme colour
+  document.title = _brand.tradingName + ' \\u2013 ' + _brand.tagline;
+  var tc = document.querySelector('meta[name="theme-color"]');
+  if (tc) tc.setAttribute('content', _brand.brandPrimary);
+
+  // Favicon — only override when the tenant supplied a custom mark
+  if (_brand.logoMarkUrl && _brand.logoMarkUrl !== TWIGA_DEFAULTS.markUrl) {
+    document.querySelectorAll('link[rel="icon"]').forEach(function(l) {
+      l.setAttribute('href', _brand.logoMarkUrl);
+      l.removeAttribute('sizes');
+    });
+  }
+}
+
+/** Load public branding (pre-auth) so the login screen renders correctly. */
+async function _loadPublicBranding() {
+  try {
+    var r = await axios.get('/api/branding');
+    _applyBrandingData(r.data);
+    if (r.data) {
+      if (r.data.garageName) _garageSettings.garageName = r.data.garageName;
+      if (r.data.phone)   _garageSettings.phone   = r.data.phone;
+      if (r.data.email)   _garageSettings.email   = r.data.email;
+      if (r.data.website) _garageSettings.website = r.data.website;
+      if (r.data.address) _garageSettings.address = r.data.address;
+    }
+    _preloadBrandLogos();
+  } catch(e) { applyBranding(); }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BRANDED DOCUMENT TOOLKIT  (PDF letterheads + HTML email templates)
+// One shared implementation used by invoices, quotes/PFIs, service cards and
+// reports, so every document a customer receives carries identical branding.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/** '#122886' → [18,40,134]  (jsPDF wants separate RGB components). */
+function _hexToRgb(hex, fallback) {
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex || '')) return fallback || [18, 40, 134];
+  return [parseInt(hex.slice(1,3),16), parseInt(hex.slice(3,5),16), parseInt(hex.slice(5,7),16)];
+}
+function _brandRgb()      { return _hexToRgb(_brand.brandPrimary, [18, 40, 134]); }
+function _brandDarkRgb()  { return _hexToRgb(_brand.brandDark,    [11, 26, 92]); }
+function _brandAccentRgb(){ return _hexToRgb(_brand.brandAccent,  [47, 79, 208]); }
+
+// ── Logo → data URL cache (jsPDF needs raster data, not a URL) ───────────────
+var _logoDataUrls = {};
+
+/** Convert an image URL into a PNG data URL via canvas. Resolves null on failure. */
+function _imgToDataUrl(url) {
+  return new Promise(function(resolve) {
+    if (!url) { resolve(null); return; }
+    if (url.indexOf('data:') === 0) { resolve(url); return; }
+    if (_logoDataUrls[url] !== undefined) { resolve(_logoDataUrls[url]); return; }
+    var img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = function() {
+      try {
+        var cv = document.createElement('canvas');
+        cv.width  = img.naturalWidth;
+        cv.height = img.naturalHeight;
+        cv.getContext('2d').drawImage(img, 0, 0);
+        var d = cv.toDataURL('image/png');
+        _logoDataUrls[url] = d;
+        resolve(d);
+      } catch(e) { _logoDataUrls[url] = null; resolve(null); }
+    };
+    img.onerror = function() { _logoDataUrls[url] = null; resolve(null); };
+    img.src = url;
+  });
+}
+
+/** Warm the cache so PDF generation never has to wait on a network fetch. */
+function _preloadBrandLogos() {
+  _imgToDataUrl(_brand.logoLightUrl);
+  _imgToDataUrl(_brand.logoFullUrl);
+  _imgToDataUrl(_brand.logoMarkUrl);
+}
+
+/** Synchronously read a cached logo data URL (null if not yet cached). */
+function _cachedLogo(which) {
+  var url = which === 'light' ? _brand.logoLightUrl
+          : which === 'mark'  ? _brand.logoMarkUrl
+          : _brand.logoFullUrl;
+  if (url && url.indexOf('data:') === 0) return url;
+  return _logoDataUrls[url] || null;
+}
+
+/** Ensure logos are cached before building a PDF. Call with await. */
+async function _ensureBrandLogos() {
+  await Promise.all([
+    _imgToDataUrl(_brand.logoLightUrl),
+    _imgToDataUrl(_brand.logoFullUrl),
+    _imgToDataUrl(_brand.logoMarkUrl)
+  ]);
+}
+
+/**
+ * Draw the standard branded letterhead band at the top of a PDF page.
+ *
+ *   doc        jsPDF instance
+ *   opts.title      right-aligned document title, e.g. 'INVOICE'
+ *   opts.subtitle   small line under the title
+ *   opts.metaLines  array of right-aligned meta strings (number, dates, status)
+ *   opts.pageW      page width in mm (210 A4 portrait, 148 A5 portrait)
+ *   opts.height     band height in mm (default 42)
+ *   opts.margin     side margin in mm (default 18)
+ *   opts.compact    smaller type for A5 documents
+ *
+ * Returns the y coordinate just below the band.
+ */
+function pdfBrandHeader(doc, opts) {
+  opts = opts || {};
+  var pageW   = opts.pageW  || 210;
+  var margin  = opts.margin != null ? opts.margin : 18;
+  var bandH   = opts.height || 42;
+  var compact = !!opts.compact;
+  var primary = _brandRgb();
+  var dark    = _brandDarkRgb();
+
+  // Two-tone band: dark strip on the left behind the logo, brand navy across.
+  doc.setFillColor(primary[0], primary[1], primary[2]);
+  doc.rect(0, 0, pageW, bandH, 'F');
+  doc.setFillColor(dark[0], dark[1], dark[2]);
+  doc.rect(0, 0, pageW * 0.42, bandH, 'F');
+  // Thin accent rule along the bottom edge of the band
+  var accent = _brandAccentRgb();
+  doc.setFillColor(accent[0], accent[1], accent[2]);
+  doc.rect(0, bandH, pageW, 1.2, 'F');
+
+  // ── Logo (white lockup on the dark strip) ──
+  var logo = _cachedLogo('light');
+  var textX = margin;
+  if (logo) {
+    var logoH = bandH - (compact ? 10 : 14);
+    var logoW = logoH;                          // stacked lockup ≈ square
+    try {
+      doc.addImage(logo, 'PNG', margin, (bandH - logoH) / 2, logoW, logoH);
+      textX = margin + logoW + (compact ? 4 : 6);
+    } catch(e) { /* fall back to text-only letterhead */ }
+  }
+
+  // ── Garage identity block ──
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(compact ? 12 : 16);
+  doc.text(_garageSettings.garageName || _brand.tradingName, textX, compact ? 10 : 14);
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(compact ? 6.5 : 8);
+  var line = compact ? 14 : 20;
+  var step = compact ? 3.4 : 4.6;
+  var idLines = [];
+  if (_garageSettings.address) idLines.push(_garageSettings.address);
+  if (_garageSettings.poBox)   idLines.push(_garageSettings.poBox);
+  var contact = [];
+  if (_garageSettings.phone) contact.push('Tel: ' + _garageSettings.phone);
+  if (_garageSettings.email) contact.push(_garageSettings.email);
+  if (contact.length) idLines.push(contact.join('  |  '));
+  var extra = [];
+  if (_garageSettings.website)   extra.push(_garageSettings.website);
+  if (_garageSettings.tinNumber) extra.push('TIN: ' + _garageSettings.tinNumber);
+  if (extra.length) idLines.push(extra.join('  |  '));
+
+  idLines.slice(0, compact ? 2 : 4).forEach(function(t) {
+    doc.text(String(t).substring(0, 68), textX, line);
+    line += step;
+  });
+
+  // ── Document title + meta, right-aligned ──
+  if (opts.title) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(compact ? 13 : 19);
+    doc.text(opts.title, pageW - margin, compact ? 11 : 15, { align: 'right' });
+  }
+  var my = compact ? 16 : 22;
+  if (opts.subtitle) {
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(compact ? 6.5 : 8.5);
+    doc.text(opts.subtitle, pageW - margin, my, { align: 'right' });
+    my += compact ? 3.4 : 4.6;
+  }
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(compact ? 6.5 : 8.5);
+  (opts.metaLines || []).forEach(function(t) {
+    if (!t) return;
+    doc.text(String(t), pageW - margin, my, { align: 'right' });
+    my += compact ? 3.4 : 4.6;
+  });
+
+  doc.setTextColor(30, 41, 59);   // restore body text colour
+  return bandH + (compact ? 6 : 10);
+}
+
+/**
+ * Draw the standard branded footer band at the bottom of a PDF page.
+ *   opts.note   italic line above the contact strip (document-specific)
+ */
+function pdfBrandFooter(doc, opts) {
+  opts = opts || {};
+  var pageW = opts.pageW || 210;
+  var pageH = opts.pageH || 297;
+  var compact = !!opts.compact;
+  var bandH = compact ? 15 : 24;
+  var primary = _brandRgb();
+
+  // Accent rule then a light footer band
+  doc.setFillColor(primary[0], primary[1], primary[2]);
+  doc.rect(0, pageH - bandH, pageW, 1, 'F');
+  doc.setFillColor(245, 246, 252);
+  doc.rect(0, pageH - bandH + 1, pageW, bandH - 1, 'F');
+
+  var y = pageH - bandH + (compact ? 5 : 7);
+  var note = opts.note || _garageSettings.documentFooter || '';
+  if (note) {
+    doc.setFont('helvetica', 'italic');
+    doc.setFontSize(compact ? 6 : 7.5);
+    doc.setTextColor(100, 116, 139);
+    doc.text(String(note).substring(0, 130), pageW / 2, y, { align: 'center' });
+    y += compact ? 3.6 : 5.5;
+  }
+
+  // Contact strip in brand navy
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(compact ? 6 : 7.5);
+  doc.setTextColor(primary[0], primary[1], primary[2]);
+  var bits = [_garageSettings.garageName || _brand.tradingName];
+  if (_garageSettings.phone)   bits.push('Tel: ' + _garageSettings.phone);
+  if (_garageSettings.email)   bits.push(_garageSettings.email);
+  if (_garageSettings.website) bits.push(_garageSettings.website);
+  doc.text(bits.join('  \\u00B7  ').substring(0, 130), pageW / 2, y, { align: 'center' });
+  y += compact ? 3.4 : 5;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(compact ? 5.5 : 7);
+  doc.setTextColor(148, 163, 184);
+  doc.text('Generated ' + new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
+    pageW / 2, y, { align: 'center' });
+
+  doc.setTextColor(30, 41, 59);
+}
+
+/** Faint diagonal brand watermark — deters document forgery. */
+function pdfBrandWatermark(doc, text, opts) {
+  opts = opts || {};
+  var pageW = opts.pageW || 210;
+  var yPos  = opts.y     || 190;
+  var rgb   = opts.rgb   || [232, 235, 248];
+  doc.setTextColor(rgb[0], rgb[1], rgb[2]);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(opts.size || 68);
+  doc.text(text, pageW / 2, yPos, { align: 'center', angle: 45 });
+  doc.setTextColor(30, 41, 59);
+}
+
+/**
+ * Wrap document body content in a branded, email-client-safe HTML shell.
+ * Uses tables + inline styles only (Outlook/Gmail strip <style> blocks).
+ */
+function buildBrandedEmail(opts) {
+  opts = opts || {};
+  var primary = _brand.brandPrimary || '#122886';
+  var dark    = _brand.brandDark    || '#0b1a5c';
+  var name    = _garageSettings.garageName || _brand.tradingName;
+  var logo    = _brand.logoLightUrl || '';
+  // Email clients need absolute URLs for images
+  if (logo && logo.indexOf('data:') !== 0 && logo.indexOf('http') !== 0) {
+    logo = window.location.origin + logo;
+  }
+
+  var contact = [];
+  if (_garageSettings.phone)   contact.push('Tel: ' + _garageSettings.phone);
+  if (_garageSettings.email)   contact.push(_garageSettings.email);
+  if (_garageSettings.website) contact.push(_garageSettings.website);
+
+  var sig = _garageSettings.emailSignature ||
+            (name + ' Team' + (_garageSettings.phone ? '\\n' + _garageSettings.phone : ''));
+
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"/>' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1"/>' +
+    '<title>' + _esc(opts.subject || name) + '</title></head>' +
+    '<body style="margin:0;padding:0;background:#f1f5f9;font-family:Segoe UI,Helvetica,Arial,sans-serif;">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f1f5f9;padding:24px 12px;">' +
+      '<tr><td align="center">' +
+      '<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.08);">' +
+
+        // Header band
+        '<tr><td style="background:' + primary + ';background-image:linear-gradient(135deg,' + dark + ',' + primary + ');padding:26px 30px;">' +
+          '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>' +
+            (logo ? '<td width="66" valign="middle" style="padding-right:14px;"><img src="' + logo + '" alt="' + _esc(name) + '" width="60" style="display:block;width:60px;height:auto;"/></td>' : '') +
+            '<td valign="middle">' +
+              '<div style="color:#ffffff;font-size:19px;font-weight:700;line-height:1.2;">' + _esc(name) + '</div>' +
+              '<div style="color:rgba(255,255,255,.75);font-size:12px;margin-top:3px;">' + _esc(_brand.tagline || '') + '</div>' +
+            '</td>' +
+            (opts.docLabel ? '<td valign="middle" align="right"><div style="color:#ffffff;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;">' + _esc(opts.docLabel) + '</div></td>' : '') +
+          '</tr></table>' +
+        '</td></tr>' +
+
+        // Optional headline strip
+        (opts.headline ? '<tr><td style="padding:22px 30px 0;"><h1 style="margin:0;font-size:20px;color:#0f172a;font-weight:700;">' + _esc(opts.headline) + '</h1>' +
+          (opts.subhead ? '<p style="margin:6px 0 0;font-size:13px;color:#64748b;">' + _esc(opts.subhead) + '</p>' : '') + '</td></tr>' : '') +
+
+        // Body
+        '<tr><td style="padding:20px 30px 26px;font-size:14px;line-height:1.65;color:#334155;">' + (opts.bodyHtml || '') + '</td></tr>' +
+
+        // Signature
+        '<tr><td style="padding:0 30px 26px;font-size:14px;color:#334155;">' +
+          '<div style="border-top:1px solid #e2e8f0;padding-top:16px;">' +
+          'Kind regards,<br/><strong style="color:' + primary + ';">' + _esc(sig).replace(/\\n/g, '<br/>') + '</strong></div>' +
+        '</td></tr>' +
+
+        // Footer band
+        '<tr><td style="background:#f5f6fc;border-top:2px solid ' + primary + ';padding:18px 30px;text-align:center;">' +
+          '<div style="font-size:12px;font-weight:700;color:' + primary + ';">' + _esc(name) + '</div>' +
+          (contact.length ? '<div style="font-size:11px;color:#64748b;margin-top:5px;">' + _esc(contact.join('  ·  ')) + '</div>' : '') +
+          (_garageSettings.documentFooter ? '<div style="font-size:10px;color:#94a3b8;margin-top:8px;font-style:italic;">' + _esc(_garageSettings.documentFooter) + '</div>' : '') +
+          '<div style="font-size:10px;color:#b6bfcd;margin-top:8px;">This is an automated message from ' + _esc(name) + '.</div>' +
+        '</td></tr>' +
+
+      '</table></td></tr></table></body></html>';
+}
+
+/** HTML-escape a value for safe interpolation into email/document markup. */
+function _esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '\\x26amp;').replace(/</g, '\\x26lt;')
+    .replace(/>/g, '\\x26gt;').replace(/"/g, '\\x26quot;');
+}
+
+/** Build a branded HTML table of line items for emails. */
+function buildEmailItemsTable(rows, opts) {
+  opts = opts || {};
+  var primary = _brand.brandPrimary || '#122886';
+  if (!rows || !rows.length) return '';
+  var head = '<tr style="background:' + primary + ';color:#fff;">' +
+    '<th align="left"  style="padding:8px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;">' + _esc(opts.itemLabel || 'Description') + '</th>' +
+    '<th align="right" style="padding:8px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;">Amount</th></tr>';
+  var body = rows.map(function(r, i) {
+    return '<tr style="background:' + (i % 2 ? '#f8fafc' : '#ffffff') + ';">' +
+      '<td style="padding:8px 10px;font-size:13px;color:#334155;border-bottom:1px solid #eef1f6;">' + _esc(r.label) + '</td>' +
+      '<td align="right" style="padding:8px 10px;font-size:13px;color:#0f172a;border-bottom:1px solid #eef1f6;white-space:nowrap;">' + _esc(r.value) + '</td></tr>';
+  }).join('');
+  var totals = (opts.totals || []).map(function(t) {
+    return '<tr><td style="padding:8px 10px;font-size:' + (t.bold ? '14' : '13') + 'px;color:' + (t.bold ? primary : '#64748b') + ';font-weight:' + (t.bold ? '700' : '400') + ';">' + _esc(t.label) + '</td>' +
+      '<td align="right" style="padding:8px 10px;font-size:' + (t.bold ? '15' : '13') + 'px;color:' + (t.bold ? primary : '#0f172a') + ';font-weight:' + (t.bold ? '700' : '600') + ';white-space:nowrap;">' + _esc(t.value) + '</td></tr>';
+  }).join('');
+  return '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" ' +
+    'style="border-collapse:collapse;margin:16px 0;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">' +
+    head + body +
+    (totals ? '<tr><td colspan="2" style="padding:0;"><div style="border-top:2px solid ' + primary + ';"></div></td></tr>' + totals : '') +
+    '</table>';
 }
 
 function can(perm) {
@@ -10114,7 +10779,7 @@ function _buildServiceCardText(mileageOut) {
   const { job, customer, vehicle, parts, services } = _svcCardData;
   const NL = String.fromCharCode(10), LINE = '\u2500'.repeat(48);
   let t = '';
-  t += '   AUTOFIX GMS — DIGITAL SERVICE CARD' + NL;
+  t += '   ' + (_garageSettings.garageName || 'TWIGA AUTOGROUP').toUpperCase() + ' — DIGITAL SERVICE CARD' + NL;
   t += LINE + NL;
   t += 'Job Card:   ' + (job.jobCardNumber || '—') + NL;
   t += 'Date:       ' + fmtDate(job.updatedAt || job.createdAt) + NL;
@@ -10158,23 +10823,16 @@ function downloadServiceCardPDF() {
   const pageW = 210, pageH = 148, margin = 14, col2X = pageW / 2 + 4;
   let y = 0;
 
-  // ── Header band ──────────────────────────────────────────────────
-  doc.setFillColor(29, 78, 216); // blue-700
-  doc.rect(0, 0, pageW, 30, 'F');
-  doc.setTextColor(255,255,255);
-  doc.setFont('helvetica','bold'); doc.setFontSize(16);
-  doc.text(_garageSettings.garageName, margin, 12);
-  doc.setFont('helvetica','normal'); doc.setFontSize(8);
-  doc.setTextColor(186, 214, 255);
-  doc.text('Garage Management System', margin, 18);
-
-  // Right side of header
-  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(186,214,255);
-  doc.text('DIGITAL SERVICE CARD', pageW - margin, 10, { align:'right' });
-  doc.setFont('helvetica','bold'); doc.setFontSize(11); doc.setTextColor(255,255,255);
-  doc.text(job.jobCardNumber || '—', pageW - margin, 17, { align:'right' });
-  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(186,214,255);
-  doc.text(fmtDate(job.updatedAt || job.createdAt), pageW - margin, 23, { align:'right' });
+  // ── Branded letterhead (compact — A5 landscape) ──────────────────
+  pdfBrandHeader(doc, {
+    pageW: pageW,
+    margin: margin,
+    height: 30,
+    compact: true,
+    title: 'SERVICE CARD',
+    subtitle: job.jobCardNumber || '—',
+    metaLines: [fmtDate(job.updatedAt || job.createdAt)]
+  });
 
   y = 38;
 
@@ -10258,10 +10916,12 @@ function downloadServiceCardPDF() {
   });
 
   // ── Footer ────────────────────────────────────────────────────────
-  doc.setFillColor(29, 78, 216);
-  doc.rect(0, pageH - 14, pageW, 14, 'F');
-  doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(186,214,255);
-  doc.text('Thank you for choosing ' + _garageSettings.garageName + '  ·  Tel: ' + _garageSettings.phone + '  ·  ' + _garageSettings.email, pageW/2, pageH - 6, { align:'center' });
+  pdfBrandFooter(doc, {
+    pageW: pageW,
+    pageH: pageH,
+    compact: true,
+    note: 'Thank you for choosing ' + (_garageSettings.garageName || _brand.tradingName)
+  });
 
   const filename = 'ServiceCard-' + (job.jobCardNumber||'GMS') + '-' + (vehicle?.registrationNumber||'').replace(/\s/g,'')+'.pdf';
   doc.save(filename);
@@ -10556,9 +11216,9 @@ function _buildGatePassPDF(gp) {
   doc.rect(0, 0, pageW, 32, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(14); doc.setFont('helvetica', 'bold');
-  doc.text('AUTOFIX GMS', margin, 12);
+  doc.text(_garageSettings.garageName || _brand.tradingName, margin, 12);
   doc.setFontSize(9); doc.setFont('helvetica', 'normal');
-  doc.text('Garage Management System', margin, 18);
+  doc.text(_brand.tagline || 'Garage Management System', margin, 18);
   doc.setFontSize(11); doc.setFont('helvetica', 'bold');
   doc.text('GATE PASS', pageW - margin, 12, { align: 'right' });
   doc.setFontSize(8); doc.setFont('helvetica', 'normal');
@@ -12291,35 +12951,21 @@ function buildPFIDoc(detail) {
   const pageW = 210, margin = 18, contentW = pageW - margin * 2;
   let y = 0;
 
-  // ── Header band ──
-  doc.setFillColor(30, 64, 175);
-  doc.rect(0, 0, pageW, 42, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(22);
-  doc.text(_garageSettings.garageName, margin, 16);
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Garage Management System', margin, 23);
-  doc.text('Tel: ' + _garageSettings.phone + ' | ' + _garageSettings.email, margin, 29);
-  doc.text('P.O. Box 12345, Dar es Salaam, Tanzania', margin, 35);
-  // PFI label on right
+  // ── Branded letterhead ──
+  // Insurance jobs are formal Pro Forma Invoices; private customers get a Quotation.
   const isInsuranceJob = job?.category === 'Insurance';
-  const pfiTypeLabel = isInsuranceJob ? 'PRO FORMA INVOICE' : 'PRO FORMA INVOICE';
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(18);
-  doc.text(pfiTypeLabel, pageW - margin, 18, { align: 'right' });
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  if (isInsuranceJob) {
-    doc.text('Insurance Claim PFI', pageW - margin, 25, { align: 'right' });
-  } else {
-    doc.text('Private / Individual Customer', pageW - margin, 25, { align: 'right' });
-  }
-  doc.text('Ref: PFI-' + pfi.id.toUpperCase(), pageW - margin, 31, { align: 'right' });
-  doc.text('Date: ' + new Date(pfi.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }), pageW - margin, 37, { align: 'right' });
-  doc.text('Status: ' + pfi.status, pageW - margin, 43, { align: 'right' });
-  y = 52;
+  const pfiTypeLabel   = isInsuranceJob ? 'PRO FORMA INVOICE' : 'QUOTATION';
+  y = pdfBrandHeader(doc, {
+    pageW: pageW,
+    margin: margin,
+    title: pfiTypeLabel,
+    subtitle: isInsuranceJob ? 'Insurance Claim PFI' : 'Private / Individual Customer',
+    metaLines: [
+      'Ref: ' + (isInsuranceJob ? 'PFI-' : 'QTE-') + pfi.id.toUpperCase(),
+      'Date: ' + new Date(pfi.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }),
+      'Status: ' + pfi.status
+    ]
+  });
 
   // ── Bill To + Vehicle ──
   doc.setTextColor(30, 41, 59);
@@ -12473,13 +13119,34 @@ function buildPFIDoc(detail) {
     y += 8;
   }
 
-  // ── Footer ──
-  const pageH = 297;
-  doc.setFillColor(241, 245, 249);
-  doc.rect(0, pageH - 22, pageW, 22, 'F');
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(100, 116, 139);
-  doc.text('This is a Pro Forma Invoice and does not constitute a tax invoice.', pageW / 2, pageH - 14, { align: 'center' });
-  doc.text(_garageSettings.garageName + '  |  Tel: ' + _garageSettings.phone + '  |  ' + _garageSettings.email, pageW / 2, pageH - 8, { align: 'center' });
+  // ── Validity / acceptance strip ──
+  // Quotes are time-bound, so state the validity window explicitly.
+  const bp = _brandRgb();
+  if (y < 297 - 46) {
+    doc.setFillColor(245, 246, 252);
+    doc.roundedRect(margin, y, contentW, 12, 2, 2, 'F');
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(bp[0], bp[1], bp[2]);
+    doc.text(isInsuranceJob ? 'SUBJECT TO INSURER APPROVAL' : 'QUOTATION VALIDITY', margin + 4, y + 5);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(100, 116, 139);
+    doc.text(isInsuranceJob
+      ? 'Repair work commences only once written approval is received from the insurer.'
+      : 'This quotation is valid for 14 days from the date of issue. Prices are subject to parts availability.',
+      margin + 4, y + 9.5);
+    y += 16;
+  }
+
+  // ── Branded watermark + footer ──
+  pdfBrandWatermark(doc, isInsuranceJob ? 'PRO FORMA' : 'QUOTATION',
+    { pageW: pageW, y: 205, rgb: [235, 238, 250], size: 52 });
+
+  pdfBrandFooter(doc, {
+    pageW: pageW,
+    pageH: 297,
+    note: _garageSettings.documentFooter ||
+      (isInsuranceJob
+        ? 'This is a Pro Forma Invoice and does not constitute a tax invoice.'
+        : 'This is a quotation and does not constitute a tax invoice.')
+  });
 
   return doc;
 }
@@ -12493,7 +13160,7 @@ function buildPFITextPreview(detail) {
   const dash25 = '\u2500'.repeat(25);
   const isInsuranceJob = job?.category === 'Insurance';
   let t = '';
-  t += '       AUTOFIX GMS \u2013 PRO FORMA INVOICE' + NL;
+  t += '       ' + (_garageSettings.garageName || 'TWIGA AUTOGROUP').toUpperCase() + ' \u2013 PRO FORMA INVOICE' + NL;
   t += (isInsuranceJob ? '       Insurance Claim PFI' : '       Private / Individual Customer') + NL;
   t += line + NL;
   t += 'Ref:      PFI-' + pfi.id.toUpperCase() + NL;
@@ -13371,29 +14038,17 @@ function buildInvoiceDoc(inv, job) {
   };
   const sc = statusColors[inv.status] || [100, 116, 139];
 
-  // ── Header band ─────────────────────────────────────────────────────────────
-  doc.setFillColor(30, 64, 175);
-  doc.rect(0, 0, pageW, 42, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(22);
-  doc.text(_garageSettings.garageName, margin, 16);
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Garage Management System', margin, 23);
-  doc.text('Tel: ' + _garageSettings.phone + '  |  ' + _garageSettings.email, margin, 29);
-  doc.text('P.O. Box 12345, Dar es Salaam, Tanzania', margin, 35);
-
-  // INVOICE label top-right
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(20);
-  doc.text('INVOICE', pageW - margin, 18, { align: 'right' });
-  doc.setFontSize(9);
-  doc.setFont('helvetica', 'normal');
-  doc.text(inv.invoiceNumber, pageW - margin, 26, { align: 'right' });
-  doc.text('Issued: ' + (inv.issuedAt ? new Date(inv.issuedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'), pageW - margin, 32, { align: 'right' });
-  if (inv.dueDate) doc.text('Due: ' + inv.dueDate, pageW - margin, 38, { align: 'right' });
-  y = 52;
+  // ── Branded letterhead ──────────────────────────────────────────────────────
+  y = pdfBrandHeader(doc, {
+    pageW: pageW,
+    margin: margin,
+    title: 'INVOICE',
+    subtitle: inv.invoiceNumber,
+    metaLines: [
+      'Issued: ' + (inv.issuedAt ? new Date(inv.issuedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'),
+      inv.dueDate ? 'Due: ' + inv.dueDate : ''
+    ]
+  });
 
   // ── Status badge strip ──────────────────────────────────────────────────────
   doc.setFillColor(sc[0], sc[1], sc[2]);
@@ -13623,30 +14278,40 @@ function buildInvoiceDoc(inv, job) {
     y += 4;
   }
 
-  // ── Paid / Overdue watermark diagonal across centre ──────────────────────────
-  if (inv.status === 'Paid') {
-    doc.setTextColor(200, 240, 210);  // very light green — no GState needed
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(72);
-    doc.text('PAID', pageW / 2, 200, { align: 'center', angle: 45 });
-    doc.setTextColor(30, 41, 59);     // restore normal text colour
-  } else if (inv.status === 'Overdue') {
-    doc.setTextColor(255, 200, 200);  // very light red
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(72);
-    doc.text('OVERDUE', pageW / 2, 200, { align: 'center', angle: 45 });
-    doc.setTextColor(30, 41, 59);     // restore
+  // ── Bank / payment details ──────────────────────────────────────────────────
+  if (_garageSettings.bankDetails) {
+    const bankLines = String(_garageSettings.bankDetails).split(/\\r?\\n/).filter(Boolean).slice(0, 5);
+    const boxH = 9 + bankLines.length * 4.4;
+    // Keep the block on this page — skip if it would collide with the footer
+    if (y + boxH < 297 - 30) {
+      const bp = _brandRgb();
+      doc.setFillColor(245, 246, 252);
+      doc.roundedRect(margin, y, contentW * 0.52, boxH, 2, 2, 'F');
+      doc.setDrawColor(bp[0], bp[1], bp[2]);
+      doc.setLineWidth(0.4);
+      doc.line(margin, y, margin, y + boxH);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(bp[0], bp[1], bp[2]);
+      doc.text('PAYMENT DETAILS', margin + 4, y + 6);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(71, 85, 105);
+      let by = y + 11.5;
+      bankLines.forEach(function(l) { doc.text(String(l).substring(0, 52), margin + 4, by); by += 4.4; });
+      y += boxH + 5;
+    }
   }
 
-  // ── Footer ──────────────────────────────────────────────────────────────────
-  const pageH = 297;
-  doc.setFillColor(241, 245, 249);
-  doc.rect(0, pageH - 24, pageW, 24, 'F');
-  doc.setFont('helvetica', 'italic'); doc.setFontSize(8); doc.setTextColor(100, 116, 139);
-  doc.text('This is an official tax invoice. Please retain for your records.', pageW / 2, pageH - 16, { align: 'center' });
-  doc.setFont('helvetica', 'normal');
-  doc.text(_garageSettings.garageName + '  |  Tel: ' + _garageSettings.phone + '  |  ' + _garageSettings.email + '  |  ' + _garageSettings.address, pageW / 2, pageH - 10, { align: 'center' });
-  doc.text('Generated: ' + new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }), pageW / 2, pageH - 4, { align: 'center' });
+  // ── Paid / Overdue watermark diagonal across centre ──────────────────────────
+  if (inv.status === 'Paid') {
+    pdfBrandWatermark(doc, 'PAID', { pageW: pageW, y: 200, rgb: [200, 240, 210], size: 72 });
+  } else if (inv.status === 'Overdue') {
+    pdfBrandWatermark(doc, 'OVERDUE', { pageW: pageW, y: 200, rgb: [255, 200, 200], size: 72 });
+  }
+
+  // ── Branded footer ──────────────────────────────────────────────────────────
+  pdfBrandFooter(doc, {
+    pageW: pageW,
+    pageH: 297,
+    note: _garageSettings.documentFooter || 'This is an official tax invoice. Please retain for your records.'
+  });
 
   return doc;
 }
@@ -14835,7 +15500,7 @@ async function downloadFleetInvoicePDF(fiId) {
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
-  doc.text('AUTOFIX GMS', ml, 12);
+  doc.text(_garageSettings.garageName || _brand.tradingName, ml, 12);
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
   doc.text('Fleet Consolidated Invoice', ml, 19);
@@ -19922,10 +20587,145 @@ function switchSettingsTab(tab) {
   document.querySelectorAll('.settings-tab-btn').forEach(function(b) {
     b.classList.toggle('active', b.getAttribute('data-tab') === tab);
   });
-  ['profile','invoicing','notifications'].forEach(function(t) {
+  ['profile','branding','invoicing','notifications'].forEach(function(t) {
     var el = document.getElementById('settingsPane-' + t);
     if (el) el.classList.toggle('hidden', t !== tab);
   });
+  if (tab === 'branding') loadBrandingForm();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// BRANDING ONBOARDING  (Settings → Branding)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Staged logo uploads — applied to the server only when Save is pressed.
+var _brandPending = {};
+
+/** Populate the Branding form from the current brand + settings state. */
+function loadBrandingForm() {
+  _brandPending = {};
+  function set(id, val) { var el = document.getElementById(id); if (el) el.value = val || ''; }
+  set('sett-tradingName',    _brand.tradingName);
+  set('sett-tagline',        _brand.tagline);
+  set('sett-brandPrimary',   _brand.brandPrimary);
+  set('sett-brandAccent',    _brand.brandAccent);
+  set('sett-brandDark',      _brand.brandDark);
+  set('sett-poBox',          _garageSettings.poBox);
+  set('sett-documentFooter', _garageSettings.documentFooter);
+  set('sett-bankDetails',    _garageSettings.bankDetails);
+  set('sett-emailSignature', _garageSettings.emailSignature);
+
+  function img(id, url) { var el = document.getElementById(id); if (el && url) el.src = url; }
+  img('brandPrev-mark',        _brand.logoMarkUrl);
+  img('brandPrev-full',        _brand.logoFullUrl);
+  img('brandPrev-light',       _brand.logoLightUrl);
+  img('brandPrev-previewMark', _brand.logoMarkUrl);
+  brandPreviewColors();
+}
+
+/** Read a chosen file as a data URL and stage it for saving. */
+function brandPickLogo(evt, field, previewId) {
+  var file = evt.target.files && evt.target.files[0];
+  if (!file) return;
+  if (file.size > 1024 * 1024) {
+    showToast('Logo must be under 1 MB — please compress the image', 'error');
+    evt.target.value = '';
+    return;
+  }
+  var reader = new FileReader();
+  reader.onload = function() {
+    _brandPending[field] = reader.result;
+    var el = document.getElementById(previewId);
+    if (el) el.src = reader.result;
+    if (field === 'logoMarkUrl') {
+      var p = document.getElementById('brandPrev-previewMark');
+      if (p) p.src = reader.result;
+    }
+    showToast('Logo staged — press Save Branding to apply');
+  };
+  reader.onerror = function() { showToast('Could not read that image file', 'error'); };
+  reader.readAsDataURL(file);
+  evt.target.value = '';
+}
+
+/** Revert one logo slot back to the built-in Twiga artwork. */
+function brandResetLogo(field, previewId) {
+  var def = field === 'logoMarkUrl'  ? TWIGA_DEFAULTS.markUrl
+          : field === 'logoLightUrl' ? TWIGA_DEFAULTS.lightUrl
+          : TWIGA_DEFAULTS.fullUrl;
+  _brandPending[field] = def;
+  var el = document.getElementById(previewId);
+  if (el) el.src = def;
+  if (field === 'logoMarkUrl') {
+    var p = document.getElementById('brandPrev-previewMark');
+    if (p) p.src = def;
+  }
+}
+
+/** Live-apply the colour pickers to the CSS tokens (preview before saving). */
+function brandPreviewColors() {
+  function v(id, fb) { var el = document.getElementById(id); return (el && el.value) || fb; }
+  var primary = v('sett-brandPrimary', TWIGA_DEFAULTS.primary);
+  var accent  = v('sett-brandAccent',  TWIGA_DEFAULTS.accent);
+  var dark    = v('sett-brandDark',    TWIGA_DEFAULTS.dark);
+  var root = document.documentElement;
+  root.style.setProperty('--brand-primary', primary);
+  root.style.setProperty('--brand-accent',  accent);
+  root.style.setProperty('--brand-dark',    dark);
+  root.style.setProperty('--brand-primary-soft', _shadeHex(primary, 92));
+
+  var nm = document.getElementById('brandPrev-name');
+  var tg = document.getElementById('brandPrev-tagline');
+  var nmv = (document.getElementById('sett-tradingName') || {}).value;
+  var tgv = (document.getElementById('sett-tagline') || {}).value;
+  if (nm) nm.textContent = nmv || _brand.tradingName;
+  if (tg) tg.textContent = tgv || _brand.tagline;
+}
+
+/** Restore the default Twiga Autogroup palette in the form. */
+function brandApplyPreset() {
+  var m = { 'sett-brandPrimary': TWIGA_DEFAULTS.primary,
+            'sett-brandAccent':  TWIGA_DEFAULTS.accent,
+            'sett-brandDark':    TWIGA_DEFAULTS.dark };
+  Object.keys(m).forEach(function(id) {
+    var el = document.getElementById(id); if (el) el.value = m[id];
+  });
+  brandPreviewColors();
+}
+
+/** Persist branding (identity, colours, logos, document text) to the server. */
+async function saveBranding() {
+  function val(id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; }
+  var payload = {
+    tradingName:    val('sett-tradingName'),
+    tagline:        val('sett-tagline'),
+    brandPrimary:   val('sett-brandPrimary'),
+    brandAccent:    val('sett-brandAccent'),
+    brandDark:      val('sett-brandDark'),
+    poBox:          val('sett-poBox'),
+    documentFooter: val('sett-documentFooter')
+  };
+  // textareas keep their newlines, so read them raw
+  payload.bankDetails    = (document.getElementById('sett-bankDetails')    || {}).value || '';
+  payload.emailSignature = (document.getElementById('sett-emailSignature') || {}).value || '';
+  // Merge any staged logo uploads
+  Object.keys(_brandPending).forEach(function(k) { payload[k] = _brandPending[k]; });
+
+  try {
+    await axios.patch('/api/branding', payload);
+    // Refresh caches so PDFs/emails immediately use the new identity
+    _garageSettings.poBox          = payload.poBox;
+    _garageSettings.documentFooter = payload.documentFooter;
+    _garageSettings.bankDetails    = payload.bankDetails;
+    _garageSettings.emailSignature = payload.emailSignature;
+    _applyBrandingData(payload);
+    _logoDataUrls = {};        // invalidate the PDF logo cache
+    _preloadBrandLogos();
+    _brandPending = {};
+    showToast('Branding saved — logos and colours applied across the system', 'success');
+  } catch(e) {
+    showToast('Failed to save branding: ' + (e.response?.data?.error || e.message), 'error');
+  }
 }
 
 function toggleSettingsSection(section) {
@@ -20876,6 +21676,8 @@ document.getElementById('todayDate').textContent = new Date().toLocaleDateString
 
 // Try to restore session from localStorage, otherwise show login screen
 (async function() {
+  // Brand the login screen first — this endpoint is public so it works pre-auth
+  await _loadPublicBranding();
   var loggedIn = await tryAutoLogin();
   if (loggedIn) {
     loadDashboard();

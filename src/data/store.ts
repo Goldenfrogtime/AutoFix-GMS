@@ -1240,6 +1240,23 @@ export interface GarageSettings {
   vatRate: number             // e.g. 18 for 18%
   currency: string            // e.g. 'TZS'
 
+  // ── Branding / white-label identity ─────────────────────────────────────────
+  // Drives the login screen, app shell, PDF documents (invoices, quotes, PFIs,
+  // service cards) and the HTML email templates. Every tenant can be fully
+  // rebranded from Settings → Branding without a code change.
+  tradingName?: string        // short display name used in the sidebar/header
+  tagline?: string            // e.g. 'Garage Management System'
+  brandPrimary?: string       // hex, main brand colour  e.g. '#122886'
+  brandAccent?: string        // hex, accent/CTA colour
+  brandDark?: string          // hex, dark gradient stop for login/sidebar
+  logoMarkUrl?: string        // square/icon lockup — sidebar, favicons, email avatar
+  logoFullUrl?: string        // full horizontal/stacked lockup — login, PDF letterhead
+  logoLightUrl?: string       // light/white variant for dark backgrounds
+  documentFooter?: string     // legal/footer line printed on every PDF document
+  emailSignature?: string     // signature block appended to outgoing emails
+  bankDetails?: string        // payment instructions block printed on invoices
+  poBox?: string              // postal address line for document letterheads
+
   // Invoice & numbering
   invoicePrefix: string       // e.g. 'GMS-INV'
   jobCardPrefix: string       // e.g. 'GMS'
@@ -1269,8 +1286,20 @@ export interface GarageSettings {
   updatedAt: string
 }
 
+// ─── Brand defaults ──────────────────────────────────────────────────────────
+// Twiga Autogroup house style. Any tenant can override every one of these from
+// Settings → Branding; these values are only the out-of-the-box starting point.
+export const TWIGA_BRAND = {
+  primary: '#122886',   // Twiga navy — sampled from the supplied logo artwork
+  accent:  '#2f4fd0',   // lighter navy/blue for CTAs and highlights
+  dark:    '#0b1a5c',   // deep navy for gradient stops
+  markUrl:  '/static/brand/logo-mark.png',        // gear + giraffe, navy on transparent
+  fullUrl:  '/static/brand/logo-full.png',        // full stacked lockup, navy
+  lightUrl: '/static/brand/logo-full-white.png',  // full stacked lockup, white
+} as const
+
 export const defaultGarageSettings: GarageSettings = {
-  garageName: 'Twiga Group Garage',
+  garageName: 'Twiga Autogroup',
   address: '',
   phone: '',
   email: '',
@@ -1279,6 +1308,21 @@ export const defaultGarageSettings: GarageSettings = {
   invoicePrefix: 'GMS-INV',
   jobCardPrefix: 'GMS',
   pfiPrefix: 'GMS-PFI',
+
+  // Branding defaults — Twiga Autogroup
+  tradingName:  'Twiga Autogroup',
+  tagline:      'Garage Management System',
+  brandPrimary: TWIGA_BRAND.primary,
+  brandAccent:  TWIGA_BRAND.accent,
+  brandDark:    TWIGA_BRAND.dark,
+  logoMarkUrl:  TWIGA_BRAND.markUrl,
+  logoFullUrl:  TWIGA_BRAND.fullUrl,
+  logoLightUrl: TWIGA_BRAND.lightUrl,
+  documentFooter: '',
+  emailSignature: '',
+  bankDetails: '',
+  poBox: '',
+
   notifyOnJobCreate: true,
   notifyOnJobStatus: true,
   notifyOnJobComplete: true,

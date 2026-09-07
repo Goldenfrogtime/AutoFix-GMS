@@ -10,6 +10,7 @@ import {
   jobCardPhotos,
   customerNotifDispatches,
   garageSettings,
+  TWIGA_BRAND,
   salesTargets,
   salesCommissions,
   saUpsellTargets,
@@ -61,6 +62,9 @@ api.use('*', async (c, next) => {
   const path = new URL(c.req.url).pathname
   // Allow login endpoint without auth
   if (path.endsWith('/auth/login')) return next()
+  // Allow public branding endpoint — the login screen must render the tenant's
+  // logo and colours BEFORE the user has a session.
+  if (path.endsWith('/branding')) return next()
   // All other routes need a valid session
   const user = getSessionUser(c)
   if (!user) return c.json({ error: 'Unauthenticated' }, 401)
@@ -4293,6 +4297,72 @@ api.get('/analytics/margin-by-service', (c) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // PHASE 5 — GARAGE SETTINGS
 // ─────────────────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BRANDING — public (no auth) so the login screen can render tenant identity
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GET /branding — safe, public subset of settings used for visual identity.
+// Deliberately excludes anything sensitive (API keys, financial config, etc.).
+api.get('/branding', (c) => {
+  const g = garageSettings
+  return c.json({
+    garageName:   g.garageName,
+    tradingName:  g.tradingName  || g.garageName,
+    tagline:      g.tagline      || 'Garage Management System',
+    brandPrimary: g.brandPrimary || TWIGA_BRAND.primary,
+    brandAccent:  g.brandAccent  || TWIGA_BRAND.accent,
+    brandDark:    g.brandDark    || TWIGA_BRAND.dark,
+    logoMarkUrl:  g.logoMarkUrl  || TWIGA_BRAND.markUrl,
+    logoFullUrl:  g.logoFullUrl  || TWIGA_BRAND.fullUrl,
+    logoLightUrl: g.logoLightUrl || TWIGA_BRAND.lightUrl,
+    // Contact details are public-facing anyway (they print on every document)
+    phone:   g.phone   || '',
+    email:   g.email   || '',
+    website: g.website || '',
+    address: g.address || '',
+  })
+})
+
+// PATCH /branding — update branding only. Requires settings.manage.
+// Logos may be posted as data URLs (uploaded files) or as plain URLs.
+api.patch('/branding', async (c) => {
+  const _pb = requirePerm(c, 'settings.manage'); if (_pb) return _pb
+  const body = await c.req.json<Partial<GarageSettings>>()
+
+  const ALLOWED = [
+    'garageName', 'tradingName', 'tagline',
+    'brandPrimary', 'brandAccent', 'brandDark',
+    'logoMarkUrl', 'logoFullUrl', 'logoLightUrl', 'logoUrl',
+    'documentFooter', 'emailSignature', 'bankDetails', 'poBox',
+  ] as const
+
+  const HEX = /^#[0-9a-fA-F]{6}$/
+  const patch: Partial<GarageSettings> = {}
+
+  for (const key of ALLOWED) {
+    if (!(key in body)) continue
+    const val = (body as any)[key]
+    if (typeof val !== 'string') continue
+
+    // Validate colours strictly so a bad value can never break the UI
+    if (key === 'brandPrimary' || key === 'brandAccent' || key === 'brandDark') {
+      if (val && !HEX.test(val)) {
+        return c.json({ error: `Invalid colour for ${key} — expected hex like #122886` }, 400)
+      }
+    }
+
+    // Guard against oversized logo uploads bloating the JSON store (~1.5MB cap)
+    if (key.startsWith('logo') && val.length > 1_500_000) {
+      return c.json({ error: 'Logo image too large — please use a file under 1MB' }, 400)
+    }
+
+    ;(patch as any)[key] = val
+  }
+
+  updateGarageSettings(patch)
+  return c.json({ ok: true, settings: garageSettings })
+})
 
 // GET /settings — return current garage settings (strip secret keys)
 api.get('/settings', (c) => {
