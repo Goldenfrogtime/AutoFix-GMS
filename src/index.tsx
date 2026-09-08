@@ -2533,7 +2533,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
           <div class="card p-5">
             <h3 class="text-base font-bold text-gray-800 mb-4">
               <i class="fas fa-envelope text-blue-500 mr-2"></i>Email Channel
-              <span class="ml-2 text-xs text-gray-400 font-normal">(optional)</span>
+              <span class="ml-2 align-middle" id="emailStatusBadge"></span>
             </h3>
             <div class="space-y-3">
               <label class="flex items-center gap-3 cursor-pointer">
@@ -2558,6 +2558,20 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
                 <div>
                   <label class="form-label">From Address</label>
                   <input class="form-input" type="email" id="sett-emailFrom" placeholder="noreply@garage.co.tz"/>
+                  <p class="text-xs text-gray-400 mt-1">Must be a <strong>verified sender</strong> in your SendGrid account, or SendGrid will reject the message.</p>
+                </div>
+
+                <!-- Test delivery -->
+                <div class="border-t border-gray-100 pt-3 mt-1">
+                  <label class="form-label">Send a test email</label>
+                  <div class="flex flex-wrap gap-2">
+                    <input class="form-input flex-1 min-w-[160px]" type="email" id="sett-emailTestTo" placeholder="you@example.com"/>
+                    <button class="btn-secondary text-sm flex-shrink-0" onclick="sendTestEmail()">
+                      <i class="fas fa-paper-plane mr-1"></i><span id="sett-emailTestLabel">Send Test</span>
+                    </button>
+                  </div>
+                  <p class="text-xs text-gray-400 mt-1">Save your settings first, then send a branded test message to confirm delivery.</p>
+                  <div id="sett-emailTestResult" class="hidden mt-2 text-xs rounded-lg px-3 py-2"></div>
                 </div>
               </div>
             </div>
@@ -3514,18 +3528,26 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <div id="sendPFI-previewBox" class="hidden p-4 font-mono text-xs text-gray-600 bg-white max-h-64 overflow-y-auto leading-relaxed whitespace-pre-wrap"></div>
     </div>
 
-    <!-- Branded email actions -->
-    <div class="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-4 flex flex-wrap items-center gap-2">
-      <span class="text-xs text-blue-800 font-semibold flex-1 min-w-[180px]"><i class="fas fa-paint-roller mr-1"></i>Send it branded:</span>
+    <!-- Automated delivery status (SendGrid) -->
+    <div id="sendPFI-mailStatus" class="rounded-xl px-4 py-3 mb-4 text-xs flex flex-wrap items-center gap-2 bg-gray-50 border border-gray-200 text-gray-500">
+      <i class="fas fa-circle-notch fa-spin"></i><span>Checking email delivery…</span>
+    </div>
+
+    <!-- Manual branded email actions -->
+    <div class="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-2 flex flex-wrap items-center gap-2">
+      <span class="text-xs text-blue-800 font-semibold flex-1 min-w-[160px]"><i class="fas fa-paint-roller mr-1"></i>Or send it manually:</span>
       <button class="btn-secondary text-xs" onclick="copyBrandedEmailHtml()"><i class="fas fa-copy mr-1"></i>Copy branded email</button>
       <button class="btn-secondary text-xs" onclick="downloadBrandedEmailHtml()"><i class="fas fa-file-code mr-1"></i>Download .html</button>
     </div>
-    <p class="text-xs text-gray-400 mb-4 -mt-2">Paste the copied email into Gmail or Outlook to keep the full branded layout. Plain email clients opened via "Open Email Client" receive the text version only.</p>
+    <p class="text-xs text-gray-400 mb-4">Paste the copied email into Gmail or Outlook to keep the branded layout. "Open Email Client" sends the plain-text version only.</p>
 
     <div class="flex flex-wrap gap-2 justify-end">
       <button class="btn-secondary" onclick="closeModal('modal-sendPFI')">Cancel</button>
-      <button class="btn-secondary flex-shrink-0" onclick="copyAndOpenEmail()"><i class="fas fa-external-link-alt mr-1"></i><span class="hidden sm:inline">Copy &amp; Open Email Client</span><span class="sm:hidden">Open Email</span></button>
-      <button class="btn-primary flex-shrink-0" onclick="submitSendPFI()"><i class="fas fa-paper-plane mr-1"></i><span id="sendPFI-btnLabel">Send &amp; Record</span></button>
+      <button class="btn-secondary flex-shrink-0" onclick="copyAndOpenEmail()"><i class="fas fa-external-link-alt mr-1"></i><span class="hidden sm:inline">Open Email Client</span><span class="sm:hidden">Open Email</span></button>
+      <button class="btn-secondary flex-shrink-0" onclick="submitSendPFI()"><i class="fas fa-download mr-1"></i><span id="sendPFI-btnLabel">Download &amp; Record</span></button>
+      <button class="btn-primary flex-shrink-0" id="sendPFI-autoBtn" onclick="sendPFIViaProvider()" disabled>
+        <i class="fas fa-paper-plane mr-1"></i><span id="sendPFI-autoLabel">Send Email Now</span>
+      </button>
     </div>
   </div>
 </div>
@@ -13369,8 +13391,9 @@ Kind regards,
   document.getElementById('sendPFI-previewBox').textContent = buildPFITextPreview(_currentPFIDetail);
   document.getElementById('sendPFI-btnLabel').textContent = pfi.sentAt ? 'Resend & Record' : 'Send & Record';
 
-  // Branded HTML email preview
+  // Branded HTML email preview + automated-delivery status
   renderPFIEmailPreview();
+  updatePFIMailStatus();
 
   openModal('modal-sendPFI');
 }
@@ -13536,6 +13559,93 @@ function downloadBrandedEmailHtml() {
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   setTimeout(function() { URL.revokeObjectURL(url); }, 1000);
   showToast('\u2705 ' + name + ' downloaded');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// AUTOMATED BRANDED EMAIL DELIVERY (SendGrid, server-side)
+// ═══════════════════════════════════════════════════════════════════════════
+
+// Cached email-provider status so we don't re-probe on every modal open.
+var _mailStatus = null;
+
+/** Fetch delivery status from the server (force=true bypasses the cache). */
+async function refreshMailStatus(force) {
+  if (_mailStatus && !force) return _mailStatus;
+  try {
+    var r = await axios.get('/api/email/status');
+    _mailStatus = r.data;
+  } catch(e) {
+    _mailStatus = { configured: false, reason: 'Could not check email status.' };
+  }
+  return _mailStatus;
+}
+
+/** Paint the delivery-status banner + enable/disable the Send button. */
+async function updatePFIMailStatus() {
+  var box = document.getElementById('sendPFI-mailStatus');
+  var btn = document.getElementById('sendPFI-autoBtn');
+  if (!box) return;
+  var st = await refreshMailStatus();
+  if (st.configured) {
+    box.className = 'rounded-xl px-4 py-3 mb-4 text-xs flex flex-wrap items-center gap-2 bg-green-50 border border-green-200 text-green-800';
+    box.innerHTML = '<i class="fas fa-check-circle"></i><span><strong>Automated email is ready.</strong> ' +
+      'The branded email will be sent from ' + _esc(st.from || '') + ' with the PDF attached.</span>';
+    if (btn) { btn.disabled = false; btn.title = ''; }
+  } else {
+    box.className = 'rounded-xl px-4 py-3 mb-4 text-xs flex flex-wrap items-center gap-2 bg-amber-50 border border-amber-200 text-amber-800';
+    box.innerHTML = '<i class="fas fa-exclamation-triangle"></i><span><strong>Automated email is not set up.</strong> ' +
+      _esc(st.reason || '') + '</span>' +
+      (can('settings.manage')
+        ? '<button class="btn-secondary text-xs ml-auto" onclick="closeModal(\\'modal-sendPFI\\');showPage(\\'settings\\');switchSettingsTab(\\'notifications\\')">' +
+          '<i class="fas fa-cog mr-1"></i>Configure</button>'
+        : '');
+    if (btn) { btn.disabled = true; btn.title = st.reason || 'Email delivery is not configured'; }
+  }
+}
+
+/** Send the branded quotation / PFI via the server (SendGrid) with PDF attached. */
+async function sendPFIViaProvider() {
+  var email = (document.getElementById('sendPFI-email').value || '').trim();
+  if (!email) { showToast('Please enter a recipient email', 'error'); return; }
+  if (!_currentPFIId || !_currentPFIDetail) return;
+
+  var btn   = document.getElementById('sendPFI-autoBtn');
+  var label = document.getElementById('sendPFI-autoLabel');
+  var prev  = label ? label.textContent : '';
+  if (btn) btn.disabled = true;
+  if (label) label.textContent = 'Sending…';
+
+  try {
+    // Generate the PDF in-browser so the attachment matches the preview exactly
+    await _ensureBrandLogos();
+    var doc = buildPFIDoc(_currentPFIDetail);
+    var pdfBase64 = doc.output('datauristring').split(',')[1];
+
+    var isIns = _currentPFIDetail.job?.category === 'Insurance';
+    var fname = (isIns ? 'PFI-' : 'Quotation-') + _currentPFIDetail.pfi.id.toUpperCase() + '.pdf';
+
+    var res = await axios.post('/api/pfi/' + _currentPFIId + '/email', {
+      to: email,
+      subject: document.getElementById('sendPFI-subject').value,
+      message: document.getElementById('sendPFI-message').value,
+      pdfBase64: pdfBase64,
+      pdfFilename: fname
+    });
+
+    closeModal('modal-sendPFI');
+    showToast('\\u2705 ' + (isIns ? 'Pro Forma Invoice' : 'Quotation') + ' emailed to ' + email +
+              (res.data?.attached ? ' with PDF attached' : ''), 'success');
+    loadClaims();
+  } catch(err) {
+    var msg = err.response?.data?.message || err.response?.data?.error || err.message;
+    showToast('Email failed: ' + msg, 'error');
+    // The provider config may have changed — re-probe so the banner is accurate
+    await refreshMailStatus(true);
+    updatePFIMailStatus();
+  } finally {
+    if (btn) btn.disabled = false;
+    if (label) label.textContent = prev || 'Send Email Now';
+  }
 }
 
 // ── Open system email client with pre-filled content + PDF hint ──
@@ -20703,6 +20813,9 @@ async function loadGarageSettings() {
     var r = await axios.get('/api/settings');
     _settingsData = r.data;
     _fillSettingsForm(_settingsData);
+    // Show whether automated email delivery is live
+    await refreshMailStatus(true);
+    _renderEmailStatusBadge();
   } catch(e) { showToast('Failed to load settings', 'error'); }
 }
 
@@ -20762,9 +20875,82 @@ async function saveGarageSettings() {
   if (payload.emailApiKey && /^[•\*\.]+$/.test(payload.emailApiKey)) delete payload.emailApiKey;
 
   try {
-    await axios.patch('/api/settings', payload);
-    showToast('Settings saved successfully', 'success');
+    var res = await axios.patch('/api/settings', payload);
+    // Reflect the saved values everywhere immediately — no reload required.
+    await applySettingsEverywhere(res.data && res.data.settings);
+    showToast('Settings saved and applied', 'success');
   } catch(e) { showToast('Failed to save settings', 'error'); }
+}
+
+/**
+ * Propagate a freshly-saved settings record through the whole running app so
+ * changes take effect immediately instead of after a refresh.
+ *
+ * Refreshes: the settings cache used by PDFs/emails, brand colours and logos,
+ * the email-provider status banner, VAT-derived figures on screen, and any
+ * currently-open document preview.
+ */
+async function applySettingsEverywhere(s) {
+  // 1. Re-read the authoritative record (also re-masks secrets correctly)
+  if (s) {
+    _garageSettings.garageName = s.garageName || _garageSettings.garageName;
+    _garageSettings.phone      = s.phone   || '';
+    _garageSettings.email      = s.email   || '';
+    _garageSettings.website    = s.website || '';
+    _garageSettings.address    = s.address || '';
+    if (s.vatRate != null) _garageSettings.vatRate = s.vatRate;
+    _garageSettings.tinNumber      = s.tinNumber      || '';
+    _garageSettings.poBox          = s.poBox          || '';
+    _garageSettings.documentFooter = s.documentFooter || '';
+    _garageSettings.emailSignature = s.emailSignature || '';
+    _garageSettings.bankDetails    = s.bankDetails    || '';
+    _applyBrandingData(s);
+  } else {
+    await _loadGarageSettings();
+  }
+
+  // 2. Logos may have changed — drop the PDF raster cache and re-warm it
+  _logoDataUrls = {};
+  _preloadBrandLogos();
+
+  // 3. Email provider settings may have changed — re-probe, don't trust cache
+  await refreshMailStatus(true);
+  if (document.getElementById('sendPFI-mailStatus')) updatePFIMailStatus();
+  _renderEmailStatusBadge();
+
+  // 4. Re-render whatever the user is currently looking at so figures using
+  //    VAT / currency / garage name update on the spot.
+  try {
+    var active = document.querySelector('.page.active');
+    var id = active ? active.id.replace('page-', '') : '';
+    var refreshers = {
+      dashboard: typeof loadDashboard === 'function' ? loadDashboard : null,
+      invoices:  typeof loadInvoices  === 'function' ? loadInvoices  : null,
+      claims:    typeof loadClaims    === 'function' ? loadClaims    : null,
+      jobcards:  typeof loadJobCards  === 'function' ? loadJobCards  : null
+    };
+    if (refreshers[id]) refreshers[id]();
+  } catch(e) { /* a refresh failure must never block saving */ }
+
+  // 5. If a document preview is open, rebuild it with the new branding
+  if (document.getElementById('sendPFI-htmlPreview') &&
+      !document.getElementById('modal-sendPFI').classList.contains('hidden')) {
+    renderPFIEmailPreview();
+  }
+}
+
+/** Small status pill shown on the Notifications tab next to the email card. */
+function _renderEmailStatusBadge() {
+  var el = document.getElementById('emailStatusBadge');
+  if (!el) return;
+  var st = _mailStatus;
+  if (!st) { el.innerHTML = ''; return; }
+  if (st.configured) {
+    el.innerHTML = '<span class="badge bg-green-100 text-green-700"><i class="fas fa-check-circle mr-1"></i>Ready</span>';
+  } else {
+    el.innerHTML = '<span class="badge bg-amber-100 text-amber-700" title="' + _esc(st.reason || '') +
+                   '"><i class="fas fa-exclamation-triangle mr-1"></i>Not configured</span>';
+  }
 }
 
 function switchSettingsTab(tab) {
@@ -20896,19 +21082,44 @@ async function saveBranding() {
   Object.keys(_brandPending).forEach(function(k) { payload[k] = _brandPending[k]; });
 
   try {
-    await axios.patch('/api/branding', payload);
-    // Refresh caches so PDFs/emails immediately use the new identity
-    _garageSettings.poBox          = payload.poBox;
-    _garageSettings.documentFooter = payload.documentFooter;
-    _garageSettings.bankDetails    = payload.bankDetails;
-    _garageSettings.emailSignature = payload.emailSignature;
-    _applyBrandingData(payload);
-    _logoDataUrls = {};        // invalidate the PDF logo cache
-    _preloadBrandLogos();
+    var res = await axios.patch('/api/branding', payload);
     _brandPending = {};
+    // Apply everywhere immediately — logos, colours, PDFs, emails, open previews
+    await applySettingsEverywhere(res.data && res.data.settings);
     showToast('Branding saved — logos and colours applied across the system', 'success');
   } catch(e) {
     showToast('Failed to save branding: ' + (e.response?.data?.error || e.message), 'error');
+  }
+}
+
+/** Send a branded test email to prove the provider setup works end-to-end. */
+async function sendTestEmail() {
+  var toEl  = document.getElementById('sett-emailTestTo');
+  var label = document.getElementById('sett-emailTestLabel');
+  var out   = document.getElementById('sett-emailTestResult');
+  var to    = (toEl && toEl.value.trim()) || '';
+
+  function show(ok, msg) {
+    if (!out) return;
+    out.className = 'mt-2 text-xs rounded-lg px-3 py-2 ' +
+      (ok ? 'bg-green-50 border border-green-200 text-green-800'
+          : 'bg-red-50 border border-red-200 text-red-700');
+    out.innerHTML = '<i class="fas ' + (ok ? 'fa-check-circle' : 'fa-exclamation-circle') + ' mr-1"></i>' + _esc(msg);
+    out.classList.remove('hidden');
+  }
+
+  if (label) label.textContent = 'Sending…';
+  try {
+    var r = await axios.post('/api/email/test', { to: to });
+    show(true, r.data.message || 'Test email sent. Check the inbox (and spam folder).');
+    await refreshMailStatus(true);
+    _renderEmailStatusBadge();
+  } catch(e) {
+    show(false, e.response?.data?.message || e.message || 'Failed to send test email.');
+    await refreshMailStatus(true);
+    _renderEmailStatusBadge();
+  } finally {
+    if (label) label.textContent = 'Send Test';
   }
 }
 

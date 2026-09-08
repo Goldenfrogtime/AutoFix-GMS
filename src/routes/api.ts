@@ -32,6 +32,11 @@ import {
   type SAUpsellTarget, type SAUpsellCommission, type TechReferralCommission
 } from '../data/store'
 import { save } from '../data/persist'
+import {
+  renderBrandedEmail, renderItemsTable, sendEmail, emailConfigured,
+  htmlToText, esc as escHtml,
+  type EmailItemRow, type EmailTotalRow, type Attachment,
+} from '../data/email'
 
 const api = new Hono()
 
@@ -4362,6 +4367,355 @@ api.patch('/branding', async (c) => {
 
   updateGarageSettings(patch)
   return c.json({ ok: true, settings: garageSettings })
+})
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EMAIL DELIVERY (SendGrid)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Money formatter matching the client's fmt() so emails and PDFs agree. */
+function fmtMoney(n: number): string {
+  return (garageSettings.currency || 'TZS') + ' ' + Number(n || 0).toLocaleString('en-US')
+}
+
+/** Absolute origin of the current request — used to absolutise logo URLs. */
+function reqOrigin(c: any): string {
+  try { return new URL(c.req.url).origin } catch { return '' }
+}
+
+// GET /email/status — is email delivery ready? Drives the Settings indicator.
+api.get('/email/status', (c) => {
+  const cfg = emailConfigured()
+  return c.json({
+    configured: cfg.ok,
+    reason:     cfg.reason || null,
+    provider:   garageSettings.emailProvider || 'none',
+    enabled:    !!garageSettings.emailEnabled,
+    from:       garageSettings.emailFrom || null,
+    hasApiKey:  !!garageSettings.emailApiKey,
+  })
+})
+
+// POST /email/test — send a branded test email to prove the setup works.
+api.post('/email/test', async (c) => {
+  const _pt = requirePerm(c, 'settings.manage'); if (_pt) return _pt
+  const { to } = await c.req.json<{ to?: string }>()
+  const recipient = (to || '').trim() || garageSettings.email || ''
+  if (!recipient) {
+    return c.json({ ok: false, message: 'No recipient address. Enter one, or set the garage email in Settings → Garage Profile.' }, 400)
+  }
+
+  const name = garageSettings.garageName || garageSettings.tradingName || 'your garage'
+  const html = renderBrandedEmail({
+    origin: reqOrigin(c),
+    subject: 'Test email from ' + name,
+    docLabel: 'Test',
+    headline: 'Your email setup is working',
+    subhead: 'Sent from ' + name,
+    bodyHtml:
+      '<p style="margin:0 0 14px;">This is a test message confirming that automated email delivery is correctly configured.</p>' +
+      '<p style="margin:0 0 14px;">Quotations, Pro Forma Invoices and invoices sent from the system will use this branding — logo, colours, contact details and signature.</p>' +
+      renderItemsTable(
+        [{ label: 'Example line item', value: fmtMoney(120000) }],
+        { itemLabel: 'Sample', totals: [{ label: 'Example total', value: fmtMoney(141600), bold: true }] },
+      ) +
+      '<p style="margin:14px 0 0;font-size:13px;color:#64748b;">If the logo above is missing, make sure your site is reachable at a public URL so email clients can load the image.</p>',
+  })
+
+  const result = await sendEmail({
+    to: recipient,
+    subject: 'Test email from ' + name,
+    html,
+  })
+
+  // Record the attempt so it appears in the dispatch history
+  customerNotifDispatches.unshift({
+    id: 'cnd' + genId(),
+    channel: 'email',
+    recipientEmail: recipient,
+    recipientName: 'Test recipient',
+    subject: 'Test email from ' + name,
+    body: htmlToText(html).slice(0, 500),
+    triggerEvent: 'email_test',
+    status: result.ok ? 'sent' : 'failed',
+    errorMessage: result.ok ? undefined : result.message,
+    sentAt: now(),
+  } as CustomerNotifDispatch)
+  if (customerNotifDispatches.length > 1000) customerNotifDispatches.splice(1000)
+
+  return c.json({ ok: result.ok, message: result.message, status: result.status }, result.ok ? 200 : 502)
+})
+
+/**
+ * POST /pfi/:id/email — render and SEND the branded quotation / Pro Forma
+ * Invoice via SendGrid, optionally with the PDF attached, then record the send.
+ *
+ * The PDF is generated client-side (jsPDF), so the browser posts it here as
+ * base64 rather than the server re-rendering it — this guarantees the emailed
+ * attachment is byte-identical to the PDF the user previewed.
+ */
+api.post('/pfi/:id/email', async (c) => {
+  const idx = pfis.findIndex(x => x.id === c.req.param('id'))
+  if (idx === -1) return c.json({ error: 'Not found' }, 404)
+
+  const body = await c.req.json<{
+    to?: string
+    subject?: string
+    message?: string
+    pdfBase64?: string
+    pdfFilename?: string
+  }>()
+
+  const to = (body.to || '').trim()
+  if (!to) return c.json({ ok: false, message: 'Recipient email is required.' }, 400)
+
+  const cfg = emailConfigured()
+  if (!cfg.ok) return c.json({ ok: false, status: 'disabled', message: cfg.reason }, 400)
+
+  const pfi      = pfis[idx]
+  const job      = jobCards.find(j => j.id === pfi.jobCardId)
+  const customer = job ? customers.find(cu => cu.id === job.customerId) : null
+  const vehicle  = job ? vehicles.find(v => v.id === job.vehicleId) : null
+  const parts    = partsConsumption.filter(p => p.jobCardId === pfi.jobCardId)
+  const services = jobServices.filter(s => s.jobCardId === pfi.jobCardId)
+
+  const isInsurance = job?.category === 'Insurance'
+  const docLabel    = isInsurance ? 'Pro Forma Invoice' : 'Quotation'
+
+  // ── Line items ──
+  const rows: EmailItemRow[] = []
+  for (const sv of services) {
+    rows.push({
+      label: sv.serviceName + (sv.quantity > 1 ? ' \u00D7' + sv.quantity : '') + (sv.category ? '  (' + sv.category + ')' : ''),
+      value: fmtMoney(sv.totalCost),
+    })
+  }
+  for (const p of parts) {
+    rows.push({ label: p.partName + ' \u00D7' + p.quantity, value: fmtMoney(p.totalCost) })
+  }
+
+  const taxAmt = pfi.tax != null ? pfi.tax : 0
+  const grand  = pfi.totalAmount != null ? pfi.totalAmount : (pfi.totalEstimate + taxAmt)
+  const totals: EmailTotalRow[] = [
+    { label: 'Labour',           value: fmtMoney(pfi.labourCost) },
+    { label: 'Services + Parts', value: fmtMoney(pfi.partsCost) },
+    { label: 'Total Estimate',   value: fmtMoney(pfi.totalEstimate) },
+  ]
+  if (taxAmt > 0) totals.push({ label: `Tax / VAT (${garageSettings.vatRate ?? 18}%)`, value: fmtMoney(taxAmt) })
+  totals.push({ label: 'Grand Total', value: fmtMoney(grand), bold: true })
+
+  // ── Job / vehicle facts ──
+  const facts: [string, string][] = [['Job Card', job?.jobCardNumber || '\u2014']]
+  if (vehicle) {
+    facts.push(['Vehicle', (vehicle.registrationNumber || '\u2014') + ' \u2014 ' + [vehicle.make, vehicle.model].filter(Boolean).join(' ')])
+  }
+  if (isInsurance && job?.insurer)        facts.push(['Insurer', job.insurer])
+  if (isInsurance && job?.claimReference) facts.push(['Claim Ref', job.claimReference])
+
+  const factsHtml = '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 4px;">' +
+    facts.map(([k, v]) =>
+      `<tr><td style="padding:2px 14px 2px 0;font-size:12px;color:#94a3b8;">${escHtml(k)}</td>` +
+      `<td style="padding:2px 0;font-size:13px;color:#0f172a;font-weight:600;">${escHtml(v)}</td></tr>`).join('') +
+    '</table>'
+
+  const closing = isInsurance
+    ? 'Please review and revert with your approval at your earliest convenience. Repair work begins once written approval is received.'
+    : 'Kindly review the estimate below. This quotation is valid for 14 days. Please contact us to confirm and schedule the repair.'
+
+  // A custom message from the modal replaces the default intro paragraph.
+  const intro = body.message?.trim()
+    ? `<p style="margin:0 0 16px;white-space:pre-line;">${escHtml(body.message.trim())}</p>`
+    : `<p style="margin:0 0 14px;">Dear ${escHtml(customer?.name || 'Valued Customer')},</p>` +
+      `<p style="margin:0 0 16px;">Please find below the ${escHtml(docLabel.toLowerCase())} for the work on your vehicle` +
+      (vehicle?.registrationNumber ? ` <strong>${escHtml(vehicle.registrationNumber)}</strong>` : '') +
+      `.${body.pdfBase64 ? ' A PDF copy is attached for your records.' : ''}</p>`
+
+  const html = renderBrandedEmail({
+    origin: reqOrigin(c),
+    subject: body.subject || docLabel,
+    docLabel,
+    headline: docLabel + (job?.jobCardNumber ? ' \u2014 ' + job.jobCardNumber : ''),
+    subhead: vehicle ? [vehicle.registrationNumber, vehicle.make, vehicle.model].filter(Boolean).join(' \u00B7 ') : '',
+    bodyHtml:
+      intro + factsHtml +
+      renderItemsTable(rows, { itemLabel: 'Services & Parts', totals }) +
+      (pfi.notes ? `<p style="margin:14px 0 0;padding:10px 12px;background:#f5f6fc;border-radius:8px;font-size:13px;color:#475569;"><strong>Notes:</strong> ${escHtml(pfi.notes)}</p>` : '') +
+      `<p style="margin:16px 0 0;">${escHtml(closing)}</p>`,
+  })
+
+  // ── Attachment (PDF produced client-side) ──
+  const attachments: Attachment[] = []
+  if (body.pdfBase64) {
+    const clean = body.pdfBase64.replace(/^data:[^;]+;base64,/, '')
+    // SendGrid caps total message size at ~30MB; base64 inflates by ~33%.
+    if (clean.length > 20_000_000) {
+      return c.json({ ok: false, message: 'PDF attachment is too large to email.' }, 413)
+    }
+    attachments.push({
+      filename: body.pdfFilename || `${isInsurance ? 'PFI' : 'Quotation'}-${pfi.id.toUpperCase()}.pdf`,
+      content: clean,
+      type: 'application/pdf',
+    })
+  }
+
+  const subject = body.subject || `${docLabel} \u2013 ${job?.jobCardNumber || pfi.id.toUpperCase()} | ${garageSettings.garageName}`
+  const result  = await sendEmail({ to, toName: customer?.name, subject, html, attachments })
+
+  // Record the dispatch attempt either way
+  customerNotifDispatches.unshift({
+    id: 'cnd' + genId(),
+    channel: 'email',
+    recipientEmail: to,
+    recipientName: customer?.name || '',
+    subject,
+    body: htmlToText(html).slice(0, 800),
+    triggerEvent: isInsurance ? 'pfi_emailed' : 'quotation_emailed',
+    jobCardId: job?.id,
+    customerId: customer?.id,
+    status: result.ok ? 'sent' : 'failed',
+    errorMessage: result.ok ? undefined : result.message,
+    sentAt: now(),
+  } as CustomerNotifDispatch)
+  if (customerNotifDispatches.length > 1000) customerNotifDispatches.splice(1000)
+
+  if (!result.ok) {
+    // Do NOT mark the PFI as sent when delivery failed — that would be a lie.
+    return c.json({ ok: false, status: result.status, message: result.message }, 502)
+  }
+
+  // Delivery succeeded — now advance the PFI state
+  let newStatus = pfi.status
+  if (isInsurance && pfi.status === 'Draft') newStatus = 'Submitted'
+  if (!isInsurance && pfi.status === 'Draft') newStatus = 'Sent'
+  pfis[idx] = { ...pfi, sentAt: now(), sentTo: to, status: newStatus }
+
+  if (job) {
+    activityLog.push({
+      id: 'a' + genId(), jobCardId: pfi.jobCardId, action: 'PFI_SENT',
+      description: `${docLabel} emailed to ${to}` + (attachments.length ? ' with PDF attached' : ''),
+      userId: (c as any).user?.id || 'system',
+      userName: (c as any).user?.name || 'System',
+      timestamp: now(),
+    })
+    addNotification('pfi_sent', 'info', docLabel + ' Sent',
+      `${docLabel} for ${job.jobCardNumber} emailed to ${to}`,
+      { jobCardId: job.id, jobCardNumber: job.jobCardNumber, entityId: pfi.id, entityType: 'pfi' })
+  }
+
+  return c.json({ ok: true, message: result.message, pfi: pfis[idx], attached: attachments.length > 0 })
+})
+
+/**
+ * POST /invoices/:id/email — send a branded invoice, optionally with PDF.
+ */
+api.post('/invoices/:id/email', async (c) => {
+  const inv = invoices.find(i => i.id === c.req.param('id'))
+  if (!inv) return c.json({ error: 'Not found' }, 404)
+
+  const body = await c.req.json<{ to?: string; subject?: string; message?: string; pdfBase64?: string; pdfFilename?: string }>()
+  const job      = jobCards.find(j => j.id === inv.jobCardId)
+  const customer = job ? customers.find(cu => cu.id === job.customerId) : null
+  const vehicle  = job ? vehicles.find(v => v.id === job.vehicleId) : null
+
+  const to = (body.to || customer?.email || '').trim()
+  if (!to) return c.json({ ok: false, message: 'Recipient email is required.' }, 400)
+
+  const cfg = emailConfigured()
+  if (!cfg.ok) return c.json({ ok: false, status: 'disabled', message: cfg.reason }, 400)
+
+  const paid    = inv.amountPaid || 0
+  const balance = Math.max(0, (inv.totalAmount || 0) - paid)
+  const totals: EmailTotalRow[] = [
+    { label: 'Labour',           value: fmtMoney(inv.labourCost || 0) },
+    { label: 'Services + Parts', value: fmtMoney(inv.partsCost || 0) },
+  ]
+  if (inv.discountAmount) totals.push({ label: 'Discount', value: '- ' + fmtMoney(inv.discountAmount) })
+  if (inv.tax)            totals.push({ label: `Tax / VAT (${garageSettings.vatRate ?? 18}%)`, value: fmtMoney(inv.tax) })
+  totals.push({ label: 'Total', value: fmtMoney(inv.totalAmount || 0), bold: true })
+  if (paid > 0)     totals.push({ label: 'Paid',              value: fmtMoney(paid) })
+  if (balance > 0)  totals.push({ label: 'Balance Due',       value: fmtMoney(balance), bold: true })
+
+  const facts: [string, string][] = [
+    ['Invoice', inv.invoiceNumber || '\u2014'],
+    ['Status',  inv.status || '\u2014'],
+  ]
+  if (job?.jobCardNumber) facts.push(['Job Card', job.jobCardNumber])
+  if (vehicle) facts.push(['Vehicle', (vehicle.registrationNumber || '') + ' \u2014 ' + [vehicle.make, vehicle.model].filter(Boolean).join(' ')])
+  if (inv.dueDate) facts.push(['Due Date', inv.dueDate])
+
+  const factsHtml = '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 4px;">' +
+    facts.map(([k, v]) =>
+      `<tr><td style="padding:2px 14px 2px 0;font-size:12px;color:#94a3b8;">${escHtml(k)}</td>` +
+      `<td style="padding:2px 0;font-size:13px;color:#0f172a;font-weight:600;">${escHtml(v)}</td></tr>`).join('') +
+    '</table>'
+
+  const bank = garageSettings.bankDetails
+    ? `<div style="margin:16px 0 0;padding:12px 14px;background:#f5f6fc;border-left:3px solid ${garageSettings.brandPrimary || '#122886'};border-radius:6px;">` +
+      `<div style="font-size:11px;font-weight:700;color:${garageSettings.brandPrimary || '#122886'};text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Payment Details</div>` +
+      `<div style="font-size:13px;color:#475569;white-space:pre-line;">${escHtml(garageSettings.bankDetails)}</div></div>`
+    : ''
+
+  const intro = body.message?.trim()
+    ? `<p style="margin:0 0 16px;white-space:pre-line;">${escHtml(body.message.trim())}</p>`
+    : `<p style="margin:0 0 14px;">Dear ${escHtml(customer?.name || 'Valued Customer')},</p>` +
+      `<p style="margin:0 0 16px;">Please find below invoice <strong>${escHtml(inv.invoiceNumber || '')}</strong> for work completed on your vehicle` +
+      (vehicle?.registrationNumber ? ` <strong>${escHtml(vehicle.registrationNumber)}</strong>` : '') +
+      `.${body.pdfBase64 ? ' A PDF copy is attached.' : ''}</p>`
+
+  const html = renderBrandedEmail({
+    origin: reqOrigin(c),
+    subject: body.subject || 'Invoice ' + inv.invoiceNumber,
+    docLabel: 'Invoice',
+    headline: 'Invoice ' + (inv.invoiceNumber || ''),
+    subhead: vehicle ? [vehicle.registrationNumber, vehicle.make, vehicle.model].filter(Boolean).join(' \u00B7 ') : '',
+    bodyHtml:
+      intro + factsHtml +
+      renderItemsTable([], { totals }) +
+      bank +
+      (inv.status === 'Paid'
+        ? '<p style="margin:16px 0 0;color:#15803d;font-weight:600;">This invoice has been paid in full. Thank you.</p>'
+        : `<p style="margin:16px 0 0;">${escHtml(garageSettings.invoiceFooterNote || 'Thank you for your business.')}</p>`),
+  })
+
+  const attachments: Attachment[] = []
+  if (body.pdfBase64) {
+    const clean = body.pdfBase64.replace(/^data:[^;]+;base64,/, '')
+    if (clean.length > 20_000_000) return c.json({ ok: false, message: 'PDF attachment is too large to email.' }, 413)
+    attachments.push({ filename: body.pdfFilename || `${inv.invoiceNumber || 'Invoice'}.pdf`.replace(/\//g, '-'), content: clean, type: 'application/pdf' })
+  }
+
+  const subject = body.subject || `Invoice ${inv.invoiceNumber} | ${garageSettings.garageName}`
+  const result  = await sendEmail({ to, toName: customer?.name, subject, html, attachments })
+
+  customerNotifDispatches.unshift({
+    id: 'cnd' + genId(),
+    channel: 'email',
+    recipientEmail: to,
+    recipientName: customer?.name || '',
+    subject,
+    body: htmlToText(html).slice(0, 800),
+    triggerEvent: 'invoice_emailed',
+    jobCardId: job?.id,
+    customerId: customer?.id,
+    status: result.ok ? 'sent' : 'failed',
+    errorMessage: result.ok ? undefined : result.message,
+    sentAt: now(),
+  } as CustomerNotifDispatch)
+  if (customerNotifDispatches.length > 1000) customerNotifDispatches.splice(1000)
+
+  if (!result.ok) return c.json({ ok: false, status: result.status, message: result.message }, 502)
+
+  if (job) {
+    activityLog.push({
+      id: 'a' + genId(), jobCardId: inv.jobCardId, action: 'INVOICE_SENT',
+      description: `Invoice ${inv.invoiceNumber} emailed to ${to}` + (attachments.length ? ' with PDF attached' : ''),
+      userId: (c as any).user?.id || 'system',
+      userName: (c as any).user?.name || 'System',
+      timestamp: now(),
+    })
+  }
+
+  return c.json({ ok: true, message: result.message, attached: attachments.length > 0 })
 })
 
 // GET /settings — return current garage settings (strip secret keys)

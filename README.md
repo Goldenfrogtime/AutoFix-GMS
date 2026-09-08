@@ -144,14 +144,54 @@ All other `/api/*` routes require a `Bearer` token except `/api/auth/login`.
    update immediately.
 5. Generate one invoice and one quotation PDF to confirm the letterhead.
 
+## Automated Branded Email (SendGrid)
+
+Quotations, Pro Forma Invoices and invoices can be **sent automatically**,
+fully branded, with the PDF attached.
+
+**Setup — Settings → Notifications → Email Channel**
+1. Tick **Enable email notifications**.
+2. Provider: **SendGrid**.
+3. Paste your SendGrid **API key** (needs the *Mail Send* permission).
+4. **From Address** — must be a **verified sender** in SendGrid, or it rejects
+   the message with HTTP 403.
+5. Save, then use **Send Test** to confirm delivery end-to-end.
+
+A status pill next to "Email Channel" shows **Ready** or **Not configured**,
+and the send dialog shows the same status before you send.
+
+**Sending**: open a quote/PFI → **Send Email Now**. The PDF is generated in the
+browser (identical to the preview) and attached server-side. On failure the
+document is **not** marked as sent, and SendGrid's actual error is shown.
+
+Every attempt — success or failure — is recorded in the dispatch history.
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/email/status` | Is delivery configured? |
+| `POST /api/email/test` | Send a branded test email |
+| `POST /api/pfi/:id/email` | Send quotation / PFI + PDF |
+| `POST /api/invoices/:id/email` | Send invoice + PDF |
+
+`SENDGRID_API_BASE` can be set to target the EU endpoint
+(`https://api.eu.sendgrid.com`) or a staging server.
+
+## Live Settings Updates
+Changes saved in **Settings → Garage Profile** or **Branding** apply
+immediately across the running app — no refresh required. Saving propagates
+through `applySettingsEverywhere()`, which refreshes the settings cache used by
+PDFs and emails, re-applies brand colours and logos, clears the PDF logo raster
+cache, re-probes email status, and re-renders the current page plus any open
+document preview.
+
 ## Known Limitations
-- **Emails**: `mailto:` cannot carry HTML, so the "Open Email Client" button
-  sends the plain-text version. Use **Copy branded email** (pastes the full
-  branded layout into Gmail/Outlook) or **Download .html**. Fully automated
-  branded email delivery requires enabling the SendGrid provider in
-  Settings → Notifications with an API key.
-- **PDF attachments** are downloaded for manual attachment rather than
-  attached automatically.
+- **Other providers**: only SendGrid is implemented. Selecting Mailgun or SMTP
+  reports "not implemented" rather than silently failing to send.
+- **`mailto:` fallback**: the "Open Email Client" button sends plain text —
+  `mailto:` cannot carry HTML. Use **Send Email Now** (automated) or
+  **Copy branded email** to paste the branded layout into Gmail/Outlook.
+- **Logo in emails**: email clients need a publicly reachable URL to load the
+  logo. On localhost the image may not render in the received email.
 
 ## Deployment
 - **Platform**: Railway (Node) — `npx tsx server.mjs`; also builds for Cloudflare Pages
