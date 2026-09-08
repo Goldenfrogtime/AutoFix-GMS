@@ -13492,7 +13492,16 @@ async function copyBrandedEmailHtml() {
   var html = buildPFIEmailHtml();
   if (!html) { showToast('Nothing to copy', 'error'); return; }
   // Strip the document wrapper — clipboard wants a fragment
-  var inner = html.replace(/^[\s\S]*?<body[^>]*>/i, '').replace(/<\/body>[\s\S]*$/i, '');
+  // Extract the <body> contents without regex — inside this template literal a
+  // literal "</body>" in a pattern would terminate the surrounding <script> tag,
+  // and escape sequences get consumed. Plain string indexing is safe here.
+  var inner = html;
+  var _bodyOpen = html.toLowerCase().indexOf('<body');
+  if (_bodyOpen !== -1) {
+    var _gt = html.indexOf('>', _bodyOpen);
+    var _bodyClose = html.toLowerCase().lastIndexOf('</' + 'body>');
+    if (_gt !== -1 && _bodyClose > _gt) inner = html.substring(_gt + 1, _bodyClose);
+  }
   try {
     if (navigator.clipboard && window.ClipboardItem) {
       await navigator.clipboard.write([new ClipboardItem({

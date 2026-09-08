@@ -11,7 +11,9 @@
     "start": "npx tsx server.mjs",
     "preview": "wrangler pages dev",
     "deploy": "npm run build && wrangler pages deploy",
-    "cf-typegen": "wrangler types --env-interface CloudflareBindings"
+    "cf-typegen": "wrangler types --env-interface CloudflareBindings",
+    "check:client": "node scripts/check-client-js.mjs",
+    "verify": "npm run build && node scripts/check-client-js.mjs"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.11",
