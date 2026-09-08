@@ -186,15 +186,150 @@ export interface SendResult {
 /** Is a usable email provider configured? */
 export function emailConfigured(): { ok: boolean; reason?: string } {
   const g = garageSettings
-  if (!g.emailEnabled)                return { ok: false, reason: 'Email sending is disabled in Settings → Notifications.' }
-  if (g.emailProvider !== 'sendgrid') {
-    return g.emailProvider === 'none'
-      ? { ok: false, reason: 'No email provider selected. Choose SendGrid in Settings → Notifications.' }
-      : { ok: false, reason: `Provider "${g.emailProvider}" is not implemented yet — only SendGrid is supported.` }
+  if (!g.emailEnabled) return { ok: false, reason: 'Email sending is disabled in Settings → Notifications.' }
+
+  if (g.emailProvider === 'sendgrid') {
+    if (!g.emailApiKey) return { ok: false, reason: 'SendGrid API key is missing. Add it in Settings → Notifications.' }
+    if (!g.emailFrom)   return { ok: false, reason: 'A verified "From" address is required. Set it in Settings → Notifications.' }
+    return { ok: true }
   }
-  if (!g.emailApiKey) return { ok: false, reason: 'SendGrid API key is missing. Add it in Settings → Notifications.' }
-  if (!g.emailFrom)   return { ok: false, reason: 'A verified "From" address is required. Set it in Settings → Notifications.' }
-  return { ok: true }
+
+  if (g.emailProvider === 'smtp') {
+    if (!g.smtpHost)     return { ok: false, reason: 'SMTP host is missing (e.g. mail.yourgarage.co.tz). Add it in Settings → Notifications.' }
+    if (!g.smtpUser)     return { ok: false, reason: 'SMTP username is missing — usually your full email address.' }
+    if (!g.smtpPassword) return { ok: false, reason: 'SMTP password is missing. Add your mailbox password in Settings → Notifications.' }
+    if (!g.emailFrom && !g.smtpUser) return { ok: false, reason: 'A "From" address is required.' }
+    return { ok: true }
+  }
+
+  if (g.emailProvider === 'none') {
+    return { ok: false, reason: 'No email provider selected. Choose SMTP (cPanel) or SendGrid in Settings → Notifications.' }
+  }
+  return { ok: false, reason: `Provider "${g.emailProvider}" is not implemented — use SMTP (cPanel) or SendGrid.` }
+}
+
+/** Resolve the effective From address (SMTP servers usually require the mailbox). */
+function fromAddress(): string {
+  const g = garageSettings
+  return g.emailFrom || g.smtpUser || 'noreply@localhost'
+}
+
+function fromName(): string {
+  const g = garageSettings
+  return g.emailFromName || g.garageName || g.tradingName || 'Garage'
+}
+
+/** Sensible default port when the user leaves it blank. */
+function smtpPortAndSecure(): { port: number; secure: boolean } {
+  const g = garageSettings
+  const port = Number(g.smtpPort) || 587
+  // Port 465 is implicit TLS; 587/25 use STARTTLS. Honour an explicit override.
+  const secure = g.smtpSecure != null ? !!g.smtpSecure : port === 465
+  return { port, secure }
+}
+
+/**
+ * Turn a raw SMTP/nodemailer error into something a garage owner can act on.
+ * Shared-hosting failures are usually one of a small set of causes.
+ */
+function explainSmtpError(err: any): string {
+  const code = err?.code || ''
+  const resp = err?.response || err?.message || String(err)
+  const cmd  = err?.command ? ` (during ${err.command})` : ''
+
+  if (code === 'EAUTH' || /535|534|password|authenticat/i.test(resp)) {
+    return `The mail server rejected the username or password${cmd}. On cPanel, use the FULL email address as the username, and the mailbox password (not your cPanel login). Server said: ${resp}`
+  }
+  if (code === 'ECONNREFUSED') {
+    return `Connection refused — the host or port is wrong, or the server is not accepting SMTP there. Try port 465 (SSL) or 587 (TLS). Server said: ${resp}`
+  }
+  if (code === 'ETIMEDOUT' || code === 'ESOCKET' && /timed?.?out/i.test(resp)) {
+    return `Connection timed out. The SMTP port is likely blocked, or the hostname is wrong. Try mail.yourdomain.com on port 465 or 587. Details: ${resp}`
+  }
+  if (code === 'EDNS' || /ENOTFOUND|getaddrinfo/i.test(resp)) {
+    return `The SMTP hostname could not be found. Check for typos — it is usually mail.yourdomain.com. Details: ${resp}`
+  }
+  if (/self.signed|certificate|SSL|TLS/i.test(resp)) {
+    return `TLS/certificate problem — common on shared hosting with a shared certificate. Try enabling "Allow self-signed certificate", or switch between port 465 and 587. Details: ${resp}`
+  }
+  if (/550|551|553|relay/i.test(resp)) {
+    return `The server refused to relay this message. The "From" address usually must match the SMTP mailbox. Server said: ${resp}`
+  }
+  return `SMTP error${cmd}: ${resp}`
+}
+
+/** Verify SMTP credentials without sending a message (nodemailer verify()). */
+export async function verifySmtp(): Promise<SendResult> {
+  const g = garageSettings
+  if (g.emailProvider !== 'smtp') {
+    return { ok: false, status: 'unsupported', message: 'SMTP is not the selected provider.' }
+  }
+  const cfg = emailConfigured()
+  if (!cfg.ok) return { ok: false, status: 'disabled', message: cfg.reason! }
+
+  try {
+    const nodemailer = (await import('nodemailer')).default
+    const { port, secure } = smtpPortAndSecure()
+    const transport = nodemailer.createTransport({
+      host: g.smtpHost, port, secure,
+      auth: { user: g.smtpUser, pass: g.smtpPassword },
+      tls: { rejectUnauthorized: g.smtpRejectUnauthorized !== false },
+      connectionTimeout: 15000, greetingTimeout: 10000, socketTimeout: 20000,
+    })
+    await transport.verify()
+    transport.close()
+    return { ok: true, status: 'sent', message: `Connected to ${g.smtpHost}:${port} and authenticated successfully.` }
+  } catch (err: any) {
+    return { ok: false, status: 'failed', message: explainSmtpError(err) }
+  }
+}
+
+/** Send through a standard SMTP server (cPanel, Google Workspace, etc.). */
+async function sendViaSmtp(opts: {
+  to: string; toName?: string; subject: string; html: string
+  text?: string; attachments?: Attachment[]; replyTo?: string
+}): Promise<SendResult> {
+  const g = garageSettings
+  try {
+    const nodemailer = (await import('nodemailer')).default
+    const { port, secure } = smtpPortAndSecure()
+
+    const transport = nodemailer.createTransport({
+      host: g.smtpHost,
+      port,
+      secure,
+      auth: { user: g.smtpUser, pass: g.smtpPassword },
+      // Shared hosts frequently present certificates that don't match the
+      // hostname. Default to strict, but let the user relax it explicitly.
+      tls: { rejectUnauthorized: g.smtpRejectUnauthorized !== false },
+      connectionTimeout: 20000,
+      greetingTimeout: 10000,
+      socketTimeout: 30000,
+    })
+
+    const info = await transport.sendMail({
+      from: { name: fromName(), address: fromAddress() },
+      to: opts.toName ? { name: opts.toName, address: opts.to } : opts.to,
+      subject: opts.subject,
+      text: opts.text || htmlToText(opts.html),
+      html: opts.html,
+      replyTo: opts.replyTo || g.email || undefined,
+      attachments: (opts.attachments || []).map(a => ({
+        filename: a.filename,
+        content: Buffer.from(a.content, 'base64'),
+        contentType: a.type || 'application/pdf',
+      })),
+    })
+    transport.close()
+
+    // A rejected recipient still resolves — surface it rather than claiming success.
+    if (info.rejected && info.rejected.length) {
+      return { ok: false, status: 'failed', message: `The mail server rejected: ${info.rejected.join(', ')}` }
+    }
+    return { ok: true, status: 'sent', message: `Email accepted by ${g.smtpHost} (${info.messageId || 'queued'}).` }
+  } catch (err: any) {
+    return { ok: false, status: 'failed', message: explainSmtpError(err) }
+  }
 }
 
 /**
@@ -214,9 +349,13 @@ export async function sendEmail(opts: {
   if (!cfg.ok) return { ok: false, status: 'disabled', message: cfg.reason! }
 
   const g = garageSettings
+
+  // ── Route to the configured transport ──
+  if (g.emailProvider === 'smtp') return sendViaSmtp(opts)
+
   const payload: any = {
     personalizations: [{ to: [{ email: opts.to, ...(opts.toName ? { name: opts.toName } : {}) }] }],
-    from: { email: g.emailFrom, name: g.garageName || g.tradingName || 'Garage' },
+    from: { email: fromAddress(), name: fromName() },
     subject: opts.subject,
     content: [
       { type: 'text/plain', value: opts.text || htmlToText(opts.html) },

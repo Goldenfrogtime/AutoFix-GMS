@@ -2544,21 +2544,71 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
               <div id="emailSettingsBody" class="space-y-3">
                 <div>
                   <label class="form-label">Provider</label>
-                  <select class="form-input" id="sett-emailProvider">
+                  <select class="form-input" id="sett-emailProvider" onchange="onEmailProviderChange()">
                     <option value="none">None / Not configured</option>
-                    <option value="sendgrid">SendGrid</option>
-                    <option value="mailgun">Mailgun</option>
-                    <option value="smtp">SMTP (generic)</option>
+                    <option value="smtp">SMTP — cPanel / shared hosting</option>
+                    <option value="sendgrid">SendGrid (API)</option>
+                    <option value="mailgun">Mailgun (not yet supported)</option>
                   </select>
                 </div>
-                <div>
-                  <label class="form-label">API Key / Password</label>
-                  <input class="form-input" id="sett-emailApiKey" type="password" placeholder="Enter API key…" autocomplete="new-password"/>
+
+                <!-- ── SMTP fields (cPanel and most shared hosting) ────────── -->
+                <div id="emailSmtpFields" class="space-y-3 hidden">
+                  <div class="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-800">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    <strong>Using cPanel?</strong> In cPanel go to <em>Email Accounts → Connect Devices</em> to find these values.
+                    The username is normally your <strong>full email address</strong>, and the password is the
+                    <strong>mailbox password</strong> — not your cPanel login.
+                  </div>
+                  <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div class="sm:col-span-2">
+                      <label class="form-label">SMTP Host</label>
+                      <input class="form-input" id="sett-smtpHost" placeholder="mail.yourgarage.co.tz"/>
+                    </div>
+                    <div>
+                      <label class="form-label">Port</label>
+                      <select class="form-input" id="sett-smtpPort" onchange="onSmtpPortChange()">
+                        <option value="465">465 (SSL)</option>
+                        <option value="587">587 (TLS)</option>
+                        <option value="25">25 (plain)</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label class="form-label">Username</label>
+                      <input class="form-input" id="sett-smtpUser" placeholder="info@yourgarage.co.tz" autocomplete="off"/>
+                    </div>
+                    <div>
+                      <label class="form-label">Mailbox Password</label>
+                      <input class="form-input" id="sett-smtpPassword" type="password" placeholder="Enter password…" autocomplete="new-password"/>
+                    </div>
+                  </div>
+                  <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" class="w-4 h-4 rounded accent-blue-600" id="sett-smtpAllowSelfSigned"/>
+                    <span class="text-xs text-gray-600">Allow self-signed / mismatched certificate <span class="text-gray-400">(try this if you get a TLS error on shared hosting)</span></span>
+                  </label>
+                  <button class="btn-secondary text-sm" onclick="verifySmtpConnection()">
+                    <i class="fas fa-plug mr-1"></i><span id="sett-smtpVerifyLabel">Test Connection</span>
+                  </button>
+                  <div id="sett-smtpVerifyResult" class="hidden text-xs rounded-lg px-3 py-2"></div>
                 </div>
+
+                <!-- ── SendGrid fields ─────────────────────────────────────── -->
+                <div id="emailApiFields" class="hidden">
+                  <label class="form-label">API Key</label>
+                  <input class="form-input" id="sett-emailApiKey" type="password" placeholder="Enter API key…" autocomplete="new-password"/>
+                  <p class="text-xs text-gray-400 mt-1">Needs the <strong>Mail Send</strong> permission.</p>
+                </div>
+
                 <div>
                   <label class="form-label">From Address</label>
-                  <input class="form-input" type="email" id="sett-emailFrom" placeholder="noreply@garage.co.tz"/>
-                  <p class="text-xs text-gray-400 mt-1">Must be a <strong>verified sender</strong> in your SendGrid account, or SendGrid will reject the message.</p>
+                  <input class="form-input" type="email" id="sett-emailFrom" placeholder="info@yourgarage.co.tz"/>
+                  <p class="text-xs text-gray-400 mt-1" id="sett-emailFromHint">For SMTP this should normally match the mailbox username, or the server may refuse to relay.</p>
+                </div>
+                <div>
+                  <label class="form-label">From Name <span class="text-gray-400 font-normal">(optional)</span></label>
+                  <input class="form-input" id="sett-emailFromName" placeholder="Defaults to your garage name"/>
                 </div>
 
                 <!-- Test delivery -->
@@ -20825,13 +20875,22 @@ function _fillSettingsForm(s) {
     'currency','vatRate','invoiceFooterNote',
     'invoicePrefix','jobCardPrefix','pfiPrefix',
     'smsProvider','smsApiKey','smsSenderId',
-    'emailProvider','emailApiKey','emailFrom',
+    'emailProvider','emailApiKey','emailFrom','emailFromName',
+    'smtpHost','smtpPort','smtpUser','smtpPassword',
     'whatsappNumber'
   ];
   ids.forEach(function(k) {
     var el = document.getElementById('sett-' + k);
     if (el) el.value = s[k] != null ? s[k] : '';
   });
+  // Port defaults to 465 (SSL) when unset — the most common cPanel choice
+  var portEl = document.getElementById('sett-smtpPort');
+  if (portEl && !s.smtpPort) portEl.value = '465';
+  // Inverted checkbox: stored as smtpRejectUnauthorized, shown as "allow self-signed"
+  var ssEl = document.getElementById('sett-smtpAllowSelfSigned');
+  if (ssEl) ssEl.checked = s.smtpRejectUnauthorized === false;
+  // Reveal the right provider block
+  if (typeof onEmailProviderChange === 'function') onEmailProviderChange();
   // Checkboxes
   var cbs = ['notifyOnJobCreate','notifyOnJobStatus','notifyOnJobComplete',
              'notifyOnInvoicePaid','notifyOnAppointment',
@@ -20842,14 +20901,15 @@ function _fillSettingsForm(s) {
   });
 }
 
-async function saveGarageSettings() {
+async function saveGarageSettings(silent) {
   var payload = {};
   var textIds = [
     'garageName','address','phone','email','website','tinNumber',
     'currency','invoiceFooterNote',
     'invoicePrefix','jobCardPrefix','pfiPrefix',
     'smsProvider','smsApiKey','smsSenderId',
-    'emailProvider','emailApiKey','emailFrom',
+    'emailProvider','emailApiKey','emailFrom','emailFromName',
+    'smtpHost','smtpPort','smtpUser','smtpPassword',
     'whatsappNumber'
   ];
   textIds.forEach(function(k) {
@@ -20873,13 +20933,28 @@ async function saveGarageSettings() {
   // Also strip if it looks like it was pre-masked (contains only dots)
   if (payload.smsApiKey   && /^[•\*\.]+$/.test(payload.smsApiKey))   delete payload.smsApiKey;
   if (payload.emailApiKey && /^[•\*\.]+$/.test(payload.emailApiKey)) delete payload.emailApiKey;
+  // Same for the SMTP mailbox password (GET returns it masked)
+  if (payload.smtpPassword && /^[•\*\.]+$/.test(payload.smtpPassword)) delete payload.smtpPassword;
+
+  // SMTP port: numeric, and omit when blank so the server keeps its default
+  if (payload.smtpPort === '') delete payload.smtpPort;
+  else if (payload.smtpPort != null) payload.smtpPort = parseInt(payload.smtpPort, 10);
+
+  // Checkbox is phrased positively for the user ("allow self-signed") but the
+  // setting is stored as the stricter smtpRejectUnauthorized.
+  var ssEl = document.getElementById('sett-smtpAllowSelfSigned');
+  if (ssEl) payload.smtpRejectUnauthorized = !ssEl.checked;
 
   try {
     var res = await axios.patch('/api/settings', payload);
     // Reflect the saved values everywhere immediately — no reload required.
     await applySettingsEverywhere(res.data && res.data.settings);
-    showToast('Settings saved and applied', 'success');
-  } catch(e) { showToast('Failed to save settings', 'error'); }
+    if (!silent) showToast('Settings saved and applied', 'success');
+    return true;
+  } catch(e) {
+    showToast('Failed to save settings: ' + (e.response?.data?.error || e.message), 'error');
+    return false;
+  }
 }
 
 /**
@@ -21089,6 +21164,55 @@ async function saveBranding() {
     showToast('Branding saved — logos and colours applied across the system', 'success');
   } catch(e) {
     showToast('Failed to save branding: ' + (e.response?.data?.error || e.message), 'error');
+  }
+}
+
+/** Show only the fields relevant to the selected email provider. */
+function onEmailProviderChange() {
+  var prov = (document.getElementById('sett-emailProvider') || {}).value || 'none';
+  var smtp = document.getElementById('emailSmtpFields');
+  var api  = document.getElementById('emailApiFields');
+  var hint = document.getElementById('sett-emailFromHint');
+  if (smtp) smtp.classList.toggle('hidden', prov !== 'smtp');
+  if (api)  api.classList.toggle('hidden',  prov !== 'sendgrid');
+  if (hint) {
+    hint.innerHTML = prov === 'sendgrid'
+      ? 'Must be a <strong>verified sender</strong> in your SendGrid account, or SendGrid will reject the message.'
+      : 'For SMTP this should normally match the mailbox username, or the server may refuse to relay.';
+  }
+}
+
+/** Keep the TLS mode sensible when the port changes. */
+function onSmtpPortChange() {
+  // 465 = implicit SSL, 587/25 = STARTTLS. Handled server-side; this is a hint only.
+  var host = document.getElementById('sett-smtpHost');
+  if (host && !host.value) host.focus();
+}
+
+/** Test the SMTP connection without sending an email. */
+async function verifySmtpConnection() {
+  var label = document.getElementById('sett-smtpVerifyLabel');
+  var out   = document.getElementById('sett-smtpVerifyResult');
+  function show(ok, msg) {
+    if (!out) return;
+    out.className = 'text-xs rounded-lg px-3 py-2 ' +
+      (ok ? 'bg-green-50 border border-green-200 text-green-800'
+          : 'bg-red-50 border border-red-200 text-red-700');
+    out.innerHTML = '<i class="fas ' + (ok ? 'fa-check-circle' : 'fa-exclamation-circle') + ' mr-1"></i>' + _esc(msg);
+    out.classList.remove('hidden');
+  }
+  if (label) label.textContent = 'Testing…';
+  try {
+    // Save first so the server tests what the user actually typed
+    await saveGarageSettings(true);
+    var r = await axios.post('/api/email/verify', {});
+    show(true, r.data.message || 'Connection successful.');
+  } catch(e) {
+    show(false, e.response?.data?.message || e.message || 'Connection failed.');
+  } finally {
+    if (label) label.textContent = 'Test Connection';
+    await refreshMailStatus(true);
+    _renderEmailStatusBadge();
   }
 }
 

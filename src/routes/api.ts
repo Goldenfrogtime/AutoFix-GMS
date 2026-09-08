@@ -33,7 +33,7 @@ import {
 } from '../data/store'
 import { save } from '../data/persist'
 import {
-  renderBrandedEmail, renderItemsTable, sendEmail, emailConfigured,
+  renderBrandedEmail, renderItemsTable, sendEmail, emailConfigured, verifySmtp,
   htmlToText, esc as escHtml,
   type EmailItemRow, type EmailTotalRow, type Attachment,
 } from '../data/email'
@@ -4386,14 +4386,30 @@ function reqOrigin(c: any): string {
 // GET /email/status — is email delivery ready? Drives the Settings indicator.
 api.get('/email/status', (c) => {
   const cfg = emailConfigured()
+  const g = garageSettings
   return c.json({
     configured: cfg.ok,
     reason:     cfg.reason || null,
-    provider:   garageSettings.emailProvider || 'none',
-    enabled:    !!garageSettings.emailEnabled,
-    from:       garageSettings.emailFrom || null,
-    hasApiKey:  !!garageSettings.emailApiKey,
+    provider:   g.emailProvider || 'none',
+    enabled:    !!g.emailEnabled,
+    from:       g.emailFrom || g.smtpUser || null,
+    hasApiKey:  !!g.emailApiKey,
+    // SMTP-specific detail so the UI can show what it will connect to
+    smtpHost:   g.smtpHost || null,
+    smtpPort:   g.smtpPort || null,
+    hasSmtpPassword: !!g.smtpPassword,
   })
+})
+
+// POST /email/verify — check SMTP host/credentials WITHOUT sending a message.
+// Faster and safer than a test send when diagnosing cPanel setups.
+api.post('/email/verify', async (c) => {
+  const _pv = requirePerm(c, 'settings.manage'); if (_pv) return _pv
+  if (garageSettings.emailProvider !== 'smtp') {
+    return c.json({ ok: false, message: 'Connection test applies to SMTP only. For SendGrid, use "Send Test".' }, 400)
+  }
+  const result = await verifySmtp()
+  return c.json({ ok: result.ok, message: result.message }, result.ok ? 200 : 502)
 })
 
 // POST /email/test — send a branded test email to prove the setup works.
@@ -4721,9 +4737,11 @@ api.post('/invoices/:id/email', async (c) => {
 // GET /settings — return current garage settings (strip secret keys)
 api.get('/settings', (c) => {
   const safe = { ...garageSettings }
-  // Mask API keys in GET response (show only last 4 chars)
+  // Mask secrets in GET response (show only last 4 chars)
   if (safe.smsApiKey) safe.smsApiKey = '••••' + safe.smsApiKey.slice(-4)
   if (safe.emailApiKey) safe.emailApiKey = '••••' + safe.emailApiKey.slice(-4)
+  // SMTP mailbox password — never echo it back in full
+  if (safe.smtpPassword) safe.smtpPassword = '••••••••'
   return c.json(safe)
 })
 
@@ -4733,6 +4751,25 @@ api.patch('/settings', async (c) => {
   const body = await c.req.json<Partial<GarageSettings>>()
   // Reject attempts to patch updatedAt directly
   delete (body as any).updatedAt
+
+  // Never let a masked placeholder overwrite a real stored secret. The GET
+  // response masks these, so an unedited form would otherwise save the mask.
+  const isMasked = (v: unknown) => typeof v === 'string' && /^[•*.]+$/.test(v.trim())
+  if (isMasked(body.smtpPassword)) delete body.smtpPassword
+  if (isMasked(body.emailApiKey))  delete body.emailApiKey
+  if (isMasked(body.smsApiKey))    delete body.smsApiKey
+
+  // Normalise SMTP port to a number (form inputs deliver strings)
+  if (body.smtpPort != null && body.smtpPort !== ('' as any)) {
+    const p = Number(body.smtpPort)
+    if (!Number.isFinite(p) || p < 1 || p > 65535) {
+      return c.json({ error: 'SMTP port must be a number between 1 and 65535.' }, 400)
+    }
+    body.smtpPort = p
+  } else if (body.smtpPort === ('' as any)) {
+    delete body.smtpPort
+  }
+
   updateGarageSettings(body)
   return c.json({ ok: true, settings: garageSettings })
 })

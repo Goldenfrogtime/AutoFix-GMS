@@ -144,18 +144,32 @@ All other `/api/*` routes require a `Bearer` token except `/api/auth/login`.
    update immediately.
 5. Generate one invoice and one quotation PDF to confirm the letterhead.
 
-## Automated Branded Email (SendGrid)
+## Automated Branded Email
 
 Quotations, Pro Forma Invoices and invoices can be **sent automatically**,
-fully branded, with the PDF attached.
+fully branded, with the PDF attached. Two providers are supported.
 
-**Setup — Settings → Notifications → Email Channel**
-1. Tick **Enable email notifications**.
-2. Provider: **SendGrid**.
-3. Paste your SendGrid **API key** (needs the *Mail Send* permission).
-4. **From Address** — must be a **verified sender** in SendGrid, or it rejects
-   the message with HTTP 403.
-5. Save, then use **Send Test** to confirm delivery end-to-end.
+### Option A — SMTP (cPanel / shared hosting) — recommended for most garages
+Sends through your existing hosting mailbox. No third-party account needed.
+
+**Settings → Notifications → Email Channel**
+1. Tick **Enable email notifications**, provider **SMTP — cPanel / shared hosting**.
+2. **SMTP Host** — usually `mail.yourdomain.com`
+3. **Port** — `465 (SSL)` is the common cPanel default; `587 (TLS)` also works
+4. **Username** — your **full email address** (not just the mailbox name)
+5. **Password** — the **mailbox password**, *not* your cPanel login
+6. **From Address** — should match the mailbox, or the server may refuse to relay
+7. Press **Test Connection** (checks login without sending), then **Send Test**
+
+> Find these in cPanel under **Email Accounts → Connect Devices**.
+
+If TLS fails with a certificate error — common on shared hosting with a shared
+cert — tick **Allow self-signed / mismatched certificate**.
+
+### Option B — SendGrid (API)
+1. Provider **SendGrid**, paste an API key with the **Mail Send** permission.
+2. **From Address** must be a **verified sender**, or SendGrid returns HTTP 403.
+3. Save, then **Send Test**.
 
 A status pill next to "Email Channel" shows **Ready** or **Not configured**,
 and the send dialog shows the same status before you send.
@@ -170,6 +184,7 @@ Every attempt — success or failure — is recorded in the dispatch history.
 |---|---|
 | `GET /api/email/status` | Is delivery configured? |
 | `POST /api/email/test` | Send a branded test email |
+| `POST /api/email/verify` | Test SMTP login without sending |
 | `POST /api/pfi/:id/email` | Send quotation / PFI + PDF |
 | `POST /api/invoices/:id/email` | Send invoice + PDF |
 
@@ -185,8 +200,13 @@ cache, re-probes email status, and re-renders the current page plus any open
 document preview.
 
 ## Known Limitations
-- **Other providers**: only SendGrid is implemented. Selecting Mailgun or SMTP
-  reports "not implemented" rather than silently failing to send.
+- **Mailgun** is not implemented — selecting it reports that clearly rather
+  than silently failing. Use SMTP or SendGrid.
+- **Outbound SMTP ports** must be open from wherever the app is hosted. Railway
+  permits 465/587/25; some PaaS providers block them, in which case use SendGrid.
+- **SMTP is Node-only.** It uses TCP sockets via nodemailer, so it works on the
+  Railway/Node deployment but NOT on Cloudflare Workers, which cannot open raw
+  sockets. On Cloudflare, use SendGrid (HTTPS API).
 - **`mailto:` fallback**: the "Open Email Client" button sends plain text —
   `mailto:` cannot carry HTML. Use **Send Email Now** (automated) or
   **Copy branded email** to paste the branded layout into Gmail/Outlook.

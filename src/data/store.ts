@@ -1277,6 +1277,18 @@ export interface GarageSettings {
   emailProvider: 'smtp' | 'sendgrid' | 'mailgun' | 'none'
   emailApiKey?: string
   emailFrom?: string
+  emailFromName?: string      // display name on outgoing mail (defaults to garage name)
+
+  // ── SMTP (cPanel / shared hosting / any standard mail server) ──────────────
+  // Used when emailProvider === 'smtp'. This is the common setup for garages
+  // on cPanel hosting, where mail is sent through the hosting mailbox rather
+  // than a third-party API.
+  smtpHost?: string           // e.g. mail.yourgarage.co.tz
+  smtpPort?: number           // 465 (SSL) | 587 (STARTTLS) | 25
+  smtpSecure?: boolean        // true for implicit TLS on 465
+  smtpUser?: string           // usually the full email address
+  smtpPassword?: string       // mailbox password (stored server-side, masked in GET)
+  smtpRejectUnauthorized?: boolean  // false tolerates self-signed shared-host certs
   whatsappEnabled: boolean
   whatsappNumber?: string     // Twilio / 360dialog number
 
