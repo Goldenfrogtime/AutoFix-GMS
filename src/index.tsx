@@ -2554,6 +2554,12 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 
                 <!-- ── SMTP fields (cPanel and most shared hosting) ────────── -->
                 <div id="emailSmtpFields" class="space-y-3 hidden">
+                  <div id="smtpHostWarning" class="hidden bg-amber-50 border border-amber-300 rounded-lg px-3 py-2 text-xs text-amber-900">
+                    <i class="fas fa-triangle-exclamation mr-1"></i>
+                    <strong>This server blocks outbound SMTP.</strong> Sending will time out here.
+                    Use <strong>SendGrid</strong> on this deployment, or host the system somewhere
+                    that allows outbound SMTP. Press <em>Test Connection</em> to confirm.
+                  </div>
                   <div class="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-800">
                     <i class="fas fa-info-circle mr-1"></i>
                     <strong>Using cPanel?</strong> In cPanel go to <em>Email Accounts → Connect Devices</em> to find these values.
@@ -21207,8 +21213,15 @@ async function verifySmtpConnection() {
     await saveGarageSettings(true);
     var r = await axios.post('/api/email/verify', {});
     show(true, r.data.message || 'Connection successful.');
+    var wOk = document.getElementById('smtpHostWarning');
+    if (wOk) wOk.classList.add('hidden');
   } catch(e) {
-    show(false, e.response?.data?.message || e.message || 'Connection failed.');
+    var msg = e.response?.data?.message || e.message || 'Connection failed.';
+    show(false, msg);
+    // A timeout almost always means the host blocks outbound SMTP (e.g. Railway,
+    // many PaaS). Surface the workaround instead of leaving the user guessing.
+    var w = document.getElementById('smtpHostWarning');
+    if (w && /timed out|timeout/i.test(msg)) w.classList.remove('hidden');
   } finally {
     if (label) label.textContent = 'Test Connection';
     await refreshMailStatus(true);

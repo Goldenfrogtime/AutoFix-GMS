@@ -149,8 +149,13 @@ All other `/api/*` routes require a `Bearer` token except `/api/auth/login`.
 Quotations, Pro Forma Invoices and invoices can be **sent automatically**,
 fully branded, with the PDF attached. Two providers are supported.
 
-### Option A — SMTP (cPanel / shared hosting) — recommended for most garages
+### Option A — SMTP (cPanel / shared hosting)
 Sends through your existing hosting mailbox. No third-party account needed.
+
+> **⚠️ Not usable on the current Railway deployment.** Railway blocks outbound
+> SMTP ports (25/465/587/2525 all time out — verified). Use SendGrid there.
+> SMTP works when the app is hosted somewhere that allows outbound SMTP, such
+> as a VPS or the garage's own cPanel server.
 
 **Settings → Notifications → Email Channel**
 1. Tick **Enable email notifications**, provider **SMTP — cPanel / shared hosting**.
@@ -202,8 +207,10 @@ document preview.
 ## Known Limitations
 - **Mailgun** is not implemented — selecting it reports that clearly rather
   than silently failing. Use SMTP or SendGrid.
-- **Outbound SMTP ports** must be open from wherever the app is hosted. Railway
-  permits 465/587/25; some PaaS providers block them, in which case use SendGrid.
+- **⚠️ Railway BLOCKS outbound SMTP.** Ports 25/465/587/2525 all time out on the
+  current Railway deployment (verified 2026-09-08). Outbound HTTPS works fine,
+  so on Railway you must use **SendGrid**. SMTP is implemented and tested, and
+  works on any host that permits outbound SMTP — e.g. a VPS, or cPanel itself.
 - **SMTP is Node-only.** It uses TCP sockets via nodemailer, so it works on the
   Railway/Node deployment but NOT on Cloudflare Workers, which cannot open raw
   sockets. On Cloudflare, use SendGrid (HTTPS API).
