@@ -2574,9 +2574,9 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
                     <div>
                       <label class="form-label">Port</label>
                       <select class="form-input" id="sett-smtpPort" onchange="onSmtpPortChange()">
-                        <option value="465">465 (SSL)</option>
-                        <option value="587">587 (TLS)</option>
-                        <option value="25">25 (plain)</option>
+                        <option value="465">465 — SSL/TLS</option>
+                        <option value="587">587 — STARTTLS</option>
+                        <option value="25">25 — STARTTLS</option>
                       </select>
                     </div>
                   </div>
@@ -20951,6 +20951,11 @@ async function saveGarageSettings(silent) {
   var ssEl = document.getElementById('sett-smtpAllowSelfSigned');
   if (ssEl) payload.smtpRejectUnauthorized = !ssEl.checked;
 
+  // TLS mode is implied by the port: 465 = implicit SSL/TLS, everything else
+  // = STARTTLS. Sending it explicitly keeps the stored value from drifting out
+  // of sync with the port (a mismatch stalls the SMTP handshake).
+  if (payload.smtpPort) payload.smtpSecure = (payload.smtpPort === 465);
+
   try {
     var res = await axios.patch('/api/settings', payload);
     // Reflect the saved values everywhere immediately — no reload required.
@@ -21190,9 +21195,12 @@ function onEmailProviderChange() {
 
 /** Keep the TLS mode sensible when the port changes. */
 function onSmtpPortChange() {
-  // 465 = implicit SSL, 587/25 = STARTTLS. Handled server-side; this is a hint only.
-  var host = document.getElementById('sett-smtpHost');
-  if (host && !host.value) host.focus();
+  // TLS mode follows the port (465 = SSL/TLS, 587/25 = STARTTLS) and is sent
+  // on save. Clear any stale test result so it can't look like it still applies.
+  var out = document.getElementById('sett-smtpVerifyResult');
+  if (out) out.classList.add('hidden');
+  var warn = document.getElementById('smtpHostWarning');
+  if (warn) warn.classList.add('hidden');
 }
 
 /** Test the SMTP connection without sending an email. */

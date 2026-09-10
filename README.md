@@ -157,6 +157,23 @@ Sends through your existing hosting mailbox. No third-party account needed.
 > SMTP works when the app is hosted somewhere that allows outbound SMTP, such
 > as a VPS or the garage's own cPanel server.
 
+**Port and TLS mode must match**, or the SMTP handshake stalls:
+
+| Port | TLS mode | Notes |
+|---|---|---|
+| 465 | SSL/TLS (implicit) | Most common on cPanel |
+| 587 | STARTTLS | Also widely supported |
+| 25  | STARTTLS | Often blocked by ISPs |
+
+The app derives the TLS mode from the port automatically and, if the handshake
+fails, retries the standard alternative and saves whichever works — so a wrong
+choice self-corrects.
+
+Note the distinction in errors:
+- **"Greeting never received"** = connected, but TLS mode mismatched — *not* a
+  blocked port.
+- **"Connection timed out"** = the port really is blocked or the host is wrong.
+
 **Settings → Notifications → Email Channel**
 1. Tick **Enable email notifications**, provider **SMTP — cPanel / shared hosting**.
 2. **SMTP Host** — usually `mail.yourdomain.com`

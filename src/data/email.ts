@@ -14,7 +14,7 @@
  *   reported honestly as 'unsupported' rather than silently pretending to send.
  */
 
-import { garageSettings } from './store.js'
+import { garageSettings, updateGarageSettings } from './store.js'
 
 // ─── Brand fallbacks (kept in sync with TWIGA_BRAND in store.ts) ─────────────
 const FALLBACK_PRIMARY = '#122886'
@@ -219,12 +219,28 @@ function fromName(): string {
   return g.emailFromName || g.garageName || g.tradingName || 'Garage'
 }
 
-/** Sensible default port when the user leaves it blank. */
+/**
+ * Resolve port + TLS mode.
+ *
+ * The PORT is authoritative, deliberately:
+ *   465            → implicit TLS ("secure": TLS handshake starts immediately)
+ *   587 / 25 / etc → STARTTLS      ("secure": false, upgraded after greeting)
+ *
+ * Getting this pair wrong is the classic SMTP failure: connecting in plaintext
+ * to an implicit-TLS port makes the server wait for a TLS handshake that never
+ * comes, while the client waits for a text greeting — the connection then dies
+ * with "Greeting never received". Because the two ends deadlock, the symptom
+ * looks exactly like a firewall/port block, which sends people hunting the
+ * wrong problem entirely.
+ *
+ * smtpSecure is therefore only honoured as an override on NON-465 ports (some
+ * hosts run implicit TLS on a custom port). On 465 it is always forced true.
+ */
 function smtpPortAndSecure(): { port: number; secure: boolean } {
   const g = garageSettings
   const port = Number(g.smtpPort) || 587
-  // Port 465 is implicit TLS; 587/25 use STARTTLS. Honour an explicit override.
-  const secure = g.smtpSecure != null ? !!g.smtpSecure : port === 465
+  if (port === 465) return { port, secure: true }
+  const secure = g.smtpSecure === true ? true : false
   return { port, secure }
 }
 
@@ -243,8 +259,14 @@ function explainSmtpError(err: any): string {
   if (code === 'ECONNREFUSED') {
     return `Connection refused — the host or port is wrong, or the server is not accepting SMTP there. Try port 465 (SSL) or 587 (TLS). Server said: ${resp}`
   }
-  if (code === 'ETIMEDOUT' || code === 'ESOCKET' && /timed?.?out/i.test(resp)) {
-    return `Connection timed out. The SMTP port is likely blocked, or the hostname is wrong. Try mail.yourdomain.com on port 465 or 587. Details: ${resp}`
+  // "Greeting never received" is NOT a blocked port — the TCP connection
+  // succeeded but the TLS mode was wrong for that port, so both ends waited
+  // on each other. Distinguish it, because the advice is completely different.
+  if (/greeting never received/i.test(resp)) {
+    return `Connected to the server, but it never sent an SMTP greeting — this is a TLS mismatch, not a blocked port. Port 465 requires SSL/TLS while 587 requires STARTTLS. Both combinations were tried automatically. Confirm the host and port with your hosting provider (in cPanel: Email Accounts → Connect Devices). Details: ${resp}`
+  }
+  if (code === 'ETIMEDOUT' || (code === 'ESOCKET' && /timed?.?out/i.test(resp))) {
+    return `Connection timed out — the SMTP port is likely blocked by the network the app is hosted on, or the hostname is wrong. Details: ${resp}`
   }
   if (code === 'EDNS' || /ENOTFOUND|getaddrinfo/i.test(resp)) {
     return `The SMTP hostname could not be found. Check for typos — it is usually mail.yourdomain.com. Details: ${resp}`
@@ -258,6 +280,44 @@ function explainSmtpError(err: any): string {
   return `SMTP error${cmd}: ${resp}`
 }
 
+/** Build a transport for a given port/TLS combination. */
+async function makeTransport(port: number, secure: boolean) {
+  const g = garageSettings
+  const nodemailer = (await import('nodemailer')).default
+  return nodemailer.createTransport({
+    host: g.smtpHost,
+    port,
+    secure,
+    auth: { user: g.smtpUser, pass: g.smtpPassword },
+    tls: { rejectUnauthorized: g.smtpRejectUnauthorized !== false },
+    connectionTimeout: 15000,
+    greetingTimeout: 10000,
+    socketTimeout: 25000,
+  })
+}
+
+/** A handshake-level failure that a different TLS mode might fix. */
+function isHandshakeFailure(err: any): boolean {
+  const code = err?.code || ''
+  const msg  = String(err?.message || '')
+  return code === 'ETIMEDOUT' || code === 'ESOCKET' || code === 'ECONNRESET' ||
+         /greeting never received|wrong version number|record layer|SSL routines/i.test(msg)
+}
+
+/**
+ * Candidate port/TLS combinations to try, best guess first.
+ * If the configured pairing fails at the handshake, we retry the standard
+ * alternative rather than making the user diagnose TLS semantics themselves.
+ */
+function smtpCandidates(): { port: number; secure: boolean }[] {
+  const primary = smtpPortAndSecure()
+  const list = [primary]
+  if (primary.port === 465)      list.push({ port: 587, secure: false })
+  else if (primary.port === 587) list.push({ port: 465, secure: true })
+  else list.push({ port: primary.port, secure: !primary.secure })
+  return list
+}
+
 /** Verify SMTP credentials without sending a message (nodemailer verify()). */
 export async function verifySmtp(): Promise<SendResult> {
   const g = garageSettings
@@ -267,21 +327,35 @@ export async function verifySmtp(): Promise<SendResult> {
   const cfg = emailConfigured()
   if (!cfg.ok) return { ok: false, status: 'disabled', message: cfg.reason! }
 
-  try {
-    const nodemailer = (await import('nodemailer')).default
-    const { port, secure } = smtpPortAndSecure()
-    const transport = nodemailer.createTransport({
-      host: g.smtpHost, port, secure,
-      auth: { user: g.smtpUser, pass: g.smtpPassword },
-      tls: { rejectUnauthorized: g.smtpRejectUnauthorized !== false },
-      connectionTimeout: 15000, greetingTimeout: 10000, socketTimeout: 20000,
-    })
-    await transport.verify()
-    transport.close()
-    return { ok: true, status: 'sent', message: `Connected to ${g.smtpHost}:${port} and authenticated successfully.` }
-  } catch (err: any) {
-    return { ok: false, status: 'failed', message: explainSmtpError(err) }
+  const candidates = smtpCandidates()
+  let lastErr: any = null
+
+  for (let i = 0; i < candidates.length; i++) {
+    const { port, secure } = candidates[i]
+    let transport: any = null
+    try {
+      transport = await makeTransport(port, secure)
+      await transport.verify()
+      transport.close()
+      const mode = secure ? 'SSL/TLS' : 'STARTTLS'
+      // If a fallback worked, persist it so normal sends use it too.
+      if (i > 0) {
+        updateGarageSettings({ smtpPort: port, smtpSecure: secure })
+        return {
+          ok: true, status: 'sent',
+          message: `Connected to ${g.smtpHost}:${port} (${mode}) and authenticated successfully. ` +
+                   `Note: port ${candidates[0].port} did not respond, so the settings were switched to port ${port} and saved.`,
+        }
+      }
+      return { ok: true, status: 'sent', message: `Connected to ${g.smtpHost}:${port} (${mode}) and authenticated successfully.` }
+    } catch (err: any) {
+      if (transport) { try { transport.close() } catch {} }
+      lastErr = err
+      // Credentials/relay errors mean the transport is fine — stop retrying.
+      if (!isHandshakeFailure(err)) break
+    }
   }
+  return { ok: false, status: 'failed', message: explainSmtpError(lastErr) }
 }
 
 /** Send through a standard SMTP server (cPanel, Google Workspace, etc.). */
@@ -290,46 +364,45 @@ async function sendViaSmtp(opts: {
   text?: string; attachments?: Attachment[]; replyTo?: string
 }): Promise<SendResult> {
   const g = garageSettings
-  try {
-    const nodemailer = (await import('nodemailer')).default
-    const { port, secure } = smtpPortAndSecure()
-
-    const transport = nodemailer.createTransport({
-      host: g.smtpHost,
-      port,
-      secure,
-      auth: { user: g.smtpUser, pass: g.smtpPassword },
-      // Shared hosts frequently present certificates that don't match the
-      // hostname. Default to strict, but let the user relax it explicitly.
-      tls: { rejectUnauthorized: g.smtpRejectUnauthorized !== false },
-      connectionTimeout: 20000,
-      greetingTimeout: 10000,
-      socketTimeout: 30000,
-    })
-
-    const info = await transport.sendMail({
-      from: { name: fromName(), address: fromAddress() },
-      to: opts.toName ? { name: opts.toName, address: opts.to } : opts.to,
-      subject: opts.subject,
-      text: opts.text || htmlToText(opts.html),
-      html: opts.html,
-      replyTo: opts.replyTo || g.email || undefined,
-      attachments: (opts.attachments || []).map(a => ({
-        filename: a.filename,
-        content: Buffer.from(a.content, 'base64'),
-        contentType: a.type || 'application/pdf',
-      })),
-    })
-    transport.close()
-
-    // A rejected recipient still resolves — surface it rather than claiming success.
-    if (info.rejected && info.rejected.length) {
-      return { ok: false, status: 'failed', message: `The mail server rejected: ${info.rejected.join(', ')}` }
-    }
-    return { ok: true, status: 'sent', message: `Email accepted by ${g.smtpHost} (${info.messageId || 'queued'}).` }
-  } catch (err: any) {
-    return { ok: false, status: 'failed', message: explainSmtpError(err) }
+  const message = {
+    from: { name: fromName(), address: fromAddress() },
+    to: opts.toName ? { name: opts.toName, address: opts.to } : opts.to,
+    subject: opts.subject,
+    text: opts.text || htmlToText(opts.html),
+    html: opts.html,
+    replyTo: opts.replyTo || g.email || undefined,
+    attachments: (opts.attachments || []).map(a => ({
+      filename: a.filename,
+      content: Buffer.from(a.content, 'base64'),
+      contentType: a.type || 'application/pdf',
+    })),
   }
+
+  const candidates = smtpCandidates()
+  let lastErr: any = null
+
+  for (let i = 0; i < candidates.length; i++) {
+    const { port, secure } = candidates[i]
+    let transport: any = null
+    try {
+      transport = await makeTransport(port, secure)
+      const info = await transport.sendMail(message)
+      transport.close()
+
+      // A rejected recipient still resolves — surface it rather than claiming success.
+      if (info.rejected && info.rejected.length) {
+        return { ok: false, status: 'failed', message: `The mail server rejected: ${info.rejected.join(', ')}` }
+      }
+      // Remember a working fallback so later sends go straight there.
+      if (i > 0) updateGarageSettings({ smtpPort: port, smtpSecure: secure })
+      return { ok: true, status: 'sent', message: `Email accepted by ${g.smtpHost}:${port} (${info.messageId || 'queued'}).` }
+    } catch (err: any) {
+      if (transport) { try { transport.close() } catch {} }
+      lastErr = err
+      if (!isHandshakeFailure(err)) break
+    }
+  }
+  return { ok: false, status: 'failed', message: explainSmtpError(lastErr) }
 }
 
 /**
