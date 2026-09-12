@@ -27,7 +27,7 @@
  *   BACKUP_SECRET — Secret header value for auth
  */
 
-import { readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { readFileSync, writeFileSync, existsSync, statSync, unlinkSync } from 'node:fs'
 import { resolve } from 'node:path'
 
 import {
@@ -51,6 +51,59 @@ function DATA_FILE_PATH(): string {
            || process.env.GMS_DATA_DIR
            || '/app/data'
   return resolve(dir, 'gms-data.json')
+}
+
+/**
+ * Report where data is being stored and whether that location survives a
+ * redeploy. Exposed via GET /api/system/storage so persistence can be
+ * confirmed on demand instead of being assumed.
+ *
+ * `persistent` is true only when the path comes from a mounted volume
+ * (RAILWAY_VOLUME_MOUNT_PATH) or an explicit DATA_DIR override. The
+ * /app/data fallback lives inside the container image and IS WIPED on every
+ * redeploy — that is the dangerous case this endpoint exists to surface.
+ */
+export function storageStatus() {
+  const railwayVol = process.env.RAILWAY_VOLUME_MOUNT_PATH || ''
+  const manualDir  = process.env.DATA_DIR || process.env.GMS_DATA_DIR || ''
+  const source = railwayVol ? 'RAILWAY_VOLUME_MOUNT_PATH'
+               : manualDir  ? 'DATA_DIR'
+               : 'fallback (/app/data)'
+  const file = DATA_FILE_PATH()
+
+  let fileExists = false
+  let fileSize: number | null = null
+  let modifiedAt: string | null = null
+  let writable = false
+
+  try {
+    if (existsSync(file)) {
+      fileExists = true
+      const st = statSync(file)
+      fileSize = st.size
+      modifiedAt = st.mtime.toISOString()
+    }
+    // Prove the directory is actually writable — a mount can exist read-only.
+    const probe = resolve(railwayVol || manualDir || '/app/data', '.write-probe')
+    writeFileSync(probe, String(Date.now()), 'utf-8')
+    unlinkSync(probe)
+    writable = true
+  } catch { /* writable stays false */ }
+
+  return {
+    persistent: !!(railwayVol || manualDir),
+    source,
+    dataDir: railwayVol || manualDir || '/app/data',
+    dataFile: file,
+    fileExists,
+    fileSizeBytes: fileSize,
+    lastModified: modifiedAt,
+    writable,
+    recordCounts: countRecords(buildSnapshot()),
+    warning: (railwayVol || manualDir)
+      ? null
+      : 'No volume detected — data is inside the container and WILL BE LOST on the next redeploy.',
+  }
 }
 
 // ── Gist config ───────────────────────────────────────────────────────────────

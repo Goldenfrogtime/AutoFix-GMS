@@ -31,7 +31,7 @@ import {
   type SalesTarget, type SalesCommission, type TargetPeriod,
   type SAUpsellTarget, type SAUpsellCommission, type TechReferralCommission
 } from '../data/store'
-import { save } from '../data/persist'
+import { save, storageStatus } from '../data/persist'
 import {
   renderBrandedEmail, renderItemsTable, sendEmail, emailConfigured, verifySmtp,
   htmlToText, esc as escHtml,
@@ -4382,6 +4382,17 @@ function fmtMoney(n: number): string {
 function reqOrigin(c: any): string {
   try { return new URL(c.req.url).origin } catch { return '' }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SYSTEM / STORAGE HEALTH
+// ─────────────────────────────────────────────────────────────────────────────
+
+// GET /system/storage — confirm data is on a persistent volume and not inside
+// the container image (which is wiped on every redeploy). Requires auth so the
+// filesystem layout isn't exposed publicly.
+api.get('/system/storage', (c) => {
+  return c.json(storageStatus())
+})
 
 // GET /email/status — is email delivery ready? Drives the Settings indicator.
 api.get('/email/status', (c) => {
