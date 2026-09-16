@@ -221,6 +221,28 @@ PDFs and emails, re-applies brand colours and logos, clears the PDF logo raster
 cache, re-probes email status, and re-renders the current page plus any open
 document preview.
 
+## Grid / List Views
+**Customers** and **Pro Forma Invoices** each offer a Grid / List switch in the
+top-right of their filter row. The choice is remembered per browser:
+
+| Page | localStorage key | List columns |
+|---|---|---|
+| Customers | `gms_cust_view` | Customer, Type, Phone, Email, Vehicles, Jobs, Added, Actions |
+| PFIs | `gms_pfi_view` | Job Card, Customer, Category, Vehicle, Labour, Parts, Grand Total, Status, Date, Actions |
+
+The switch applies across every tab on its page (Customers: All / Individual /
+Corporate; PFIs: all category *and* status tabs). Secondary columns collapse at
+narrower breakpoints so the key figures and action buttons stay on screen.
+
+**When adding a new list view, note two traps:**
+1. Put the toggle markup *outside* any tab container whose handler rewrites
+   `button.className` in a loop (`#pfi-catTabs`, `#pfi-statusTabs`), or the
+   toggle's active styling is wiped on every tab change.
+2. Set the table's `min-width` to at least its real content width. If it is too
+   small the table box stops growing, `.table-scroll` sees no overflow to
+   scroll, and the card's `overflow-hidden` silently **clips** the Actions
+   column — with `scrollWidth === clientWidth` hiding the problem from tests.
+
 ## Known Limitations
 - **Mailgun** is not implemented — selecting it reports that clearly rather
   than silently failing. Use SMTP or SendGrid.
