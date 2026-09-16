@@ -1037,10 +1037,24 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         <span class="text-xs text-gray-400 font-semibold">Loading filter…</span>
       </div>
       <!-- Filter row: category tabs + status tabs -->
-      <div class="flex flex-wrap gap-2 mb-3" id="pfi-catTabs">
-        <button class="px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white" onclick="filterPFICategory('all',this)">All Jobs</button>
-        <button class="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200" onclick="filterPFICategory('Insurance',this)"><i class="fas fa-shield-alt mr-1"></i>Insurance</button>
-        <button class="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200" onclick="filterPFICategory('Private',this)"><i class="fas fa-user mr-1"></i>Private</button>
+      <!-- The view toggle lives OUTSIDE #pfi-catTabs: filterPFICategory() resets the
+           className of every button inside that container, which would wipe the
+           toggle's active styling on each tab change. -->
+      <div class="flex flex-wrap items-center gap-2 mb-3">
+        <div class="flex flex-wrap gap-2" id="pfi-catTabs">
+          <button class="px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white" onclick="filterPFICategory('all',this)">All Jobs</button>
+          <button class="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200" onclick="filterPFICategory('Insurance',this)"><i class="fas fa-shield-alt mr-1"></i>Insurance</button>
+          <button class="px-4 py-2 rounded-lg text-sm font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200" onclick="filterPFICategory('Private',this)"><i class="fas fa-user mr-1"></i>Private</button>
+        </div>
+        <!-- Grid / List view switch — applies to every category and status tab -->
+        <div class="ml-auto flex items-center gap-1 bg-gray-100 rounded-xl p-1" id="pfiViewToggle">
+          <button id="pfiView-grid" class="pfi-view-btn px-3 py-1.5 rounded-lg text-sm font-semibold transition-all" onclick="setPFIView('grid')" title="Grid view">
+            <i class="fas fa-th-large"></i><span class="hidden sm:inline ml-1">Grid</span>
+          </button>
+          <button id="pfiView-list" class="pfi-view-btn px-3 py-1.5 rounded-lg text-sm font-semibold transition-all" onclick="setPFIView('list')" title="List view">
+            <i class="fas fa-list"></i><span class="hidden sm:inline ml-1">List</span>
+          </button>
+        </div>
       </div>
       <div class="flex flex-wrap gap-2 mb-5" id="pfi-statusTabs">
         <button class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-800 text-white" onclick="filterPFIs('all',this)">All Statuses</button>
@@ -1050,7 +1064,33 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         <button class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200" onclick="filterPFIs('Sent',this)">Sent</button>
         <button class="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200" onclick="filterPFIs('Rejected',this)">Rejected</button>
       </div>
+      <!-- Grid view -->
       <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" id="claimsGrid"></div>
+      <!-- List view -->
+      <div class="card overflow-hidden hidden" id="claimsListWrap">
+        <div class="table-scroll">
+          <!-- Labour/Parts are secondary detail: they collapse on narrower screens so
+               Grand Total, Status and Actions stay visible.
+               min-width must cover the natural width of the nowrap cells. If it is too
+               small the table box stops growing, .table-scroll sees no overflow to
+               scroll, and the card's overflow-hidden silently CLIPS the Actions column. -->
+          <table class="w-full text-sm" style="min-width:1040px">
+            <thead><tr class="border-b border-gray-100 bg-gray-50">
+              <th class="text-left px-3 py-3 font-semibold text-gray-600">Job Card</th>
+              <th class="text-left px-3 py-3 font-semibold text-gray-600">Customer</th>
+              <th class="text-left px-3 py-3 font-semibold text-gray-600">Category</th>
+              <th class="text-left px-3 py-3 font-semibold text-gray-600 hidden lg:table-cell">Vehicle</th>
+              <th class="text-right px-3 py-3 font-semibold text-gray-600 hidden 2xl:table-cell">Labour</th>
+              <th class="text-right px-3 py-3 font-semibold text-gray-600 hidden 2xl:table-cell">Parts</th>
+              <th class="text-right px-3 py-3 font-semibold text-gray-600">Grand Total</th>
+              <th class="text-left px-3 py-3 font-semibold text-gray-600">Status</th>
+              <th class="text-left px-3 py-3 font-semibold text-gray-600 hidden md:table-cell">Date</th>
+              <th class="text-right px-3 py-3 font-semibold text-gray-600">Actions</th>
+            </tr></thead>
+            <tbody id="claimsTable"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
     <!-- ═══ INVOICES ═══ -->
@@ -13989,7 +14029,85 @@ async function loadClaims() {
   _applyPFIFilters();
 }
 
+// ─── PFI view mode (grid | list) ─────────────────────────────────────────────
+// Persisted per browser so the user's preference survives navigation/reload.
+var _pfiView = localStorage.getItem('gms_pfi_view') || 'grid';
+
+function setPFIView(mode) {
+  _pfiView = (mode === 'list') ? 'list' : 'grid';
+  localStorage.setItem('gms_pfi_view', _pfiView);
+  _applyPFIViewButtons();
+  // Re-render through the filter chain so category/status/date filters persist
+  _applyPFIFilters();
+}
+
+function _applyPFIViewButtons() {
+  var active   = 'pfi-view-btn px-3 py-1.5 rounded-lg text-sm font-semibold transition-all bg-white text-blue-600 shadow-sm';
+  var inactive = 'pfi-view-btn px-3 py-1.5 rounded-lg text-sm font-semibold transition-all text-gray-500 hover:text-gray-700';
+  var g = document.getElementById('pfiView-grid');
+  var l = document.getElementById('pfiView-list');
+  if (g) g.className = (_pfiView === 'grid') ? active : inactive;
+  if (l) l.className = (_pfiView === 'list') ? active : inactive;
+  var grid = document.getElementById('claimsGrid');
+  var wrap = document.getElementById('claimsListWrap');
+  if (grid) grid.classList.toggle('hidden', _pfiView !== 'grid');
+  if (wrap) wrap.classList.toggle('hidden', _pfiView !== 'list');
+}
+
+/** Render the compact table (list) view for PFIs. */
+function renderClaimsList(pfis) {
+  var tbody = document.getElementById('claimsTable');
+  if (!tbody) return;
+  if (!pfis.length) {
+    tbody.innerHTML = '<tr><td colspan="10" class="text-center py-16 text-gray-400">' +
+      '<i class="fas fa-file-invoice text-4xl mb-3 block"></i>No PFIs found</td></tr>';
+    return;
+  }
+  tbody.innerHTML = pfis.map(function(pfi) {
+    var job = allJobCards.find(function(j) { return j.id === pfi.jobCardId; });
+    var cfg = PFI_STATUS_CONFIG[pfi.status] || PFI_STATUS_CONFIG['Draft'];
+    var isInsurance = job && job.category === 'Insurance';
+    var catBadge = isInsurance
+      ? '<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700"><i class="fas fa-shield-alt"></i> Insurance</span>'
+      : '<span class="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700"><i class="fas fa-user"></i> Private</span>';
+    var grand = pfi.totalAmount || ((pfi.totalEstimate || 0) + (pfi.tax || 0));
+    var hasInv = _pfiHasInvoice(pfi.jobCardId);
+    var reg = (job && job.vehicle && job.vehicle.registrationNumber) ? job.vehicle.registrationNumber : '\\u2014';
+    var custName = (job && job.customer && job.customer.name) ? job.customer.name : '\\u2014';
+    var jcNum = (job && job.jobCardNumber) ? job.jobCardNumber : '\\u2014';
+    var insurerLine = (isInsurance && job && job.insurer) ? job.insurer : '';
+
+    return '<tr class="table-row border-b border-gray-50">' +
+      '<td class="px-3 py-3"><p class="font-bold text-gray-900 whitespace-nowrap">' + _esc(jcNum) + '</p>' +
+        (hasInv ? '<p class="text-xs text-green-600 mt-0.5"><i class="fas fa-check-circle mr-1"></i>Invoiced</p>' : '') +
+        '<p class="text-xs text-gray-400 mt-0.5 lg:hidden">' + _esc(reg) + '</p>' +
+      '</td>' +
+      '<td class="px-3 py-3"><p class="text-gray-800 truncate" style="max-width:170px">' + _esc(custName) + '</p>' +
+        (insurerLine ? '<p class="text-xs text-gray-400 truncate" style="max-width:170px">' + _esc(insurerLine) + '</p>' : '') +
+      '</td>' +
+      '<td class="px-3 py-3">' + catBadge + '</td>' +
+      '<td class="px-3 py-3 text-gray-600 whitespace-nowrap hidden lg:table-cell">' + _esc(reg) + '</td>' +
+      '<td class="px-3 py-3 text-right text-gray-600 whitespace-nowrap hidden 2xl:table-cell">' + fmt(pfi.labourCost) + '</td>' +
+      '<td class="px-3 py-3 text-right text-gray-600 whitespace-nowrap hidden 2xl:table-cell">' + fmt(pfi.partsCost) + '</td>' +
+      '<td class="px-3 py-3 text-right font-bold text-blue-600 whitespace-nowrap">' + fmt(grand) + '</td>' +
+      '<td class="px-3 py-3"><span class="badge whitespace-nowrap" style="background:' + cfg.bg + ';color:' + cfg.text + '">' +
+        '<i class="fas ' + cfg.icon + ' mr-1"></i>' + _esc(pfi.status) + '</span></td>' +
+      '<td class="px-3 py-3 text-gray-500 text-xs whitespace-nowrap hidden md:table-cell">' + fmtDate(pfi.createdAt) + '</td>' +
+      '<td class="px-3 py-3 text-right whitespace-nowrap">' +
+        '<div class="inline-flex items-center gap-1">' +
+          '<button class="text-xs font-semibold px-2 py-1 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors" onclick="downloadPFI(\\'' + pfi.id + '\\')" title="Download PDF"><i class="fas fa-download"></i></button>' +
+          '<button class="text-xs font-semibold px-2 py-1 rounded-lg bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors" onclick="showSendPFIModal(\\'' + pfi.id + '\\')" title="' + (pfi.sentAt ? 'Resend to customer' : 'Send to customer') + '"><i class="fas fa-paper-plane"></i></button>' +
+          (!hasInv ? '<button class="text-xs font-semibold px-2 py-1 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors" onclick="showEditPFIModal(\\'' + pfi.id + '\\')" title="Edit PFI"><i class="fas fa-edit"></i></button>' : '') +
+        '</div>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+
 function renderClaims(pfis) {
+  // Route to whichever view is active
+  _applyPFIViewButtons();
+  if (_pfiView === 'list') { renderClaimsList(pfis); return; }
   const grid = document.getElementById('claimsGrid');
   if (!pfis.length) { grid.innerHTML = '<div class="col-span-3 text-center py-16 text-gray-400"><i class="fas fa-file-invoice text-4xl mb-3 block"></i>No PFIs found</div>'; return; }
   grid.innerHTML = pfis.map(pfi => {
