@@ -297,6 +297,7 @@ export interface Customer {
   salesRepId?: string           // Sales rep who brought in this customer
   salesRepName?: string
   createdAt: string
+  updatedAt?: string            // set when the record is edited
 }
 
 export interface Vehicle {

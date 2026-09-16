@@ -463,10 +463,18 @@ api.post('/customers', async (c) => {
 })
 
 api.put('/customers/:id', async (c) => {
+  // Editing a customer record is a privileged action — enforce the permission
+  // that already exists in ROLE_PERMISSIONS but was never applied here.
+  const _pe = requirePerm(c, 'customers.edit'); if (_pe) return _pe
   const idx = customers.findIndex(x => x.id === c.req.param('id'))
   if (idx === -1) return c.json({ error: 'Not found' }, 404)
   const body = await c.req.json<Partial<Customer>>()
-  customers[idx] = { ...customers[idx], ...body }
+
+  // Never let the client rewrite identity/provenance fields.
+  delete (body as any).id
+  delete (body as any).createdAt
+
+  customers[idx] = { ...customers[idx], ...body, updatedAt: now() }
   return c.json(customers[idx])
 })
 

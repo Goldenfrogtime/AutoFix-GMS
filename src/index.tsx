@@ -957,8 +957,36 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
         <button id="custTab-Corporate" class="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-white text-gray-600 border border-gray-200 hover:bg-gray-50 transition-all" onclick="setCustomerTab('Corporate',this)">
           <i class="fas fa-building"></i> Corporate <span id="custCount-Corporate" class="bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded-full ml-1">0</span>
         </button>
+        <!-- Grid / List view switch — applies to all three tabs -->
+        <div class="ml-auto flex items-center gap-1 bg-gray-100 rounded-xl p-1" id="custViewToggle">
+          <button id="custView-grid" class="cust-view-btn px-3 py-1.5 rounded-lg text-sm font-semibold transition-all" onclick="setCustomerView('grid')" title="Grid view">
+            <i class="fas fa-th-large"></i><span class="hidden sm:inline ml-1">Grid</span>
+          </button>
+          <button id="custView-list" class="cust-view-btn px-3 py-1.5 rounded-lg text-sm font-semibold transition-all" onclick="setCustomerView('list')" title="List view">
+            <i class="fas fa-list"></i><span class="hidden sm:inline ml-1">List</span>
+          </button>
+        </div>
       </div>
+      <!-- Grid view -->
       <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" id="customersGrid"></div>
+      <!-- List view -->
+      <div class="card overflow-hidden hidden" id="customersListWrap">
+        <div class="table-scroll">
+          <table class="w-full text-sm" style="min-width:820px">
+            <thead><tr class="border-b border-gray-100 bg-gray-50">
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Customer</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Type</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Phone</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Email</th>
+              <th class="text-center px-4 py-3 font-semibold text-gray-600">Vehicles</th>
+              <th class="text-center px-4 py-3 font-semibold text-gray-600">Jobs</th>
+              <th class="text-left px-4 py-3 font-semibold text-gray-600">Added</th>
+              <th class="text-right px-4 py-3 font-semibold text-gray-600">Actions</th>
+            </tr></thead>
+            <tbody id="customersTable"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
 
     <!-- ═══ VEHICLES ═══ -->
@@ -3086,9 +3114,14 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
 <div id="modal-newCustomer" class="modal-overlay hidden">
   <div class="modal-box">
     <div class="flex items-center justify-between mb-6">
-      <div><h3 class="text-xl font-bold text-gray-900">Add Customer</h3><p class="text-sm text-gray-500">Create a new customer profile</p></div>
+      <div>
+        <h3 class="text-xl font-bold text-gray-900" id="cust-modal-title">Add Customer</h3>
+        <p class="text-sm text-gray-500" id="cust-modal-subtitle">Create a new customer profile</p>
+      </div>
       <button class="text-gray-400 hover:text-gray-600 text-xl" onclick="closeModal('modal-newCustomer')"><i class="fas fa-times"></i></button>
     </div>
+    <!-- Set when editing an existing customer; empty means "create new" -->
+    <input type="hidden" id="cust-edit-id" value=""/>
     <form id="newCustomerForm" onsubmit="submitNewCustomer(event)">
       <!-- Customer Type Toggle -->
       <div class="mb-5">
@@ -3131,7 +3164,7 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       </div>
       <div class="flex gap-3 justify-end">
         <button type="button" class="btn-secondary" onclick="closeModal('modal-newCustomer')">Cancel</button>
-        <button type="submit" class="btn-primary"><i class="fas fa-save"></i> Add Customer</button>
+        <button type="submit" class="btn-primary" id="cust-submit-btn"><i class="fas fa-save"></i> <span id="cust-submit-label">Add Customer</span></button>
       </div>
     </form>
   </div>
@@ -11743,7 +11776,77 @@ function setCustomerTab(type, btn) {
   filterCustomers(searchQ);
 }
 
+// ─── Customer view mode (grid | list) ────────────────────────────────────────
+// Persisted per browser so the user's preference survives navigation/reload.
+var _custView = localStorage.getItem('gms_cust_view') || 'grid';
+
+function setCustomerView(mode) {
+  _custView = (mode === 'list') ? 'list' : 'grid';
+  localStorage.setItem('gms_cust_view', _custView);
+  _applyCustViewButtons();
+  // Re-render through the filter so the active tab/search/date filters persist
+  filterCustomers(document.getElementById('customerSearchInput')?.value || '');
+}
+
+function _applyCustViewButtons() {
+  var active   = 'cust-view-btn px-3 py-1.5 rounded-lg text-sm font-semibold transition-all bg-white text-blue-600 shadow-sm';
+  var inactive = 'cust-view-btn px-3 py-1.5 rounded-lg text-sm font-semibold transition-all text-gray-500 hover:text-gray-700';
+  var g = document.getElementById('custView-grid');
+  var l = document.getElementById('custView-list');
+  if (g) g.className = (_custView === 'grid') ? active : inactive;
+  if (l) l.className = (_custView === 'list') ? active : inactive;
+  var grid = document.getElementById('customersGrid');
+  var wrap = document.getElementById('customersListWrap');
+  if (grid) grid.classList.toggle('hidden', _custView !== 'grid');
+  if (wrap) wrap.classList.toggle('hidden', _custView !== 'list');
+}
+
+/** Render the compact table (list) view. */
+function renderCustomersList(list) {
+  var tbody = document.getElementById('customersTable');
+  if (!tbody) return;
+  if (!list.length) {
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center py-16 text-gray-400">' +
+      '<i class="fas fa-users text-4xl mb-3 block"></i>No customers found</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(function(c) {
+    var isCorp = c.customerType === 'Corporate';
+    var initials = isCorp ? '<i class="fas fa-building text-xs"></i>' : (c.name || '?').charAt(0).toUpperCase();
+    var grad = isCorp ? 'linear-gradient(135deg,#6366f1,#8b5cf6)' : 'linear-gradient(135deg,#3b82f6,#2563eb)';
+    var typeBadge = isCorp
+      ? '<span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">Corporate</span>'
+      : '<span class="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">Individual</span>';
+    var sub = isCorp && c.contactPerson ? c.contactPerson
+            : (isCorp && c.companyName && c.companyName !== c.name ? c.companyName : '');
+    return '<tr class="table-row border-b border-gray-50 cursor-pointer" onclick="viewCustomerDetail(\\'' + c.id + '\\')">' +
+      '<td class="px-4 py-3">' +
+        '<div class="flex items-center gap-2.5">' +
+          '<div class="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style="background:' + grad + '">' + initials + '</div>' +
+          '<div class="min-w-0">' +
+            '<p class="font-semibold text-gray-800 truncate">' + _esc(c.name) + '</p>' +
+            (sub ? '<p class="text-xs text-gray-400 truncate">' + _esc(sub) + '</p>' : '') +
+          '</div>' +
+        '</div>' +
+      '</td>' +
+      '<td class="px-4 py-3">' + typeBadge + '</td>' +
+      '<td class="px-4 py-3 text-gray-600">' + _esc(c.phone || '\\u2014') + '</td>' +
+      '<td class="px-4 py-3 text-gray-500 truncate" style="max-width:180px">' + _esc(c.email || '\\u2014') + '</td>' +
+      '<td class="px-4 py-3 text-center font-semibold text-blue-600">' + (c.vehicleCount || 0) + '</td>' +
+      '<td class="px-4 py-3 text-center font-semibold text-green-600">' + (c.jobCount || 0) + '</td>' +
+      '<td class="px-4 py-3 text-gray-500 text-xs">' + fmtDate(c.createdAt) + '</td>' +
+      '<td class="px-4 py-3 text-right whitespace-nowrap" onclick="event.stopPropagation()">' +
+        '<button class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors" onclick="showEditCustomerModal(\\'' + c.id + '\\')" title="Edit customer">' +
+          '<i class="fas fa-pen mr-1"></i>Edit</button>' +
+      '</td>' +
+    '</tr>';
+  }).join('');
+}
+
 function renderCustomers(list) {
+  // Route to whichever view is active
+  _applyCustViewButtons();
+  if (_custView === 'list') { renderCustomersList(list); return; }
   document.getElementById('customersGrid').innerHTML = list.map(c => {
     const isCorp = c.customerType === 'Corporate';
     const initials = isCorp ? '<i class="fas fa-building text-sm"></i>' : c.name.charAt(0).toUpperCase();
@@ -11785,6 +11888,11 @@ function renderCustomers(list) {
           <p class="text-xs font-semibold text-gray-600">\${fmtDate(c.createdAt)}</p>
         </div>
       </div>
+      <div class="pt-3 mt-1 border-t border-gray-100 flex justify-end" onclick="event.stopPropagation()">
+        <button class="text-xs font-semibold px-2.5 py-1 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors" onclick="showEditCustomerModal('\${c.id}')">
+          <i class="fas fa-pen mr-1"></i>Edit
+        </button>
+      </div>
     </div>
   \`;
   }).join('') || '<div class="col-span-3 text-center py-16 text-gray-400"><i class="fas fa-users text-4xl mb-3 block"></i>No customers found</div>';
@@ -11808,6 +11916,11 @@ function filterCustomers(q) {
     (c.contactPerson||'').toLowerCase().includes(lq)
   );
   updateCustomerCounts(list);
+  // Newest first — the most recently added customer is usually the one being
+  // worked on. Copied before sorting so allCustomers keeps its API order.
+  list = list.slice().sort(function(a, b) {
+    return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+  });
   renderCustomers(list);
 }
 
@@ -12041,7 +12154,49 @@ function addSubPlanChange() {
 function showNewCustomerModal() {
   selectCustType('Individual');
   document.getElementById('newCustomerForm').reset();
+  // Clear edit mode — the same modal is reused for create and edit so the two
+  // forms can never drift apart.
+  document.getElementById('cust-edit-id').value = '';
+  document.getElementById('cust-modal-title').textContent = 'Add Customer';
+  document.getElementById('cust-modal-subtitle').textContent = 'Create a new customer profile';
+  document.getElementById('cust-submit-label').textContent = 'Add Customer';
   openModal('modal-newCustomer');
+}
+
+/**
+ * Open the customer modal pre-filled for editing.
+ * Reuses the Add Customer form; the hidden cust-edit-id switches the submit
+ * handler from POST (create) to PUT (update).
+ */
+async function showEditCustomerModal(id) {
+  if (!can('customers.edit')) { showToast('You do not have permission to edit customers', 'error'); return; }
+  try {
+    var r = await axios.get('/api/customers/' + id);
+    var c = r.data;
+
+    document.getElementById('newCustomerForm').reset();
+    selectCustType(c.customerType === 'Corporate' ? 'Corporate' : 'Individual');
+
+    function set(elId, val) { var el = document.getElementById(elId); if (el) el.value = val || ''; }
+    set('cust-name',     c.name);
+    set('cust-phone',    c.phone);
+    set('cust-whatsapp', c.whatsapp);
+    set('cust-email',    c.email);
+    set('cust-address',  c.address);
+    set('cust-id',       c.idNumber);
+    set('cust-company',  c.companyName);
+    set('cust-contact',  c.contactPerson);
+    set('cust-taxpin',   c.taxPin);
+
+    document.getElementById('cust-edit-id').value = c.id;
+    document.getElementById('cust-modal-title').textContent = 'Edit Customer';
+    document.getElementById('cust-modal-subtitle').textContent = 'Update ' + (c.name || 'customer') + '\\u2019s details';
+    document.getElementById('cust-submit-label').textContent = 'Save Changes';
+
+    openModal('modal-newCustomer');
+  } catch(e) {
+    showToast('Could not load customer: ' + (e.response?.data?.error || e.message), 'error');
+  }
 }
 
 function selectCustType(type) {
@@ -12081,13 +12236,36 @@ async function submitNewCustomer(e) {
     payload.companyName   = toTitleCase(document.getElementById('cust-company').value);
     payload.contactPerson = toTitleCase(document.getElementById('cust-contact').value);
     payload.taxPin        = document.getElementById('cust-taxpin').value.trim();
+  } else {
+    // Switching Corporate -> Individual must clear the corporate-only fields,
+    // otherwise stale company details linger on the record.
+    payload.companyName   = '';
+    payload.contactPerson = '';
+    payload.taxPin        = '';
   }
-  await axios.post('/api/customers', payload);
-  closeModal('modal-newCustomer');
-  document.getElementById('newCustomerForm').reset();
-  selectCustType('Individual');
-  showToast('Customer added successfully');
-  loadCustomers();
+
+  var editId = (document.getElementById('cust-edit-id') || {}).value || '';
+  var btn = document.getElementById('cust-submit-btn');
+  if (btn) btn.disabled = true;
+
+  try {
+    if (editId) {
+      await axios.put('/api/customers/' + editId, payload);
+      showToast('Customer updated successfully');
+    } else {
+      await axios.post('/api/customers', payload);
+      showToast('Customer added successfully');
+    }
+    closeModal('modal-newCustomer');
+    document.getElementById('newCustomerForm').reset();
+    document.getElementById('cust-edit-id').value = '';
+    selectCustType('Individual');
+    loadCustomers();
+  } catch(err) {
+    showToast('Failed to save customer: ' + (err.response?.data?.error || err.message), 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 // ═══════════════════════════════════════════════════════════
