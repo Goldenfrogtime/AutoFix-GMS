@@ -4365,8 +4365,17 @@ body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#f1f5f
       <h4 class="font-bold text-gray-700 text-sm mb-3 flex items-center gap-2">
         <span class="w-6 h-6 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center text-xs font-bold">A</span>
         Inspection Items
-        <span class="text-xs text-gray-400 font-normal">(tick if checked/OK)</span>
+        <span class="text-xs text-gray-400 font-normal">(tick each item you have checked)</span>
+        <span id="insp-progress" class="ml-auto text-xs font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">0 of 0 checked</span>
       </h4>
+      <div class="flex items-center gap-2 mb-2">
+        <button type="button" class="text-xs font-semibold px-2.5 py-1 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50" onclick="inspSetAll(true)">
+          <i class="fas fa-check-double mr-1"></i>Mark all OK
+        </button>
+        <button type="button" class="text-xs font-semibold px-2.5 py-1 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50" onclick="inspSetAll(false)">
+          <i class="fas fa-eraser mr-1"></i>Clear all
+        </button>
+      </div>
       <div class="grid grid-cols-2 gap-2" id="insp-items-grid"><!-- rendered by JS --></div>
     </div>
     <!-- Section B: Recommendations -->
@@ -10423,6 +10432,40 @@ const INSP_ITEMS = [
 
 let _inspJobId = null;
 
+/**
+ * Live count of ticked inspection items.
+ *
+ * Items now default to UNCHECKED so a technician has to positively confirm
+ * each check. This counter makes the state obvious at a glance and warns when
+ * nothing has been ticked, since the form carries signatures and drives the
+ * customer's quotation.
+ */
+function updateInspProgress() {
+  var total = INSP_ITEMS.length;
+  var done = INSP_ITEMS.filter(function(it) {
+    var cb = document.getElementById('insp-item-' + it.id);
+    return cb && cb.checked;
+  }).length;
+
+  var el = document.getElementById('insp-progress');
+  if (el) {
+    el.textContent = done + ' of ' + total + ' checked';
+    var cls = 'ml-auto text-xs font-semibold px-2 py-0.5 rounded-full ';
+    el.className = cls + (done === 0    ? 'bg-red-100 text-red-700'
+                        : done === total ? 'bg-green-100 text-green-700'
+                                         : 'bg-amber-100 text-amber-700');
+  }
+}
+
+/** Bulk tick/untick — convenience for a vehicle that is genuinely all-OK. */
+function inspSetAll(state) {
+  INSP_ITEMS.forEach(function(it) {
+    var cb = document.getElementById('insp-item-' + it.id);
+    if (cb) cb.checked = !!state;
+  });
+  updateInspProgress();
+}
+
 async function showInspectionModal(jobId) {
   _inspJobId = jobId;
   openModal('modal-inspection');
@@ -10432,12 +10475,15 @@ async function showInspectionModal(jobId) {
   if (grid) {
     grid.innerHTML = INSP_ITEMS.map(function(item) {
       return '<label class="flex items-center gap-2.5 p-2.5 rounded-xl border border-gray-200 bg-white hover:bg-amber-50 hover:border-amber-300 cursor-pointer transition-all select-none">' +
-        '<input type="checkbox" id="insp-item-' + item.id + '" class="w-4 h-4 accent-amber-600 flex-shrink-0" checked/>' +
+        '<input type="checkbox" id="insp-item-' + item.id + '" class="w-4 h-4 accent-amber-600 flex-shrink-0" onchange="updateInspProgress()"/>' +
         '<i class="fas ' + item.icon + ' text-gray-400 text-xs w-4 flex-shrink-0"></i>' +
         '<span class="text-sm text-gray-700 font-medium leading-tight">' + item.label + '</span>' +
         '</label>';
     }).join('');
   }
+
+  // Reset the progress badge for the freshly-rendered (all unchecked) grid
+  updateInspProgress();
 
   // Clear signatures
   pcClearSig('insp-tech'); pcClearSig('insp-sa');
@@ -10474,6 +10520,17 @@ async function submitInspection() {
   if (!jobId) return;
   const techCanvas = document.getElementById('insp-tech-canvas');
   if (pcIsEmpty(techCanvas)) { showToast('Technician signature is required', 'error'); return; }
+
+  // Items default to unchecked, so an all-blank submission is most likely an
+  // oversight. Confirm rather than silently recording an empty inspection.
+  const checkedCount = INSP_ITEMS.filter(function(it) {
+    const cb = document.getElementById('insp-item-' + it.id);
+    return cb && cb.checked;
+  }).length;
+  if (checkedCount === 0 &&
+      !confirm('No inspection items are ticked.\\n\\nThis will record an inspection with nothing checked. Continue anyway?')) {
+    return;
+  }
   const btn = document.getElementById('insp-submit-btn');
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Submitting…'; }
   try {
